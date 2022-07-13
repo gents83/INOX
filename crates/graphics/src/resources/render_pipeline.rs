@@ -9,9 +9,8 @@ use inox_resources::{
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 
 use crate::{
-    BindingData, InstanceData, RenderContext, RenderPipelineData, Shader,
-    VertexBufferLayoutBuilder, VertexFormat, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT,
-    VERTEX_SHADER_ENTRY_POINT,
+    BindingData, RenderContext, RenderPipelineData, Shader, VertexBufferLayoutBuilder,
+    FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT, VERTEX_SHADER_ENTRY_POINT,
 };
 
 pub type RenderPipelineId = ResourceId;
@@ -21,7 +20,7 @@ pub struct RenderPipeline {
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
     data: RenderPipelineData,
-    format: Option<wgpu::TextureFormat>,
+    formats: Vec<wgpu::TextureFormat>,
     vertex_shader: Handle<Shader>,
     fragment_shader: Handle<Shader>,
     render_pipeline: Option<wgpu::RenderPipeline>,
@@ -38,7 +37,7 @@ impl Clone for RenderPipeline {
             message_hub: self.message_hub.clone(),
             vertex_shader: Some(vertex_shader),
             fragment_shader: Some(fragment_shader),
-            format: None,
+            formats: Vec::new(),
             render_pipeline: None,
         }
     }
@@ -98,7 +97,7 @@ impl DataTypeResource for RenderPipeline {
             shared_data: shared_data.clone(),
             message_hub: message_hub.clone(),
             data: RenderPipelineData::default(),
-            format: None,
+            formats: Vec::new(),
             vertex_shader: None,
             fragment_shader: None,
             render_pipeline: None,
@@ -106,15 +105,13 @@ impl DataTypeResource for RenderPipeline {
     }
 
     fn invalidate(&mut self) -> &mut Self {
-        self.format = None;
+        self.formats = Vec::new();
         self
     }
     fn is_initialized(&self) -> bool {
-        self.data.is_valid()
-            && self.vertex_shader.is_some()
+        self.vertex_shader.is_some()
             && self.fragment_shader.is_some()
             && self.render_pipeline.is_some()
-            && self.vertex_format() != 0
     }
     fn deserialize_data(
         path: &std::path::Path,
@@ -128,7 +125,7 @@ impl DataTypeResource for RenderPipeline {
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         id: ResourceId,
-        data: Self::DataType,
+        data: &Self::DataType,
     ) -> Self
     where
         Self: Sized,
@@ -147,13 +144,6 @@ impl DataTypeResource for RenderPipeline {
 impl RenderPipeline {
     pub fn data(&self) -> &RenderPipelineData {
         &self.data
-    }
-    pub fn set_vertex_format(&mut self, format: Vec<VertexFormat>) -> &mut Self {
-        self.data.vertex_format = format;
-        self
-    }
-    pub fn vertex_format(&self) -> u32 {
-        VertexFormat::to_bits(self.data.vertex_format.as_slice())
     }
     pub fn render_pipeline(&self) -> &wgpu::RenderPipeline {
         self.render_pipeline.as_ref().unwrap()
@@ -180,9 +170,11 @@ impl RenderPipeline {
     pub fn init(
         &mut self,
         context: &RenderContext,
-        render_format: &wgpu::TextureFormat,
+        render_formats: Vec<&wgpu::TextureFormat>,
         depth_format: Option<&wgpu::TextureFormat>,
         binding_data: &BindingData,
+        vertex_layout: Option<VertexBufferLayoutBuilder>,
+        instance_layout: Option<VertexBufferLayoutBuilder>,
     ) -> bool {
         inox_profiler::scoped_profile!("render_pipeline::init");
         if self.vertex_shader.is_none() || self.fragment_shader.is_none() {
@@ -194,7 +186,7 @@ impl RenderPipeline {
                     return false;
                 }
                 self.render_pipeline = None;
-                self.format = None;
+                self.formats = Vec::new();
             }
         }
         if let Some(shader) = self.fragment_shader.as_ref() {
@@ -203,10 +195,16 @@ impl RenderPipeline {
                     return false;
                 }
                 self.render_pipeline = None;
-                self.format = None;
+                self.formats = Vec::new();
             }
         }
-        let is_same_format = self.format == Some(*render_format);
+        let count = self
+            .formats
+            .iter()
+            .zip(&render_formats)
+            .filter(|&(a, &b)| a == b)
+            .count();
+        let is_same_format = count == self.formats.len() && count == render_formats.len();
         if is_same_format {
             return true;
         }
@@ -224,8 +222,14 @@ impl RenderPipeline {
                     push_constant_ranges: &[],
                 });
 
-        let vertex_layout =
-            VertexBufferLayoutBuilder::create_from_vertex_data_attribute(&self.data.vertex_format);
+        let mut vertex_state_buffers = Vec::new();
+        if let Some(vertex_layout) = vertex_layout.as_ref() {
+            vertex_state_buffers.push(vertex_layout.build());
+        }
+        if let Some(instance_layout) = instance_layout.as_ref() {
+            vertex_state_buffers.push(instance_layout.build());
+        }
+
         let render_pipeline = {
             inox_profiler::scoped_profile!("render_pipeline::crate[{}]", self.name());
             context
@@ -251,10 +255,7 @@ impl RenderPipeline {
                         } else {
                             SHADER_ENTRY_POINT
                         },
-                        buffers: &[
-                            vertex_layout.build(),
-                            InstanceData::descriptor(vertex_layout.location() as _).build(),
-                        ],
+                        buffers: vertex_state_buffers.as_slice(),
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: self.fragment_shader.as_ref().unwrap().get().module(),
@@ -263,22 +264,28 @@ impl RenderPipeline {
                         } else {
                             SHADER_ENTRY_POINT
                         },
-                        targets: &[wgpu::ColorTargetState {
-                            format: *render_format,
-                            blend: Some(wgpu::BlendState {
-                                color: wgpu::BlendComponent {
-                                    src_factor: self.data.src_color_blend_factor.into(),
-                                    dst_factor: self.data.dst_color_blend_factor.into(),
-                                    operation: self.data.color_blend_operation.into(),
-                                },
-                                alpha: wgpu::BlendComponent {
-                                    src_factor: self.data.src_alpha_blend_factor.into(),
-                                    dst_factor: self.data.dst_alpha_blend_factor.into(),
-                                    operation: self.data.alpha_blend_operation.into(),
-                                },
-                            }),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        }],
+                        targets: render_formats
+                            .iter()
+                            .map(|&render_format| {
+                                Some(wgpu::ColorTargetState {
+                                    format: *render_format,
+                                    blend: Some(wgpu::BlendState {
+                                        color: wgpu::BlendComponent {
+                                            src_factor: self.data.src_color_blend_factor.into(),
+                                            dst_factor: self.data.dst_color_blend_factor.into(),
+                                            operation: self.data.color_blend_operation.into(),
+                                        },
+                                        alpha: wgpu::BlendComponent {
+                                            src_factor: self.data.src_alpha_blend_factor.into(),
+                                            dst_factor: self.data.dst_alpha_blend_factor.into(),
+                                            operation: self.data.alpha_blend_operation.into(),
+                                        },
+                                    }),
+                                    write_mask: wgpu::ColorWrites::ALL,
+                                })
+                            })
+                            .collect::<Vec<_>>()
+                            .as_slice(),
                     }),
                     primitive: wgpu::PrimitiveState {
                         topology: wgpu::PrimitiveTopology::TriangleList,
@@ -309,7 +316,7 @@ impl RenderPipeline {
                     multiview: None,
                 })
         };
-        self.format = Some(*render_format);
+        self.formats = render_formats.iter().map(|&f| *f).collect();
         self.render_pipeline = Some(render_pipeline);
         true
     }

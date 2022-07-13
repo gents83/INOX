@@ -159,7 +159,7 @@ impl DataTypeResource for Camera {
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         id: CameraId,
-        data: Self::DataType,
+        data: &Self::DataType,
     ) -> Self {
         let mut camera = Self::new(id, shared_data, message_hub);
         camera.set_projection(data.fov, data.aspect_ratio, 1., data.near, data.far);

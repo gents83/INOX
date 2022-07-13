@@ -1,16 +1,20 @@
 use std::path::{Path, PathBuf};
 
-use image::{ImageFormat, RgbaImage};
+use image::ImageFormat;
 use inox_filesystem::{convert_from_local_path, File};
 use inox_log::debug_log;
 use inox_messenger::MessageHubRc;
 use inox_resources::{
-    Data, DataTypeResource, Handle, ResourceEvent, ResourceId, ResourceTrait, SerializableResource,
-    SharedData, SharedDataRc,
+    Data, DataTypeResource, Handle, Resource, ResourceEvent, ResourceId, ResourceTrait,
+    SerializableResource, SharedData, SharedDataRc,
 };
 use inox_serialize::inox_serializable::SerializableRegistryRc;
+use inox_uid::generate_random_uid;
 
-use crate::{RenderContext, TextureHandler, INVALID_INDEX, TEXTURE_CHANNEL_COUNT};
+use crate::{
+    RenderContext, TextureData, TextureFormat, TextureHandler, TextureUsage, INVALID_INDEX,
+    TEXTURE_CHANNEL_COUNT,
+};
 
 pub type TextureId = ResourceId;
 
@@ -21,9 +25,12 @@ pub struct Texture {
     shared_data: SharedDataRc,
     path: PathBuf,
     data: Option<Vec<u8>>,
-    uniform_index: i32,
+    texture_index: i32,
     width: u32,
     height: u32,
+    format: TextureFormat,
+    usage: TextureUsage,
+    use_texture_atlas: bool,
     update_from_gpu: bool,
 }
 
@@ -54,7 +61,7 @@ impl ResourceTrait for Texture {
 }
 
 impl DataTypeResource for Texture {
-    type DataType = RgbaImage;
+    type DataType = TextureData;
     type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
     fn new(id: ResourceId, shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
@@ -64,20 +71,25 @@ impl DataTypeResource for Texture {
             shared_data: shared_data.clone(),
             path: PathBuf::new(),
             data: None,
-            uniform_index: INVALID_INDEX,
+            texture_index: INVALID_INDEX,
             width: 0,
             height: 0,
+            format: TextureFormat::Rgba8Unorm,
+            usage: TextureUsage::TextureBinding
+                | TextureUsage::CopyDst
+                | TextureUsage::RenderAttachment,
             update_from_gpu: false,
+            use_texture_atlas: true,
         }
     }
 
     fn invalidate(&mut self) -> &mut Self {
-        self.uniform_index = INVALID_INDEX;
+        self.texture_index = INVALID_INDEX;
         debug_log!("Texture {:?} will be reloaded", self.path);
         self
     }
     fn is_initialized(&self) -> bool {
-        self.uniform_index != INVALID_INDEX
+        self.texture_index != INVALID_INDEX
     }
     fn deserialize_data(
         path: &Path,
@@ -87,12 +99,19 @@ impl DataTypeResource for Texture {
         let mut file = File::new(path);
         let filepath = path.to_path_buf();
         file.load(move |bytes| {
-            let image_data = image::load_from_memory_with_format(
-                bytes.as_slice(),
-                ImageFormat::from_path(filepath.as_path()).unwrap(),
-            )
-            .unwrap();
-            f(image_data.to_rgba8());
+            let image_format = ImageFormat::from_path(filepath.as_path()).unwrap();
+            let image_data =
+                image::load_from_memory_with_format(bytes.as_slice(), image_format).unwrap();
+            f(TextureData {
+                width: image_data.width(),
+                height: image_data.height(),
+                format: TextureFormat::Rgba8Unorm,
+                data: image_data.into_rgba8().to_vec(),
+                usage: TextureUsage::TextureBinding
+                    | TextureUsage::CopyDst
+                    | TextureUsage::RenderAttachment,
+                use_texture_atlas: true,
+            });
         });
     }
 
@@ -100,16 +119,18 @@ impl DataTypeResource for Texture {
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         id: ResourceId,
-        data: Self::DataType,
+        data: &Self::DataType,
     ) -> Self
     where
         Self: Sized,
     {
-        let dimensions = data.dimensions();
         let mut texture = Self::new(id, shared_data, message_hub);
-        texture.data = Some(data.as_raw().clone());
-        texture.width = dimensions.0;
-        texture.height = dimensions.1;
+        texture.width = data.width;
+        texture.height = data.height;
+        texture.format = data.format;
+        texture.usage = data.usage;
+        texture.use_texture_atlas = data.use_texture_atlas;
+        texture.data = Some(data.data.clone());
         texture
     }
 }
@@ -175,14 +196,26 @@ impl Texture {
     pub fn height(&self) -> u32 {
         self.height
     }
+    pub fn format(&self) -> TextureFormat {
+        self.format
+    }
+    pub fn use_texture_atlas(&self) -> bool {
+        self.use_texture_atlas
+    }
+    pub fn usage(&self) -> TextureUsage {
+        self.usage
+    }
     pub fn image_data(&self) -> &Option<Vec<u8>> {
         &self.data
     }
-    pub fn uniform_index(&self) -> i32 {
-        self.uniform_index
+    pub fn texture_index(&self) -> i32 {
+        self.texture_index
     }
-    pub fn set_texture_data(&mut self, uniform_index: usize, width: u32, height: u32) -> &mut Self {
-        self.uniform_index = uniform_index as _;
+    pub fn set_texture_index(&mut self, texture_index: usize) -> &mut Self {
+        self.texture_index = texture_index as _;
+        self
+    }
+    pub fn set_texture_size(&mut self, width: u32, height: u32) -> &mut Self {
         self.width = width;
         self.height = height;
         self
@@ -209,5 +242,165 @@ impl Texture {
             self.data.as_mut().unwrap().as_mut_slice(),
         );
         self.mark_as_dirty();
+    }
+
+    pub fn create_from_format(
+        shared_data: &SharedDataRc,
+        message_hub: &MessageHubRc,
+        width: u32,
+        height: u32,
+        format: TextureFormat,
+        usage: TextureUsage,
+    ) -> Resource<Texture> {
+        let texture_id = generate_random_uid();
+        let image_data = Self::image_data_from_format(width, height, format);
+        let mut texture = Texture::create_from_data(
+            shared_data,
+            message_hub,
+            texture_id,
+            &TextureData {
+                width,
+                height,
+                format,
+                data: image_data,
+                use_texture_atlas: false,
+                usage,
+            },
+        );
+        texture.on_create(shared_data, message_hub, &texture_id, None);
+        shared_data.add_resource(message_hub, texture_id, texture)
+    }
+
+    fn image_data_from_format(width: u32, height: u32, format: TextureFormat) -> Vec<u8> {
+        match format {
+            crate::TextureFormat::R8Unorm
+            | crate::TextureFormat::R8Uint
+            | crate::TextureFormat::R8Snorm
+            | crate::TextureFormat::R8Sint => {
+                return vec![0u8; ::std::mem::size_of::<u8>() * width as usize * height as usize];
+            }
+            crate::TextureFormat::R16Uint
+            | crate::TextureFormat::R16Unorm
+            | crate::TextureFormat::R16Float
+            | crate::TextureFormat::R16Sint
+            | crate::TextureFormat::R16Snorm => {
+                return vec![0u8; ::std::mem::size_of::<u16>() * width as usize * height as usize];
+            }
+            crate::TextureFormat::Rg8Unorm
+            | crate::TextureFormat::Rg8Uint
+            | crate::TextureFormat::Rg8Snorm
+            | crate::TextureFormat::Rg8Sint => {
+                let num_channels = 2;
+                return vec![
+                    0u8;
+                    num_channels
+                        * ::std::mem::size_of::<u8>()
+                        * width as usize
+                        * height as usize
+                ];
+            }
+            crate::TextureFormat::R32Uint
+            | crate::TextureFormat::R32Sint
+            | crate::TextureFormat::R32Float
+            | crate::TextureFormat::Rgb10a2Unorm
+            | crate::TextureFormat::Rg11b10Float
+            | crate::TextureFormat::Depth32Float
+            | crate::TextureFormat::Depth24PlusStencil8
+            | crate::TextureFormat::Depth24UnormStencil8
+            | crate::TextureFormat::Rgb9e5Ufloat => {
+                return vec![0u8; ::std::mem::size_of::<u32>() * width as usize * height as usize];
+            }
+            crate::TextureFormat::Rgba8Unorm
+            | crate::TextureFormat::Rgba8UnormSrgb
+            | crate::TextureFormat::Rgba8Snorm
+            | crate::TextureFormat::Rgba8Uint
+            | crate::TextureFormat::Rgba8Sint
+            | crate::TextureFormat::Bgra8Unorm
+            | crate::TextureFormat::Bgra8UnormSrgb => {
+                let num_channels = 4;
+                return vec![
+                    0u8;
+                    num_channels
+                        * ::std::mem::size_of::<u8>()
+                        * width as usize
+                        * height as usize
+                ];
+            }
+            crate::TextureFormat::Rg16Uint
+            | crate::TextureFormat::Rg16Sint
+            | crate::TextureFormat::Rg16Unorm
+            | crate::TextureFormat::Rg16Snorm
+            | crate::TextureFormat::Rg16Float => {
+                let num_channels = 2;
+                return vec![
+                    0u8;
+                    num_channels
+                        * ::std::mem::size_of::<u16>()
+                        * width as usize
+                        * height as usize
+                ];
+            }
+            crate::TextureFormat::Rg32Uint
+            | crate::TextureFormat::Rg32Sint
+            | crate::TextureFormat::Rg32Float => {
+                let num_channels = 2;
+                return vec![
+                    0u8;
+                    num_channels
+                        * ::std::mem::size_of::<u32>()
+                        * width as usize
+                        * height as usize
+                ];
+            }
+            crate::TextureFormat::Rgba16Uint
+            | crate::TextureFormat::Rgba16Sint
+            | crate::TextureFormat::Rgba16Unorm
+            | crate::TextureFormat::Rgba16Snorm
+            | crate::TextureFormat::Rgba16Float => {
+                let num_channels = 4;
+                return vec![
+                    0u8;
+                    num_channels
+                        * ::std::mem::size_of::<u16>()
+                        * width as usize
+                        * height as usize
+                ];
+            }
+            crate::TextureFormat::Rgba32Uint
+            | crate::TextureFormat::Rgba32Sint
+            | crate::TextureFormat::Rgba32Float => {
+                let num_channels = 4;
+                return vec![
+                    0u8;
+                    num_channels
+                        * ::std::mem::size_of::<u32>()
+                        * width as usize
+                        * height as usize
+                ];
+            }
+            crate::TextureFormat::Depth32FloatStencil8 => {
+                let num_channels = 5;
+                return vec![
+                    0u8;
+                    num_channels
+                        * ::std::mem::size_of::<u8>()
+                        * width as usize
+                        * height as usize
+                ];
+            }
+            crate::TextureFormat::Depth24Plus => {
+                let num_channels = 3;
+                return vec![
+                    0u8;
+                    num_channels
+                        * ::std::mem::size_of::<u8>()
+                        * width as usize
+                        * height as usize
+                ];
+            }
+            _ => {
+                panic!("Unsupported texture format: {:?}", format);
+            }
+        }
     }
 }

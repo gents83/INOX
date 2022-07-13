@@ -6,14 +6,14 @@
 	],
 	"extensions": {
 		"recommendations": [
-			"rust-lang.rust-analyzer",
 			"bungcip.better-toml",
 			"ms-vscode.cpptools",
 			"vadimcn.vscode-lldb",
 			"dtoplak.vscode-glsllint",
 			"github.vscode-pull-request-github",
 			"ms-python.python",
-			"wgsl-analyzer.wgsl-analyzer"
+			"rust-lang.rust-analyzer",
+			"PolyMeilex.wgsl"
 		]
 	}
 }

@@ -1,8 +1,8 @@
 use std::{any::type_name, path::PathBuf};
 
 use crate::{
-    create_arrow, create_colored_quad, create_line, create_sphere, DrawEvent, Material, Mesh,
-    MeshData, PbrVertexData, RenderPipeline, VertexData, VertexFormat, WireframeVertexData,
+    create_arrow, create_colored_quad, create_line, create_sphere, DrawEvent, Material,
+    MaterialData, Mesh, MeshData, MeshFlags, RenderPipeline,
 };
 
 use inox_core::{ContextRc, System, SystemId, SystemUID};
@@ -65,21 +65,25 @@ impl DebugDrawerSystem {
             context.shared_data(),
             context.message_hub(),
             generate_random_uid(),
-            MeshData::new(VertexFormat::pbr()),
+            MeshData::default(),
+            None,
         );
         mesh_instance
             .get_mut()
-            .set_path(PathBuf::from("DebugDrawerMesh.debugdrawer").as_path());
+            .set_path(PathBuf::from("DebugDrawerMesh.debugdrawer").as_path())
+            .set_flags(MeshFlags::Visible | MeshFlags::Opaque);
         //println!("DebugDrawerMesh {:?}", mesh_instance.id());
         let wireframe_mesh_instance = Mesh::new_resource(
             context.shared_data(),
             context.message_hub(),
             generate_random_uid(),
-            MeshData::new(VertexFormat::wireframe()),
+            MeshData::default(),
+            None,
         );
         wireframe_mesh_instance
             .get_mut()
-            .set_path(PathBuf::from("DebugDrawerWireframe.debugdrawer").as_path());
+            .set_path(PathBuf::from("DebugDrawerWireframe.debugdrawer").as_path())
+            .set_flags(MeshFlags::Visible | MeshFlags::Wireframe);
         //println!("DebugDrawerWireframeMesh {:?}", wireframe_mesh_instance.id());
 
         let listener = Listener::new(context.message_hub());
@@ -104,8 +108,8 @@ impl DebugDrawerSystem {
     fn update_events(&mut self) {
         inox_profiler::scoped_profile!("DebugDrawerSystem::update_events");
 
-        let mut mesh_data = MeshData::new(VertexFormat::pbr());
-        let mut wireframe_mesh_data = MeshData::new(VertexFormat::wireframe());
+        let mut opaque_mesh_data = MeshData::default();
+        let mut wireframe_mesh_data = MeshData::default();
 
         self.listener
             .process_messages(|e: &ConfigEvent<Config>| match e {
@@ -120,28 +124,26 @@ impl DebugDrawerSystem {
                             self.config.default_pipeline.as_path(),
                             None,
                         );
-                        default_pipeline
-                            .get_mut()
-                            .set_vertex_format(VertexFormat::pbr());
                         let wireframe_pipeline = RenderPipeline::request_load(
                             &self.shared_data,
                             &self.message_hub,
                             self.config.wireframe_pipeline.as_path(),
                             None,
                         );
-                        wireframe_pipeline
-                            .get_mut()
-                            .set_vertex_format(VertexFormat::wireframe());
-                        let material = Material::duplicate_from_pipeline(
+                        let material = Material::new_resource(
                             &self.shared_data,
                             &self.message_hub,
-                            &default_pipeline,
+                            generate_random_uid(),
+                            MaterialData::default(),
+                            None,
                         );
                         self.mesh_instance.get_mut().set_material(material);
-                        let wireframe_material = Material::duplicate_from_pipeline(
+                        let wireframe_material = Material::new_resource(
                             &self.shared_data,
                             &self.message_hub,
-                            &wireframe_pipeline,
+                            generate_random_uid(),
+                            MaterialData::default(),
+                            None,
                         );
                         self.wireframe_mesh_instance
                             .get_mut()
@@ -155,8 +157,8 @@ impl DebugDrawerSystem {
                 DrawEvent::Line(start, end, color) => {
                     inox_profiler::scoped_profile!("DrawEvent::Line");
 
-                    let (vertices, indices) = create_line::<WireframeVertexData>(start, end, color);
-                    wireframe_mesh_data.append_mesh(&vertices, &indices);
+                    let mesh_data = create_line(start, end, color);
+                    wireframe_mesh_data.append_mesh_data_as_meshlet(mesh_data);
                 }
                 DrawEvent::BoundingBox(min, max, color) => {
                     inox_profiler::scoped_profile!("DrawEvent::BoundingBox");
@@ -200,83 +202,64 @@ impl DebugDrawerSystem {
                     inox_profiler::scoped_profile!("DrawEvent::Quad");
 
                     if is_wireframe {
-                        let (vertices, indices) = create_line::<WireframeVertexData>(
-                            [min.x, min.y, z].into(),
-                            [min.x, max.y, z].into(),
-                            color,
-                        );
-                        wireframe_mesh_data.append_mesh(&vertices, &indices);
-                        let (vertices, indices) = create_line::<WireframeVertexData>(
-                            [min.x, max.y, z].into(),
-                            [max.x, max.y, z].into(),
-                            color,
-                        );
-                        wireframe_mesh_data.append_mesh(&vertices, &indices);
-                        let (vertices, indices) = create_line::<WireframeVertexData>(
-                            [max.x, max.y, z].into(),
-                            [max.x, min.y, z].into(),
-                            color,
-                        );
-                        wireframe_mesh_data.append_mesh(&vertices, &indices);
-                        let (vertices, indices) = create_line::<WireframeVertexData>(
-                            [max.x, min.y, z].into(),
-                            [min.x, min.y, z].into(),
-                            color,
-                        );
-                        wireframe_mesh_data.append_mesh(&vertices, &indices);
+                        let mesh_data =
+                            create_line([min.x, min.y, z].into(), [min.x, max.y, z].into(), color);
+                        wireframe_mesh_data.append_mesh_data_as_meshlet(mesh_data);
+                        let mesh_data =
+                            create_line([min.x, max.y, z].into(), [max.x, max.y, z].into(), color);
+                        wireframe_mesh_data.append_mesh_data_as_meshlet(mesh_data);
+                        let mesh_data =
+                            create_line([max.x, max.y, z].into(), [max.x, min.y, z].into(), color);
+                        wireframe_mesh_data.append_mesh_data_as_meshlet(mesh_data);
+                        let mesh_data =
+                            create_line([max.x, min.y, z].into(), [min.x, min.y, z].into(), color);
+                        wireframe_mesh_data.append_mesh_data_as_meshlet(mesh_data);
                     } else {
-                        let (vertices, indices) = create_colored_quad::<PbrVertexData>(
-                            [min.x, min.y, max.x, max.y].into(),
-                            z,
-                            color,
-                            None,
-                        );
-                        mesh_data.append_mesh(&vertices, &indices);
+                        let mesh_data =
+                            create_colored_quad([min.x, min.y, max.x, max.y].into(), z, color);
+                        opaque_mesh_data.append_mesh_data_as_meshlet(mesh_data);
                     }
                 }
                 DrawEvent::Arrow(position, direction, color, is_wireframe) => {
                     inox_profiler::scoped_profile!("DrawEvent::Arrow");
 
-                    let (mut vertices, indices) = create_arrow(position, direction);
-                    vertices.iter_mut().for_each(|v| {
-                        v.set_color(color);
-                    });
+                    let mesh_data = create_arrow(position, direction, color);
                     if is_wireframe {
-                        wireframe_mesh_data.append_mesh(&vertices, &indices);
+                        wireframe_mesh_data.append_mesh_data_as_meshlet(mesh_data);
                     } else {
-                        mesh_data.append_mesh(&vertices, &indices);
+                        opaque_mesh_data.append_mesh_data_as_meshlet(mesh_data);
                     }
                 }
                 DrawEvent::Sphere(position, radius, color, is_wireframe) => {
                     inox_profiler::scoped_profile!("DrawEvent::Sphere");
 
                     if is_wireframe {
-                        let (vertices, indices) =
-                            create_sphere::<WireframeVertexData>(position, radius, 16, 8, color);
-                        wireframe_mesh_data.append_mesh(&vertices, &indices);
+                        let mesh_data = create_sphere(position, radius, 16, 8, color);
+                        wireframe_mesh_data.append_mesh_data_as_meshlet(mesh_data);
                     } else {
-                        let (vertices, indices) =
-                            create_sphere::<PbrVertexData>(position, radius, 16, 8, color);
-                        mesh_data.append_mesh(&vertices, &indices);
+                        let mesh_data = create_sphere(position, radius, 16, 8, color);
+                        opaque_mesh_data.append_mesh_data_as_meshlet(mesh_data);
                     }
                 }
             });
 
-        if !mesh_data.vertices.is_empty() {
+        if !opaque_mesh_data.vertices.is_empty() {
             self.mesh_instance
                 .get_mut()
-                .set_mesh_data(mesh_data)
-                .set_visible(true);
+                .set_mesh_data(opaque_mesh_data)
+                .add_flag(MeshFlags::Visible);
         } else {
-            self.mesh_instance.get_mut().set_visible(false);
+            self.mesh_instance.get_mut().remove_flag(MeshFlags::Visible);
         }
         if !wireframe_mesh_data.vertices.is_empty() {
             self.wireframe_mesh_instance
                 .get_mut()
-                .set_mesh_data(wireframe_mesh_data)
-                .set_visible(true);
+                .add_flag(MeshFlags::Visible)
+                .set_mesh_data(wireframe_mesh_data);
         } else {
-            self.wireframe_mesh_instance.get_mut().set_visible(false);
+            self.wireframe_mesh_instance
+                .get_mut()
+                .remove_flag(MeshFlags::Visible);
         }
     }
 }

@@ -14,10 +14,19 @@ pub enum MaterialAlphaMode {
     Blend = 2,
 }
 
+impl From<MaterialAlphaMode> for u32 {
+    fn from(val: MaterialAlphaMode) -> Self {
+        match val {
+            MaterialAlphaMode::Opaque => 0,
+            MaterialAlphaMode::Mask => 1,
+            MaterialAlphaMode::Blend => 2,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "inox_serialize")]
 pub struct MaterialData {
-    pub pipeline: PathBuf,
     pub textures: [PathBuf; TextureType::Count as _],
     pub texcoords_set: [usize; TextureType::Count as _],
     pub roughness_factor: f32,
@@ -40,7 +49,6 @@ impl SerializeFile for MaterialData {
 impl Default for MaterialData {
     fn default() -> Self {
         Self {
-            pipeline: PathBuf::new(),
             textures: Default::default(),
             texcoords_set: Default::default(),
             roughness_factor: 1.,

@@ -11,6 +11,7 @@ crate-type = ["lib"]
 downcast-rs = { path = "../../extern/downcast-rs" }
 image = { path = "../../extern/image", default-features = false, features = [ "gif","jpeg","ico","png","pnm","tga","tiff","webp","bmp","hdr","dxt","dds"] }
 ttf-parser = {path = "../../extern/ttf-parser" }
+inox_bitmask = { path = "../bitmask" }
 inox_commands = { path = "../commands" }
 inox_core = { path = "../core" }
 inox_filesystem = { path = "../filesystem" }

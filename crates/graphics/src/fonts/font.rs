@@ -5,7 +5,7 @@ use inox_serialize::{Deserialize, Serialize};
 use std::path::Path;
 use ttf_parser::*;
 
-use crate::{Glyph, MeshData, Metrics, UIVertexData, VertexFormat};
+use crate::{create_quad_with_texture, Glyph, MeshData, Metrics};
 
 const DEFAULT_FONT_COUNT: u8 = 255;
 pub const DEFAULT_FONT_TEXTURE_SIZE: usize = 1024;
@@ -67,23 +67,21 @@ impl FontData {
     }
 
     pub fn create_mesh_from_text(&self, text_data: &TextData) -> MeshData {
-        let mut mesh_data = MeshData::new(VertexFormat::ui());
-        const VERTICES_COUNT: usize = 4;
+        let mut text_mesh_data = MeshData::default();
 
         let mut prev_pos = text_data.position;
         let size = FONT_PT_TO_PIXEL * text_data.scale;
         let spacing_x = FONT_PT_TO_PIXEL * text_data.spacing.x;
         let spacing_y = FONT_PT_TO_PIXEL * text_data.spacing.y;
 
-        for (i, c) in text_data.text.as_bytes().iter().enumerate() {
+        for c in text_data.text.as_bytes().iter() {
             let g = &self.glyphs[*c as usize];
-            mesh_data.add_quad::<UIVertexData>(
+            let mesh_data = create_quad_with_texture(
                 Vector4::new(prev_pos.x, prev_pos.y, prev_pos.x + size, prev_pos.y + size),
                 0.0,
                 g.texture_coord,
-                Some(i * VERTICES_COUNT),
             );
-
+            text_mesh_data.append_mesh_data_as_meshlet(mesh_data);
             if *c == b'\n' {
                 prev_pos.x = text_data.position.x;
                 prev_pos.y += size + spacing_y;
@@ -92,8 +90,8 @@ impl FontData {
             }
         }
 
-        mesh_data.set_vertex_color(text_data.color);
-        mesh_data
+        text_mesh_data.set_vertex_color(text_data.color);
+        text_mesh_data
     }
 }
 
@@ -124,7 +122,7 @@ impl FontData {
         }
     }
 
-    pub fn create_texture(&mut self) -> RgbaImage {
+    pub fn create_texture(&mut self) -> Vec<u8> {
         let size = DEFAULT_FONT_TEXTURE_SIZE;
 
         let mut image = DynamicImage::new_rgba8(size as _, size as _);
@@ -169,6 +167,6 @@ impl FontData {
             column += 1;
         }
 
-        image.to_rgba8()
+        image.into_bytes()
     }
 }

@@ -8,6 +8,7 @@ pub fn required_gpu_features() -> wgpu::Features {
         | wgpu::Features::MULTI_DRAW_INDIRECT_COUNT
         | wgpu::Features::TEXTURE_BINDING_ARRAY
         | wgpu::Features::SAMPLED_TEXTURE_AND_STORAGE_BUFFER_ARRAY_NON_UNIFORM_INDEXING
+        | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
 }
 
 pub fn platform_limits() -> wgpu::Limits {

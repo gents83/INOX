@@ -117,10 +117,10 @@ where
     ) {
         if let Some(index) = self.resources.iter().position(|r| r.id() == resource_id) {
             let resource = self.resources.remove(index);
-            message_hub.send_event(ResourceEvent::<T>::Destroyed(*resource.id()));
+            message_hub.send_event(ResourceEvent::<T>::Destroyed(*resource_id));
             resource
                 .get_mut()
-                .on_destroy_resource(shared_data, message_hub, resource_id);
+                .on_destroy(shared_data, message_hub, resource_id);
             //debug_log!("Resource {} destroyed", resource_id);
         }
     }

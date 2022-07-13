@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
+use crate::TextureFormat;
+
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "inox_serialize")]
 pub enum IndexFormat {
@@ -38,6 +40,7 @@ pub enum RenderTarget {
     Texture {
         width: u32,
         height: u32,
+        format: TextureFormat,
         read_back: bool,
     },
 }
@@ -60,7 +63,7 @@ pub struct RenderPassData {
     pub render_target: RenderTarget,
     pub depth_target: RenderTarget,
     pub render_mode: RenderMode,
-    pub pipelines: Vec<PathBuf>,
+    pub pipeline: PathBuf,
 }
 
 impl SerializeFile for RenderPassData {
@@ -83,7 +86,7 @@ impl Default for RenderPassData {
             render_target: RenderTarget::Screen,
             depth_target: RenderTarget::None,
             render_mode: RenderMode::Indirect,
-            pipelines: Vec::new(),
+            pipeline: PathBuf::new(),
         }
     }
 }

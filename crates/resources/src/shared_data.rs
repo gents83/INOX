@@ -9,9 +9,9 @@ use inox_serialize::inox_serializable::SerializableRegistryRc;
 use inox_uid::{generate_uid_from_string, Uid};
 
 use crate::{
-    EventHandler, Handle, LoadFunction, Resource, ResourceEvent, ResourceEventHandler, ResourceId,
-    ResourceStorageRw, ResourceTrait, SerializableResource, SerializableResourceEvent,
-    SerializableResourceEventHandler, Singleton, Storage, StorageCastTo,
+    DataTypeResource, EventHandler, Handle, LoadFunction, Resource, ResourceEvent,
+    ResourceEventHandler, ResourceId, ResourceStorageRw, ResourceTrait, SerializableResource,
+    SerializableResourceEvent, SerializableResourceEventHandler, Singleton, Storage, StorageCastTo,
 };
 
 #[derive(Default)]
@@ -107,6 +107,7 @@ impl SharedData {
     pub fn register_type_serializable<T>(&self, message_hub: &MessageHubRc)
     where
         T: SerializableResource + 'static,
+        <T as DataTypeResource>::DataType: Send + Sync,
     {
         self.register_type::<T>(message_hub);
         let typeid = generate_uid_from_string(type_name::<T>());
@@ -332,7 +333,7 @@ impl SharedData {
         None
     }
     #[inline]
-    pub fn get_num_resources_of_type<T: ResourceTrait>(&self) -> usize {
+    pub fn num_resources<T: ResourceTrait>(&self) -> usize {
         let typeid = generate_uid_from_string(type_name::<T>());
         if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
             if let Ok(storage) = rs.read() {

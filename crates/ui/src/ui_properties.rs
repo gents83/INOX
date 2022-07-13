@@ -1,12 +1,14 @@
 use std::{any::TypeId, marker::PhantomData};
 
 use egui::{Checkbox, CollapsingHeader, DragValue, TextEdit, Ui, Widget};
-use inox_graphics::{Font, Light, LightType, Material, Mesh, RenderPipeline, Texture, View};
+use inox_graphics::{
+    Font, Light, LightType, Material, Mesh, MeshFlags, RenderPipeline, Texture, View,
+};
 use inox_math::{Degrees, Matrix4, Vector2, Vector3, Vector4};
 use inox_resources::{
     GenericResource, ResourceCastTo, ResourceId, ResourceTrait, SerializableResource,
 };
-use inox_uid::INVALID_UID;
+
 pub trait UIProperties {
     fn show(
         &mut self,
@@ -286,11 +288,6 @@ impl UIProperties for Material {
                     let mut path = self.path().to_str().unwrap().to_string();
                     TextEdit::singleline(&mut path).interactive(false).ui(ui);
                 });
-                if let Some(pipeline) = self.pipeline() {
-                    pipeline
-                        .get_mut()
-                        .show(pipeline.id(), ui_registry, ui, true);
-                }
                 ui.collapsing(format!("Textures [{}]", self.textures().len()), |ui| {
                     self.textures().iter().for_each(|t| {
                         if let Some(t) = t {
@@ -298,12 +295,6 @@ impl UIProperties for Material {
                             t.get_mut().show(id, ui_registry, ui, collapsed);
                         }
                     });
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Base Color: ");
-                    let mut base_color = self.base_color();
-                    base_color.show(&INVALID_UID, ui_registry, ui, collapsed);
-                    self.set_base_color(base_color);
                 });
             });
     }
@@ -326,16 +317,13 @@ impl UIProperties for Mesh {
                     let mut path = self.path().to_str().unwrap().to_string();
                     TextEdit::singleline(&mut path).interactive(false).ui(ui);
                 });
-                let mut is_visible = self.is_visible();
+                let mut is_visible = self.has_flags(MeshFlags::Visible);
                 Checkbox::new(&mut is_visible, "Visible").ui(ui);
-                self.set_visible(is_visible);
-                ui.horizontal(|ui| {
-                    ui.label("Num vertices: ");
-                    let mut vertices = format!("{}", self.indices_range().len());
-                    TextEdit::singleline(&mut vertices)
-                        .interactive(false)
-                        .ui(ui);
-                });
+                if is_visible {
+                    self.add_flag(MeshFlags::Visible);
+                } else {
+                    self.remove_flag(MeshFlags::Visible);
+                }
                 if let Some(material) = self.material() {
                     let id = material.id();
                     material.get_mut().show(id, ui_registry, ui, true);
@@ -363,7 +351,7 @@ impl UIProperties for Texture {
                 });
                 ui.horizontal(|ui| {
                     ui.label("Texture Index: ");
-                    let mut texture_index = format!("{}", self.uniform_index());
+                    let mut texture_index = format!("{}", self.texture_index());
                     TextEdit::singleline(&mut texture_index)
                         .interactive(false)
                         .ui(ui);

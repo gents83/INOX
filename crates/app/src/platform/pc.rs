@@ -9,6 +9,9 @@ use inox_log::debug_log;
 use crate::launcher::Launcher;
 
 pub fn setup_env() {
+    #[cfg(debug_assertions)]
+    std::env::set_var("RUST_BACKTRACE", "1");
+
     std::env::set_var(
         inox_filesystem::EXE_PATH,
         std::env::current_exe().unwrap().parent().unwrap(),

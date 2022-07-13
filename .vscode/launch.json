@@ -34,6 +34,7 @@
             "args": [],
             "cwd": "${workspaceFolder}",
             "requireExactSource": false,
+            "preLaunchTask": "COMPILE DEBUG",
             "postDebugTask": "CLEANUP",
             "sourceFileMap": {
                 "/rustc/9d1b2106e23b1abd32fce1f17267604a5102f57a": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
@@ -52,11 +53,12 @@
                 "-plugin inox_common_script",
                 "-plugin inox_viewer",
                 "-load_file",
-                "models/sponza/sponza.scene"
+                "models/craftman/craftman.scene"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
             "requireExactSource": false,
+            "preLaunchTask": "COMPILE RELEASE",
             "postDebugTask": "CLEANUP",
             "sourceFileMap": {
                 "/rustc/9d1b2106e23b1abd32fce1f17267604a5102f57a": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
@@ -80,6 +82,7 @@
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
             "requireExactSource": false,
+            "preLaunchTask": "COMPILE DEBUG",
             "postDebugTask": "CLEANUP",
             "sourceFileMap": {
                 "/rustc/9d1b2106e23b1abd32fce1f17267604a5102f57a": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
@@ -98,6 +101,7 @@
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
             "requireExactSource": false,
+            "preLaunchTask": "COMPILE DEBUG",
             "postDebugTask": "CLEANUP",
             "sourceFileMap": {
                 "/rustc/9d1b2106e23b1abd32fce1f17267604a5102f57a": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
@@ -113,6 +117,7 @@
             "args": [],
             "cwd": "${workspaceFolder}",
             "requireExactSource": false,
+            "preLaunchTask": "COMPILE RELEASE",
             "postDebugTask": "CLEANUP",
             "sourceFileMap": {
                 "/rustc/9d1b2106e23b1abd32fce1f17267604a5102f57a": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"

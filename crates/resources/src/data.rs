@@ -8,7 +8,8 @@ use inox_serialize::inox_serializable::SerializableRegistryRc;
 use inox_uid::generate_uid_from_string;
 
 use crate::{
-    Resource, ResourceId, ResourceTrait, SerializableResourceEvent, SharedData, SharedDataRc,
+    DataTypeResourceEvent, Resource, ResourceEvent, ResourceId, ResourceTrait,
+    SerializableResourceEvent, SharedData, SharedDataRc,
 };
 
 pub const DATA_RAW_FOLDER: &str = "data_raw";
@@ -39,7 +40,7 @@ where
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         id: ResourceId,
-        data: Self::DataType,
+        data: &Self::DataType,
     ) -> Self
     where
         Self: Sized;
@@ -49,13 +50,21 @@ where
         message_hub: &MessageHubRc,
         id: ResourceId,
         data: Self::DataType,
+        on_create_data: Option<<Self as ResourceTrait>::OnCreateData>,
     ) -> Resource<Self>
     where
         Self: Sized + 'static,
+        <Self as DataTypeResource>::DataType: Send + Sync,
     {
-        let mut resource = Self::create_from_data(shared_data, message_hub, id, data);
-        resource.on_create(shared_data, message_hub, &id, None);
-        shared_data.add_resource(message_hub, id, resource)
+        let mut resource = Self::create_from_data(shared_data, message_hub, id, &data);
+        resource.on_create(shared_data, message_hub, &id, on_create_data.as_ref());
+        let resource = shared_data.add_resource(message_hub, id, resource);
+
+        message_hub.send_event(ResourceEvent::<Self>::Created(
+            shared_data.get_resource(&id).unwrap(),
+        ));
+        message_hub.send_event(DataTypeResourceEvent::<Self>::Loaded(id, data));
+        resource
     }
 }
 
@@ -88,9 +97,10 @@ pub trait SerializableResource: DataTypeResource + Sized {
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         filepath: &Path,
-        on_create_data: Option<<Self as ResourceTrait>::OnCreateData>,
+        mut on_create_data: Option<<Self as ResourceTrait>::OnCreateData>,
     ) where
         Self: Sized + DataTypeResource + 'static,
+        <Self as DataTypeResource>::DataType: Send + Sync,
     {
         let path = convert_from_local_path(Data::platform_data_folder().as_path(), filepath);
         if !File::new(path.as_path()).exists() {
@@ -110,28 +120,14 @@ pub trait SerializableResource: DataTypeResource + Sized {
             shared_data.serializable_registry(),
             Box::new(move |data| {
                 let resource_id = generate_uid_from_string(cloned_path.as_path().to_str().unwrap());
-                let mut resource = Self::create_from_data(
+                let resource = Self::new_resource(
                     &cloned_shared_data,
                     &cloned_message_hub,
                     resource_id,
                     data,
+                    on_create_data.take(),
                 );
-                resource.set_path(cloned_path.as_path());
-
-                resource.on_create(
-                    &cloned_shared_data,
-                    &cloned_message_hub,
-                    &resource_id,
-                    on_create_data.as_ref(),
-                );
-                /*
-                debug_log!(
-                    "Created resource [{:?}] {:?}",
-                    resource_id,
-                    cloned_path.as_path()
-                );
-                */
-                cloned_shared_data.add_resource(&cloned_message_hub, resource_id, resource);
+                resource.get_mut().set_path(cloned_path.as_path());
             }),
         );
     }

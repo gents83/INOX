@@ -1,192 +1,120 @@
-use std::mem::size_of;
-
-use inox_math::{VecBase, Vector2, Vector3, Vector4};
-use inox_serialize::{Deserialize, Serialize};
-
 pub const MAX_TEXTURE_COORDS_SETS: usize = 4;
-pub type VertexFormatBits = u32;
 
-#[derive(Serialize, Deserialize, Debug, Hash, Eq, PartialEq, Clone)]
-#[serde(crate = "inox_serialize")]
-#[rustfmt::skip]
 pub enum VertexFormat {
-    PositionF32x2   = 0,
-    PositionF32x3   = 1,
-    NormalF32x3     = 2,
-    TangentF32x4    = 3,
-    ColorF32x4      = 4,
-    ColorU32        = 5,
-    TexCoord0F32x2  = 6,
-    TexCoord1F32x2  = 7,
-    TexCoord2F32x2  = 8,
-    TexCoord3F32x2  = 9,
-    Count           = 10,
+    Uint8x2 = wgpu::VertexFormat::Uint8x2 as _,
+    Uint8x4 = wgpu::VertexFormat::Uint8x4 as _,
+    Sint8x2 = wgpu::VertexFormat::Sint8x2 as _,
+    Sint8x4 = wgpu::VertexFormat::Sint8x4 as _,
+    Unorm8x2 = wgpu::VertexFormat::Unorm8x2 as _,
+    Unorm8x4 = wgpu::VertexFormat::Unorm8x4 as _,
+    Snorm8x2 = wgpu::VertexFormat::Snorm8x2 as _,
+    Snorm8x4 = wgpu::VertexFormat::Snorm8x4 as _,
+    Uint16x2 = wgpu::VertexFormat::Uint16x2 as _,
+    Uint16x4 = wgpu::VertexFormat::Uint16x4 as _,
+    Sint16x2 = wgpu::VertexFormat::Sint16x2 as _,
+    Sint16x4 = wgpu::VertexFormat::Sint16x4 as _,
+    Unorm16x2 = wgpu::VertexFormat::Unorm16x2 as _,
+    Unorm16x4 = wgpu::VertexFormat::Unorm16x4 as _,
+    Snorm16x2 = wgpu::VertexFormat::Snorm16x2 as _,
+    Snorm16x4 = wgpu::VertexFormat::Snorm16x4 as _,
+    Float16x2 = wgpu::VertexFormat::Float16x2 as _,
+    Float16x4 = wgpu::VertexFormat::Float16x4 as _,
+    Float32 = wgpu::VertexFormat::Float32 as _,
+    Float32x2 = wgpu::VertexFormat::Float32x2 as _,
+    Float32x3 = wgpu::VertexFormat::Float32x3 as _,
+    Float32x4 = wgpu::VertexFormat::Float32x4 as _,
+    Uint32 = wgpu::VertexFormat::Uint32 as _,
+    Uint32x2 = wgpu::VertexFormat::Uint32x2 as _,
+    Uint32x3 = wgpu::VertexFormat::Uint32x3 as _,
+    Uint32x4 = wgpu::VertexFormat::Uint32x4 as _,
+    Sint32 = wgpu::VertexFormat::Sint32 as _,
+    Sint32x2 = wgpu::VertexFormat::Sint32x2 as _,
+    Sint32x3 = wgpu::VertexFormat::Sint32x3 as _,
+    Sint32x4 = wgpu::VertexFormat::Sint32x4 as _,
+    Float64 = wgpu::VertexFormat::Float64 as _,
+    Float64x2 = wgpu::VertexFormat::Float64x2 as _,
+    Float64x3 = wgpu::VertexFormat::Float64x3 as _,
+    Float64x4 = wgpu::VertexFormat::Float64x4 as _,
 }
 
-impl VertexFormat {
-    pub fn to_bits(attributes: &[Self]) -> VertexFormatBits {
-        let mut value = 0;
-        attributes.iter().for_each(|a| {
-            value |= 1 << a.clone() as u32;
-        });
-        value
-    }
-    pub fn ui() -> Vec<Self> {
-        vec![
-            VertexFormat::PositionF32x2,
-            VertexFormat::TexCoord0F32x2,
-            VertexFormat::ColorU32,
-        ]
-    }
-    pub fn wireframe() -> Vec<Self> {
-        vec![VertexFormat::PositionF32x3, VertexFormat::ColorU32]
-    }
-    pub fn pbr() -> Vec<Self> {
-        vec![
-            VertexFormat::PositionF32x3,
-            VertexFormat::NormalF32x3,
-            VertexFormat::TangentF32x4,
-            VertexFormat::ColorF32x4,
-            VertexFormat::TexCoord0F32x2,
-            VertexFormat::TexCoord1F32x2,
-            VertexFormat::TexCoord2F32x2,
-            VertexFormat::TexCoord3F32x2,
-        ]
-    }
-    pub fn size(&self) -> usize {
-        match self {
-            VertexFormat::PositionF32x2 => size_of::<Vector2>(),
-            VertexFormat::PositionF32x3 => size_of::<Vector3>(),
-            VertexFormat::NormalF32x3 => size_of::<Vector3>(),
-            VertexFormat::TangentF32x4 => size_of::<Vector4>(),
-            VertexFormat::ColorF32x4 => size_of::<Vector4>(),
-            VertexFormat::ColorU32 => size_of::<u32>(),
-            VertexFormat::TexCoord0F32x2 => size_of::<Vector2>(),
-            VertexFormat::TexCoord1F32x2 => size_of::<Vector2>(),
-            VertexFormat::TexCoord2F32x2 => size_of::<Vector2>(),
-            VertexFormat::TexCoord3F32x2 => size_of::<Vector2>(),
-            VertexFormat::Count => 0,
-        }
-    }
-    pub fn format(&self) -> wgpu::VertexFormat {
-        match self {
-            VertexFormat::PositionF32x2 => wgpu::VertexFormat::Float32x2,
-            VertexFormat::PositionF32x3 => wgpu::VertexFormat::Float32x3,
-            VertexFormat::NormalF32x3 => wgpu::VertexFormat::Float32x3,
-            VertexFormat::TangentF32x4 => wgpu::VertexFormat::Float32x4,
-            VertexFormat::ColorF32x4 => wgpu::VertexFormat::Float32x4,
-            VertexFormat::ColorU32 => wgpu::VertexFormat::Uint32,
-            VertexFormat::TexCoord0F32x2 => wgpu::VertexFormat::Float32x2,
-            VertexFormat::TexCoord1F32x2 => wgpu::VertexFormat::Float32x2,
-            VertexFormat::TexCoord2F32x2 => wgpu::VertexFormat::Float32x2,
-            VertexFormat::TexCoord3F32x2 => wgpu::VertexFormat::Float32x2,
-            VertexFormat::Count => panic!("Invalid attribute with no format"),
-        }
-    }
-}
-
-pub trait VertexData: Default {
-    fn set_position(&mut self, pos: Vector3);
-    fn set_normal(&mut self, normal: Vector3);
-    fn set_tex_coord(&mut self, t: Vector2);
-    fn set_color(&mut self, color: Vector4);
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
-#[serde(crate = "inox_serialize")]
-pub struct UIVertexData {
-    pub pos: Vector3,
-    pub tex_coord: Vector2,
-    pub color: u32,
-}
-impl VertexData for UIVertexData {
-    fn set_position(&mut self, pos: Vector3) {
-        self.pos = pos;
-    }
-    fn set_color(&mut self, color: Vector4) {
-        let c = (color.x * 255.) as u32 & 0xFF
-            | (((color.y * 255.) as u32 & 0xFF) << 8)
-            | (((color.z * 255.) as u32 & 0xFF) << 16)
-            | (((color.w * 255.) as u32 & 0xFF) << 24);
-        self.color = c;
-    }
-    fn set_normal(&mut self, _normal: Vector3) {}
-    fn set_tex_coord(&mut self, t: Vector2) {
-        self.tex_coord = t;
-    }
-}
-impl Default for UIVertexData {
-    fn default() -> Self {
-        Self {
-            pos: Vector3::default_zero(),
-            tex_coord: Vector2::default_zero(),
-            color: 0,
+impl From<VertexFormat> for wgpu::VertexFormat {
+    fn from(format: VertexFormat) -> wgpu::VertexFormat {
+        match format {
+            VertexFormat::Uint8x2 => wgpu::VertexFormat::Uint8x2,
+            VertexFormat::Uint8x4 => wgpu::VertexFormat::Uint8x4,
+            VertexFormat::Sint8x2 => wgpu::VertexFormat::Sint8x2,
+            VertexFormat::Sint8x4 => wgpu::VertexFormat::Sint8x4,
+            VertexFormat::Unorm8x2 => wgpu::VertexFormat::Unorm8x2,
+            VertexFormat::Unorm8x4 => wgpu::VertexFormat::Unorm8x4,
+            VertexFormat::Snorm8x2 => wgpu::VertexFormat::Snorm8x2,
+            VertexFormat::Snorm8x4 => wgpu::VertexFormat::Snorm8x4,
+            VertexFormat::Uint16x2 => wgpu::VertexFormat::Uint16x2,
+            VertexFormat::Uint16x4 => wgpu::VertexFormat::Uint16x4,
+            VertexFormat::Sint16x2 => wgpu::VertexFormat::Sint16x2,
+            VertexFormat::Sint16x4 => wgpu::VertexFormat::Sint16x4,
+            VertexFormat::Unorm16x2 => wgpu::VertexFormat::Unorm16x2,
+            VertexFormat::Unorm16x4 => wgpu::VertexFormat::Unorm16x4,
+            VertexFormat::Snorm16x2 => wgpu::VertexFormat::Snorm16x2,
+            VertexFormat::Snorm16x4 => wgpu::VertexFormat::Snorm16x4,
+            VertexFormat::Float16x2 => wgpu::VertexFormat::Float16x2,
+            VertexFormat::Float16x4 => wgpu::VertexFormat::Float16x4,
+            VertexFormat::Float32 => wgpu::VertexFormat::Float32,
+            VertexFormat::Float32x2 => wgpu::VertexFormat::Float32x2,
+            VertexFormat::Float32x3 => wgpu::VertexFormat::Float32x3,
+            VertexFormat::Float32x4 => wgpu::VertexFormat::Float32x4,
+            VertexFormat::Uint32 => wgpu::VertexFormat::Uint32,
+            VertexFormat::Uint32x2 => wgpu::VertexFormat::Uint32x2,
+            VertexFormat::Uint32x3 => wgpu::VertexFormat::Uint32x3,
+            VertexFormat::Uint32x4 => wgpu::VertexFormat::Uint32x4,
+            VertexFormat::Sint32 => wgpu::VertexFormat::Sint32,
+            VertexFormat::Sint32x2 => wgpu::VertexFormat::Sint32x2,
+            VertexFormat::Sint32x3 => wgpu::VertexFormat::Sint32x3,
+            VertexFormat::Sint32x4 => wgpu::VertexFormat::Sint32x4,
+            VertexFormat::Float64 => wgpu::VertexFormat::Float64,
+            VertexFormat::Float64x2 => wgpu::VertexFormat::Float64x2,
+            VertexFormat::Float64x3 => wgpu::VertexFormat::Float64x3,
+            VertexFormat::Float64x4 => wgpu::VertexFormat::Float64x4,
         }
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
-#[serde(crate = "inox_serialize")]
-pub struct WireframeVertexData {
-    pub pos: Vector3,
-    pub color: u32,
-}
-impl VertexData for WireframeVertexData {
-    fn set_position(&mut self, pos: Vector3) {
-        self.pos = pos;
-    }
-    fn set_color(&mut self, color: Vector4) {
-        let c = (color.x * 255.) as u32 & 0xFF
-            | (((color.y * 255.) as u32 & 0xFF) << 8)
-            | (((color.z * 255.) as u32 & 0xFF) << 16)
-            | (((color.w * 255.) as u32 & 0xFF) << 24);
-        self.color = c;
-    }
-    fn set_normal(&mut self, _normal: Vector3) {}
-    fn set_tex_coord(&mut self, _t: Vector2) {}
-}
-impl Default for WireframeVertexData {
-    fn default() -> Self {
-        Self {
-            pos: Vector3::default_zero(),
-            color: 0xFFFFFFFF,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
-#[serde(crate = "inox_serialize")]
-pub struct PbrVertexData {
-    pub pos: Vector3,
-    pub normal: Vector3,
-    pub tangent: Vector4,
-    pub color: Vector4,
-    pub tex_coord: [Vector2; MAX_TEXTURE_COORDS_SETS],
-}
-impl VertexData for PbrVertexData {
-    fn set_position(&mut self, pos: Vector3) {
-        self.pos = pos;
-    }
-    fn set_color(&mut self, color: Vector4) {
-        self.color = color;
-    }
-    fn set_normal(&mut self, normal: Vector3) {
-        self.normal = normal;
-    }
-    fn set_tex_coord(&mut self, t: Vector2) {
-        self.tex_coord.iter_mut().for_each(|tex_coord| {
-            *tex_coord = t;
-        });
-    }
-}
-impl Default for PbrVertexData {
-    fn default() -> PbrVertexData {
-        PbrVertexData {
-            pos: Vector3::default_zero(),
-            normal: Vector3::new(0., 0., 1.),
-            tangent: Vector4::new(1., 0., 0., 1.),
-            color: Vector4::new(1., 1., 1., 1.),
-            tex_coord: [Vector2::default_zero(); MAX_TEXTURE_COORDS_SETS],
+impl From<wgpu::VertexFormat> for VertexFormat {
+    fn from(format: wgpu::VertexFormat) -> Self {
+        match format {
+            wgpu::VertexFormat::Uint8x2 => VertexFormat::Uint8x2,
+            wgpu::VertexFormat::Uint8x4 => VertexFormat::Uint8x4,
+            wgpu::VertexFormat::Sint8x2 => VertexFormat::Sint8x2,
+            wgpu::VertexFormat::Sint8x4 => VertexFormat::Sint8x4,
+            wgpu::VertexFormat::Unorm8x2 => VertexFormat::Unorm8x2,
+            wgpu::VertexFormat::Unorm8x4 => VertexFormat::Unorm8x4,
+            wgpu::VertexFormat::Snorm8x2 => VertexFormat::Snorm8x2,
+            wgpu::VertexFormat::Snorm8x4 => VertexFormat::Snorm8x4,
+            wgpu::VertexFormat::Uint16x2 => VertexFormat::Uint16x2,
+            wgpu::VertexFormat::Uint16x4 => VertexFormat::Uint16x4,
+            wgpu::VertexFormat::Sint16x2 => VertexFormat::Sint16x2,
+            wgpu::VertexFormat::Sint16x4 => VertexFormat::Sint16x4,
+            wgpu::VertexFormat::Unorm16x2 => VertexFormat::Unorm16x2,
+            wgpu::VertexFormat::Unorm16x4 => VertexFormat::Unorm16x4,
+            wgpu::VertexFormat::Snorm16x2 => VertexFormat::Snorm16x2,
+            wgpu::VertexFormat::Snorm16x4 => VertexFormat::Snorm16x4,
+            wgpu::VertexFormat::Float16x2 => VertexFormat::Float16x2,
+            wgpu::VertexFormat::Float16x4 => VertexFormat::Float16x4,
+            wgpu::VertexFormat::Float32 => VertexFormat::Float32,
+            wgpu::VertexFormat::Float32x2 => VertexFormat::Float32x2,
+            wgpu::VertexFormat::Float32x3 => VertexFormat::Float32x3,
+            wgpu::VertexFormat::Float32x4 => VertexFormat::Float32x4,
+            wgpu::VertexFormat::Uint32 => VertexFormat::Uint32,
+            wgpu::VertexFormat::Uint32x2 => VertexFormat::Uint32x2,
+            wgpu::VertexFormat::Uint32x3 => VertexFormat::Uint32x3,
+            wgpu::VertexFormat::Uint32x4 => VertexFormat::Uint32x4,
+            wgpu::VertexFormat::Sint32 => VertexFormat::Sint32,
+            wgpu::VertexFormat::Sint32x2 => VertexFormat::Sint32x2,
+            wgpu::VertexFormat::Sint32x3 => VertexFormat::Sint32x3,
+            wgpu::VertexFormat::Sint32x4 => VertexFormat::Sint32x4,
+            wgpu::VertexFormat::Float64 => VertexFormat::Float64,
+            wgpu::VertexFormat::Float64x2 => VertexFormat::Float64x2,
+            wgpu::VertexFormat::Float64x3 => VertexFormat::Float64x3,
+            wgpu::VertexFormat::Float64x4 => VertexFormat::Float64x4,
         }
     }
 }
@@ -199,21 +127,6 @@ pub struct VertexBufferLayoutBuilder<'a> {
 }
 
 impl<'a> VertexBufferLayoutBuilder<'a> {
-    pub fn create_from_vertex_data_attribute(vertex_data_attribute: &'a [VertexFormat]) -> Self {
-        let mut layout_builder = VertexBufferLayoutBuilder::vertex();
-        vertex_data_attribute.iter().for_each(|attribute| {
-            layout_builder.attributes.push(wgpu::VertexAttribute {
-                offset: layout_builder.offset,
-                shader_location: layout_builder.location,
-                format: attribute.format(),
-            });
-            layout_builder.offset += attribute.size() as wgpu::BufferAddress;
-            layout_builder.location += 1;
-        });
-        layout_builder.layout.array_stride = layout_builder.offset;
-        layout_builder
-    }
-
     pub fn vertex() -> Self {
         Self {
             attributes: vec![],

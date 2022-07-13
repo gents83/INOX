@@ -1,18 +1,18 @@
-use std::{mem::size_of, path::PathBuf};
+use std::path::PathBuf;
 
-use inox_math::{is_point_in_triangle, Vector2, Vector3, Vector4};
-use inox_resources::{from_u8_slice, from_u8_slice_mut, to_u8_slice};
+use inox_math::{is_point_in_triangle, VecBase, Vector2, Vector3, Vector4};
+
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
-use crate::{create_quad_with_texture, VertexData, VertexFormat, VertexFormatBits};
+use crate::{DrawVertex, MAX_TEXTURE_COORDS_SETS};
 
 #[repr(C, align(16))]
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "inox_serialize")]
 pub struct MeshletData {
-    pub center: [f32; 3],
+    pub center: Vector3,
     pub radius: f32,
-    pub cone_axis: [f32; 3],
+    pub cone_axis: Vector3,
     pub cone_cutoff: f32,
     pub vertices_count: u32,
     pub vertices_offset: u32,
@@ -23,9 +23,9 @@ pub struct MeshletData {
 impl Default for MeshletData {
     fn default() -> Self {
         Self {
-            center: [0.; 3],
+            center: Vector3::default_zero(),
             radius: 0.0,
-            cone_axis: [0.; 3],
+            cone_axis: Vector3::default_zero(),
             cone_cutoff: 0.0,
             vertices_count: 0,
             vertices_offset: 0,
@@ -35,11 +35,15 @@ impl Default for MeshletData {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "inox_serialize")]
 pub struct MeshData {
-    pub vertex_format: Vec<VertexFormat>,
-    pub vertices: Vec<u8>,
+    pub positions: Vec<Vector3>,
+    pub colors: Vec<Vector4>,
+    pub normals: Vec<Vector3>,
+    pub tangents: Vec<Vector4>,
+    pub uvs: Vec<Vector2>,
+    pub vertices: Vec<DrawVertex>,
     pub indices: Vec<u32>,
     pub material: PathBuf,
     pub meshlets: Vec<MeshletData>,
@@ -52,77 +56,137 @@ impl SerializeFile for MeshData {
 }
 
 impl MeshData {
-    pub fn new(vertex_format: Vec<VertexFormat>) -> Self {
-        Self {
-            vertex_format,
-            vertices: Vec::new(),
-            indices: Vec::new(),
-            material: PathBuf::new(),
-            meshlets: Vec::new(),
-        }
-    }
-    pub fn vertex_format(&self) -> VertexFormatBits {
-        VertexFormat::to_bits(&self.vertex_format)
-    }
-    pub fn vertex_size(&self) -> usize {
-        self.vertex_format.iter().map(|a| a.size()).sum::<usize>()
-    }
     pub fn vertex_count(&self) -> usize {
-        self.vertices.len() / self.vertex_size()
+        self.vertices.len()
     }
-    pub fn attribute_offset(&self, attribute: VertexFormat) -> usize {
-        let mut attribute_offset = 0;
-        self.vertex_format
-            .iter()
-            .take_while(|&a| *a != attribute)
-            .for_each(|a| {
-                attribute_offset += a.size();
-            });
-        attribute_offset
+    pub fn index_count(&self) -> usize {
+        self.indices.len()
     }
-    fn attribute<T>(&self, i: usize, attribute: VertexFormat) -> &T {
-        let attribute_offset = self.attribute_offset(attribute);
-        let index = attribute_offset + i * self.vertex_size();
-        let data = from_u8_slice::<T>(&self.vertices[index..(index + size_of::<T>())]);
-        &data[0]
-    }
-    fn attribute_mut<T>(&mut self, i: usize, attribute: VertexFormat) -> &mut T {
-        let attribute_offset = self.attribute_offset(attribute);
-        let index = attribute_offset + i * self.vertex_size();
-        let data = from_u8_slice_mut::<T>(&mut self.vertices[index..(index + size_of::<T>())]);
-        &mut data[0]
-    }
-
-    pub fn pos3(&self, i: usize) -> &Vector3 {
-        self.attribute::<Vector3>(i, VertexFormat::PositionF32x3)
-    }
-    pub fn pos3_mut(&mut self, i: usize) -> &mut Vector3 {
-        self.attribute_mut::<Vector3>(i, VertexFormat::PositionF32x3)
-    }
-    pub fn color(&self, i: usize) -> &Vector4 {
-        self.attribute::<Vector4>(i, VertexFormat::ColorF32x4)
-    }
-    pub fn color_mut(&mut self, i: usize) -> &mut Vector4 {
-        self.attribute_mut::<Vector4>(i, VertexFormat::ColorF32x4)
-    }
-
     pub fn clear(&mut self) -> &mut Self {
         self.vertices.clear();
+        self.positions.clear();
+        self.colors.clear();
+        self.normals.clear();
+        self.tangents.clear();
+        self.uvs.clear();
+        self.meshlets.clear();
         self.indices.clear();
         self
+    }
+
+    pub fn add_vertex_pos_color(&mut self, p: Vector3, c: Vector4) -> usize {
+        let vertex = DrawVertex {
+            position_and_color_offset: self.positions.len() as _,
+            ..Default::default()
+        };
+        self.positions.push(p);
+        self.colors.push(c);
+        self.vertices.push(vertex);
+        self.vertices.len() - 1
+    }
+    pub fn add_vertex_pos_color_normal(&mut self, p: Vector3, c: Vector4, n: Vector3) -> usize {
+        let vertex = DrawVertex {
+            position_and_color_offset: self.positions.len() as _,
+            normal_offset: self.normals.len() as _,
+            ..Default::default()
+        };
+        self.positions.push(p);
+        self.colors.push(c);
+        self.normals.push(n);
+        self.vertices.push(vertex);
+        self.vertices.len() - 1
+    }
+    pub fn add_vertex_pos_uv(&mut self, p: Vector3, uv: Vector2) -> usize {
+        let vertex = DrawVertex {
+            position_and_color_offset: self.positions.len() as _,
+            uv_offset: [self.uvs.len() as _; MAX_TEXTURE_COORDS_SETS],
+            ..Default::default()
+        };
+        self.positions.push(p);
+        self.uvs.push(uv);
+        self.vertices.push(vertex);
+        self.vertices.len() - 1
+    }
+    pub fn add_vertex_pos_color_uv(&mut self, p: Vector3, c: Vector4, uv: Vector2) -> usize {
+        let vertex = DrawVertex {
+            position_and_color_offset: self.positions.len() as _,
+            uv_offset: [self.uvs.len() as _; MAX_TEXTURE_COORDS_SETS],
+            ..Default::default()
+        };
+        self.positions.push(p);
+        self.colors.push(c);
+        self.uvs.push(uv);
+        self.vertices.push(vertex);
+        self.vertices.len() - 1
+    }
+    pub fn add_vertex_pos_color_normal_uv(
+        &mut self,
+        p: Vector3,
+        c: Vector4,
+        n: Vector3,
+        uv: Vector2,
+    ) -> usize {
+        let vertex = DrawVertex {
+            position_and_color_offset: self.positions.len() as _,
+            normal_offset: self.normals.len() as _,
+            uv_offset: [self.uvs.len() as _; MAX_TEXTURE_COORDS_SETS],
+            ..Default::default()
+        };
+        self.positions.push(p);
+        self.colors.push(c);
+        self.normals.push(n);
+        self.uvs.push(uv);
+        self.vertices.push(vertex);
+        self.vertices.len() - 1
+    }
+    pub fn append_mesh_data_as_meshlet(&mut self, mut mesh_data: MeshData) {
+        let vertex_offset = self.vertex_count() as u32;
+        let index_offset = self.index_count() as u32;
+        let position_offset = self.positions.len() as u32;
+        let normals_offset = self.normals.len() as u32;
+        let tangents_offset = self.tangents.len() as u32;
+        let uvs_offset = self.uvs.len() as u32;
+
+        let meshlet = MeshletData {
+            vertices_offset: vertex_offset as _,
+            vertices_count: mesh_data.vertex_count() as _,
+            indices_offset: index_offset as _,
+            indices_count: mesh_data.index_count() as _,
+            ..Default::default()
+        };
+        self.meshlets.push(meshlet);
+
+        self.positions.append(&mut mesh_data.positions);
+        self.colors.append(&mut mesh_data.colors);
+        self.normals.append(&mut mesh_data.normals);
+        self.tangents.append(&mut mesh_data.tangents);
+        self.uvs.append(&mut mesh_data.uvs);
+        mesh_data.vertices.iter_mut().for_each(|v| {
+            v.position_and_color_offset += position_offset;
+            v.normal_offset += normals_offset as i32;
+            v.tangent_offset += tangents_offset as i32;
+            v.uv_offset.iter_mut().for_each(|uv| {
+                *uv += uvs_offset as i32;
+            });
+            self.vertices.push(*v);
+        });
+        mesh_data
+            .indices
+            .iter()
+            .for_each(|i| self.indices.push(*i + vertex_offset));
     }
 
     pub fn compute_min_max(&self) -> (Vector3, Vector3) {
         let mut min = Vector3::new(f32::MAX, f32::MAX, f32::MAX);
         let mut max = Vector3::new(f32::MIN, f32::MIN, f32::MIN);
-        for i in 0..self.vertex_count() {
-            let pos = self.pos3(i);
-            min.x = min.x.min(pos.x);
-            min.y = min.y.min(pos.y);
-            min.z = min.z.min(pos.z);
-            max.x = max.x.max(pos.x);
-            max.y = max.y.max(pos.y);
-            max.z = max.z.max(pos.z);
+        for i in 0..self.positions.len() {
+            let pos = &self.positions[i];
+            min.x = min.x.min(pos[0]);
+            min.y = min.y.min(pos[1]);
+            min.z = min.z.min(pos[2]);
+            max.x = max.x.max(pos[0]);
+            max.y = max.y.max(pos[1]);
+            max.z = max.z.max(pos[2]);
         }
         (min, max)
     }
@@ -138,57 +202,17 @@ impl MeshData {
     }
 
     pub fn set_vertex_color(&mut self, color: Vector4) -> &mut Self {
-        for i in 0..self.vertex_count() {
-            let c = self.color_mut(i);
-            *c = color;
-        }
+        self.colors.iter_mut().for_each(|c| *c = color);
         self
     }
 
-    pub fn append_mesh<T>(&mut self, vertices: &[T], indices: &[u32]) {
-        let first_vertex = self.vertices.len() as u32 / self.vertex_size() as u32;
-        let first_index = self.indices.len() as u32;
-
-        self.vertices.append(&mut to_u8_slice(vertices).to_vec());
-        self.indices.append(&mut indices.to_vec());
-
-        let last_index = self.indices.len() as u32 - 1;
-
-        self.indices[first_index as usize..(last_index + 1) as usize]
-            .iter_mut()
-            .for_each(|i| *i += first_vertex);
-        self.compute_center();
-    }
-
-    pub fn add_quad_default<T>(&mut self, rect: Vector4, z: f32)
-    where
-        T: VertexData + Copy,
-    {
-        let tex_coords = [0.0, 0.0, 1.0, 1.0].into();
-        let (vertices, indices) = create_quad_with_texture::<T>(rect, z, tex_coords, None);
-        self.append_mesh(&vertices, &indices);
-    }
-
-    pub fn add_quad<T>(
-        &mut self,
-        rect: Vector4,
-        z: f32,
-        tex_coords: Vector4,
-        index_start: Option<usize>,
-    ) where
-        T: VertexData + Copy,
-    {
-        let (vertices, indices) = create_quad_with_texture::<T>(rect, z, tex_coords, index_start);
-        self.append_mesh(&vertices, &indices);
-    }
-
     pub fn clip_in_rect(&mut self, clip_rect: Vector4) -> &mut Self {
-        for i in 0..self.vertex_count() {
-            let pos = self.pos3_mut(i);
-            pos.x = pos.x.max(clip_rect.x);
-            pos.x = pos.x.min(clip_rect.z);
-            pos.y = pos.y.max(clip_rect.y);
-            pos.y = pos.y.min(clip_rect.w);
+        for i in 0..self.positions.len() {
+            let pos = &mut self.positions[i];
+            pos[0] = pos[0].max(clip_rect.x);
+            pos[0] = pos[0].min(clip_rect.z);
+            pos[1] = pos[1].max(clip_rect.y);
+            pos[1] = pos[1].min(clip_rect.w);
         }
         self.compute_center();
         self
@@ -198,9 +222,21 @@ impl MeshData {
         let mut i = 0;
         let count = self.indices.len();
         while i < count {
-            let v1 = self.pos3(self.indices[i] as usize).xy();
-            let v2 = self.pos3(self.indices[i + 1] as usize).xy();
-            let v3 = self.pos3(self.indices[i + 2] as usize).xy();
+            let v1 = [
+                self.positions[self.indices[i] as usize][0],
+                self.positions[self.indices[i] as usize][1],
+            ]
+            .into();
+            let v2 = [
+                self.positions[self.indices[i + 1] as usize][0],
+                self.positions[self.indices[i + 1] as usize][1],
+            ]
+            .into();
+            let v3 = [
+                self.positions[self.indices[i + 2] as usize][0],
+                self.positions[self.indices[i + 2] as usize][1],
+            ]
+            .into();
             if is_point_in_triangle(v1, v2, v3, pos_in_screen_space.x, pos_in_screen_space.y) {
                 return true;
             }

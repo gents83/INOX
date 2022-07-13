@@ -1,4 +1,6 @@
-use crate::{FontData, Texture};
+use crate::{
+    FontData, Texture, TextureData, TextureFormat, TextureUsage, DEFAULT_FONT_TEXTURE_SIZE,
+};
 
 use inox_math::Vector4;
 use inox_messenger::MessageHubRc;
@@ -56,17 +58,27 @@ impl DataTypeResource for Font {
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         _id: ResourceId,
-        data: Self::DataType,
+        data: &Self::DataType,
     ) -> Self
     where
         Self: Sized,
     {
-        let mut font_data = data;
+        let mut font_data = data.clone();
         let texture = Texture::new_resource(
             shared_data,
             message_hub,
             generate_random_uid(),
-            font_data.create_texture(),
+            TextureData {
+                width: DEFAULT_FONT_TEXTURE_SIZE as _,
+                height: DEFAULT_FONT_TEXTURE_SIZE as _,
+                data: font_data.create_texture(),
+                format: TextureFormat::Rgba8Unorm,
+                use_texture_atlas: true,
+                usage: TextureUsage::TextureBinding
+                    | TextureUsage::CopyDst
+                    | TextureUsage::RenderAttachment,
+            },
+            None,
         );
         Self {
             texture: Some(texture),

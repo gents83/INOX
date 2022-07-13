@@ -1,7 +1,6 @@
 use std::{
-    collections::{hash_map::Entry, HashMap},
-    mem::size_of,
-    path::PathBuf,
+    borrow::Cow,
+    collections::HashMap,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
@@ -9,35 +8,27 @@ use std::{
 };
 
 use egui::{
-    epaint::{Primitive, Vertex},
-    ClippedPrimitive, Context, Event, Modifiers, PlatformOutput, PointerButton, RawInput, Rect,
-    TextureId as eguiTextureId, TexturesDelta,
+    epaint::Primitive, ClippedPrimitive, Context, Event, Modifiers, PlatformOutput, PointerButton,
+    RawInput, Rect, TextureId as eguiTextureId, TexturesDelta,
 };
-use image::RgbaImage;
+
 use inox_core::{
     implement_unique_system_uid, ContextRc, JobHandlerRw, JobHandlerTrait, JobPriority, System,
     SystemUID,
 };
 
-use inox_graphics::{
-    GraphicsData, Material, Mesh, MeshData, RendererRw, Texture, TextureId, TextureType,
-    VertexFormat, GRAPHICS_DATA_UID,
-};
+use inox_graphics::{RendererRw, Texture, TextureData, TextureFormat, TextureUsage};
 
 use inox_log::debug_log;
-use inox_math::Vector4;
 use inox_messenger::{Listener, MessageHubRc};
 use inox_platform::{
     InputState, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState, WindowEvent,
 };
-use inox_resources::{
-    to_u8_slice, ConfigBase, ConfigEvent, DataTypeResource, Resource, SerializableResource,
-    SharedDataRc,
-};
+use inox_resources::{to_slice, ConfigBase, ConfigEvent, DataTypeResource, Resource, SharedDataRc};
 use inox_serialize::read_from_file;
 use inox_uid::generate_random_uid;
 
-use crate::{UIPass, UIWidget};
+use crate::{UIInstance, UIPass, UIVertex, UIWidget};
 
 use super::config::Config;
 
@@ -53,8 +44,6 @@ pub struct UISystem {
     ui_input: RawInput,
     ui_input_modifiers: Modifiers,
     ui_clipboard: Option<String>,
-    ui_materials: HashMap<TextureId, Resource<Material>>,
-    ui_meshes: Vec<Resource<Mesh>>,
     ui_scale: f32,
 }
 
@@ -76,140 +65,45 @@ impl UISystem {
             ui_input: RawInput::default(),
             ui_input_modifiers: Modifiers::default(),
             ui_clipboard: None,
-            ui_materials: HashMap::new(),
-            ui_meshes: Vec::new(),
             ui_scale: 2.,
         }
     }
 
-    fn get_ui_material(&mut self, texture: Resource<Texture>) -> Resource<Material> {
-        inox_profiler::scoped_profile!("ui_system::get_ui_material");
-
-        match self.ui_materials.entry(*texture.id()) {
-            Entry::Occupied(e) => e.get().clone(),
-            Entry::Vacant(e) => {
-                let shared_data = self.shared_data.clone();
-                let message_hub = self.message_hub.clone();
-                let r = self.renderer.read().unwrap();
-                if let Some(ui_pass) = r.pass::<UIPass>() {
-                    let render_pass = ui_pass.render_pass().get();
-                    let pipelines = render_pass.pipelines();
-                    if pipelines.is_empty() {
-                        panic!(
-                            "UI pipeline not loaded yet or maybe you forgot to read ui.cfg file"
-                        );
-                    }
-                    let pipeline = &pipelines[0];
-                    let material =
-                        Material::duplicate_from_pipeline(&shared_data, &message_hub, pipeline);
-                    material
-                        .get_mut()
-                        .set_texture(TextureType::BaseColor, &texture);
-                    e.insert(material.clone());
-                    material
-                } else {
-                    panic!("UI pipeline not loaded yet or maybe you forgot to read ui.cfg file");
-                }
-            }
-        }
-    }
-
-    fn compute_mesh_data(&mut self, clipped_meshes: Vec<ClippedPrimitive>) {
-        let graphics_data = self
-            .shared_data
-            .get_resource::<GraphicsData>(&GRAPHICS_DATA_UID);
-        if graphics_data.is_none() {
-            return;
-        }
+    fn compute_mesh_data(&mut self, primitives: Vec<ClippedPrimitive>) {
         inox_profiler::scoped_profile!("ui_system::compute_mesh_data");
-        let shared_data = self.shared_data.clone();
-        let message_hub = self.message_hub.clone();
-        let vertex_data_attribute_ui_hash = VertexFormat::to_bits(VertexFormat::ui().as_slice());
-        self.ui_meshes.resize_with(clipped_meshes.len(), || {
-            Mesh::new_resource(
-                &shared_data,
-                &message_hub,
-                generate_random_uid(),
-                MeshData::new(VertexFormat::ui()),
-            )
-        });
+        let mut vertices: Vec<UIVertex> = Vec::new();
+        let mut indices: Vec<u32> = Vec::new();
+        let mut instances: Vec<UIInstance> = Vec::new();
 
-        let mut index = 0;
-        for (i, clipped_mesh) in clipped_meshes.into_iter().enumerate() {
-            if let Primitive::Mesh(mesh) = clipped_mesh.primitive {
+        for primitive in primitives.into_iter() {
+            if let Primitive::Mesh(mesh) = primitive.primitive {
                 if mesh.vertices.is_empty() || mesh.indices.is_empty() {
-                    self.ui_meshes[i].get_mut().set_visible(false);
                     continue;
                 }
-                let draw_index = index as u32;
-                index += 1;
+                inox_profiler::scoped_profile!("ui_system::create_mesh_data");
 
-                let texture = match mesh.texture_id {
-                    eguiTextureId::Managed(_) => self.ui_textures[&mesh.texture_id].clone(),
-                    eguiTextureId::User(texture_uniform_index) => {
-                        if let Some(texture) = self.shared_data.match_resource(|t: &Texture| {
-                            t.uniform_index() as u64 == texture_uniform_index
-                        }) {
-                            texture.clone()
-                        } else {
-                            self.ui_textures.iter().next().unwrap().1.clone()
-                        }
+                let texture_index = match mesh.texture_id {
+                    eguiTextureId::Managed(_) => {
+                        self.ui_textures[&mesh.texture_id].get().texture_index()
                     }
+                    eguiTextureId::User(texture_uniform_index) => texture_uniform_index as _,
                 };
 
-                let material = self.get_ui_material(texture);
-                let mesh_instance = self.ui_meshes[i].clone();
-                let graphics_data = graphics_data.as_ref().unwrap().clone();
-                let ui_scale = self.ui_scale;
-                let clip_rect = clipped_mesh.clip_rect;
-
-                self.job_handler.add_job(
-                    &UISystem::system_id(),
-                    format!("ui_system::ui_mesh_{}_data", i).as_str(),
-                    JobPriority::Medium,
-                    move || {
-                        {
-                            inox_profiler::scoped_profile!("ui_system::set_mesh_properties");
-                            mesh_instance
-                                .get_mut()
-                                .set_path(PathBuf::from(format!("UI_Mesh[{}].ui", i)).as_path())
-                                .set_material(material)
-                                .set_draw_area(Vector4::new(
-                                    clip_rect.min.x * ui_scale,
-                                    clip_rect.min.y * ui_scale,
-                                    clip_rect.max.x * ui_scale,
-                                    clip_rect.max.y * ui_scale,
-                                ))
-                                .set_draw_index(draw_index)
-                                .set_visible(true);
-                        }
-
-                        let (vertices_range, indices_range) = {
-                            inox_profiler::scoped_profile!("ui_system::copy_vertex_data");
-
-                            let vertices_range = graphics_data.get_mut().add_vertices(
-                                mesh_instance.id(),
-                                vertex_data_attribute_ui_hash,
-                                size_of::<Vertex>(),
-                                to_u8_slice(mesh.vertices.as_slice()),
-                            );
-                            let indices_range = graphics_data.get_mut().add_indices(
-                                mesh_instance.id(),
-                                vertex_data_attribute_ui_hash,
-                                mesh.indices.as_slice(),
-                            );
-                            (vertices_range, indices_range)
-                        };
-
-                        {
-                            inox_profiler::scoped_profile!("ui_system::set_mesh_ranges");
-                            mesh_instance
-                                .get_mut()
-                                .set_vertices_range(vertices_range)
-                                .set_indices_range(indices_range);
-                        }
-                    },
-                );
+                instances.push(UIInstance {
+                    index_start: indices.len() as _,
+                    index_count: mesh.indices.len() as _,
+                    vertex_start: vertices.len() as _,
+                    texture_index: texture_index as _,
+                });
+                vertices.extend_from_slice(to_slice(mesh.vertices.as_slice()));
+                indices.extend_from_slice(&mesh.indices);
+            }
+        }
+        let mut r = self.renderer.write().unwrap();
+        if let Some(ui_pass) = r.pass_mut::<UIPass>() {
+            ui_pass.clear_instances();
+            if !instances.is_empty() {
+                ui_pass.set_instances(vertices, indices, instances);
             }
         }
     }
@@ -367,42 +261,36 @@ impl UISystem {
         }
 
         for (egui_texture_id, image_delta) in textures_delta.set {
-            let pixels: Vec<u8> = match &image_delta.image {
+            let color32 = match &image_delta.image {
                 egui::ImageData::Color(image) => {
                     assert_eq!(
                         image.width() * image.height(),
                         image.pixels.len(),
                         "Mismatch between texture size and texel count"
                     );
-                    image
-                        .pixels
-                        .iter()
-                        .flat_map(|color| color.to_srgba_unmultiplied().to_vec())
-                        .collect()
+                    Cow::Borrowed(&image.pixels)
                 }
                 egui::ImageData::Font(image) => {
                     let gamma = 1.0;
-                    image
-                        .srgba_pixels(gamma)
-                        .flat_map(|color| color.to_array().to_vec())
-                        .collect()
+                    Cow::Owned(image.srgba_pixels(gamma).collect())
                 }
             };
-            let image_data = RgbaImage::from_vec(
-                image_delta.image.width() as _,
-                image_delta.image.height() as _,
-                pixels,
-            );
-            if let Some(texture) = self.ui_textures.get(&egui_texture_id) {
-                if let Some(material) = self.ui_materials.remove(texture.id()) {
-                    material.get_mut().remove_texture(TextureType::BaseColor);
-                }
-            }
+            let pixels: &[u8] = to_slice(color32.as_slice());
             let texture = Texture::new_resource(
                 &self.shared_data,
                 &self.message_hub,
                 generate_random_uid(),
-                image_data.unwrap(),
+                TextureData {
+                    width: image_delta.image.width() as _,
+                    height: image_delta.image.height() as _,
+                    data: pixels.to_vec(),
+                    format: TextureFormat::Rgba8Unorm,
+                    use_texture_atlas: true,
+                    usage: TextureUsage::TextureBinding
+                        | TextureUsage::CopyDst
+                        | TextureUsage::RenderAttachment,
+                },
+                None,
             );
             self.ui_textures.insert(egui_texture_id, texture);
         }

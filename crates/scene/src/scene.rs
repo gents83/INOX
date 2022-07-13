@@ -112,7 +112,7 @@ impl DataTypeResource for Scene {
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         id: SceneId,
-        scene_data: Self::DataType,
+        scene_data: &Self::DataType,
     ) -> Self {
         let mut scene = Self::new(id, shared_data, message_hub);
 

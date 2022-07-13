@@ -12,6 +12,63 @@ use crate::{RenderContext, ShaderData, SHADER_EXTENSION};
 
 pub type ShaderId = ResourceId;
 
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub enum ShaderType {
+    Invalid,
+    Vertex,
+    Fragment,
+    TessellationControl,
+    TessellationEvaluation,
+    Geometry,
+}
+
+pub const SHADER_EXTENSION_SPV: &str = "spv";
+pub const SHADER_EXTENSION_WGSL: &str = "wgsl";
+
+pub const SHADER_ENTRY_POINT: &str = "main";
+pub const VERTEX_SHADER_ENTRY_POINT: &str = "vs_main";
+pub const FRAGMENT_SHADER_ENTRY_POINT: &str = "fs_main";
+
+pub fn is_shader(path: &Path) -> bool {
+    path.extension().unwrap() == SHADER_EXTENSION_SPV
+        || path.extension().unwrap() == SHADER_EXTENSION_WGSL
+}
+
+pub fn read_spirv_from_bytes<Data: ::std::io::Read + ::std::io::Seek>(
+    data: &mut Data,
+) -> ::std::vec::Vec<u32> {
+    let size = data.seek(::std::io::SeekFrom::End(0)).unwrap();
+    if size % 4 != 0 {
+        panic!("Input data length not divisible by 4");
+    }
+    if size > usize::max_value() as u64 {
+        panic!("Input data too long");
+    }
+    let words = (size / 4) as usize;
+    let mut result = Vec::<u32>::with_capacity(words);
+    data.seek(::std::io::SeekFrom::Start(0)).unwrap();
+    unsafe {
+        data.read_exact(::std::slice::from_raw_parts_mut(
+            result.as_mut_ptr() as *mut u8,
+            words * 4,
+        ))
+        .unwrap();
+        result.set_len(words);
+    }
+    const MAGIC_NUMBER: u32 = 0x0723_0203;
+    if !result.is_empty() {
+        if result[0] == MAGIC_NUMBER.swap_bytes() {
+            for word in &mut result {
+                *word = word.swap_bytes();
+            }
+        } else if result[0] != MAGIC_NUMBER {
+            panic!("Input data is missing SPIR-V magic number");
+        }
+    } else {
+        panic!("Input data is empty");
+    }
+    result
+}
 pub struct Shader {
     path: PathBuf,
     data: ShaderData,
@@ -101,13 +158,13 @@ impl DataTypeResource for Shader {
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         id: ResourceId,
-        data: Self::DataType,
+        data: &Self::DataType,
     ) -> Self
     where
         Self: Sized,
     {
         let mut shader = Self::new(id, shared_data, message_hub);
-        shader.data = data;
+        shader.data = data.clone();
         shader
     }
 }
@@ -129,7 +186,7 @@ impl Shader {
                     context
                         .core
                         .device
-                        .create_shader_module(&wgpu::ShaderModuleDescriptor {
+                        .create_shader_module(wgpu::ShaderModuleDescriptor {
                             label: Some(shader_name.as_str()),
                             source: wgpu::ShaderSource::SpirV(std::borrow::Cow::Borrowed(
                                 self.data.spirv_code.as_slice(),
@@ -141,7 +198,7 @@ impl Shader {
                     context
                         .core
                         .device
-                        .create_shader_module(&wgpu::ShaderModuleDescriptor {
+                        .create_shader_module(wgpu::ShaderModuleDescriptor {
                             label: Some(shader_name.as_str()),
                             source: wgpu::ShaderSource::Wgsl(self.data.wgsl_code.clone().into()),
                         });

@@ -55,7 +55,7 @@ impl Hierarchy {
     ) -> Resource<UIWidget> {
         UIWidget::register(shared_data, message_hub, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any_mut().downcast_mut::<HierarchyData>() {
-                Window::new("Hierarchy")
+                if let Some(response) = Window::new("Hierarchy")
                     .vscroll(true)
                     .title_bar(true)
                     .resizable(true)
@@ -77,10 +77,14 @@ impl Hierarchy {
                                             &data.message_hub,
                                         );
                                     });
-                                });
-                            });
-                    });
+                                })
+                            })
+                    })
+                {
+                    return response.response.is_pointer_button_down_on();
+                }
             }
+            false
         })
     }
 
@@ -102,7 +106,7 @@ impl Hierarchy {
         let is_child_recursive = object.get().is_child_recursive(selected_id);
         let has_children = object.get().has_children();
 
-        let _response = if has_children {
+        if has_children {
             let id = ui.make_persistent_id(object_name.as_str());
             CollapsingState::load_with_default_open(ui.ctx(), id, true)
                 .show_header(ui, |ui| {
@@ -131,6 +135,6 @@ impl Hierarchy {
                 */
         } else {
             ui.add(SelectableLabel::new(is_selected, object_name.as_str()));
-        };
+        }
     }
 }

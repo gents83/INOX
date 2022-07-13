@@ -1,5 +1,20 @@
 #[macro_export]
 macro_rules! implement_message {
+    ($Type:ident, $Policy:ident) => {
+        impl $crate::Message for $Type {
+            #[inline]
+            fn compare_and_discard(&self, other: &Self) -> bool {
+                Self::$Policy(self, other)
+            }
+            #[inline]
+            fn from_command_parser(_command_parser: CommandParser) -> Option<Self>
+            where
+                Self: Sized,
+            {
+                None
+            }
+        }
+    };
     ($Type:ident, $Func:ident, $Policy:ident) => {
         impl $crate::Message for $Type {
             #[inline]
@@ -15,26 +30,17 @@ macro_rules! implement_message {
             }
         }
     };
-    ($Type:ident, $Policy:ident) => {
-        impl $crate::Message for $Type {
-            #[inline]
-            fn compare_and_discard(&self, other: &Self) -> bool {
-                Self::$Policy(self, other)
-            }
-            #[inline]
-            fn from_command_parser(command_parser: CommandParser) -> Option<Self>
-            where
-                Self: Sized,
-            {
-                None
-            }
-        }
-    };
-    ($Type:ident<$InnerType:ident>, $Func:ident, $Policy:ident) => {
+    ($Type:ident<$InnerTrait:ident>
+        $(where
+            $WhereBounds:ident: $WhereType:tt $(+ $WhereOtherType:tt)*
+        )*,
+        [conversion = $Func:ident],
+        [policy = $Policy:ident]) =>
+    {
         impl<T> $crate::Message for $Type<T>
         where
-            T: $InnerType,
-            $Type<T>: 'static,
+            T: $InnerTrait,
+            $(T::$WhereBounds: $WhereType $(+ $WhereOtherType)*, )*
         {
             #[inline]
             fn compare_and_discard(&self, other: &Self) -> bool {
@@ -49,17 +55,23 @@ macro_rules! implement_message {
             }
         }
     };
-    ($Type:ident<$InnerType:ident>, $Policy:ident) => {
+
+    ($Type:ident<$InnerTrait:ident> $( where
+            $WhereBounds:ident: $WhereType:tt $(+ $WhereOtherType:tt)*
+        )?,
+        [policy = $Policy:ident]) =>
+    {
         impl<T> $crate::Message for $Type<T>
         where
-            T: $InnerType,
+            T: $InnerTrait,
+            $( T::$WhereBounds: $WhereType $(+ $WhereOtherType)*, )*
         {
             #[inline]
             fn compare_and_discard(&self, other: &Self) -> bool {
                 Self::$Policy(self, other)
             }
             #[inline]
-            fn from_command_parser(command_parser: CommandParser) -> Option<Self>
+            fn from_command_parser(_command_parser: CommandParser) -> Option<Self>
             where
                 Self: Sized,
             {

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use inox_commands::CommandParser;
 use inox_messenger::implement_message;
 
-use crate::{Resource, ResourceId, ResourceTrait, SerializableResource};
+use crate::{DataTypeResource, Resource, ResourceId, ResourceTrait, SerializableResource};
 
 pub enum ResourceEvent<T>
 where
@@ -16,8 +16,8 @@ where
 
 implement_message!(
     ResourceEvent<ResourceTrait>,
-    message_from_command_parser,
-    compare_and_discard
+    [conversion = message_from_command_parser],
+    [policy = compare_and_discard]
 );
 
 unsafe impl<T> Send for ResourceEvent<T> where T: ResourceTrait {}
@@ -50,6 +50,33 @@ where
 }
 
 #[derive(Clone)]
+pub enum DataTypeResourceEvent<T>
+where
+    T: DataTypeResource + ?Sized,
+    T::DataType: Send + Sync,
+{
+    Loaded(ResourceId, T::DataType),
+}
+implement_message!(
+    DataTypeResourceEvent<DataTypeResource> where DataType: Send + Sync,
+    [policy = compare_and_discard]
+);
+
+impl<T> DataTypeResourceEvent<T>
+where
+    T: DataTypeResource,
+    T::DataType: Send + Sync,
+{
+    fn compare_and_discard(&self, other: &Self) -> bool {
+        match self {
+            Self::Loaded(id, _data) => match other {
+                Self::Loaded(other_id, _other_data) => id == other_id,
+            },
+        }
+    }
+}
+
+#[derive(Clone)]
 pub enum SerializableResourceEvent<T>
 where
     T: SerializableResource + ?Sized,
@@ -58,8 +85,8 @@ where
 }
 implement_message!(
     SerializableResourceEvent<SerializableResource>,
-    message_from_command_parser,
-    compare_and_discard
+    [conversion = message_from_command_parser],
+    [policy = compare_and_discard]
 );
 
 impl<T> SerializableResourceEvent<T>

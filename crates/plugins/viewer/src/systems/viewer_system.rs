@@ -1,15 +1,16 @@
 use inox_commands::CommandParser;
 use inox_core::{implement_unique_system_uid, ContextRc, System};
 use inox_graphics::{
-    create_quad, CullingPass, Material, Mesh, MeshData, PbrVertexData, RenderPipeline, RendererRw,
-    Texture, VertexFormat, View, WireframeVertexData, DEFAULT_PIPELINE, WIREFRAME_PIPELINE,
+    create_quad, CullingPass, Light, Material, MaterialData, Mesh, MeshData, MeshFlags, RendererRw,
+    Texture, View,
 };
 use inox_log::debug_log;
 use inox_math::{Mat4Ops, Matrix4, VecBase, Vector2, Vector3};
 use inox_messenger::Listener;
-use inox_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
+use inox_platform::{InputState, Key, KeyEvent, MouseEvent, MouseState, WindowEvent};
 use inox_resources::{DataTypeResource, Resource, SerializableResource, SerializableResourceEvent};
 use inox_scene::{Camera, Object, Scene};
+use inox_ui::UIWidget;
 use inox_uid::generate_random_uid;
 use std::{
     path::PathBuf,
@@ -26,10 +27,10 @@ pub struct ViewerSystem {
     renderer: RendererRw,
     listener: Listener,
     scene: Resource<Scene>,
-    _camera_object: Resource<Object>,
     last_mouse_pos: Vector2,
+    is_on_view3d: bool,
     view_3d: Option<View3D>,
-    info: Info,
+    info: Option<Info>,
     last_frame: u64,
     camera_index: u32,
     update_culling_camera: Arc<AtomicBool>,
@@ -64,11 +65,6 @@ impl System for ViewerSystem {
             .register::<MouseEvent>()
             .register::<WindowEvent>()
             .register::<SerializableResourceEvent<Scene>>();
-
-        self.view_3d = Some(View3D::new(
-            self.context.shared_data(),
-            self.context.message_hub(),
-        ))
     }
 
     fn run(&mut self) -> bool {
@@ -76,7 +72,9 @@ impl System for ViewerSystem {
 
         self.update_events().update_view_from_camera();
 
-        self.info.update();
+        if let Some(info) = &mut self.info {
+            info.update();
+        }
 
         let timer = self.context.global_timer();
         let current_frame = timer.current_frame();
@@ -109,7 +107,7 @@ impl System for ViewerSystem {
 }
 
 impl ViewerSystem {
-    pub fn new(context: &ContextRc, renderer: &RendererRw) -> Self {
+    pub fn new(context: &ContextRc, renderer: &RendererRw, use_3dview: bool) -> Self {
         let listener = Listener::new(context.message_hub());
         let shared_data = context.shared_data();
         let message_hub = context.message_hub();
@@ -123,42 +121,30 @@ impl ViewerSystem {
             Scene::new(scene_id, shared_data, message_hub),
         );
 
-        let camera_id = generate_random_uid();
-        let camera_object = shared_data.add_resource::<Object>(
-            message_hub,
-            camera_id,
-            Object::new(camera_id, shared_data, message_hub),
-        );
-        camera_object
-            .get_mut()
-            .set_position(Vector3::new(0.0, 0.0, -50.0));
-        camera_object.get_mut().look_at(Vector3::new(0.0, 0.0, 0.0));
-        let camera = camera_object
-            .get_mut()
-            .add_default_component::<Camera>(shared_data, message_hub);
-        camera
-            .get_mut()
-            .set_parent(&camera_object)
-            .set_active(false);
-
         let update_culling_camera = Arc::new(AtomicBool::new(true));
+        let view_3d = if use_3dview {
+            Some(View3D::new(shared_data, message_hub))
+        } else {
+            None
+        };
+        let info = Some(Info::new(
+            context,
+            InfoParams {
+                is_active: true,
+                scene_id: *scene.id(),
+                renderer: renderer.clone(),
+                update_culling_camera: update_culling_camera.clone(),
+            },
+        ));
         Self {
             renderer: renderer.clone(),
             last_frame: u64::MAX,
-            view_3d: None,
-            info: Info::new(
-                context,
-                InfoParams {
-                    is_active: true,
-                    scene_id: *scene.id(),
-                    renderer: renderer.clone(),
-                    update_culling_camera: update_culling_camera.clone(),
-                },
-            ),
+            is_on_view3d: false,
+            view_3d,
+            info,
             context: context.clone(),
             listener,
             scene,
-            _camera_object: camera_object,
             camera_index: 0,
             update_culling_camera,
             last_mouse_pos: Vector2::default_zero(),
@@ -200,17 +186,12 @@ impl ViewerSystem {
                     self.context.message_hub(),
                 ),
             );
-            let pipeline = RenderPipeline::request_load(
+            let material = Material::new_resource(
                 self.context.shared_data(),
                 self.context.message_hub(),
-                PathBuf::from(DEFAULT_PIPELINE).as_path(),
+                generate_random_uid(),
+                MaterialData::default(),
                 None,
-            );
-            pipeline.get_mut().set_vertex_format(VertexFormat::pbr());
-            let material = Material::duplicate_from_pipeline(
-                self.context.shared_data(),
-                self.context.message_hub(),
-                &pipeline,
             );
             let texture = Texture::request_load(
                 self.context.shared_data(),
@@ -221,9 +202,14 @@ impl ViewerSystem {
             material
                 .get_mut()
                 .set_texture(inox_graphics::TextureType::BaseColor, &texture);
-            mesh.get_mut().set_material(material);
-            let mut mesh_data = MeshData::new(VertexFormat::pbr());
-            mesh_data.add_quad_default::<PbrVertexData>([-10., -10., 10., 10.].into(), 0.);
+            mesh.get_mut()
+                .set_material(material)
+                .set_flags(MeshFlags::Visible | MeshFlags::Opaque);
+
+            let mut mesh_data = MeshData::default();
+            let quad = create_quad([-10., -10., 10., 10.].into(), 0.);
+            mesh_data.append_mesh_data_as_meshlet(quad);
+            mesh_data.set_vertex_color([0.0, 0.0, 1.0, 1.0].into());
 
             //println!("Quad Mesh {:?}", mesh.id());
 
@@ -254,26 +240,22 @@ impl ViewerSystem {
                     self.context.message_hub(),
                 ),
             );
-            let wireframe_pipeline = RenderPipeline::request_load(
+            let wireframe_material = Material::new_resource(
                 self.context.shared_data(),
                 self.context.message_hub(),
-                PathBuf::from(WIREFRAME_PIPELINE).as_path(),
+                generate_random_uid(),
+                MaterialData::default(),
                 None,
             );
-            wireframe_pipeline
+            wireframe_mesh
                 .get_mut()
-                .set_vertex_format(VertexFormat::wireframe());
-            let wireframe_material = Material::duplicate_from_pipeline(
-                self.context.shared_data(),
-                self.context.message_hub(),
-                &wireframe_pipeline,
-            );
-            wireframe_mesh.get_mut().set_material(wireframe_material);
-            let mut mesh_data = MeshData::new(VertexFormat::wireframe());
+                .set_material(wireframe_material)
+                .set_flags(MeshFlags::Visible | MeshFlags::Wireframe);
 
-            let (vertices, indices) =
-                create_quad::<WireframeVertexData>([-10., -10., 10., 10.].into(), 0., None);
-            mesh_data.append_mesh(&vertices, &indices);
+            let mut mesh_data = MeshData::default();
+            let quad = create_quad([-10., -10., 10., 10.].into(), 0.);
+            mesh_data.append_mesh_data_as_meshlet(quad);
+            mesh_data.set_vertex_color([1.0, 1.0, 0.0, 1.0].into());
 
             //println!("Wireframe Mesh {:?}", mesh.id());
 
@@ -284,6 +266,46 @@ impl ViewerSystem {
         };
         self.scene.get_mut().add_object(default_object);
         self.scene.get_mut().add_object(wireframe_object);
+
+        let camera_id = generate_random_uid();
+        let camera_object = self.context.shared_data().add_resource::<Object>(
+            self.context.message_hub(),
+            camera_id,
+            Object::new(
+                camera_id,
+                self.context.shared_data(),
+                self.context.message_hub(),
+            ),
+        );
+        camera_object
+            .get_mut()
+            .set_position(Vector3::new(0.0, 0.0, -50.0));
+        camera_object.get_mut().look_at(Vector3::new(0.0, 0.0, 0.0));
+        let camera = camera_object.get_mut().add_default_component::<Camera>(
+            self.context.shared_data(),
+            self.context.message_hub(),
+        );
+        camera
+            .get_mut()
+            .set_parent(&camera_object)
+            .set_active(false);
+        self.scene.get_mut().add_object(camera_object);
+
+        let light_id = generate_random_uid();
+        let light_object = self.context.shared_data().add_resource::<Object>(
+            self.context.message_hub(),
+            light_id,
+            Object::new(
+                light_id,
+                self.context.shared_data(),
+                self.context.message_hub(),
+            ),
+        );
+        let light = light_object
+            .get_mut()
+            .add_default_component::<Light>(self.context.shared_data(), self.context.message_hub());
+        light.get_mut().set_active(true);
+        self.scene.get_mut().add_object(light_object);
     }
 
     fn load_scene(&mut self, filename: &str) {
@@ -295,7 +317,9 @@ impl ViewerSystem {
                 PathBuf::from(filename).as_path(),
                 None,
             );
-            self.info.set_scene_id(self.scene.id());
+            if let Some(info) = &mut self.info {
+                info.set_scene_id(self.scene.id());
+            }
         }
     }
 
@@ -332,7 +356,10 @@ impl ViewerSystem {
                             PathBuf::from(scene_path).as_path(),
                             None,
                         );
-                        self.info.set_scene_id(self.scene.id());
+
+                        if let Some(info) = &mut self.info {
+                            info.set_scene_id(self.scene.id());
+                        }
                     }
                 }
             });
@@ -347,7 +374,8 @@ impl ViewerSystem {
             .shared_data()
             .match_resource(|view: &View| view.view_index() == 0)
         {
-            if FORCE_USE_DEFAULT_CAMERA {
+            if FORCE_USE_DEFAULT_CAMERA || self.context.shared_data().num_resources::<Camera>() <= 1
+            {
                 self.camera_index = 0;
             } else {
                 self.camera_index = 1;
@@ -364,13 +392,14 @@ impl ViewerSystem {
                         let proj_matrix = c.proj_matrix();
 
                         if self.update_culling_camera.load(Ordering::SeqCst) {
-                            if let Some(culling_pass) =
+                            if let Some(_culling_pass) =
                                 self.renderer.write().unwrap().pass_mut::<CullingPass>()
                             {
-                                culling_pass
-                                    .set_camera_data(c.position(), proj_matrix * view_matrix);
+                                //culling_pass
+                                //    .set_camera_data(c.position(), proj_matrix * view_matrix);
                             }
                         }
+
                         view.get_mut()
                             .update_view(view_matrix)
                             .update_proj(proj_matrix);
@@ -384,10 +413,12 @@ impl ViewerSystem {
     fn handle_keyboard_event(&mut self) {
         self.listener.process_messages(|event: &KeyEvent| {
             if event.code == Key::F1 && event.state == InputState::Released {
-                if self.info.is_active() {
-                    self.info.set_active(false);
-                } else {
-                    self.info.set_active(true);
+                if let Some(info) = &mut self.info {
+                    if info.is_active() {
+                        info.set_active(false);
+                    } else {
+                        info.set_active(true);
+                    }
                 }
             }
 
@@ -424,11 +455,22 @@ impl ViewerSystem {
 
     fn handle_mouse_event(&mut self) {
         self.listener.process_messages(|event: &MouseEvent| {
-            let mut is_on_view3d = false;
             if let Some(view_3d) = &self.view_3d {
-                is_on_view3d = view_3d.is_interacting();
+                self.is_on_view3d = view_3d.is_interacting();
+            } else if let MouseState::Down = event.state {
+                self.is_on_view3d = true;
+            } else if let MouseState::Up = event.state {
+                self.is_on_view3d = false;
+            } else {
+                self.context
+                    .shared_data()
+                    .for_each_resource(|_, w: &UIWidget| {
+                        if w.is_interacting() {
+                            self.is_on_view3d = false;
+                        }
+                    });
             }
-            if is_on_view3d {
+            if self.is_on_view3d {
                 let mut rotation_angle = Vector3::default_zero();
 
                 rotation_angle.x = self.last_mouse_pos.y - event.normalized_y;

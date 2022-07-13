@@ -1,44 +1,75 @@
 use std::f32::consts::PI;
 
-use inox_math::{Mat4Ops, MatBase, Matrix4, VecBaseFloat, Vector3, Vector4};
+use inox_math::{Mat4Ops, MatBase, Matrix4, VecBaseFloat, Vector2, Vector3, Vector4};
 
-use crate::{PbrVertexData, VertexData, MAX_TEXTURE_COORDS_SETS};
+use crate::{MeshData, MeshletData};
 
-pub fn create_cube(size: Vector3) -> ([PbrVertexData; 8], [u32; 36]) {
-    create_cube_from_min_max(-size, size)
+pub fn create_cube(size: Vector3, color: Vector4) -> MeshData {
+    create_cube_from_min_max(-size, size, color)
 }
 
-pub fn create_cube_from_min_max(min: Vector3, max: Vector3) -> ([PbrVertexData; 8], [u32; 36]) {
-    let mut vertices = [PbrVertexData::default(); 8];
-    vertices[0].pos = [min.x, min.y, min.z].into();
-    vertices[1].pos = [max.x, min.y, min.z].into();
-    vertices[2].pos = [max.x, max.y, min.z].into();
-    vertices[3].pos = [min.x, max.y, min.z].into();
-    vertices[4].pos = [min.x, min.y, max.z].into();
-    vertices[5].pos = [max.x, min.y, max.z].into();
-    vertices[6].pos = [max.x, max.y, max.z].into();
-    vertices[7].pos = [min.x, max.y, max.z].into();
-    vertices[0].normal = [-1., -1., -1.].into();
-    vertices[1].normal = [1., -1., -1.].into();
-    vertices[2].normal = [1., 1., -1.].into();
-    vertices[3].normal = [-1., 1., -1.].into();
-    vertices[4].normal = [-1., -1., 1.].into();
-    vertices[5].normal = [1., -1., 1.].into();
-    vertices[6].normal = [1., 1., 1.].into();
-    vertices[7].normal = [-1., 1., 1.].into();
-    vertices[0].tex_coord = [[0., 0.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[1].tex_coord = [[1., 0.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[2].tex_coord = [[1., 1.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[3].tex_coord = [[0., 1.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[4].tex_coord = [[0., 0.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[5].tex_coord = [[1., 0.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[6].tex_coord = [[1., 1.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[7].tex_coord = [[0., 1.].into(); MAX_TEXTURE_COORDS_SETS];
-    let indices = [
+pub fn create_cube_from_min_max(min: Vector3, max: Vector3, color: Vector4) -> MeshData {
+    let mut mesh_data = MeshData::default();
+    mesh_data.add_vertex_pos_color_normal_uv(
+        Vector3::new(min.x, min.y, min.z),
+        color,
+        Vector3::new(-1., -1., -1.),
+        Vector2::new(0., 0.),
+    );
+    mesh_data.add_vertex_pos_color_normal_uv(
+        Vector3::new(max.x, min.y, min.z),
+        color,
+        Vector3::new(1., -1., -1.),
+        Vector2::new(1., 0.),
+    );
+    mesh_data.add_vertex_pos_color_normal_uv(
+        Vector3::new(max.x, max.y, min.z),
+        color,
+        Vector3::new(1., 1., -1.),
+        Vector2::new(1., 1.),
+    );
+    mesh_data.add_vertex_pos_color_normal_uv(
+        Vector3::new(min.x, max.y, min.z),
+        color,
+        Vector3::new(-1., 1., -1.),
+        Vector2::new(0., 1.),
+    );
+    mesh_data.add_vertex_pos_color_normal_uv(
+        Vector3::new(min.x, min.y, max.z),
+        color,
+        Vector3::new(-1., -1., 1.),
+        Vector2::new(0., 0.),
+    );
+    mesh_data.add_vertex_pos_color_normal_uv(
+        Vector3::new(max.x, min.y, max.z),
+        color,
+        Vector3::new(1., -1., 1.),
+        Vector2::new(1., 0.),
+    );
+    mesh_data.add_vertex_pos_color_normal_uv(
+        Vector3::new(max.x, max.y, max.z),
+        color,
+        Vector3::new(1., 1., 1.),
+        Vector2::new(1., 1.),
+    );
+    mesh_data.add_vertex_pos_color_normal_uv(
+        Vector3::new(min.x, max.y, max.z),
+        color,
+        Vector3::new(-1., 1., 1.),
+        Vector2::new(0., 1.),
+    );
+    mesh_data.indices = [
         0, 1, 3, 3, 1, 2, 1, 5, 2, 2, 5, 6, 5, 4, 6, 6, 4, 7, 4, 0, 7, 7, 0, 3, 3, 2, 7, 7, 2, 6,
         4, 5, 0, 0, 5, 1,
-    ];
-    (vertices, indices)
+    ]
+    .to_vec();
+    let meshlet = MeshletData {
+        vertices_count: mesh_data.vertex_count() as _,
+        indices_count: mesh_data.index_count() as _,
+        ..Default::default()
+    };
+    mesh_data.meshlets.push(meshlet);
+    mesh_data
 }
 
 pub fn create_cylinder(
@@ -47,9 +78,9 @@ pub fn create_cylinder(
     num_slices: u32,
     height: f32,
     num_stack: u32,
-) -> (Vec<PbrVertexData>, Vec<u32>) {
-    let mut vertices = Vec::new();
-    let mut indices = Vec::new();
+    color: Vector4,
+) -> MeshData {
+    let mut mesh_data = MeshData::default();
 
     let angle_step = 2. * PI / num_slices as f32;
 
@@ -65,69 +96,71 @@ pub fn create_cylinder(
         let t = 1. - i as f32 / num_stack as f32;
 
         for j in 0..num_slices + 1 {
-            let mut vertex = PbrVertexData::default();
             let angle: f32 = j as f32 * angle_step;
 
-            vertex.pos = [radius * angle.cos(), radius * angle.sin(), z].into();
-            vertex.normal = [
-                angle.cos() * nx0 - angle.sin() * ny0,
-                angle.sin() * nx0 + angle.cos() * ny0,
-                nz0,
-            ]
-            .into();
-            vertex.tex_coord = [[j as f32 / num_slices as f32, t].into(); MAX_TEXTURE_COORDS_SETS];
-            vertices.push(vertex);
+            mesh_data.add_vertex_pos_color_normal_uv(
+                [radius * angle.cos(), radius * angle.sin(), z].into(),
+                color,
+                [
+                    angle.cos() * nx0 - angle.sin() * ny0,
+                    angle.sin() * nx0 + angle.cos() * ny0,
+                    nz0,
+                ]
+                .into(),
+                [j as f32 / num_slices as f32, t].into(),
+            );
         }
     }
 
     //then base
-    let base_vertex_index = vertices.len() as _;
-    let mut center_base_vertex = PbrVertexData::default();
-
-    center_base_vertex.pos.z = -height * 0.5;
-    center_base_vertex.normal.z = -1.;
-    center_base_vertex.tex_coord = [[0.5, 0.5].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices.push(center_base_vertex);
+    let base_vertex_index = mesh_data.vertex_count() as _;
+    mesh_data.add_vertex_pos_color_normal_uv(
+        [0., 0., -height * 0.5].into(),
+        color,
+        [0., 0., -1.].into(),
+        [0.5, 0.5].into(),
+    );
 
     for i in 0..num_slices + 1 {
-        let mut vertex = PbrVertexData::default();
         let angle: f32 = i as f32 * angle_step;
 
-        vertex.pos = [
-            base_radius * angle.cos(),
-            base_radius * angle.sin(),
-            center_base_vertex.pos.z,
-        ]
-        .into();
-        vertex.normal = center_base_vertex.normal;
-        vertex.tex_coord =
-            [[-angle.cos() * 0.5 + 0.5, -angle.sin() * 0.5 + 0.5].into(); MAX_TEXTURE_COORDS_SETS]; // flip horizontal
-        vertices.push(vertex);
+        mesh_data.add_vertex_pos_color_normal_uv(
+            [
+                base_radius * angle.cos(),
+                base_radius * angle.sin(),
+                -height * 0.5,
+            ]
+            .into(),
+            color,
+            [0., 0., -1.].into(),
+            [-angle.cos() * 0.5 + 0.5, -angle.sin() * 0.5 + 0.5].into(), // flip horizontal
+        );
     }
 
     //then top
-    let top_vertex_index = vertices.len() as _;
-    let mut center_top_vertex = PbrVertexData::default();
+    let top_vertex_index = mesh_data.vertex_count() as _;
 
-    center_top_vertex.pos.z = height * 0.5;
-    center_top_vertex.normal.z = 1.;
-    center_top_vertex.tex_coord = [[0.5, 0.5].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices.push(center_top_vertex);
+    mesh_data.add_vertex_pos_color_normal_uv(
+        [0., 0., height * 0.5].into(),
+        color,
+        [0., 0., 1.].into(),
+        [0.5, 0.5].into(),
+    );
 
     for i in 0..num_slices + 1 {
-        let mut vertex = PbrVertexData::default();
         let angle: f32 = i as f32 * angle_step;
 
-        vertex.pos = [
-            top_radius * angle.cos(),
-            top_radius * angle.sin(),
-            center_top_vertex.pos.z,
-        ]
-        .into();
-        vertex.normal = center_top_vertex.normal;
-        vertex.tex_coord =
-            [[angle.cos() * 0.5 + 0.5, -angle.sin() * 0.5 + 0.5].into(); MAX_TEXTURE_COORDS_SETS];
-        vertices.push(vertex);
+        mesh_data.add_vertex_pos_color_normal_uv(
+            [
+                top_radius * angle.cos(),
+                top_radius * angle.sin(),
+                height * 0.5,
+            ]
+            .into(),
+            color,
+            [0., 0., 1.].into(),
+            [angle.cos() * 0.5 + 0.5, -angle.sin() * 0.5 + 0.5].into(),
+        );
     }
 
     //fill indices for sides
@@ -136,13 +169,13 @@ pub fn create_cylinder(
         let mut k2 = k1 + num_slices; // beginning of next stack
 
         for _ in 0..num_slices + 1 {
-            indices.push(k1);
-            indices.push(k1 + 1);
-            indices.push(k2);
+            mesh_data.indices.push(k1);
+            mesh_data.indices.push(k1 + 1);
+            mesh_data.indices.push(k2);
 
-            indices.push(k2);
-            indices.push(k1 + 1);
-            indices.push(k2 + 1);
+            mesh_data.indices.push(k2);
+            mesh_data.indices.push(k1 + 1);
+            mesh_data.indices.push(k2 + 1);
 
             k1 += 1;
             k2 += 1;
@@ -152,46 +185,48 @@ pub fn create_cylinder(
     // fill indices for base
     let mut k = base_vertex_index + 1;
     for i in 0..num_slices + 1 {
-        indices.push(base_vertex_index);
+        mesh_data.indices.push(base_vertex_index);
         // last triangle
         if i >= (num_slices - 1) {
-            indices.push(base_vertex_index + 1);
+            mesh_data.indices.push(base_vertex_index + 1);
         } else {
-            indices.push(k + 1);
+            mesh_data.indices.push(k + 1);
         }
-        indices.push(k);
+        mesh_data.indices.push(k);
         k += 1;
     }
 
     // fill indices for top
     let mut k = top_vertex_index + 1;
     for i in 0..num_slices + 1 {
-        indices.push(top_vertex_index);
-        indices.push(k);
+        mesh_data.indices.push(top_vertex_index);
+        mesh_data.indices.push(k);
         // last triangle
         if i >= (num_slices - 1) {
-            indices.push(top_vertex_index + 1);
+            mesh_data.indices.push(top_vertex_index + 1);
         } else {
-            indices.push(k + 1);
+            mesh_data.indices.push(k + 1);
         }
         k += 1;
     }
 
-    (vertices, indices)
+    let meshlet = MeshletData {
+        vertices_count: mesh_data.vertex_count() as _,
+        indices_count: mesh_data.index_count() as _,
+        ..Default::default()
+    };
+    mesh_data.meshlets.push(meshlet);
+    mesh_data
 }
 
-pub fn create_sphere<T>(
+pub fn create_sphere(
     position: Vector3,
     radius: f32,
     num_slices: u32,
     num_stack: u32,
     color: Vector4,
-) -> (Vec<T>, Vec<u32>)
-where
-    T: VertexData + Copy,
-{
-    let mut vertices = Vec::new();
-    let mut indices = Vec::new();
+) -> MeshData {
+    let mut mesh_data = MeshData::default();
 
     let slice_step = 2. * PI / num_slices as f32;
     let stack_step = PI / num_stack as f32;
@@ -203,16 +238,16 @@ where
         let z = radius * stack_angle.sin();
 
         for j in 0..num_slices + 1 {
-            let mut vertex = T::default();
             let slice_angle = j as f32 * slice_step; // from 0 to 2pi
             let mut pos = position;
             pos += [xy * slice_angle.cos(), xy * slice_angle.sin(), z].into();
-            vertex.set_position(pos);
-            vertex.set_normal(pos * inv);
-            vertex
-                .set_tex_coord([j as f32 / num_slices as f32, i as f32 / num_stack as f32].into());
-            vertex.set_color(color);
-            vertices.push(vertex);
+
+            mesh_data.add_vertex_pos_color_normal_uv(
+                pos,
+                color,
+                pos * inv,
+                [j as f32 / num_slices as f32, i as f32 / num_stack as f32].into(),
+            );
         }
     }
 
@@ -223,111 +258,98 @@ where
         for _ in 0..num_slices {
             // 2 triangles per sector excluding 1st and last stacks
             if i != 0 {
-                indices.push(k1);
-                indices.push(k2);
-                indices.push(k1 + 1);
+                mesh_data.indices.push(k1);
+                mesh_data.indices.push(k2);
+                mesh_data.indices.push(k1 + 1);
             }
             if i != (num_stack - 1) {
-                indices.push(k1 + 1);
-                indices.push(k2);
-                indices.push(k2 + 1);
+                mesh_data.indices.push(k1 + 1);
+                mesh_data.indices.push(k2);
+                mesh_data.indices.push(k2 + 1);
             }
             k1 += 1;
             k2 += 1;
         }
     }
-
-    (vertices, indices)
+    let meshlet = MeshletData {
+        vertices_count: mesh_data.vertex_count() as _,
+        indices_count: mesh_data.index_count() as _,
+        ..Default::default()
+    };
+    mesh_data.meshlets.push(meshlet);
+    mesh_data
 }
 
-pub fn create_arrow(position: Vector3, direction: Vector3) -> (Vec<PbrVertexData>, Vec<u32>) {
-    let mut shape_vertices = Vec::new();
-    let mut shape_indices = Vec::new();
+pub fn create_arrow(position: Vector3, direction: Vector3, color: Vector4) -> MeshData {
+    let mut shape_mesh_data = MeshData::default();
 
     let height = direction.length();
 
-    let (mut vertices, mut indices) = create_cylinder(0.25, 0.25, 16, height, 1);
-    vertices.iter_mut().for_each(|v| {
-        v.pos.z += height * 0.5;
+    let mut cylinder_mesh_data = create_cylinder(0.25, 0.25, 16, height, 1, color);
+    cylinder_mesh_data.positions.iter_mut().for_each(|v| {
+        v[2] += height * 0.5;
     });
-    indices
-        .iter_mut()
-        .for_each(|i| *i += shape_vertices.len() as u32);
-    shape_vertices.append(&mut vertices);
-    shape_indices.append(&mut indices);
+    shape_mesh_data.append_mesh_data_as_meshlet(cylinder_mesh_data);
 
-    let (mut vertices, mut indices) = create_cylinder(0.5, 0., 16, 2.5, 1);
-    vertices.iter_mut().for_each(|v| {
-        v.pos.z += height;
+    let mut tip_mesh_data = create_cylinder(0.5, 0., 16, 2.5, 1, color);
+    tip_mesh_data.positions.iter_mut().for_each(|v| {
+        v[2] += height;
     });
-    indices
-        .iter_mut()
-        .for_each(|i| *i += shape_vertices.len() as u32);
-    shape_vertices.append(&mut vertices);
-    shape_indices.append(&mut indices);
+    shape_mesh_data.append_mesh_data_as_meshlet(tip_mesh_data);
 
     let mut matrix = Matrix4::default_identity();
     matrix.look_towards(direction);
-    shape_vertices.iter_mut().for_each(|v| {
-        v.pos = position + matrix.transform(v.pos);
+    shape_mesh_data.positions.iter_mut().for_each(|v| {
+        *v = position + matrix.transform(*v);
     });
-
-    (shape_vertices, shape_indices)
+    shape_mesh_data
 }
 
-pub fn create_line<T>(start: Vector3, end: Vector3, color: Vector4) -> ([T; 3], [u32; 3])
-where
-    T: VertexData + Copy,
-{
-    let mut vertices = [T::default(); 3];
-    vertices[0].set_position([start.x, start.y, start.z].into());
-    vertices[1].set_position([start.x, start.y, start.z].into());
-    vertices[2].set_position([end.x, end.y, end.z].into());
+pub fn create_line(start: Vector3, end: Vector3, color: Vector4) -> MeshData {
+    let mut mesh_data = MeshData::default();
+    mesh_data.add_vertex_pos_color([start.x, start.y, start.z].into(), color);
+    mesh_data.add_vertex_pos_color([start.x, start.y, start.z].into(), color);
+    mesh_data.add_vertex_pos_color([end.x, end.y, end.z].into(), color);
 
-    vertices[0].set_color(color);
-    vertices[1].set_color(color);
-    vertices[2].set_color(color);
+    mesh_data.indices = [0, 1, 2].to_vec();
 
-    let indices = [0, 1, 2];
-
-    (vertices, indices)
+    let meshlet = MeshletData {
+        vertices_count: mesh_data.vertex_count() as _,
+        indices_count: mesh_data.index_count() as _,
+        ..Default::default()
+    };
+    mesh_data.meshlets.push(meshlet);
+    mesh_data
 }
 
-pub fn create_hammer(position: Vector3, direction: Vector3) -> (Vec<PbrVertexData>, Vec<u32>) {
-    let mut shape_vertices = Vec::new();
-    let mut shape_indices = Vec::new();
+pub fn create_hammer(position: Vector3, direction: Vector3, color: Vector4) -> MeshData {
+    let mut shape_mesh_data = MeshData::default();
 
     let height = direction.length();
 
-    let (mut vertices, mut indices) = create_cylinder(0.25, 0.25, 16, height, 1);
-    vertices.iter_mut().for_each(|v| {
-        v.pos.z += height * 0.5;
+    let mut cylinder_mesh_data = create_cylinder(0.25, 0.25, 16, height, 1, color);
+    cylinder_mesh_data.positions.iter_mut().for_each(|v| {
+        v[2] += height * 0.5;
     });
-    indices
-        .iter_mut()
-        .for_each(|i| *i += shape_vertices.len() as u32);
-    shape_vertices.append(&mut vertices);
-    shape_indices.append(&mut indices);
+    shape_mesh_data.append_mesh_data_as_meshlet(cylinder_mesh_data);
 
-    let (mut vertices, mut indices) =
-        create_cube_from_min_max(Vector3::new(-0.5, -0.5, -0.5), Vector3::new(0.5, 0.5, 0.5));
-
-    vertices.iter_mut().for_each(|v| {
-        v.pos.z += height;
+    let mut cube_mesh_data = create_cube_from_min_max(
+        Vector3::new(-0.5, -0.5, -0.5),
+        Vector3::new(0.5, 0.5, 0.5),
+        color,
+    );
+    cube_mesh_data.positions.iter_mut().for_each(|v| {
+        v[2] += height;
     });
-    indices
-        .iter_mut()
-        .for_each(|i| *i += shape_vertices.len() as u32);
-    shape_vertices.append(&mut vertices.to_vec());
-    shape_indices.append(&mut indices.to_vec());
+    shape_mesh_data.append_mesh_data_as_meshlet(cube_mesh_data);
 
     let mut matrix = Matrix4::default_identity();
     matrix.look_towards(direction);
-    shape_vertices.iter_mut().for_each(|v| {
-        v.pos = position + matrix.transform(v.pos);
-    });
-
-    (shape_vertices, shape_indices)
+    shape_mesh_data
+        .positions
+        .iter_mut()
+        .for_each(|v| *v = position + matrix.transform(*v));
+    shape_mesh_data
 }
 
 pub fn create_torus(
@@ -337,9 +359,9 @@ pub fn create_torus(
     num_main_slices: u32,
     num_tube_slices: u32,
     direction: Vector3,
-) -> (Vec<PbrVertexData>, Vec<u32>) {
-    let mut vertices = Vec::new();
-    let mut indices = Vec::new();
+    color: Vector4,
+) -> MeshData {
+    let mut mesh_data = MeshData::default();
 
     let main_step = 2. * PI / num_main_slices as f32;
     let tube_step = 2. * PI / num_tube_slices as f32;
@@ -347,26 +369,27 @@ pub fn create_torus(
     for i in 0..num_main_slices + 1 {
         let main_angle = i as f32 * main_step;
         for j in 0..num_tube_slices + 1 {
-            let mut vertex = PbrVertexData::default();
             let tube_angle = j as f32 * tube_step;
-            vertex.pos = [
-                (main_radius + tube_radius * tube_angle.cos()) * main_angle.cos(),
-                (main_radius + tube_radius * tube_angle.cos()) * main_angle.sin(),
-                tube_radius * tube_angle.sin(),
-            ]
-            .into();
-            vertex.normal = [
-                main_angle.cos() * tube_angle.cos(),
-                main_angle.sin() * tube_angle.cos(),
-                tube_angle.sin(),
-            ]
-            .into();
-            vertex.tex_coord = [[
-                j as f32 / num_tube_slices as f32,
-                i as f32 * (2. / num_main_slices as f32),
-            ]
-            .into(); MAX_TEXTURE_COORDS_SETS];
-            vertices.push(vertex);
+            mesh_data.add_vertex_pos_color_normal_uv(
+                [
+                    (main_radius + tube_radius * tube_angle.cos()) * main_angle.cos(),
+                    (main_radius + tube_radius * tube_angle.cos()) * main_angle.sin(),
+                    tube_radius * tube_angle.sin(),
+                ]
+                .into(),
+                color,
+                [
+                    main_angle.cos() * tube_angle.cos(),
+                    main_angle.sin() * tube_angle.cos(),
+                    tube_angle.sin(),
+                ]
+                .into(),
+                [
+                    j as f32 / num_tube_slices as f32,
+                    i as f32 * (2. / num_main_slices as f32),
+                ]
+                .into(),
+            );
         }
     }
     for i in 0..num_main_slices + 1 {
@@ -374,24 +397,30 @@ pub fn create_torus(
         let mut k2 = k1 + num_main_slices; // beginning of next stack
 
         for _ in 0..num_tube_slices + 1 {
-            indices.push(k1);
-            indices.push(k1 + 1);
-            indices.push(k2);
+            mesh_data.indices.push(k1);
+            mesh_data.indices.push(k1 + 1);
+            mesh_data.indices.push(k2);
 
-            indices.push(k2);
-            indices.push(k1 + 1);
-            indices.push(k2 + 1);
+            mesh_data.indices.push(k2);
+            mesh_data.indices.push(k1 + 1);
+            mesh_data.indices.push(k2 + 1);
 
             k1 += 1;
             k2 += 1;
         }
     }
 
+    let meshlet = MeshletData {
+        vertices_count: mesh_data.vertex_count() as _,
+        indices_count: mesh_data.index_count() as _,
+        ..Default::default()
+    };
+    mesh_data.meshlets.push(meshlet);
+
     let mut matrix = Matrix4::default_identity();
     matrix.look_towards(direction);
-    vertices.iter_mut().for_each(|v| {
-        v.pos = position + matrix.transform(v.pos);
+    mesh_data.positions.iter_mut().for_each(|v| {
+        *v = position + matrix.transform(*v);
     });
-
-    (vertices, indices)
+    mesh_data
 }

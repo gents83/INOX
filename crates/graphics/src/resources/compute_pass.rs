@@ -7,7 +7,7 @@ use inox_resources::{
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
 
-use crate::{BindingData, ComputePassData, ComputePipeline, RenderContext};
+use crate::{BindingData, CommandBuffer, ComputePassData, ComputePipeline, RenderContext};
 
 pub type ComputePassId = ResourceId;
 
@@ -15,7 +15,7 @@ pub type ComputePassId = ResourceId;
 pub struct ComputePass {
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
-    data: ComputePassData,
+    name: String,
     pipelines: Vec<Resource<ComputePipeline>>,
     is_initialized: bool,
 }
@@ -55,7 +55,7 @@ impl DataTypeResource for ComputePass {
         Self {
             shared_data: shared_data.clone(),
             message_hub: message_hub.clone(),
-            data: ComputePassData::default(),
+            name: String::new(),
             pipelines: Vec::new(),
             is_initialized: false,
         }
@@ -79,32 +79,28 @@ impl DataTypeResource for ComputePass {
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         _id: ResourceId,
-        data: Self::DataType,
+        data: &Self::DataType,
     ) -> Self
     where
         Self: Sized,
     {
-        let pipelines = data.pipelines.clone();
         let mut pass = Self {
             shared_data: shared_data.clone(),
             message_hub: message_hub.clone(),
-            data,
+            name: data.name.clone(),
             pipelines: Vec::new(),
             is_initialized: false,
         };
-        pass.set_pipelines(pipelines);
+        pass.set_pipelines(&data.pipelines);
         pass
     }
 }
 
 impl ComputePass {
-    pub fn data(&self) -> &ComputePassData {
-        &self.data
-    }
     pub fn pipelines(&self) -> &[Resource<ComputePipeline>] {
         self.pipelines.as_slice()
     }
-    pub fn set_pipelines(&mut self, pipelines: Vec<PathBuf>) -> &mut Self {
+    pub fn set_pipelines(&mut self, pipelines: &[PathBuf]) -> &mut Self {
         self.pipelines.clear();
         pipelines.iter().for_each(|path| {
             if !path.as_os_str().is_empty() {
@@ -131,12 +127,15 @@ impl ComputePass {
     pub fn begin<'a>(
         &'a self,
         binding_data: &'a BindingData,
-        encoder: &'a mut wgpu::CommandEncoder,
+        command_buffer: &'a mut CommandBuffer,
     ) -> wgpu::ComputePass<'a> {
-        let label = format!("ComputePass {}", self.data().name);
-        let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-            label: Some(label.as_str()),
-        });
+        let label = format!("ComputePass {}", self.name);
+        let mut compute_pass =
+            command_buffer
+                .encoder
+                .begin_compute_pass(&wgpu::ComputePassDescriptor {
+                    label: Some(label.as_str()),
+                });
 
         binding_data
             .bind_groups()

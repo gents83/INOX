@@ -185,7 +185,7 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
             let mut data = Vec::new();
             file.read_to_end(&mut data).unwrap();
             let shader_code = String::from_utf8(data).unwrap();
-            let preprocessed_code = self.preprocess_code(shader_code);
+            let preprocessed_code = self.preprocess_code(path, shader_code);
             let shader_data = ShaderData {
                 wgsl_code: preprocessed_code,
                 ..Default::default()
@@ -195,12 +195,13 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
         }
     }
 
-    fn preprocess_code(&self, code: String) -> String {
+    fn preprocess_code(&self, path: &Path, code: String) -> String {
         let available_defs = shader_preprocessor_defs::<PLATFORM_TYPE>();
         let mut string = String::new();
         let ifdef_regex = Regex::new(r"^\s*#\s*ifdef\s*([\w|\d|_]+)").unwrap();
         let else_regex = Regex::new(r"^\s*#\s*else").unwrap();
         let endif_regex = Regex::new(r"^\s*#\s*endif").unwrap();
+        let import_regex = Regex::new(r"^\s*#\s*import").unwrap();
         let mut should_skip = false;
         for line in code.lines() {
             if let Some(cap) = ifdef_regex.captures(line) {
@@ -213,6 +214,18 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
             } else if endif_regex.is_match(line) {
                 should_skip = false;
                 continue;
+            } else if import_regex.is_match(line) {
+                if let Some(first) = line.find('"') {
+                    if let Some(end) = line.rfind('"') {
+                        let import_path = line[first + 1..end].to_string();
+                        let import_path = PathBuf::from(path.parent().unwrap()).join(import_path);
+                        let import_path = import_path.canonicalize().unwrap();
+                        let shader_code = std::fs::read_to_string(import_path).unwrap();
+                        let import_code = self.preprocess_code(path, shader_code);
+                        string.push_str(&import_code);
+                        continue;
+                    }
+                }
             }
             if !should_skip {
                 string.push_str(line);

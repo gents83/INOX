@@ -1,14 +1,13 @@
-use std::path::Path;
-
 use inox_log::debug_log;
 
-use crate::{TextureData, TextureId};
+use crate::{TextureId, TextureInfo};
 
 use super::texture_atlas::TextureAtlas;
 
 pub struct TextureHandler {
     texture_atlas: Vec<TextureAtlas>,
     default_sampler: wgpu::Sampler,
+    unfiltered_sampler: wgpu::Sampler,
     depth_sampler: wgpu::Sampler,
 }
 
@@ -19,6 +18,15 @@ impl TextureHandler {
             address_mode_v: wgpu::AddressMode::Repeat,
             address_mode_w: wgpu::AddressMode::Repeat,
             mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+        let unfiltered_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Nearest,
             min_filter: wgpu::FilterMode::Nearest,
             mipmap_filter: wgpu::FilterMode::Nearest,
             ..Default::default()
@@ -37,44 +45,22 @@ impl TextureHandler {
         Self {
             texture_atlas,
             default_sampler,
+            unfiltered_sampler,
             depth_sampler,
         }
     }
     pub fn default_sampler(&self) -> &wgpu::Sampler {
         &self.default_sampler
     }
+    pub fn unfiltered_sampler(&self) -> &wgpu::Sampler {
+        &self.unfiltered_sampler
+    }
     pub fn depth_sampler(&self) -> &wgpu::Sampler {
         &self.depth_sampler
     }
 
-    pub fn add_custom_texture(
-        &mut self,
-        device: &wgpu::Device,
-        id: &TextureId,
-        width: u32,
-        height: u32,
-        format: wgpu::TextureFormat,
-        usage: wgpu::TextureUsages,
-    ) {
-        self.texture_atlas.push(TextureAtlas::create_texture(
-            device, id, width, height, 1, format, usage,
-        ));
-    }
-
     pub fn textures_atlas(&self) -> &[TextureAtlas] {
         self.texture_atlas.as_slice()
-    }
-
-    pub fn texture_index(&self, id: &TextureId) -> Option<usize> {
-        for (texture_index, texture_atlas) in self.texture_atlas.iter().enumerate() {
-            if texture_atlas
-                .get_texture_data(texture_index as _, id)
-                .is_some()
-            {
-                return Some(texture_index);
-            }
-        }
-        None
     }
 
     pub fn get_texture_atlas(&self, id: &TextureId) -> Option<&TextureAtlas> {
@@ -115,31 +101,35 @@ impl TextureHandler {
         });
     }
 
-    pub fn add_from_path(
+    pub fn add_new_texture_atlas(
         &mut self,
         device: &wgpu::Device,
-        encoder: &mut wgpu::CommandEncoder,
         id: &TextureId,
-        filepath: &Path,
-    ) -> TextureData {
-        let image = image::open(filepath).unwrap();
-        self.add_image(
-            device,
-            encoder,
-            id,
-            (image.width(), image.height()),
-            image.to_rgba8().as_raw().as_slice(),
-        )
+        width: u32,
+        height: u32,
+        format: wgpu::TextureFormat,
+        usage: wgpu::TextureUsages,
+    ) -> TextureInfo {
+        self.texture_atlas.push(TextureAtlas::create_texture(
+            device, id, width, height, 1, format, usage,
+        ));
+        TextureInfo {
+            texture_index: (self.texture_atlas.len() - 1) as _,
+            layer_index: 0,
+            area: [0., 0., width as _, height as _],
+            total_width: width as _,
+            total_height: height as _,
+        }
     }
 
-    pub fn add_image(
+    pub fn add_image_to_texture_atlas(
         &mut self,
         device: &wgpu::Device,
         encoder: &mut wgpu::CommandEncoder,
         id: &TextureId,
         dimensions: (u32, u32),
         image_data: &[u8],
-    ) -> TextureData {
+    ) -> TextureInfo {
         for (texture_index, texture_atlas) in self.texture_atlas.iter_mut().enumerate() {
             if let Some(texture_data) = texture_atlas.allocate(
                 device,
@@ -155,12 +145,12 @@ impl TextureHandler {
         self.texture_atlas
             .push(TextureAtlas::create_default(device));
         inox_log::debug_log!("Adding new texture atlas");
-        self.add_image(device, encoder, id, dimensions, image_data)
+        self.add_image_to_texture_atlas(device, encoder, id, dimensions, image_data)
     }
 
-    pub fn get_texture_data(&self, id: &TextureId) -> Option<TextureData> {
+    pub fn texture_info(&self, id: &TextureId) -> Option<TextureInfo> {
         for (texture_index, texture_atlas) in self.texture_atlas.iter().enumerate() {
-            if let Some(texture_data) = texture_atlas.get_texture_data(texture_index as _, id) {
+            if let Some(texture_data) = texture_atlas.texture_info(texture_index as _, id) {
                 return Some(texture_data);
             }
         }
