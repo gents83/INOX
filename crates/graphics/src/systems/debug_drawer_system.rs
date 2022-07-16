@@ -1,11 +1,13 @@
 use std::{any::type_name, path::PathBuf};
 
 use crate::{
-    create_arrow, create_colored_quad, create_line, create_sphere, DrawEvent, Material,
-    MaterialData, Mesh, MeshData, MeshFlags, RenderPipeline,
+    create_arrow, create_circle, create_circumference, create_colored_quad, create_line,
+    create_sphere, DrawEvent, Material, MaterialData, Mesh, MeshData, MeshFlags, RenderPipeline,
+    View,
 };
 
 use inox_core::{ContextRc, System, SystemId, SystemUID};
+use inox_math::{Mat4Ops, Matrix4};
 use inox_messenger::{Listener, MessageHubRc};
 use inox_resources::{
     ConfigBase, ConfigEvent, DataTypeResource, Handle, Resource, SerializableResource, SharedDataRc,
@@ -107,6 +109,14 @@ impl DebugDrawerSystem {
 
     fn update_events(&mut self) {
         inox_profiler::scoped_profile!("DebugDrawerSystem::update_events");
+
+        let mut camera_pos = None;
+        if let Some(view) = self
+            .shared_data
+            .match_resource(|v: &View| v.view_index() == 0)
+        {
+            camera_pos = Some(view.get().view().inverse().translation());
+        }
 
         let mut opaque_mesh_data = MeshData::default();
         let mut wireframe_mesh_data = MeshData::default();
@@ -238,6 +248,33 @@ impl DebugDrawerSystem {
                         wireframe_mesh_data.append_mesh_data_as_meshlet(mesh_data);
                     } else {
                         let mesh_data = create_sphere(position, radius, 16, 8, color);
+                        opaque_mesh_data.append_mesh_data_as_meshlet(mesh_data);
+                    }
+                }
+                DrawEvent::Circle(position, radius, color, is_wireframe) => {
+                    inox_profiler::scoped_profile!("DrawEvent::Circle");
+
+                    if is_wireframe {
+                        let mut mesh_data = create_circumference(position, radius, 16, color);
+                        if let Some(camera_pos) = camera_pos {
+                            let mut matrix = Matrix4::from_translation(position);
+                            matrix.look_at(camera_pos);
+                            matrix.add_translation(-position);
+                            mesh_data.positions.iter_mut().for_each(|p| {
+                                *p = matrix.transform(*p);
+                            });
+                        }
+                        wireframe_mesh_data.append_mesh_data_as_meshlet(mesh_data);
+                    } else {
+                        let mut mesh_data = create_circle(position, radius, 16, color);
+                        if let Some(camera_pos) = camera_pos {
+                            let mut matrix = Matrix4::from_translation(position);
+                            matrix.look_at(camera_pos);
+                            matrix.add_translation(-position);
+                            mesh_data.positions.iter_mut().for_each(|p| {
+                                *p = matrix.transform(*p);
+                            });
+                        }
                         opaque_mesh_data.append_mesh_data_as_meshlet(mesh_data);
                     }
                 }

@@ -322,6 +322,77 @@ pub fn create_line(start: Vector3, end: Vector3, color: Vector4) -> MeshData {
     mesh_data
 }
 
+pub fn create_circumference(
+    position: Vector3,
+    radius: f32,
+    num_slices: u32,
+    color: Vector4,
+) -> MeshData {
+    let mut mesh_data = MeshData::default();
+
+    let slice_step = 2. * PI / num_slices as f32;
+
+    for i in 0..num_slices + 1 {
+        let slice_angle_start = i as f32 * slice_step; // from 0 to 2pi
+        let slice_angle_end = ((i + 1) % num_slices) as f32 * slice_step; // from 0 to 2pi
+        let mut pos1 = position;
+        let mut pos2 = position;
+        pos1 += [
+            radius * slice_angle_start.cos(),
+            radius * slice_angle_start.sin(),
+            0.,
+        ]
+        .into();
+        pos2 += [
+            radius * slice_angle_end.cos(),
+            radius * slice_angle_end.sin(),
+            0.,
+        ]
+        .into();
+
+        let m = create_line(pos1, pos2, color);
+        mesh_data.append_mesh_data_as_meshlet(m);
+    }
+    mesh_data
+}
+
+pub fn create_circle(position: Vector3, radius: f32, num_slices: u32, color: Vector4) -> MeshData {
+    let mut mesh_data = MeshData::default();
+
+    let slice_step = 2. * PI / num_slices as f32;
+    let inv = 1. / radius;
+
+    mesh_data.add_vertex_pos_color_normal_uv(position, color, position * inv, [0.5, 0.5].into());
+
+    for j in 0..num_slices + 1 {
+        let slice_angle = j as f32 * slice_step; // from 0 to 2pi
+        let mut pos = position;
+        pos += [radius * slice_angle.cos(), radius * slice_angle.sin(), 0.].into();
+
+        mesh_data.add_vertex_pos_color_normal_uv(
+            pos,
+            color,
+            pos * inv,
+            [radius * slice_angle.cos(), radius * slice_angle.sin()].into(),
+        );
+    }
+
+    let vertex_count = mesh_data.vertex_count();
+    for i in 1..mesh_data.vertex_count() {
+        mesh_data.indices.push(0);
+        mesh_data.indices.push(i as _);
+        mesh_data.indices.push(((i + 1) % vertex_count) as _);
+    }
+
+    let meshlet = MeshletData {
+        vertices_count: mesh_data.vertex_count() as _,
+        indices_count: mesh_data.index_count() as _,
+        ..Default::default()
+    };
+    mesh_data.meshlets.push(meshlet);
+    mesh_data
+}
+
 pub fn create_hammer(position: Vector3, direction: Vector3, color: Vector4) -> MeshData {
     let mut shape_mesh_data = MeshData::default();
 

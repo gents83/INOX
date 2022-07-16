@@ -48,9 +48,9 @@ fn vs_main(
     @builtin(instance_index) instance_id: u32,
     i_in: DrawInstance,
 ) -> VertexOutput {
-    let instance_matrix = matrices.data[i_in.matrix_index];
+    let instance_matrix = &matrices.data[i_in.matrix_index];
     let p = &positions_and_colors.data[v_in.position_and_color_offset];
-    let world_position = instance_matrix * vec4<f32>((*p).xyz, 1.0);
+    let world_position = (*instance_matrix) * vec4<f32>((*p).xyz, 1.0);
     let color = (*p).w;
 
     let mvp = constant_data.proj * constant_data.view;

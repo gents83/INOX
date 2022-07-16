@@ -181,7 +181,7 @@ impl Info {
                         .into(),
                     );
                     let r = meshlet.center_radius[3] * scale;
-                    data.context.message_hub().send_event(DrawEvent::Sphere(
+                    data.context.message_hub().send_event(DrawEvent::Circle(
                         p,
                         r,
                         [1.0, 1.0, 0.0, 1.0].into(),
