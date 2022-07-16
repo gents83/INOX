@@ -33,6 +33,7 @@ var<storage, read> lights: Lights;
 
 #import "texture_utils.wgsl"
 #import "material_utils.wgsl"
+#import "pbr_utils.wgsl"
 
 @vertex
 fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {

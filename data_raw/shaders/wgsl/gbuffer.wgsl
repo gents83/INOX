@@ -45,7 +45,6 @@ var<storage, read> meshlets: Meshlets;
 fn vs_main(
     @builtin(vertex_index) vertex_index: u32,
     v_in: DrawVertex,
-    @builtin(instance_index) instance_id: u32,
     i_in: DrawInstance,
 ) -> VertexOutput {
     let instance_matrix = &matrices.data[i_in.matrix_index];
@@ -75,24 +74,8 @@ fn vs_main(
     vertex_out.normal = normals.data[v_in.normal_offset].xyz; 
     vertex_out.uv_0_1 =  vec4<f32>(uvs.data[v_in.uvs_offset.x].xy, uvs.data[v_in.uvs_offset.y].xy);
     vertex_out.uv_2_3 =  vec4<f32>(uvs.data[v_in.uvs_offset.z].xy, uvs.data[v_in.uvs_offset.w].xy);
-    
 
     return vertex_out;
-}
-
-fn compute_uvs(material_index: u32, texture_type: u32, uv_0_1: vec4<f32>, uv_2_3: vec4<f32>) -> vec3<f32> {
-   let material = &materials.data[material_index];    
-    let texture_coords_set = (*material).textures_coord_set[texture_type];
-    let texture_index = (*material).textures_indices[texture_type];
-    var uv = uv_0_1.xy;
-    if (texture_coords_set == 1u) {
-        uv = uv_0_1.zw;
-    } else if (texture_coords_set == 2u) {
-        uv = uv_2_3.xy;
-    } else if (texture_coords_set == 3u) {
-        uv = uv_2_3.zw;
-    } 
-    return vec3<f32>(uv, f32(texture_index));
 }
 
 @fragment

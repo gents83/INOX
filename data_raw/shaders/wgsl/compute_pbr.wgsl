@@ -34,7 +34,7 @@ var render_target: texture_storage_2d_array<rgba8unorm, read_write>;
 
 #import "texture_utils.wgsl"
 #import "material_utils.wgsl"
-
+#import "pbr_utils.wgsl"
 
 
 @compute

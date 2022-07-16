@@ -438,7 +438,7 @@ impl BindingData {
                 self.is_layout_changed = true;
             }
         } else if self.bind_group_layout_entries[info.group_index].len()
-            <= (textures_bind_group_layout_index + MAX_TEXTURE_ATLAS_COUNT as usize)
+            < (textures_bind_group_layout_index + MAX_TEXTURE_ATLAS_COUNT as usize)
         {
             (0..MAX_TEXTURE_ATLAS_COUNT).for_each(|_| {
                 self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
