@@ -16,11 +16,11 @@ use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
 
 use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
+const USE_COMPUTE_RENDERING: bool = true;
 const ADD_WIREFRAME_PASS: bool = true;
 const ADD_DEBUG_PASS: bool = false;
 const ADD_UI_PASS: bool = true;
 const USE_3DVIEW: bool = false;
-const USE_COMPUTE_RENDERING: bool = true;
 
 pub struct Viewer {
     window: Option<Window>,
