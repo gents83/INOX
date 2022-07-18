@@ -16,7 +16,8 @@ pub struct BindingInfo {
     pub read_only: bool,
     pub cpu_accessible: bool,
     pub is_indirect: bool,
-    pub is_instance: bool,
+    pub is_vertex: bool,
+    pub is_index: bool,
 }
 
 impl Default for BindingInfo {
@@ -28,7 +29,8 @@ impl Default for BindingInfo {
             read_only: true,
             cpu_accessible: false,
             is_indirect: false,
-            is_instance: false,
+            is_vertex: false,
+            is_index: false,
         }
     }
 }
@@ -231,7 +233,10 @@ impl BindingData {
         if info.is_indirect {
             usage |= wgpu::BufferUsages::INDIRECT;
         }
-        if info.is_instance {
+        if info.is_index {
+            usage |= wgpu::BufferUsages::INDEX;
+        }
+        if info.is_vertex {
             usage |= wgpu::BufferUsages::VERTEX;
         }
         let (is_changed, buffer_id) =
@@ -468,19 +473,21 @@ impl BindingData {
                 first_valid_texture = Some(textures_atlas[i].texture_id());
             }
             let mut use_default = false;
-            if i >= num_textures {
-                use_default = true;
-            } else {
-                if render_targets
+            if i >= num_textures
+                //|| !textures_atlas[i]
+                //    .texture_format()
+                //    .describe()
+                //    .guaranteed_format_features
+                //    .flags
+                //    .contains(wgpu::TextureFormatFeatureFlags::FILTERABLE)
+                || render_targets
                     .iter()
                     .any(|&id| textures_atlas[i].texture_id() == id)
-                {
+            {
+                use_default = true;
+            } else if let Some(id) = depth_target {
+                if textures_atlas[i].texture_id() == id {
                     use_default = true;
-                }
-                if let Some(id) = depth_target {
-                    if textures_atlas[i].texture_id() == id {
-                        use_default = true;
-                    }
                 }
             }
             if use_default {

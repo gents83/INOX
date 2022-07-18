@@ -131,8 +131,8 @@
             "request": "launch",
             "program": "${workspaceFolder}/extern/naga/target/debug/naga.exe",
             "args": [
-                "./data_raw/shaders/wgsl/ui.wgsl",
-                "./data_raw/shaders/wgsl/ui.txt",
+                "./data_raw/shaders/wgsl/compute_raster.wgsl",
+                "./data_raw/shaders/wgsl/compute_raster.txt",
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,

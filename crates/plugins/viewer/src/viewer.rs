@@ -4,9 +4,9 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
     rendering_system::RenderingSystem, update_system::UpdateSystem, BlitPass, ComputePbrPass,
-    CullingPass, DebugDrawerSystem, DebugPass, GBufferPass, LoadOperation, PBRPass, Pass,
-    RenderPass, RenderTarget, Renderer, RendererRw, TextureFormat, WireframePass, DEFAULT_HEIGHT,
-    DEFAULT_WIDTH, GBUFFER_PASS_NAME, WIREFRAME_PASS_NAME,
+    ComputeRasterPass, CullingPass, DebugDrawerSystem, DebugPass, GBufferPass, LoadOperation,
+    PBRPass, Pass, RenderPass, RenderTarget, Renderer, RendererRw, TextureFormat, WireframePass,
+    DEFAULT_HEIGHT, DEFAULT_WIDTH, GBUFFER_PASS_NAME, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -17,6 +17,7 @@ use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
 use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
 const USE_COMPUTE_RENDERING: bool = false;
+const ADD_COMPUTE_RASTER_PASS: bool = false;
 const ADD_WIREFRAME_PASS: bool = true;
 const ADD_DEBUG_PASS: bool = false;
 const ADD_UI_PASS: bool = true;
@@ -152,6 +153,9 @@ impl Plugin for Viewer {
 
 impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
+        if ADD_COMPUTE_RASTER_PASS {
+            Self::create_compute_raster_pass(context, renderer, width, height);
+        }
         Self::create_culling_pass(context, renderer);
         Self::create_gbuffer_pass(context, renderer, width, height);
         if USE_COMPUTE_RENDERING {
@@ -274,5 +278,15 @@ impl Viewer {
     fn create_debug_pass(context: &ContextRc, renderer: &RendererRw) {
         let debug_pass = DebugPass::create(context);
         renderer.write().unwrap().add_pass(debug_pass);
+    }
+    fn create_compute_raster_pass(
+        context: &ContextRc,
+        renderer: &RendererRw,
+        width: u32,
+        height: u32,
+    ) {
+        let mut compute_raster_pass = ComputeRasterPass::create(context);
+        compute_raster_pass.resolution(width, height);
+        renderer.write().unwrap().add_pass(compute_raster_pass);
     }
 }

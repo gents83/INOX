@@ -139,6 +139,10 @@ struct Meshlets {
     data: array<DrawMeshlet>,
 };
 
+struct Indices {
+    data: array<u32>,
+};
+
 struct Vertices {
     data: array<DrawVertex>,
 };

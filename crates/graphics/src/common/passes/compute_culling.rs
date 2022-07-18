@@ -98,7 +98,7 @@ impl Pass for CullingPass {
                             group_index: 0,
                             binding_index: 3,
                             stage: ShaderStage::Compute,
-                            is_instance: true,
+                            is_vertex: true,
                             ..Default::default()
                         },
                     )
