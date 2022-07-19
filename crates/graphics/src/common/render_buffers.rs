@@ -4,10 +4,10 @@ use inox_math::{pack_4_f32_to_unorm, MatBase, Matrix4};
 use inox_resources::{to_slice, Buffer, HashBuffer, ResourceId};
 
 use crate::{
-    AsBinding, BindingDataBuffer, DrawCommand, DrawInstance, DrawMaterial, DrawMesh, DrawMeshlet,
-    DrawVertex, Light, LightData, LightId, Material, MaterialAlphaMode, MaterialData, MaterialId,
-    Mesh, MeshData, MeshFlags, MeshId, RenderCoreContext, TextureId, TextureInfo, TextureType,
-    INVALID_INDEX, MAX_TEXTURE_COORDS_SETS,
+    AsBinding, BindingDataBuffer, DrawCommand, DrawCommandType, DrawInstance, DrawMaterial,
+    DrawMesh, DrawMeshlet, DrawVertex, Light, LightData, LightId, Material, MaterialAlphaMode,
+    MaterialData, MaterialId, Mesh, MeshData, MeshFlags, MeshId, RenderCoreContext, TextureId,
+    TextureInfo, TextureType, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS,
 };
 
 //Alignment should be 4, 8, 16 or 32 bytes
@@ -16,10 +16,10 @@ pub struct RenderBuffers {
     pub textures: HashBuffer<TextureId, TextureInfo, 0>,
     pub lights: HashBuffer<LightId, LightData, 0>,
     pub materials: HashBuffer<MaterialId, DrawMaterial, 0>,
-    pub commands: HashMap<MeshFlags, Vec<DrawCommand>>,
+    pub commands: HashMap<MeshFlags, HashMap<DrawCommandType, Vec<DrawCommand>>>,
     pub instances: HashMap<MeshFlags, HashBuffer<MeshId, DrawInstance, 0>>,
     pub meshes: HashBuffer<MeshId, DrawMesh, 0>,
-    pub matrix: HashBuffer<ResourceId, [[f32; 4]; 4], 0>,
+    pub matrices: HashBuffer<ResourceId, [[f32; 4]; 4], 0>,
     pub meshlets: Buffer<DrawMeshlet>, //MeshId <-> [DrawMeshlet]
     pub vertices: Buffer<DrawVertex>,  //MeshId <-> [DrawVertex]
     pub indices: Buffer<u32>,          //MeshId <-> [u32]
@@ -30,14 +30,14 @@ pub struct RenderBuffers {
 }
 
 impl RenderBuffers {
-    fn extract_meshlets(mesh_data: &MeshData) -> Vec<DrawMeshlet> {
+    fn extract_meshlets(mesh_data: &MeshData, mesh_index: u32) -> Vec<DrawMeshlet> {
         inox_profiler::scoped_profile!("render_buffers::extract_meshlets");
 
         let mut meshlets = Vec::new();
         mesh_data.meshlets.iter().for_each(|meshlet_data| {
             let meshlet = DrawMeshlet {
+                mesh_index,
                 vertex_offset: meshlet_data.vertices_offset,
-                vertex_count: meshlet_data.vertices_count,
                 indices_offset: meshlet_data.indices_offset,
                 indices_count: meshlet_data.indices_count,
                 center_radius: [
@@ -146,9 +146,10 @@ impl RenderBuffers {
     }
     pub fn add_mesh(&mut self, mesh_id: &MeshId, mesh_data: &MeshData) {
         inox_profiler::scoped_profile!("render_buffers::add_mesh");
+        let mesh_index = self.meshes.index_of(mesh_id).unwrap_or_default();
         self.remove_mesh(mesh_id);
         let (vertex_offset, indices_offset) = self.add_vertex_data(mesh_id, mesh_data);
-        let meshlets = Self::extract_meshlets(mesh_data);
+        let mut meshlets = Self::extract_meshlets(mesh_data, mesh_index as _);
         if meshlets.is_empty() {
             inox_log::debug_log!("No meshlet data for mesh {:?}", mesh_id);
             return;
@@ -162,14 +163,19 @@ impl RenderBuffers {
             material_index: INVALID_INDEX,
             mesh_flags: MeshFlags::None.into(),
             matrix_index: self.add_matrix(mesh_id) as _,
+            instance_index: INVALID_INDEX,
         };
-        self.meshes.insert(mesh_id, draw_mesh);
+        let mesh_index = self.meshes.insert(mesh_id, draw_mesh);
+        meshlets.iter_mut().for_each(|meshlet| {
+            meshlet.mesh_index = mesh_index as _;
+        });
+        self.meshlets.allocate(mesh_id, meshlets.as_slice());
     }
     pub fn change_mesh(&mut self, mesh_id: &MeshId, mesh: &mut Mesh) {
         inox_profiler::scoped_profile!("render_buffers::change_mesh");
 
-        self.update_matrix(mesh_id, &mesh.matrix());
-
+        let mesh_index = self.meshes.index_of(mesh_id).unwrap_or_default();
+        let mut flags = 0;
         if let Some(m) = self.meshes.get_mut(mesh_id) {
             if let Some(material) = mesh.material() {
                 if let Some(index) = self.materials.index_of(material.id()) {
@@ -185,34 +191,44 @@ impl RenderBuffers {
             }
 
             let mesh_flags = mesh.flags();
-            let flags = mesh_flags.into();
+            flags = mesh_flags.into();
             if m.mesh_flags != flags {
                 m.mesh_flags = flags;
             }
             self.meshes.set_dirty(true);
         }
-        self.update_instance(mesh_id);
+        if flags > 0 {
+            let matrix_index = self.update_matrix(mesh_id, &mesh.matrix());
+            self.update_instance(mesh_id, mesh_index, flags, matrix_index);
+        }
     }
-    fn update_instance(&mut self, mesh_id: &MeshId) {
-        if let Some(m) = self.meshes.get_mut(mesh_id) {
-            let mesh_flags: MeshFlags = m.mesh_flags.into();
-            self.instances.iter_mut().for_each(|(_, buffer)| {
-                buffer.remove(mesh_id);
-            });
-            if mesh_flags.contains(MeshFlags::Visible) {
-                let entry = self
-                    .instances
-                    .entry(mesh_flags)
-                    .or_insert_with(HashBuffer::default);
-                entry.insert(
-                    mesh_id,
-                    DrawInstance {
-                        matrix_index: m.matrix_index as _,
-                        mesh_index: self.meshes.index_of(mesh_id).unwrap() as _,
-                    },
-                );
-                entry.set_dirty(true);
+    fn update_instance(
+        &mut self,
+        mesh_id: &MeshId,
+        mesh_index: usize,
+        mesh_flags: u32,
+        matrix_index: usize,
+    ) {
+        let mesh_flags: MeshFlags = mesh_flags.into();
+        self.instances.iter_mut().for_each(|(_, buffer)| {
+            buffer.remove(mesh_id);
+        });
+        if mesh_flags.contains(MeshFlags::Visible) {
+            let entry = self
+                .instances
+                .entry(mesh_flags)
+                .or_insert_with(HashBuffer::default);
+            let instance_index = entry.insert(
+                mesh_id,
+                DrawInstance {
+                    matrix_index: matrix_index as _,
+                    mesh_index: mesh_index as _,
+                },
+            );
+            if let Some(m) = self.meshes.get_mut(mesh_id) {
+                m.instance_index = instance_index as _;
             }
+            entry.set_dirty(true);
         }
     }
     pub fn remove_mesh(&mut self, mesh_id: &MeshId) {
@@ -319,24 +335,26 @@ impl RenderBuffers {
     pub fn add_matrix(&mut self, id: &ResourceId) -> usize {
         inox_profiler::scoped_profile!("render_buffers::add_matrix");
 
-        self.matrix.insert(id, Matrix4::default_identity().into())
+        self.matrices.insert(id, Matrix4::default_identity().into())
     }
-    pub fn update_matrix(&mut self, id: &ResourceId, matrix: &Matrix4) {
+    pub fn update_matrix(&mut self, id: &ResourceId, matrix: &Matrix4) -> usize {
         inox_profiler::scoped_profile!("render_buffers::update_matrix");
 
-        if let Some(m) = self.matrix.get_mut(id) {
+        if let Some(m) = self.matrices.get_mut(id) {
             *m = (*matrix).into();
-            self.matrix.set_dirty(true);
+            self.matrices.set_dirty(true);
         }
+        self.matrices.index_of(id).unwrap()
     }
     pub fn remove_matrix(&mut self, id: &ResourceId) {
         inox_profiler::scoped_profile!("render_buffers::remove_matrix");
 
-        self.matrix.remove(id);
+        self.matrices.remove(id);
     }
 
     pub fn create_commands(
         &mut self,
+        commands_type: DrawCommandType,
         binding_data_buffer: &BindingDataBuffer,
         render_core_context: &RenderCoreContext,
     ) {
@@ -347,44 +365,100 @@ impl RenderBuffers {
             mesh_flags_type.push(*mesh_flags);
         });
         mesh_flags_type.iter().for_each(|mesh_flags| {
-            self.create_commands_for(mesh_flags, binding_data_buffer, render_core_context);
+            self.create_commands_for(
+                mesh_flags,
+                commands_type,
+                binding_data_buffer,
+                render_core_context,
+            );
         });
     }
     fn create_commands_for(
         &mut self,
         mesh_flags: &MeshFlags,
+        commands_type: DrawCommandType,
         binding_data_buffer: &BindingDataBuffer,
         render_core_context: &RenderCoreContext,
     ) {
         inox_profiler::scoped_profile!("create_commands_for");
 
         let entry = self.commands.entry(*mesh_flags).or_default();
-        entry.clear();
-        if let Some(instances) = self.instances.get(mesh_flags) {
-            let meshlets = self.meshlets.data();
-            instances.for_each_entry(|index, instance| {
-                let mesh = self.meshes.at(instance.mesh_index as _);
-                for i in mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count {
-                    let meshlet = &meshlets[i as usize];
+        if commands_type.contains(DrawCommandType::PerMeshlet) {
+            let entry = entry.entry(DrawCommandType::PerMeshlet).or_default();
+            entry.clear();
+            if let Some(instances) = self.instances.get(mesh_flags) {
+                let meshlets = self.meshlets.data();
+                instances.for_each_entry(|index, instance| {
+                    let mesh = self.meshes.at(instance.mesh_index as _);
+                    for meshlet_index in
+                        mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count
+                    {
+                        let meshlet = &meshlets[meshlet_index as usize];
 
-                    entry.push(DrawCommand {
-                        vertex_count: meshlet.indices_count as _,
-                        instance_count: 1,
-                        base_index: (mesh.indices_offset + meshlet.indices_offset) as _,
-                        vertex_offset: mesh.vertex_offset as _,
-                        base_instance: index as _,
-                    });
-                }
-            });
+                        entry.push(DrawCommand {
+                            vertex_count: meshlet.indices_count as _,
+                            instance_count: 1,
+                            base_index: (mesh.indices_offset + meshlet.indices_offset) as _,
+                            vertex_offset: mesh.vertex_offset as _,
+                            base_instance: index as _,
+                        });
+                    }
+                });
+            }
+            if entry.is_empty() {
+                return;
+            }
+            let commands_id = entry.id();
+            let usage = wgpu::BufferUsages::STORAGE
+                | wgpu::BufferUsages::COPY_SRC
+                | wgpu::BufferUsages::COPY_DST
+                | wgpu::BufferUsages::INDIRECT;
+            binding_data_buffer.bind_buffer(commands_id, entry, usage, render_core_context);
         }
-        if entry.is_empty() {
-            return;
+        if commands_type.contains(DrawCommandType::PerTriangle) {
+            let entry = entry.entry(DrawCommandType::PerTriangle).or_default();
+            entry.clear();
+            if let Some(instances) = self.instances.get(mesh_flags) {
+                let meshlets = self.meshlets.data();
+                instances.for_each_entry(|_, instance| {
+                    let mesh = self.meshes.at(instance.mesh_index as _);
+                    for meshlet_index in
+                        mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count
+                    {
+                        let meshlet = &meshlets[meshlet_index as usize];
+
+                        let total_indices =
+                            mesh.indices_offset + meshlet.indices_offset + meshlet.indices_count;
+                        debug_assert!(
+                            total_indices % 3 == 0,
+                            "indices count {} is not divisible by 3",
+                            total_indices
+                        );
+                        let mut i = mesh.indices_offset + meshlet.indices_offset;
+                        let mut triangle_index = 0;
+                        while i < total_indices {
+                            entry.push(DrawCommand {
+                                vertex_count: 3,
+                                instance_count: 1,
+                                base_index: i as _,
+                                vertex_offset: mesh.vertex_offset as _,
+                                base_instance: (triangle_index << 24 | meshlet_index) as _,
+                            });
+                            i += 3;
+                            triangle_index += 1;
+                        }
+                    }
+                });
+            }
+            if entry.is_empty() {
+                return;
+            }
+            let commands_id = entry.id();
+            let usage = wgpu::BufferUsages::STORAGE
+                | wgpu::BufferUsages::COPY_SRC
+                | wgpu::BufferUsages::COPY_DST
+                | wgpu::BufferUsages::INDIRECT;
+            binding_data_buffer.bind_buffer(commands_id, entry, usage, render_core_context);
         }
-        let commands_id = entry.id();
-        let usage = wgpu::BufferUsages::STORAGE
-            | wgpu::BufferUsages::COPY_SRC
-            | wgpu::BufferUsages::COPY_DST
-            | wgpu::BufferUsages::INDIRECT;
-        binding_data_buffer.bind_buffer(commands_id, entry, usage, render_core_context);
     }
 }

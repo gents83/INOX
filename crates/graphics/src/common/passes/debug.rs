@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::{
     BindingData, BindingInfo, CommandBuffer, LoadOperation, Pass, RenderContext, RenderPass,
-    RenderPassData, RenderTarget, ShaderStage, StoreOperation,
+    RenderPassData, RenderTarget, ShaderStage, StoreOperation, DrawCommandType,
 };
 
 use inox_core::ContextRc;
@@ -25,6 +25,12 @@ impl Pass for DebugPass {
     }
     fn static_name() -> &'static str {
         DEBUG_PASS_NAME
+    }
+    fn is_active(&self) -> bool {
+        true
+    }
+    fn draw_command_type(&self) -> DrawCommandType {
+        DrawCommandType::PerMeshlet
     }
     fn create(context: &ContextRc) -> Self
     where
@@ -59,7 +65,7 @@ impl Pass for DebugPass {
 
         if render_context.render_buffers.meshes.is_empty()
             || render_context.render_buffers.meshlets.is_empty()
-            || render_context.render_buffers.matrix.is_empty()
+            || render_context.render_buffers.matrices.is_empty()
         {
             return;
         }
@@ -101,7 +107,7 @@ impl Pass for DebugPass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.matrix,
+                &mut render_context.render_buffers.matrices,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 3,
@@ -120,7 +126,7 @@ impl Pass for DebugPass {
 
         if render_context.render_buffers.meshes.is_empty()
             || render_context.render_buffers.meshlets.is_empty()
-            || render_context.render_buffers.matrix.is_empty()
+            || render_context.render_buffers.matrices.is_empty()
         {
             return;
         }

@@ -1,52 +1,49 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, DrawCommandType, DrawInstance, DrawVertex,
-    LoadOperation, MeshFlags, Pass, RenderContext, RenderPass, RenderPassData, RenderTarget,
-    ShaderStage, StoreOperation,
+    BindingData, BindingInfo, CommandBuffer, DrawCommandType, DrawInstance, DrawVertex, MeshFlags,
+    Pass, RenderContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
 };
 
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
 
-pub const WIREFRAME_PIPELINE: &str = "pipelines/Wireframe.render_pipeline";
-pub const WIREFRAME_PASS_NAME: &str = "WireframePass";
+pub const VISIBILITY_BUFFER_PIPELINE: &str = "pipelines/VisibilityBuffer.render_pipeline";
+pub const VISIBILITY_BUFFER_PASS_NAME: &str = "VisibilityBufferPass";
 
-pub struct WireframePass {
+pub struct VisibilityBufferPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
 }
-unsafe impl Send for WireframePass {}
-unsafe impl Sync for WireframePass {}
+unsafe impl Send for VisibilityBufferPass {}
+unsafe impl Sync for VisibilityBufferPass {}
 
-impl Pass for WireframePass {
+impl Pass for VisibilityBufferPass {
     fn name(&self) -> &str {
-        WIREFRAME_PASS_NAME
+        VISIBILITY_BUFFER_PASS_NAME
     }
     fn static_name() -> &'static str {
-        WIREFRAME_PASS_NAME
+        VISIBILITY_BUFFER_PASS_NAME
     }
     fn is_active(&self) -> bool {
         true
     }
     fn draw_command_type(&self) -> DrawCommandType {
-        DrawCommandType::PerMeshlet
+        DrawCommandType::PerTriangle
     }
     fn create(context: &ContextRc) -> Self
     where
         Self: Sized,
     {
-        inox_profiler::scoped_profile!("wireframe_pass::create");
+        inox_profiler::scoped_profile!("visibility_buffer_pass::create");
 
         let data = RenderPassData {
-            name: WIREFRAME_PASS_NAME.to_string(),
-            load_color: LoadOperation::Load,
-            load_depth: LoadOperation::Load,
+            name: VISIBILITY_BUFFER_PASS_NAME.to_string(),
             store_color: StoreOperation::Store,
             store_depth: StoreOperation::Store,
             render_target: RenderTarget::Screen,
-            pipeline: PathBuf::from(WIREFRAME_PIPELINE),
+            pipeline: PathBuf::from(VISIBILITY_BUFFER_PIPELINE),
             ..Default::default()
         };
 
@@ -62,14 +59,16 @@ impl Pass for WireframePass {
         }
     }
     fn init(&mut self, render_context: &mut RenderContext) {
-        inox_profiler::scoped_profile!("wireframe_pass::init");
+        inox_profiler::scoped_profile!("visibility_buffer_pass::init");
 
-        let mesh_flags = MeshFlags::Visible | MeshFlags::Wireframe;
+        let mesh_flags = MeshFlags::Visible | MeshFlags::Opaque;
+
         if !render_context.has_instances(mesh_flags) {
             return;
         }
 
         let mut pass = self.render_pass.get_mut();
+
         let instances = render_context
             .render_buffers
             .instances
@@ -103,10 +102,34 @@ impl Pass for WireframePass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.matrices,
+                &mut render_context.render_buffers.meshes,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,
+                    stage: ShaderStage::Vertex,
+
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.meshlets,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 3,
+                    stage: ShaderStage::Vertex,
+
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.matrices,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 4,
                     stage: ShaderStage::Vertex,
 
                     ..Default::default()
@@ -130,7 +153,7 @@ impl Pass for WireframePass {
                 &mut render_context.render_buffers.indices,
             );
         self.binding_data
-            .send_to_gpu(render_context, WIREFRAME_PASS_NAME);
+            .send_to_gpu(render_context, VISIBILITY_BUFFER_PASS_NAME);
 
         let vertex_layout = DrawVertex::descriptor(0);
         let instance_layout = DrawInstance::descriptor(vertex_layout.location());
@@ -142,9 +165,10 @@ impl Pass for WireframePass {
         );
     }
     fn update(&self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
-        inox_profiler::scoped_profile!("wireframe_pass::update");
+        inox_profiler::scoped_profile!("visibility_buffer_pass::update");
 
-        if !render_context.has_instances(MeshFlags::Visible | MeshFlags::Wireframe) {
+        let mesh_flags = MeshFlags::Visible | MeshFlags::Opaque;
+        if !render_context.has_instances(mesh_flags) {
             return;
         }
 
@@ -171,7 +195,7 @@ impl Pass for WireframePass {
     }
 }
 
-impl WireframePass {
+impl VisibilityBufferPass {
     pub fn render_pass(&self) -> &Resource<RenderPass> {
         &self.render_pass
     }

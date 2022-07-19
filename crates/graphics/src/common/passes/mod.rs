@@ -6,6 +6,7 @@ pub use self::debug::*;
 pub use self::gbuffer::*;
 pub use self::pass::*;
 pub use self::pbr::*;
+pub use self::visibility::*;
 pub use self::wireframe::*;
 
 pub mod blit;
@@ -16,4 +17,5 @@ pub mod debug;
 pub mod gbuffer;
 pub mod pass;
 pub mod pbr;
+pub mod visibility;
 pub mod wireframe;

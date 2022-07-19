@@ -5,8 +5,9 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 use inox_graphics::{
     rendering_system::RenderingSystem, update_system::UpdateSystem, BlitPass, ComputePbrPass,
     ComputeRasterPass, CullingPass, DebugDrawerSystem, DebugPass, GBufferPass, LoadOperation,
-    PBRPass, Pass, RenderPass, RenderTarget, Renderer, RendererRw, TextureFormat, WireframePass,
-    DEFAULT_HEIGHT, DEFAULT_WIDTH, GBUFFER_PASS_NAME, WIREFRAME_PASS_NAME,
+    PBRPass, Pass, RenderPass, RenderTarget, Renderer, RendererRw, TextureFormat,
+    VisibilityBufferPass, WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH, GBUFFER_PASS_NAME,
+    WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -16,6 +17,7 @@ use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
 
 use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
+const USE_VISIBILITY_BUFFER_RENDERING: bool = false;
 const USE_COMPUTE_RENDERING: bool = false;
 const ADD_COMPUTE_RASTER_PASS: bool = false;
 const ADD_WIREFRAME_PASS: bool = true;
@@ -157,12 +159,16 @@ impl Viewer {
             Self::create_compute_raster_pass(context, renderer, width, height);
         }
         Self::create_culling_pass(context, renderer);
-        Self::create_gbuffer_pass(context, renderer, width, height);
-        if USE_COMPUTE_RENDERING {
-            Self::create_compute_pbr_pass(context, renderer, width, height);
-            Self::create_blit_pass(context, renderer);
+        if USE_VISIBILITY_BUFFER_RENDERING {
+            Self::create_visibility_buffer_pass(context, renderer, width, height);
         } else {
-            Self::create_pbr_pass(context, renderer);
+            Self::create_gbuffer_pass(context, renderer, width, height);
+            if USE_COMPUTE_RENDERING {
+                Self::create_compute_pbr_pass(context, renderer, width, height);
+                Self::create_blit_pass(context, renderer);
+            } else {
+                Self::create_pbr_pass(context, renderer);
+            }
         }
         if ADD_WIREFRAME_PASS {
             Self::create_wireframe_pass(context, renderer);
@@ -206,6 +212,30 @@ impl Viewer {
             });
 
         renderer.write().unwrap().add_pass(gbuffer_pass);
+    }
+    fn create_visibility_buffer_pass(
+        context: &ContextRc,
+        renderer: &RendererRw,
+        width: u32,
+        height: u32,
+    ) {
+        let visibility_pass = VisibilityBufferPass::create(context);
+        visibility_pass
+            .render_pass()
+            .get_mut()
+            .add_render_target(RenderTarget::Texture {
+                width,
+                height,
+                format: TextureFormat::Rgba8Unorm,
+                read_back: false,
+            })
+            .add_depth_target(RenderTarget::Texture {
+                width,
+                height,
+                format: TextureFormat::Depth32Float,
+                read_back: false,
+            });
+        renderer.write().unwrap().add_pass(visibility_pass);
     }
     fn create_compute_pbr_pass(
         context: &ContextRc,

@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, DrawInstance, DrawVertex, MeshFlags, Pass,
-    RenderContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
+    BindingData, BindingInfo, CommandBuffer, DrawCommandType, DrawInstance, DrawVertex, MeshFlags,
+    Pass, RenderContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
 };
 
 use inox_core::ContextRc;
@@ -31,6 +31,12 @@ impl Pass for GBufferPass {
     }
     fn static_name() -> &'static str {
         GBUFFER_PASS_NAME
+    }
+    fn is_active(&self) -> bool {
+        true
+    }
+    fn draw_command_type(&self) -> DrawCommandType {
+        DrawCommandType::PerMeshlet
     }
     fn create(context: &ContextRc) -> Self
     where
@@ -137,11 +143,11 @@ impl Pass for GBufferPass {
                 },
             );
         }
-        if !render_context.render_buffers.matrix.is_empty() {
+        if !render_context.render_buffers.matrices.is_empty() {
             self.binding_data.add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.matrix,
+                &mut render_context.render_buffers.matrices,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 0,
@@ -269,7 +275,12 @@ impl Pass for GBufferPass {
             &pipeline,
             command_buffer,
         );
-        pass.indirect_draw(render_context, &buffers, render_pass);
+        pass.indirect_draw(
+            render_context,
+            &buffers,
+            self.draw_command_type(),
+            render_pass,
+        );
     }
 }
 

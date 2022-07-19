@@ -9,8 +9,8 @@ use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
 
 use crate::{
     platform::is_indirect_mode_enabled, AsBinding, BindingData, BufferId, CommandBuffer,
-    DrawCommand, GpuBuffer, LoadOperation, RenderContext, RenderMode, RenderPassData,
-    RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId, TextureUsage,
+    DrawCommand, DrawCommandType, GpuBuffer, LoadOperation, RenderContext, RenderMode,
+    RenderPassData, RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId, TextureUsage,
     VertexBufferLayoutBuilder,
 };
 
@@ -373,6 +373,7 @@ impl RenderPass {
         &self,
         render_context: &RenderContext,
         buffers: &'a HashMap<BufferId, GpuBuffer>,
+        draw_commands_type: DrawCommandType,
         mut render_pass: wgpu::RenderPass<'a>,
     ) {
         inox_profiler::scoped_profile!("render_pass::indirect_draw");
@@ -380,15 +381,18 @@ impl RenderPass {
         if is_indirect_mode_enabled() && self.render_mode == RenderMode::Indirect {
             let mesh_flags = self.pipeline().get().data().mesh_flags;
             if let Some(commands) = render_context.render_buffers.commands.get(&mesh_flags) {
-                let commands_count = commands.size() / std::mem::size_of::<DrawCommand>() as u64;
-                let commands_id = commands.id();
-                if let Some(buffer) = buffers.get(&commands_id) {
-                    render_pass.multi_draw_indexed_indirect(
-                        buffer.gpu_buffer().unwrap(),
-                        0,
-                        commands_count as _,
-                    );
-                    return;
+                if let Some(commands) = commands.get(&draw_commands_type) {
+                    let commands_count =
+                        commands.size() / std::mem::size_of::<DrawCommand>() as u64;
+                    let commands_id = commands.id();
+                    if let Some(buffer) = buffers.get(&commands_id) {
+                        render_pass.multi_draw_indexed_indirect(
+                            buffer.gpu_buffer().unwrap(),
+                            0,
+                            commands_count as _,
+                        );
+                        return;
+                    }
                 }
             }
         }

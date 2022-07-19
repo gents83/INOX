@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 use crate::{
-    AsBinding, BindingData, BindingInfo, CommandBuffer, GpuBuffer, Pass, RenderContext,
-    RenderCoreContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
-    TextureId,
+    AsBinding, BindingData, BindingInfo, CommandBuffer, DrawCommandType, GpuBuffer, Pass,
+    RenderContext, RenderCoreContext, RenderPass, RenderPassData, RenderTarget, ShaderStage,
+    StoreOperation, TextureId,
 };
 
 use inox_core::ContextRc;
@@ -55,6 +55,12 @@ impl Pass for BlitPass {
     }
     fn static_name() -> &'static str {
         BLIT_PASS_NAME
+    }
+    fn is_active(&self) -> bool {
+        true
+    }
+    fn draw_command_type(&self) -> DrawCommandType {
+        DrawCommandType::PerMeshlet
     }
     fn create(context: &ContextRc) -> Self
     where

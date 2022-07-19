@@ -1,3 +1,4 @@
+use inox_bitmask::bitmask;
 use inox_serialize::{Deserialize, Serialize};
 
 use crate::{
@@ -27,6 +28,12 @@ impl DrawInstance {
     }
 }
 
+#[bitmask]
+pub enum DrawCommandType {
+    PerMeshlet,
+    PerTriangle,
+}
+
 #[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
 #[serde(crate = "inox_serialize")]
 pub struct DrawCommand {
@@ -44,6 +51,7 @@ pub struct DrawMesh {
     pub indices_offset: u32,
     pub meshlet_offset: u32,
     pub meshlet_count: u32,
+    pub instance_index: i32,
     pub material_index: i32,
     pub matrix_index: i32,
     pub mesh_flags: u32,
@@ -56,6 +64,7 @@ impl Default for DrawMesh {
             indices_offset: 0,
             meshlet_offset: 0,
             meshlet_count: 0,
+            instance_index: INVALID_INDEX,
             material_index: INVALID_INDEX,
             matrix_index: INVALID_INDEX,
             mesh_flags: 0,
@@ -66,8 +75,8 @@ impl Default for DrawMesh {
 #[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
 #[serde(crate = "inox_serialize")]
 pub struct DrawMeshlet {
+    pub mesh_index: u32,
     pub vertex_offset: u32,
-    pub vertex_count: u32,
     pub indices_offset: u32,
     pub indices_count: u32,
     pub center_radius: [f32; 4],

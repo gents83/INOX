@@ -63,14 +63,15 @@ struct DrawMesh {
     indices_offset: u32,
     meshlet_offset: u32,
     meshlet_count: u32,
+    instance_index: i32,
     material_index: i32,
     matrix_index: i32,
     mesh_flags: u32,
 };
 
 struct DrawMeshlet {
+    mesh_index: u32,
     vertex_offset: u32,
-    vertex_count: u32,
     indices_offset: u32,
     indices_count: u32,
     center_radius: vec4<f32>,

@@ -2,9 +2,9 @@ use std::path::PathBuf;
 
 use inox_core::ContextRc;
 use inox_graphics::{
-    AsBinding, BindingData, BindingInfo, CommandBuffer, GpuBuffer, Pass, RenderContext,
-    RenderCoreContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
-    VertexBufferLayoutBuilder, VertexFormat,
+    AsBinding, BindingData, BindingInfo, CommandBuffer, DrawCommandType, GpuBuffer, Pass,
+    RenderContext, RenderCoreContext, RenderPass, RenderPassData, RenderTarget, ShaderStage,
+    StoreOperation, VertexBufferLayoutBuilder, VertexFormat,
 };
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
@@ -88,6 +88,12 @@ impl Pass for UIPass {
     }
     fn static_name() -> &'static str {
         UI_PASS_NAME
+    }
+    fn is_active(&self) -> bool {
+        true
+    }
+    fn draw_command_type(&self) -> DrawCommandType {
+        DrawCommandType::PerMeshlet
     }
     fn create(context: &ContextRc) -> Self
     where

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::{
     AsBinding, BindingData, BindingInfo, CommandBuffer, GBuffer, GpuBuffer, Pass, RenderContext,
     RenderCoreContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
-    TextureId,
+    TextureId, DrawCommandType,
 };
 
 use inox_core::ContextRc;
@@ -57,6 +57,12 @@ impl Pass for PBRPass {
     }
     fn static_name() -> &'static str {
         PBR_PASS_NAME
+    }
+    fn is_active(&self) -> bool {
+        true
+    }
+    fn draw_command_type(&self) -> DrawCommandType {
+        DrawCommandType::PerMeshlet
     }
     fn create(context: &ContextRc) -> Self
     where

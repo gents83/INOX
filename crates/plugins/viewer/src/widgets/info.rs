@@ -165,7 +165,7 @@ impl Info {
                     .at(instance.mesh_index as _);
                 let matrix = render_context
                     .render_buffers
-                    .matrix
+                    .matrices
                     .at(instance.matrix_index as _);
                 let matrix = Matrix4::from(*matrix);
                 let scale = matrix.scale().z;

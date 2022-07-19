@@ -8,6 +8,7 @@ struct VertexOutput {
     @location(2) normal: vec3<f32>,
     @location(3) uv_0_1: vec4<f32>,
     @location(4) uv_2_3: vec4<f32>,
+    @location(5) ids: vec2<u32>,
 };
 
 struct FragmentOutput {
@@ -44,6 +45,7 @@ var<storage, read> meshlets: Meshlets;
 @vertex
 fn vs_main(
     @builtin(vertex_index) vertex_index: u32,
+    @builtin(instance_index) instance_index: u32,
     v_in: DrawVertex,
     i_in: DrawInstance,
 ) -> VertexOutput {
@@ -74,6 +76,9 @@ fn vs_main(
     vertex_out.normal = normals.data[v_in.normal_offset].xyz; 
     vertex_out.uv_0_1 =  vec4<f32>(uvs.data[v_in.uvs_offset.x].xy, uvs.data[v_in.uvs_offset.y].xy);
     vertex_out.uv_2_3 =  vec4<f32>(uvs.data[v_in.uvs_offset.z].xy, uvs.data[v_in.uvs_offset.w].xy);
+    let real_meshlet_id = extractBits(instance_index, 0u, 24u);
+    let triangle_id = extractBits(instance_index, 24u, 8u);
+    vertex_out.ids = vec2<u32>(u32(real_meshlet_id), u32(triangle_id));
 
     return vertex_out;
 }

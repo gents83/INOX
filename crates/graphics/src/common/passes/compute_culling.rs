@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData, MeshFlags, Pass,
-    RenderContext, ShaderStage,
+    BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData, DrawCommandType,
+    MeshFlags, Pass, RenderContext, ShaderStage,
 };
 
 use inox_core::ContextRc;
@@ -25,6 +25,12 @@ impl Pass for CullingPass {
     }
     fn static_name() -> &'static str {
         CULLING_PASS_NAME
+    }
+    fn is_active(&self) -> bool {
+        true
+    }
+    fn draw_command_type(&self) -> DrawCommandType {
+        DrawCommandType::PerMeshlet
     }
     fn create(context: &ContextRc) -> Self
     where
@@ -53,6 +59,7 @@ impl Pass for CullingPass {
         }
 
         let mesh_flags = MeshFlags::Visible | MeshFlags::Opaque;
+        let draw_command_type = self.draw_command_type();
 
         if let Some(commands) = render_context.render_buffers.commands.get_mut(&mesh_flags) {
             if let Some(instances) = render_context.render_buffers.instances.get_mut(&mesh_flags) {
@@ -82,7 +89,7 @@ impl Pass for CullingPass {
                     .add_storage_buffer(
                         &render_context.core,
                         &render_context.binding_data_buffer,
-                        &mut render_context.render_buffers.matrix,
+                        &mut render_context.render_buffers.matrices,
                         BindingInfo {
                             group_index: 0,
                             binding_index: 2,
@@ -105,7 +112,7 @@ impl Pass for CullingPass {
                     .add_storage_buffer(
                         &render_context.core,
                         &render_context.binding_data_buffer,
-                        commands,
+                        commands.get_mut(&draw_command_type).unwrap(),
                         BindingInfo {
                             group_index: 0,
                             binding_index: 4,

@@ -1,6 +1,6 @@
 use inox_core::ContextRc;
 
-use crate::{CommandBuffer, RenderContext};
+use crate::{CommandBuffer, DrawCommandType, RenderContext};
 use downcast_rs::{impl_downcast, Downcast};
 
 pub trait Pass: Downcast + Send + Sync + 'static {
@@ -8,6 +8,8 @@ pub trait Pass: Downcast + Send + Sync + 'static {
     fn static_name() -> &'static str
     where
         Self: Sized;
+    fn is_active(&self) -> bool;
+    fn draw_command_type(&self) -> DrawCommandType;
     fn create(context: &ContextRc) -> Self
     where
         Self: Sized;

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::{
     BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData, Pass, RenderContext,
-    ShaderStage, Texture, TextureFormat, TextureUsage,
+    ShaderStage, Texture, TextureFormat, TextureUsage, DrawCommandType,
 };
 
 use inox_core::ContextRc;
@@ -28,6 +28,12 @@ impl Pass for ComputeRasterPass {
     }
     fn static_name() -> &'static str {
         COMPUTE_RASTER_PASS_NAME
+    }
+    fn is_active(&self) -> bool {
+        true
+    }
+    fn draw_command_type(&self) -> DrawCommandType {
+        DrawCommandType::PerMeshlet
     }
     fn create(context: &ContextRc) -> Self
     where
@@ -128,7 +134,7 @@ impl Pass for ComputeRasterPass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.matrix,
+                &mut render_context.render_buffers.matrices,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 6,

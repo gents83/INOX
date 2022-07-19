@@ -1,6 +1,6 @@
 use crate::{
-    ComputePipeline, Material, Pass, RenderContext, RenderContextRw, RenderPass, RenderPipeline,
-    Texture, TextureId,
+    ComputePipeline, DrawCommandType, Material, Pass, RenderContext, RenderContextRw, RenderPass,
+    RenderPipeline, Texture, TextureId,
 };
 use inox_core::ContextRc;
 
@@ -220,16 +220,29 @@ impl Renderer {
     pub fn init_passes(&mut self) {
         inox_profiler::scoped_profile!("renderer::send_to_gpu");
 
+        let mut draw_command_type = DrawCommandType::PerMeshlet;
+        self.passes.iter().for_each(|pass| {
+            if pass.is_active() {
+                draw_command_type |= pass.draw_command_type();
+            }
+        });
+
         let mut render_context = self.render_context.as_ref().unwrap().write().unwrap();
         let render_context: &mut RenderContext = &mut render_context;
         {
             let render_buffers = &mut render_context.render_buffers;
             let render_core_context = &render_context.core;
             let binding_data_buffer = &render_context.binding_data_buffer;
-            render_buffers.create_commands(binding_data_buffer, render_core_context);
+            render_buffers.create_commands(
+                draw_command_type,
+                binding_data_buffer,
+                render_core_context,
+            );
         }
         self.passes.iter_mut().for_each(|pass| {
-            pass.init(render_context);
+            if pass.is_active() {
+                pass.init(render_context);
+            }
         });
     }
 
@@ -240,7 +253,9 @@ impl Renderer {
         let render_context: &mut RenderContext = &mut render_context;
         let mut command_buffer = render_context.core.new_command_buffer();
         self.passes.iter().for_each(|pass| {
-            pass.update(render_context, &mut command_buffer);
+            if pass.is_active() {
+                pass.update(render_context, &mut command_buffer);
+            }
         });
         render_context.core.submit(command_buffer);
     }
