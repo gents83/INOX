@@ -16,19 +16,18 @@ var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
 var<storage, read> positions_and_colors: PositionsAndColors;
 @group(0) @binding(2)
-var<storage, read> matrices: Matrices;
+var<storage, read> meshes: Meshes;
 
 @vertex
 fn vs_main(
     v_in: DrawVertex,
-    i_in: DrawInstance,
 ) -> VertexOutput {
-    let instance_matrix = matrices.data[i_in.matrix_index];
+    let instance_matrix = meshes.data[v_in.mesh_index].transform;
     let position = positions_and_colors.data[v_in.position_and_color_offset].xyz;
 
-    let mvp = constant_data.proj * constant_data.view * instance_matrix;
+    let mvp = constant_data.proj * constant_data.view;
     var vertex_out: VertexOutput;
-    vertex_out.clip_position = mvp * vec4<f32>(position, 1.0);
+    vertex_out.clip_position = mvp * instance_matrix * vec4<f32>(position, 1.0);
 
     let color = u32(positions_and_colors.data[v_in.position_and_color_offset].w);
     vertex_out.color = unpack_unorm_to_4_f32(color);

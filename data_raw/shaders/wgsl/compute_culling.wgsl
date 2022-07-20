@@ -7,11 +7,9 @@ var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
 var<storage, read> meshlets: Meshlets;
 @group(0) @binding(2)
-var<storage, read> matrices: Matrices;
+var<storage, read> meshes: Meshes;
 @group(0) @binding(3)
-var<storage, read> instances: Instances;
-@group(0) @binding(4)
-var<storage, read_write> commands: Commands;
+var<storage, read_write> commands: DrawIndexedCommands;
 
 
 fn transform_vector(v: vec3<f32>, q: vec4<f32>) -> vec3<f32> {
@@ -53,15 +51,14 @@ fn main(
     @builtin(workgroup_id) workgroup_id: vec3<u32>
 ) {
     let total = arrayLength(&meshlets.data);
-    let meshlet_index = global_invocation_id.x;
-    if (meshlet_index >= total) {
+    let meshlet_id = global_invocation_id.x;
+    if (meshlet_id >= total) {
         return;
     }
-    let command = &commands.data[meshlet_index];
-    let instance_index = (*command).base_instance;
-    let matrix_index = instances.data[instance_index].matrix_index;
-    let m = &matrices.data[matrix_index];
-    let meshlet = &meshlets.data[meshlet_index];
+    let meshlet = &meshlets.data[meshlet_id];
+    let command = &commands.data[meshlet_id];
+    let mesh_id = (*meshlet).mesh_index;
+    let m = &meshes.data[mesh_id].transform;
 
     let scale = extract_scale((*m));
     let center = (*m) * vec4<f32>((*meshlet).center_radius.xyz, 1.0);

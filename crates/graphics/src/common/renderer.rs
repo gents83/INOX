@@ -1,6 +1,6 @@
 use crate::{
-    ComputePipeline, DrawCommandType, Material, Pass, RenderContext, RenderContextRw, RenderPass,
-    RenderPipeline, Texture, TextureId,
+    ComputePipeline, DrawCommandType, Material, MeshFlags, Pass, RenderContext, RenderContextRw,
+    RenderPass, RenderPipeline, Texture, TextureId,
 };
 use inox_core::ContextRc;
 
@@ -221,9 +221,16 @@ impl Renderer {
         inox_profiler::scoped_profile!("renderer::send_to_gpu");
 
         let mut draw_command_type = DrawCommandType::PerMeshlet;
+        let mut mesh_flags_alternatives = Vec::new();
         self.passes.iter().for_each(|pass| {
             if pass.is_active() {
                 draw_command_type |= pass.draw_command_type();
+                let mesh_flags = pass.mesh_flags();
+                if mesh_flags != MeshFlags::None
+                    && !mesh_flags_alternatives.iter().any(|f| f == &mesh_flags)
+                {
+                    mesh_flags_alternatives.push(mesh_flags);
+                }
             }
         });
 
@@ -233,11 +240,14 @@ impl Renderer {
             let render_buffers = &mut render_context.render_buffers;
             let render_core_context = &render_context.core;
             let binding_data_buffer = &render_context.binding_data_buffer;
-            render_buffers.create_commands(
-                draw_command_type,
-                binding_data_buffer,
-                render_core_context,
-            );
+            mesh_flags_alternatives.iter().for_each(|mesh_flags| {
+                render_buffers.create_commands(
+                    *mesh_flags,
+                    draw_command_type,
+                    binding_data_buffer,
+                    render_core_context,
+                );
+            })
         }
         self.passes.iter_mut().for_each(|pass| {
             if pass.is_active() {

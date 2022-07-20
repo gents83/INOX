@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData, Pass, RenderContext,
-    ShaderStage, Texture, TextureFormat, TextureUsage, DrawCommandType,
+    BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData, DrawCommandType,
+    MeshFlags, Pass, RenderContext, ShaderStage, Texture, TextureFormat, TextureUsage,
 };
 
 use inox_core::ContextRc;
@@ -31,6 +31,9 @@ impl Pass for ComputeRasterPass {
     }
     fn is_active(&self) -> bool {
         true
+    }
+    fn mesh_flags(&self) -> MeshFlags {
+        MeshFlags::None
     }
     fn draw_command_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
@@ -127,17 +130,6 @@ impl Pass for ComputeRasterPass {
                 BindingInfo {
                     group_index: 0,
                     binding_index: 5,
-                    stage: ShaderStage::Compute,
-                    ..Default::default()
-                },
-            )
-            .add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.matrices,
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 6,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },

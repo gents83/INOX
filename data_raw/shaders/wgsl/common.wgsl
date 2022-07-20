@@ -33,6 +33,7 @@ let CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 8u;
 struct ConstantData {
     view: mat4x4<f32>,
     proj: mat4x4<f32>,
+    inverse_view_proj: mat4x4<f32>,
     screen_width: f32,
     screen_height: f32,
     flags: u32,
@@ -42,15 +43,18 @@ struct DrawVertex {
     @location(0) position_and_color_offset: u32,
     @location(1) normal_offset: i32,
     @location(2) tangent_offset: i32,
-    @location(3) padding_offset: u32,
+    @location(3) mesh_index: u32,
     @location(4) uvs_offset: vec4<i32>,
 };
 
-struct DrawInstance {
-    @location(5) mesh_index: u32,
-    @location(6) matrix_index: u32,
-};
 struct DrawCommand {
+    vertex_count: u32,
+    instance_count: u32,
+    base_vertex: u32,
+    base_instance: u32,
+};
+
+struct DrawIndexedCommand {
     vertex_count: u32,
     instance_count: u32,
     base_index: u32,
@@ -63,19 +67,20 @@ struct DrawMesh {
     indices_offset: u32,
     meshlet_offset: u32,
     meshlet_count: u32,
-    instance_index: i32,
     material_index: i32,
-    matrix_index: i32,
     mesh_flags: u32,
+    _padding1: u32,
+    _padding2: u32,
+    transform: mat4x4<f32>,
 };
 
 struct DrawMeshlet {
-    mesh_index: u32,
-    vertex_offset: u32,
-    indices_offset: u32,
-    indices_count: u32,
-    center_radius: vec4<f32>,
-    cone_axis_cutoff: vec4<f32>,
+    @location(5) mesh_index: u32,
+    @location(6) vertex_offset: u32,
+    @location(7) indices_offset: u32,
+    @location(8) indices_count: u32,
+    @location(9) center_radius: vec4<f32>,
+    @location(10) cone_axis_cutoff: vec4<f32>,
 };
 
 
@@ -124,12 +129,12 @@ struct Materials {
     data: array<DrawMaterial>,
 };
 
-struct Instances {
-    data: array<DrawInstance>,
+struct DrawCommands {
+    data: array<DrawCommand>,
 };
 
-struct Commands {
-    data: array<DrawCommand>,
+struct DrawIndexedCommands {
+    data: array<DrawIndexedCommand>,
 };
 
 struct Meshes {

@@ -163,11 +163,13 @@ impl RenderContext {
         }
     }
 
-    pub fn has_instances(&self, flags: MeshFlags) -> bool {
-        if let Some(instances) = self.render_buffers.instances.get(&flags) {
-            return !instances.is_empty();
-        }
-        false
+    pub fn has_meshes(&self, flags: MeshFlags) -> bool {
+        let mesh_flags: u32 = flags.into();
+        self.render_buffers
+            .meshes
+            .data()
+            .iter()
+            .any(|m| m.mesh_flags == mesh_flags)
     }
 
     pub fn resolution(&self) -> (u32, u32) {

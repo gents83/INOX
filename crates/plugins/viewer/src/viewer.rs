@@ -18,7 +18,6 @@ use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
 use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
 const USE_VISIBILITY_BUFFER_RENDERING: bool = false;
-const USE_COMPUTE_RENDERING: bool = false;
 const ADD_COMPUTE_RASTER_PASS: bool = false;
 const ADD_WIREFRAME_PASS: bool = true;
 const ADD_DEBUG_PASS: bool = false;
@@ -161,14 +160,11 @@ impl Viewer {
         Self::create_culling_pass(context, renderer);
         if USE_VISIBILITY_BUFFER_RENDERING {
             Self::create_visibility_buffer_pass(context, renderer, width, height);
+            Self::create_compute_pbr_pass(context, renderer, width, height);
+            Self::create_blit_pass(context, renderer);
         } else {
             Self::create_gbuffer_pass(context, renderer, width, height);
-            if USE_COMPUTE_RENDERING {
-                Self::create_compute_pbr_pass(context, renderer, width, height);
-                Self::create_blit_pass(context, renderer);
-            } else {
-                Self::create_pbr_pass(context, renderer);
-            }
+            Self::create_pbr_pass(context, renderer);
         }
         if ADD_WIREFRAME_PASS {
             Self::create_wireframe_pass(context, renderer);
@@ -245,8 +241,8 @@ impl Viewer {
     ) {
         let mut compute_pbr_pass = ComputePbrPass::create(context);
         compute_pbr_pass.resolution(width, height);
-        if let Some(gbuffer_pass) = renderer.read().unwrap().pass::<GBufferPass>() {
-            let gbuffer_pass = gbuffer_pass.render_pass().get();
+        if let Some(visibility_pass) = renderer.read().unwrap().pass::<VisibilityBufferPass>() {
+            let gbuffer_pass = visibility_pass.render_pass().get();
             gbuffer_pass.render_textures_id().iter().for_each(|&id| {
                 compute_pbr_pass.add_texture(id);
             });

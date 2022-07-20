@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, DrawCommandType, DrawInstance, DrawVertex, MeshFlags,
+    BindingData, BindingInfo, CommandBuffer, DrawCommandType, DrawVertex, MeshFlags,
     Pass, RenderContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
 };
 
@@ -35,6 +35,9 @@ impl Pass for GBufferPass {
     fn is_active(&self) -> bool {
         true
     }
+    fn mesh_flags(&self) -> MeshFlags {
+        MeshFlags::Visible | MeshFlags::Opaque
+    }
     fn draw_command_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
@@ -67,20 +70,15 @@ impl Pass for GBufferPass {
     fn init(&mut self, render_context: &mut RenderContext) {
         inox_profiler::scoped_profile!("gbuffer_pass::init");
 
-        let mesh_flags = MeshFlags::Visible | MeshFlags::Opaque;
+        let mesh_flags = self.mesh_flags();
 
-        if !render_context.has_instances(mesh_flags) {
+        if !render_context.has_meshes(mesh_flags) {
             return;
         }
 
         let mut pass = self.render_pass.get_mut();
         let render_textures = pass.render_textures_id();
         let depth_texture = pass.depth_texture_id();
-        let instances = render_context
-            .render_buffers
-            .instances
-            .get_mut(&mesh_flags)
-            .unwrap();
 
         self.binding_data.add_uniform_buffer(
             &render_context.core,
@@ -143,20 +141,6 @@ impl Pass for GBufferPass {
                 },
             );
         }
-        if !render_context.render_buffers.matrices.is_empty() {
-            self.binding_data.add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.matrices,
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 0,
-                    stage: ShaderStage::Vertex,
-
-                    ..Default::default()
-                },
-            );
-        }
         if !render_context.render_buffers.meshes.is_empty() {
             self.binding_data.add_storage_buffer(
                 &render_context.core,
@@ -164,7 +148,7 @@ impl Pass for GBufferPass {
                 &mut render_context.render_buffers.meshes,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 1,
+                    binding_index: 0,
                     stage: ShaderStage::VertexAndFragment,
 
                     ..Default::default()
@@ -178,7 +162,7 @@ impl Pass for GBufferPass {
                 &mut render_context.render_buffers.materials,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 2,
+                    binding_index: 1,
                     stage: ShaderStage::Fragment,
 
                     ..Default::default()
@@ -192,7 +176,7 @@ impl Pass for GBufferPass {
                 &mut render_context.render_buffers.textures,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 3,
+                    binding_index: 2,
                     stage: ShaderStage::Fragment,
 
                     ..Default::default()
@@ -206,7 +190,7 @@ impl Pass for GBufferPass {
                 &mut render_context.render_buffers.meshlets,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 4,
+                    binding_index: 3,
                     stage: ShaderStage::Vertex,
 
                     ..Default::default()
@@ -231,12 +215,6 @@ impl Pass for GBufferPass {
                 0,
                 &mut render_context.render_buffers.vertices,
             )
-            .set_vertex_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                1,
-                instances,
-            )
             .set_index_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
@@ -246,18 +224,17 @@ impl Pass for GBufferPass {
             .send_to_gpu(render_context, GBUFFER_PASS_NAME);
 
         let vertex_layout = DrawVertex::descriptor(0);
-        let instance_layout = DrawInstance::descriptor(vertex_layout.location());
         pass.init(
             render_context,
             &self.binding_data,
             Some(vertex_layout),
-            Some(instance_layout),
+            None,
         );
     }
     fn update(&self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
         inox_profiler::scoped_profile!("gbuffer_pass::update");
 
-        if !render_context.has_instances(MeshFlags::Visible | MeshFlags::Opaque) {
+        if !render_context.has_meshes(self.mesh_flags()) {
             return;
         }
 
@@ -275,7 +252,7 @@ impl Pass for GBufferPass {
             &pipeline,
             command_buffer,
         );
-        pass.indirect_draw(
+        pass.indirect_indexed_draw(
             render_context,
             &buffers,
             self.draw_command_type(),

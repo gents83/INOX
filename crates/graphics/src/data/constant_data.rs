@@ -1,6 +1,6 @@
 use std::mem::size_of;
 
-use inox_math::{matrix4_to_array, Matrix4, Vector2};
+use inox_math::{matrix4_to_array, Mat4Ops, Matrix4, Vector2};
 
 use crate::{AsBinding, GpuBuffer, RenderCoreContext};
 
@@ -15,6 +15,7 @@ pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 1 << 3;
 struct Data {
     pub view: [[f32; 4]; 4],
     pub proj: [[f32; 4]; 4],
+    pub inverse_view_proj: [[f32; 4]; 4],
     pub screen_width: f32,
     pub screen_height: f32,
     pub flags: u32,
@@ -69,15 +70,16 @@ impl ConstantData {
         self
     }
     pub fn update(&mut self, view: Matrix4, proj: Matrix4, screen_size: Vector2) -> bool {
-        let view = matrix4_to_array(view);
-        let proj = matrix4_to_array(proj);
-        if self.data.view != view
-            || self.data.proj != proj
+        let v = matrix4_to_array(view);
+        let p = matrix4_to_array(proj);
+        if self.data.view != v
+            || self.data.proj != p
             || self.data.screen_width != screen_size.x
             || self.data.screen_height != screen_size.y
         {
-            self.data.view = view;
-            self.data.proj = proj;
+            self.data.view = v;
+            self.data.proj = p;
+            self.data.inverse_view_proj = matrix4_to_array((proj * view).inverse());
             self.data.screen_width = screen_size.x;
             self.data.screen_height = screen_size.y;
             self.set_dirty(true);

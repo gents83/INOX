@@ -1,4 +1,5 @@
 use inox_bitmask::bitmask;
+use inox_math::{MatBase, Matrix4};
 use inox_serialize::{Deserialize, Serialize};
 
 use crate::{
@@ -11,23 +12,6 @@ use crate::{
 // Material doesn't know pipeline anymore
 // Material is now generic data for several purposes
 
-#[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
-#[serde(crate = "inox_serialize")]
-pub struct DrawInstance {
-    pub mesh_index: u32,
-    pub matrix_index: u32,
-}
-
-impl DrawInstance {
-    pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
-        let mut layout_builder = VertexBufferLayoutBuilder::instance();
-        layout_builder.starting_location(starting_location);
-        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
-        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
-        layout_builder
-    }
-}
-
 #[bitmask]
 pub enum DrawCommandType {
     PerMeshlet,
@@ -36,11 +20,20 @@ pub enum DrawCommandType {
 
 #[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
 #[serde(crate = "inox_serialize")]
-pub struct DrawCommand {
+pub struct DrawIndexedCommand {
     pub vertex_count: u32,
     pub instance_count: u32,
     pub base_index: u32,
     pub vertex_offset: i32,
+    pub base_instance: u32,
+}
+
+#[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
+#[serde(crate = "inox_serialize")]
+pub struct DrawCommand {
+    pub vertex_count: u32,
+    pub instance_count: u32,
+    pub base_vertex: u32,
     pub base_instance: u32,
 }
 
@@ -51,10 +44,10 @@ pub struct DrawMesh {
     pub indices_offset: u32,
     pub meshlet_offset: u32,
     pub meshlet_count: u32,
-    pub instance_index: i32,
     pub material_index: i32,
-    pub matrix_index: i32,
     pub mesh_flags: u32,
+    padding: [u32; 2],
+    pub matrix: [[f32; 4]; 4],
 }
 
 impl Default for DrawMesh {
@@ -64,10 +57,10 @@ impl Default for DrawMesh {
             indices_offset: 0,
             meshlet_offset: 0,
             meshlet_count: 0,
-            instance_index: INVALID_INDEX,
             material_index: INVALID_INDEX,
-            matrix_index: INVALID_INDEX,
             mesh_flags: 0,
+            padding: [0u32; 2],
+            matrix: Matrix4::default_identity().into(),
         }
     }
 }
@@ -81,6 +74,20 @@ pub struct DrawMeshlet {
     pub indices_count: u32,
     pub center_radius: [f32; 4],
     pub cone_axis_cutoff: [f32; 4],
+}
+
+impl DrawMeshlet {
+    pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
+        let mut layout_builder = VertexBufferLayoutBuilder::instance();
+        layout_builder.starting_location(starting_location);
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<[f32; 4]>(VertexFormat::Float32x4.into());
+        layout_builder.add_attribute::<[f32; 4]>(VertexFormat::Float32x4.into());
+        layout_builder
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
@@ -123,7 +130,7 @@ pub struct DrawVertex {
     pub position_and_color_offset: u32,
     pub normal_offset: i32,
     pub tangent_offset: i32,
-    pub padding: u32,
+    pub mesh_index: u32,
     pub uv_offset: [i32; MAX_TEXTURE_COORDS_SETS],
 }
 
@@ -133,7 +140,7 @@ impl Default for DrawVertex {
             position_and_color_offset: 0,
             normal_offset: INVALID_INDEX,
             tangent_offset: INVALID_INDEX,
-            padding: 0,
+            mesh_index: 0,
             uv_offset: [INVALID_INDEX; MAX_TEXTURE_COORDS_SETS],
         }
     }

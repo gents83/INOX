@@ -1,9 +1,8 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, DrawCommandType, DrawInstance, DrawVertex,
-    LoadOperation, MeshFlags, Pass, RenderContext, RenderPass, RenderPassData, RenderTarget,
-    ShaderStage, StoreOperation,
+    BindingData, BindingInfo, CommandBuffer, DrawCommandType, DrawVertex, LoadOperation, MeshFlags,
+    Pass, RenderContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
 };
 
 use inox_core::ContextRc;
@@ -29,6 +28,9 @@ impl Pass for WireframePass {
     }
     fn is_active(&self) -> bool {
         true
+    }
+    fn mesh_flags(&self) -> MeshFlags {
+        MeshFlags::Visible | MeshFlags::Wireframe
     }
     fn draw_command_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
@@ -64,17 +66,12 @@ impl Pass for WireframePass {
     fn init(&mut self, render_context: &mut RenderContext) {
         inox_profiler::scoped_profile!("wireframe_pass::init");
 
-        let mesh_flags = MeshFlags::Visible | MeshFlags::Wireframe;
-        if !render_context.has_instances(mesh_flags) {
+        let mesh_flags = self.mesh_flags();
+        if !render_context.has_meshes(mesh_flags) {
             return;
         }
 
         let mut pass = self.render_pass.get_mut();
-        let instances = render_context
-            .render_buffers
-            .instances
-            .get_mut(&mesh_flags)
-            .unwrap();
 
         self.binding_data
             .add_uniform_buffer(
@@ -103,7 +100,7 @@ impl Pass for WireframePass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.matrices,
+                &mut render_context.render_buffers.meshes,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,
@@ -118,12 +115,6 @@ impl Pass for WireframePass {
                 0,
                 &mut render_context.render_buffers.vertices,
             )
-            .set_vertex_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                1,
-                instances,
-            )
             .set_index_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
@@ -133,18 +124,17 @@ impl Pass for WireframePass {
             .send_to_gpu(render_context, WIREFRAME_PASS_NAME);
 
         let vertex_layout = DrawVertex::descriptor(0);
-        let instance_layout = DrawInstance::descriptor(vertex_layout.location());
         pass.init(
             render_context,
             &self.binding_data,
             Some(vertex_layout),
-            Some(instance_layout),
+            None,
         );
     }
     fn update(&self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
         inox_profiler::scoped_profile!("wireframe_pass::update");
 
-        if !render_context.has_instances(MeshFlags::Visible | MeshFlags::Wireframe) {
+        if !render_context.has_meshes(self.mesh_flags()) {
             return;
         }
 
@@ -162,7 +152,7 @@ impl Pass for WireframePass {
             &pipeline,
             command_buffer,
         );
-        pass.indirect_draw(
+        pass.indirect_indexed_draw(
             render_context,
             &buffers,
             self.draw_command_type(),

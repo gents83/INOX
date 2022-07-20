@@ -13,8 +13,6 @@ var<storage, read> positions: PositionsAndColors;
 var<storage, read> meshes: Meshes;
 @group(0) @binding(5)
 var<storage, read> meshlets: Meshlets;
-@group(0) @binding(6)
-var<storage, read> matrices: Matrices;
 
 @group(1) @binding(0)
 var render_target: texture_storage_2d_array<r32sint, read_write>;
@@ -106,26 +104,25 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>, 
     @builtin(workgroup_id) workgroup_id: vec3<u32>
 ) {
-    let meshlet_index = global_invocation_id.x;
+    let meshlet_id = global_invocation_id.x;
     let num_meshlets = arrayLength(&meshlets.data);
-    if (meshlet_index >= num_meshlets) {
+    if (meshlet_id >= num_meshlets) {
         return;
     }
 
     let num_meshes = arrayLength(&meshes.data);
-    var mesh_index = 0u;
+    var mesh_id = 0u;
     for(var mi = 0u; mi < num_meshes; mi++) {
-        if meshlet_index >= meshes.data[mi].meshlet_offset &&
-            meshlet_index < meshes.data[mi].meshlet_offset + meshes.data[mi].meshlet_count {
-                mesh_index = mi;
+        if meshlet_id >= meshes.data[mi].meshlet_offset &&
+            meshlet_id < meshes.data[mi].meshlet_offset + meshes.data[mi].meshlet_count {
+                mesh_id = mi;
                 break;
         }
     }
 
-    let meshlet = &meshlets.data[meshlet_index];
-    let mesh = &meshes.data[mesh_index];  
+    let meshlet = &meshlets.data[meshlet_id];
+    let mesh = &meshes.data[mesh_id];  
     let mvp = constant_data.proj * constant_data.view;
-    let m = &matrices.data[(*mesh).matrix_index];
     let start = u32((*mesh).indices_offset + (*meshlet).indices_offset);
     let end = u32(((*mesh).indices_offset + (*meshlet).indices_offset + (*meshlet).indices_count));  
     let offset = (*mesh).vertex_offset + (*meshlet).vertex_offset;
@@ -139,13 +136,13 @@ fn main(
         let v2 = &vertices.data[i2];
         let v3 = &vertices.data[i3];
         
-        let p1 = project(positions.data[(*v1).position_and_color_offset].xyz, mvp, *m);
-        let p2 = project(positions.data[(*v2).position_and_color_offset].xyz, mvp, *m);
-        let p3 = project(positions.data[(*v3).position_and_color_offset].xyz, mvp, *m);
+        let p1 = project(positions.data[(*v1).position_and_color_offset].xyz, mvp, (*mesh).transform);
+        let p2 = project(positions.data[(*v2).position_and_color_offset].xyz, mvp, (*mesh).transform);
+        let p3 = project(positions.data[(*v3).position_and_color_offset].xyz, mvp, (*mesh).transform);
         
         if (is_point_off_screen(p1) || is_point_off_screen(p2) || is_point_off_screen(p3)) {
             continue;
         }        
-        draw_triangle(p1, p2, p3, meshlet_index);
+        draw_triangle(p1, p2, p3, meshlet_id);
     }   
 }

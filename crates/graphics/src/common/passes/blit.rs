@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use crate::{
-    AsBinding, BindingData, BindingInfo, CommandBuffer, DrawCommandType, GpuBuffer, Pass,
-    RenderContext, RenderCoreContext, RenderPass, RenderPassData, RenderTarget, ShaderStage,
+    AsBinding, BindingData, BindingInfo, CommandBuffer, DrawCommandType, GpuBuffer, MeshFlags,
+    Pass, RenderContext, RenderCoreContext, RenderPass, RenderPassData, RenderTarget, ShaderStage,
     StoreOperation, TextureId,
 };
 
@@ -58,6 +58,9 @@ impl Pass for BlitPass {
     }
     fn is_active(&self) -> bool {
         true
+    }
+    fn mesh_flags(&self) -> MeshFlags {
+        MeshFlags::None
     }
     fn draw_command_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet

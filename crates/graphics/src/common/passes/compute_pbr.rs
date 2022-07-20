@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 use crate::{
-    AsBinding, BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData, GBuffer,
-    GpuBuffer, Pass, RenderContext, RenderCoreContext, ShaderStage, Texture, TextureFormat,
-    TextureId, TextureUsage, DEFAULT_HEIGHT, DEFAULT_WIDTH, DrawCommandType,
+    AsBinding, BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
+    DrawCommandType, GpuBuffer, MeshFlags, Pass, RenderContext, RenderCoreContext, ShaderStage,
+    Texture, TextureFormat, TextureId, TextureUsage, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 use inox_core::ContextRc;
@@ -17,11 +17,8 @@ const COMPUTE_PBR_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rgba8Unorm;
 #[derive(Default)]
 struct ComputePbrPassData {
     dimensions: [u32; 2],
-    gbuffer1_texture_index: u32,
-    gbuffer2_texture_index: u32,
-    gbuffer3_texture_index: u32,
-    depth_texture_index: u32,
-    _padding: [u32; 2],
+    visibility_buffer_texture_index: u32,
+    _padding: u32,
 }
 
 impl AsBinding for ComputePbrPassData {
@@ -31,19 +28,13 @@ impl AsBinding for ComputePbrPassData {
     fn set_dirty(&mut self, _is_dirty: bool) {}
     fn size(&self) -> u64 {
         std::mem::size_of_val(&self.dimensions) as u64
-            + std::mem::size_of_val(&self.gbuffer1_texture_index) as u64
-            + std::mem::size_of_val(&self.gbuffer2_texture_index) as u64
-            + std::mem::size_of_val(&self.gbuffer3_texture_index) as u64
-            + std::mem::size_of_val(&self.depth_texture_index) as u64
+            + std::mem::size_of_val(&self.visibility_buffer_texture_index) as u64
             + std::mem::size_of_val(&self._padding) as u64
     }
 
     fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut GpuBuffer) {
         buffer.add_to_gpu_buffer(render_core_context, &[self.dimensions]);
-        buffer.add_to_gpu_buffer(render_core_context, &[self.gbuffer1_texture_index]);
-        buffer.add_to_gpu_buffer(render_core_context, &[self.gbuffer2_texture_index]);
-        buffer.add_to_gpu_buffer(render_core_context, &[self.gbuffer3_texture_index]);
-        buffer.add_to_gpu_buffer(render_core_context, &[self.depth_texture_index]);
+        buffer.add_to_gpu_buffer(render_core_context, &[self.visibility_buffer_texture_index]);
         buffer.add_to_gpu_buffer(render_core_context, &[self._padding]);
     }
 }
@@ -67,6 +58,9 @@ impl Pass for ComputePbrPass {
     }
     fn is_active(&self) -> bool {
         true
+    }
+    fn mesh_flags(&self) -> MeshFlags {
+        MeshFlags::None
     }
     fn draw_command_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
@@ -111,8 +105,7 @@ impl Pass for ComputePbrPass {
             self.data.set_dirty(true);
         }
 
-        if self.textures.iter().any(|t| t.is_nil())
-            || self.textures.len() < GBuffer::Count as _
+        if self.textures.is_empty()
             || render_context.render_buffers.textures.is_empty()
             || render_context.render_buffers.meshes.is_empty()
             || render_context.render_buffers.meshlets.is_empty()
@@ -126,38 +119,8 @@ impl Pass for ComputePbrPass {
             .textures
             .get(&self.textures[0])
         {
-            if self.data.gbuffer1_texture_index != gbuffer_1.get_texture_index() {
-                self.data.gbuffer1_texture_index = gbuffer_1.get_texture_index();
-                self.data.set_dirty(true);
-            }
-        }
-        if let Some(gbuffer_2) = render_context
-            .render_buffers
-            .textures
-            .get(&self.textures[1])
-        {
-            if self.data.gbuffer2_texture_index != gbuffer_2.get_texture_index() {
-                self.data.gbuffer2_texture_index = gbuffer_2.get_texture_index();
-                self.data.set_dirty(true);
-            }
-        }
-        if let Some(gbuffer_3) = render_context
-            .render_buffers
-            .textures
-            .get(&self.textures[2])
-        {
-            if self.data.gbuffer3_texture_index != gbuffer_3.get_texture_index() {
-                self.data.gbuffer3_texture_index = gbuffer_3.get_texture_index();
-                self.data.set_dirty(true);
-            }
-        }
-        if let Some(depth) = render_context
-            .render_buffers
-            .textures
-            .get(&self.textures[3])
-        {
-            if self.data.depth_texture_index != depth.get_texture_index() {
-                self.data.depth_texture_index = depth.get_texture_index();
+            if self.data.visibility_buffer_texture_index != gbuffer_1.get_texture_index() {
+                self.data.visibility_buffer_texture_index = gbuffer_1.get_texture_index();
                 self.data.set_dirty(true);
             }
         }
@@ -188,29 +151,31 @@ impl Pass for ComputePbrPass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.meshes,
+                &mut render_context.render_buffers.indices,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,
                     stage: ShaderStage::Compute,
+                    is_index: true,
                     ..Default::default()
                 },
             )
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.materials,
+                &mut render_context.render_buffers.vertices,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 3,
                     stage: ShaderStage::Compute,
+                    is_vertex: true,
                     ..Default::default()
                 },
             )
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.textures,
+                &mut render_context.render_buffers.vertex_positions_and_colors,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 4,
@@ -221,25 +186,55 @@ impl Pass for ComputePbrPass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.lights,
+                &mut render_context.render_buffers.meshes,
                 BindingInfo {
-                    group_index: 0,
-                    binding_index: 5,
+                    group_index: 1,
+                    binding_index: 0,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
             )
-            .add_storage_textures(
-                render_context,
-                if self.render_target.is_some() {
-                    vec![self.render_target.as_ref().unwrap()]
-                } else {
-                    Vec::new()
-                },
+            .add_storage_buffer(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.meshlets,
                 BindingInfo {
                     group_index: 1,
+                    binding_index: 1,
                     stage: ShaderStage::Compute,
-                    read_only: false,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.materials,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 2,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.textures,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 3,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.lights,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 4,
+                    stage: ShaderStage::Compute,
                     ..Default::default()
                 },
             )
@@ -256,6 +251,20 @@ impl Pass for ComputePbrPass {
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
+            )
+            .add_storage_textures(
+                render_context,
+                if self.render_target.is_some() {
+                    vec![self.render_target.as_ref().unwrap()]
+                } else {
+                    Vec::new()
+                },
+                BindingInfo {
+                    group_index: 3,
+                    stage: ShaderStage::Compute,
+                    read_only: false,
+                    ..Default::default()
+                },
             );
         self.binding_data
             .send_to_gpu(render_context, COMPUTE_PBR_PASS_NAME);
@@ -267,8 +276,7 @@ impl Pass for ComputePbrPass {
     fn update(&self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
         inox_profiler::scoped_profile!("compute_pbr_pass::update");
 
-        if self.textures.iter().any(|t| t.is_nil())
-            || self.textures.len() < GBuffer::Count as _
+        if self.textures.is_empty()
             || render_context.render_buffers.textures.is_empty()
             || render_context.render_buffers.meshes.is_empty()
             || render_context.render_buffers.meshlets.is_empty()
@@ -279,7 +287,7 @@ impl Pass for ComputePbrPass {
         let pass = self.compute_pass.get();
 
         let compute_pass = pass.begin(&self.binding_data, command_buffer);
-        let max_cluster_size = 16;
+        let max_cluster_size = 32;
         let x = max_cluster_size
             * ((self.data.dimensions[0] + max_cluster_size - 1) / max_cluster_size);
         let y = max_cluster_size

@@ -156,40 +156,35 @@ impl Info {
         let renderer = data.params.renderer.read().unwrap();
         let render_context = renderer.render_context().read().unwrap();
 
-        let mesh_flags = MeshFlags::Visible | MeshFlags::Opaque;
-        if let Some(instances) = render_context.render_buffers.instances.get(&mesh_flags) {
-            instances.for_each_entry(|_i, instance| {
-                let mesh = render_context
-                    .render_buffers
-                    .meshes
-                    .at(instance.mesh_index as _);
-                let matrix = render_context
-                    .render_buffers
-                    .matrices
-                    .at(instance.matrix_index as _);
-                let matrix = Matrix4::from(*matrix);
-                let scale = matrix.scale().z;
-                let meshlets = render_context.render_buffers.meshlets.data();
-                for i in mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count {
-                    let meshlet = &meshlets[i as usize];
-                    let p = matrix.transform(
-                        [
-                            meshlet.center_radius[0],
-                            meshlet.center_radius[1],
-                            meshlet.center_radius[2],
-                        ]
-                        .into(),
-                    );
-                    let r = meshlet.center_radius[3] * scale;
-                    data.context.message_hub().send_event(DrawEvent::Circle(
-                        p,
-                        r,
-                        [1.0, 1.0, 0.0, 1.0].into(),
-                        true,
-                    ));
+        let mesh_flags: u32 = (MeshFlags::Visible | MeshFlags::Opaque).into();
+        render_context
+            .render_buffers
+            .meshes
+            .for_each_entry(|_i, mesh| {
+                if mesh.mesh_flags == mesh_flags {
+                    let matrix = Matrix4::from(mesh.matrix);
+                    let scale = matrix.scale().z;
+                    let meshlets = render_context.render_buffers.meshlets.data();
+                    for i in mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count {
+                        let meshlet = &meshlets[i as usize];
+                        let p = matrix.transform(
+                            [
+                                meshlet.center_radius[0],
+                                meshlet.center_radius[1],
+                                meshlet.center_radius[2],
+                            ]
+                            .into(),
+                        );
+                        let r = meshlet.center_radius[3] * scale;
+                        data.context.message_hub().send_event(DrawEvent::Circle(
+                            p,
+                            r,
+                            [1.0, 1.0, 0.0, 1.0].into(),
+                            true,
+                        ));
+                    }
                 }
             });
-        }
     }
 
     fn show_frustum(data: &Data, frustum: &Frustum) {

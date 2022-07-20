@@ -9,7 +9,7 @@ use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
 
 use crate::{
     platform::is_indirect_mode_enabled, AsBinding, BindingData, BufferId, CommandBuffer,
-    DrawCommand, DrawCommandType, GpuBuffer, LoadOperation, RenderContext, RenderMode,
+    DrawCommandType, DrawIndexedCommand, GpuBuffer, LoadOperation, RenderContext, RenderMode,
     RenderPassData, RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId, TextureUsage,
     VertexBufferLayoutBuilder,
 };
@@ -342,16 +342,14 @@ impl RenderPass {
     pub fn draw_meshlets(&self, render_context: &RenderContext, mut render_pass: wgpu::RenderPass) {
         inox_profiler::scoped_profile!("render_pass::draw_meshlets");
 
-        let mesh_flags = self.pipeline().get().data().mesh_flags;
-        if let Some(instances) = render_context.render_buffers.instances.get(&mesh_flags) {
-            let meshlets = render_context.render_buffers.meshlets.data();
-            instances.for_each_entry(|index, instance| {
-                inox_profiler::scoped_profile!("render_pass::draw_instance");
-                {
-                    let mesh = render_context
-                        .render_buffers
-                        .meshes
-                        .at(instance.mesh_index as _);
+        let mesh_flags: u32 = self.pipeline().get().data().mesh_flags.into();
+        let meshlets = render_context.render_buffers.meshlets.data();
+        render_context
+            .render_buffers
+            .meshes
+            .for_each_entry(|index, mesh| {
+                if mesh.mesh_flags == mesh_flags {
+                    inox_profiler::scoped_profile!("render_pass::draw_mesh");
                     for i in mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count {
                         inox_profiler::scoped_profile!("render_pass::draw_indexed");
                         let meshlet = &meshlets[i as usize];
@@ -366,10 +364,9 @@ impl RenderPass {
                     }
                 }
             });
-        }
     }
 
-    pub fn indirect_draw<'a>(
+    pub fn indirect_indexed_draw<'a>(
         &self,
         render_context: &RenderContext,
         buffers: &'a HashMap<BufferId, GpuBuffer>,
@@ -383,7 +380,7 @@ impl RenderPass {
             if let Some(commands) = render_context.render_buffers.commands.get(&mesh_flags) {
                 if let Some(commands) = commands.get(&draw_commands_type) {
                     let commands_count =
-                        commands.size() / std::mem::size_of::<DrawCommand>() as u64;
+                        commands.size() / std::mem::size_of::<DrawIndexedCommand>() as u64;
                     let commands_id = commands.id();
                     if let Some(buffer) = buffers.get(&commands_id) {
                         render_pass.multi_draw_indexed_indirect(
@@ -409,5 +406,30 @@ impl RenderPass {
         inox_profiler::scoped_profile!("render_pass::draw");
 
         render_pass.draw(vertices, instances);
+    }
+
+    pub fn draw_meshes(&self, render_context: &RenderContext, mut render_pass: wgpu::RenderPass) {
+        inox_profiler::scoped_profile!("render_pass::draw_meshes");
+
+        let mesh_flags: u32 = self.pipeline().get().data().mesh_flags.into();
+        let meshlets = render_context.render_buffers.meshlets.data();
+        render_context
+            .render_buffers
+            .meshes
+            .for_each_entry(|index, mesh| {
+                if mesh.mesh_flags == mesh_flags {
+                    let start = mesh.indices_offset;
+                    let mut end = start;
+                    for i in mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count {
+                        let meshlet = &meshlets[i as usize];
+                        end += meshlet.indices_count;
+                    }
+                    render_pass.draw_indexed(
+                        start..end as _,
+                        mesh.vertex_offset as _,
+                        index as _..(index as u32 + 1),
+                    );
+                }
+            });
     }
 }

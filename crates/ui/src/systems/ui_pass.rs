@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use inox_core::ContextRc;
 use inox_graphics::{
-    AsBinding, BindingData, BindingInfo, CommandBuffer, DrawCommandType, GpuBuffer, Pass,
-    RenderContext, RenderCoreContext, RenderPass, RenderPassData, RenderTarget, ShaderStage,
+    AsBinding, BindingData, BindingInfo, CommandBuffer, DrawCommandType, GpuBuffer, MeshFlags,
+    Pass, RenderContext, RenderCoreContext, RenderPass, RenderPassData, RenderTarget, ShaderStage,
     StoreOperation, VertexBufferLayoutBuilder, VertexFormat,
 };
 use inox_resources::{DataTypeResource, Resource};
@@ -91,6 +91,9 @@ impl Pass for UIPass {
     }
     fn is_active(&self) -> bool {
         true
+    }
+    fn mesh_flags(&self) -> MeshFlags {
+        MeshFlags::Visible | MeshFlags::Custom
     }
     fn draw_command_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet

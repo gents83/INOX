@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, LoadOperation, Pass, RenderContext, RenderPass,
-    RenderPassData, RenderTarget, ShaderStage, StoreOperation, DrawCommandType,
+    BindingData, BindingInfo, CommandBuffer, DrawCommandType, LoadOperation, MeshFlags, Pass,
+    RenderContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
 };
 
 use inox_core::ContextRc;
@@ -28,6 +28,9 @@ impl Pass for DebugPass {
     }
     fn is_active(&self) -> bool {
         true
+    }
+    fn mesh_flags(&self) -> MeshFlags {
+        MeshFlags::None
     }
     fn draw_command_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
@@ -65,7 +68,6 @@ impl Pass for DebugPass {
 
         if render_context.render_buffers.meshes.is_empty()
             || render_context.render_buffers.meshlets.is_empty()
-            || render_context.render_buffers.matrices.is_empty()
         {
             return;
         }
@@ -103,17 +105,6 @@ impl Pass for DebugPass {
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
-            )
-            .add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.matrices,
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 3,
-                    stage: ShaderStage::Fragment,
-                    ..Default::default()
-                },
             );
         self.binding_data
             .send_to_gpu(render_context, DEBUG_PASS_NAME);
@@ -126,7 +117,6 @@ impl Pass for DebugPass {
 
         if render_context.render_buffers.meshes.is_empty()
             || render_context.render_buffers.meshlets.is_empty()
-            || render_context.render_buffers.matrices.is_empty()
         {
             return;
         }

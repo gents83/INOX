@@ -16,8 +16,6 @@ var<uniform> constant_data: ConstantData;
 var<storage, read> meshes: Meshes;
 @group(0) @binding(2)
 var<storage, read> meshlets: Meshlets;
-@group(0) @binding(3)
-var<storage, read> matrices: Matrices;
 
 #import "shape_utils.wgsl"
 
@@ -51,10 +49,9 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     let num_meshes = arrayLength(&meshes.data);
     for(var mesh_index = 0u; mesh_index < num_meshes; mesh_index++) {
         let mesh = &meshes.data[mesh_index];
-        let m = &matrices.data[(*mesh).matrix_index];
         for(var meshlet_index = (*mesh).meshlet_offset; meshlet_index < (*mesh).meshlet_offset + (*mesh).meshlet_count; meshlet_index++) {
             let meshlet = &meshlets.data[meshlet_index];
-            let clip_position = mvp * (*m) * vec4<f32>((*meshlet).center_radius.xyz, 1.);
+            let clip_position = mvp * (*mesh).transform * vec4<f32>((*meshlet).center_radius.xyz, 1.);
             var c = clip_position.xy / resolution.xy;
             c.x *= aspect_ratio;
             t = max(t, draw_circle(uv, c, radius, line_width));

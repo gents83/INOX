@@ -29,6 +29,9 @@ impl Pass for CullingPass {
     fn is_active(&self) -> bool {
         true
     }
+    fn mesh_flags(&self) -> MeshFlags {
+        MeshFlags::Visible | MeshFlags::Opaque
+    }
     fn draw_command_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
@@ -58,75 +61,65 @@ impl Pass for CullingPass {
             return;
         }
 
-        let mesh_flags = MeshFlags::Visible | MeshFlags::Opaque;
+        let mesh_flags = self.mesh_flags();
         let draw_command_type = self.draw_command_type();
 
         if let Some(commands) = render_context.render_buffers.commands.get_mut(&mesh_flags) {
-            if let Some(instances) = render_context.render_buffers.instances.get_mut(&mesh_flags) {
-                self.binding_data
-                    .add_uniform_buffer(
-                        &render_context.core,
-                        &render_context.binding_data_buffer,
-                        &mut render_context.constant_data,
-                        BindingInfo {
-                            group_index: 0,
-                            binding_index: 0,
-                            stage: ShaderStage::Compute,
-                            ..Default::default()
-                        },
-                    )
-                    .add_storage_buffer(
-                        &render_context.core,
-                        &render_context.binding_data_buffer,
-                        &mut render_context.render_buffers.meshlets,
-                        BindingInfo {
-                            group_index: 0,
-                            binding_index: 1,
-                            stage: ShaderStage::Compute,
-                            ..Default::default()
-                        },
-                    )
-                    .add_storage_buffer(
-                        &render_context.core,
-                        &render_context.binding_data_buffer,
-                        &mut render_context.render_buffers.matrices,
-                        BindingInfo {
-                            group_index: 0,
-                            binding_index: 2,
-                            stage: ShaderStage::Compute,
-                            ..Default::default()
-                        },
-                    )
-                    .add_storage_buffer(
-                        &render_context.core,
-                        &render_context.binding_data_buffer,
-                        instances,
-                        BindingInfo {
-                            group_index: 0,
-                            binding_index: 3,
-                            stage: ShaderStage::Compute,
-                            is_vertex: true,
-                            ..Default::default()
-                        },
-                    )
-                    .add_storage_buffer(
-                        &render_context.core,
-                        &render_context.binding_data_buffer,
-                        commands.get_mut(&draw_command_type).unwrap(),
-                        BindingInfo {
-                            group_index: 0,
-                            binding_index: 4,
-                            stage: ShaderStage::Compute,
-                            read_only: false,
-                            is_indirect: true,
-                            ..Default::default()
-                        },
-                    )
-                    .send_to_gpu(render_context, CULLING_PASS_NAME);
-
-                let mut pass = self.compute_pass.get_mut();
-                pass.init(render_context, &self.binding_data);
+            let commands = commands.get_mut(&draw_command_type).unwrap();
+            if commands.is_empty() {
+                return;
             }
+            self.binding_data
+                .add_uniform_buffer(
+                    &render_context.core,
+                    &render_context.binding_data_buffer,
+                    &mut render_context.constant_data,
+                    BindingInfo {
+                        group_index: 0,
+                        binding_index: 0,
+                        stage: ShaderStage::Compute,
+                        ..Default::default()
+                    },
+                )
+                .add_storage_buffer(
+                    &render_context.core,
+                    &render_context.binding_data_buffer,
+                    &mut render_context.render_buffers.meshlets,
+                    BindingInfo {
+                        group_index: 0,
+                        binding_index: 1,
+                        stage: ShaderStage::Compute,
+                        ..Default::default()
+                    },
+                )
+                .add_storage_buffer(
+                    &render_context.core,
+                    &render_context.binding_data_buffer,
+                    &mut render_context.render_buffers.meshes,
+                    BindingInfo {
+                        group_index: 0,
+                        binding_index: 2,
+                        stage: ShaderStage::Compute,
+                        ..Default::default()
+                    },
+                )
+                .add_storage_buffer(
+                    &render_context.core,
+                    &render_context.binding_data_buffer,
+                    commands,
+                    BindingInfo {
+                        group_index: 0,
+                        binding_index: 3,
+                        stage: ShaderStage::Compute,
+                        read_only: false,
+                        is_indirect: true,
+                        ..Default::default()
+                    },
+                )
+                .send_to_gpu(render_context, CULLING_PASS_NAME);
+
+            let mut pass = self.compute_pass.get_mut();
+            pass.init(render_context, &self.binding_data);
         }
     }
 
@@ -136,18 +129,20 @@ impl Pass for CullingPass {
             return;
         }
 
-        let mesh_flags = MeshFlags::Visible | MeshFlags::Opaque;
+        let mesh_flags = self.mesh_flags();
 
-        if let Some(_commands) = render_context.render_buffers.commands.get_mut(&mesh_flags) {
-            if let Some(_instances) = render_context.render_buffers.instances.get_mut(&mesh_flags) {
-                let pass = self.compute_pass.get();
-
-                let compute_pass = pass.begin(&self.binding_data, command_buffer);
-                let num_meshlet_per_group = 32;
-                let count =
-                    (num_meshlets as u32 + num_meshlet_per_group - 1) / num_meshlet_per_group;
-                pass.dispatch(compute_pass, count, 1, 1);
+        if let Some(commands) = render_context.render_buffers.commands.get_mut(&mesh_flags) {
+            let commands = commands.get_mut(&self.draw_command_type()).unwrap();
+            if commands.is_empty() {
+                return;
             }
+
+            let pass = self.compute_pass.get();
+
+            let compute_pass = pass.begin(&self.binding_data, command_buffer);
+            let num_meshlet_per_group = 32;
+            let count = (num_meshlets as u32 + num_meshlet_per_group - 1) / num_meshlet_per_group;
+            pass.dispatch(compute_pass, count, 1, 1);
         }
     }
 }
