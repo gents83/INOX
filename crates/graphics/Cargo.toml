@@ -30,5 +30,5 @@ futures = { version = "0.3", features = ["std", "thread-pool"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wgpu = { path = "../../extern/wgpu/wgpu", default-features = false, features = ["spirv", "glsl"] }
-wasm-bindgen = "0.2.79"
+wasm-bindgen = "0.2.81"
 wasm-bindgen-futures = "0.4.29"
