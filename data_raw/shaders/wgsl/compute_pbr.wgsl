@@ -48,7 +48,7 @@ var render_target: texture_storage_2d_array<rgba8unorm, read_write>;
 
 
 @compute
-@workgroup_size(4, 4, 1)
+@workgroup_size(8, 4, 1)
 fn main(
     @builtin(local_invocation_id) local_invocation_id: vec3<u32>, 
     @builtin(local_invocation_index) local_invocation_index: u32, 
