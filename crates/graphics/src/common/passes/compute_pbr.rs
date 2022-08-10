@@ -310,10 +310,13 @@ impl Pass for ComputePbrPass {
 
         let compute_pass = pass.begin(&self.binding_data, command_buffer);
         let max_cluster_size = 32;
+        let num_pixels_managed_in_shader = 8 * 8;
         let x = max_cluster_size
-            * ((self.data.dimensions[0] + max_cluster_size - 1) / max_cluster_size);
+            * ((self.data.dimensions[0] + max_cluster_size - 1) / max_cluster_size)
+            / num_pixels_managed_in_shader;
         let y = max_cluster_size
-            * ((self.data.dimensions[1] + max_cluster_size - 1) / max_cluster_size);
+            * ((self.data.dimensions[1] + max_cluster_size - 1) / max_cluster_size)
+            / num_pixels_managed_in_shader;
         pass.dispatch(compute_pass, x, y, 1);
     }
 }
