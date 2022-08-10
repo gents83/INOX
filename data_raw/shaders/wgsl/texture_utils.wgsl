@@ -7,7 +7,7 @@ var depth_sampler: sampler_comparison;
 
 #ifdef FEATURES_TEXTURE_BINDING_ARRAY
 @group(2) @binding(3)
-var texture_array: binding_array<texture_2d_array<f32>, 16>; //MAX_TEXTURE_ATLAS_COUNT
+var texture_array: binding_array<texture_2d_array<f32>, 8>; //MAX_TEXTURE_ATLAS_COUNT
 #else
 @group(2) @binding(3)
 var texture_1: texture_2d_array<f32>;
@@ -25,22 +25,6 @@ var texture_6: texture_2d_array<f32>;
 var texture_7: texture_2d_array<f32>;
 @group(2) @binding(10)
 var texture_8: texture_2d_array<f32>;
-@group(2) @binding(11)
-var texture_9: texture_2d_array<f32>;
-@group(2) @binding(12)
-var texture_10: texture_2d_array<f32>;
-@group(2) @binding(13)
-var texture_11: texture_2d_array<f32>;
-@group(2) @binding(14)
-var texture_12: texture_2d_array<f32>;
-@group(2) @binding(15)
-var texture_13: texture_2d_array<f32>;
-@group(2) @binding(16)
-var texture_14: texture_2d_array<f32>;
-@group(2) @binding(17)
-var texture_15: texture_2d_array<f32>;
-@group(2) @binding(18)
-var texture_16: texture_2d_array<f32>;
 #endif
 
 
@@ -71,13 +55,6 @@ fn sample_texture(tex_coords_and_texture_index: vec3<f32>) -> vec4<f32> {
         case 6u: { return textureSampleLevel(texture_7, default_sampler, tex_coords.xy, layer_index, tex_coords.z); }
         case 7u: { return textureSampleLevel(texture_8, default_sampler, tex_coords.xy, layer_index, tex_coords.z); }
         case 8u: { return textureSampleLevel(texture_9, default_sampler, tex_coords.xy, layer_index, tex_coords.z); }
-        case 9u: { return textureSampleLevel(texture_10, default_sampler, tex_coords.xy, layer_index, tex_coords.z); }
-        case 10u: { return textureSampleLevel(texture_11, default_sampler, tex_coords.xy, layer_index, tex_coords.z); }
-        case 11u: { return textureSampleLevel(texture_12, default_sampler, tex_coords.xy, layer_index, tex_coords.z); }
-        case 12u: { return textureSampleLevel(texture_13, default_sampler, tex_coords.xy, layer_index, tex_coords.z); }
-        case 13u: { return textureSampleLevel(texture_14, default_sampler, tex_coords.xy, layer_index, tex_coords.z); }
-        case 14u: { return textureSampleLevel(texture_15, default_sampler, tex_coords.xy, layer_index, tex_coords.z); }
-        case 15u: { return textureSampleLevel(texture_16, default_sampler, tex_coords.xy, layer_index, tex_coords.z); }
     }
     return textureSampleLevel(texture_1, default_sampler, tex_coords.xy, layer_index, tex_coords.z);
 #endif
@@ -102,13 +79,6 @@ fn load_texture(tex_coords_and_texture_index: vec3<i32>) -> vec4<f32> {
         case 6: { return textureLoad(texture_7, tex_coords_and_texture_index.xy, layer_index, layer_index); }
         case 7: { return textureLoad(texture_8, tex_coords_and_texture_index.xy, layer_index, layer_index); }
         case 8: { return textureLoad(texture_9, tex_coords_and_texture_index.xy, layer_index, layer_index); }
-        case 9: { return textureLoad(texture_10, tex_coords_and_texture_index.xy, layer_index, layer_index); }
-        case 10: { return textureLoad(texture_11, tex_coords_and_texture_index.xy, layer_index, layer_index); }
-        case 11: { return textureLoad(texture_12, tex_coords_and_texture_index.xy, layer_index, layer_index); }
-        case 12: { return textureLoad(texture_13, tex_coords_and_texture_index.xy, layer_index, layer_index); }
-        case 13: { return textureLoad(texture_14, tex_coords_and_texture_index.xy, layer_index, layer_index); }
-        case 14: { return textureLoad(texture_15, tex_coords_and_texture_index.xy, layer_index, layer_index); }
-        case 15: { return textureLoad(texture_16, tex_coords_and_texture_index.xy, layer_index, layer_index); }
     }
 #endif
 }

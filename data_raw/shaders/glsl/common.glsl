@@ -1,7 +1,7 @@
 #extension GL_EXT_scalar_block_layout : require
 
 #define MAX_TEXTURE_COORDS_SETS 4
-#define MAX_TEXTURE_ATLAS_COUNT 16
+#define MAX_TEXTURE_ATLAS_COUNT 8
 #define MAX_NUM_MATERIALS 512
 #define MAX_NUM_TEXTURES 512
 #define MAX_NUM_LIGHTS 64

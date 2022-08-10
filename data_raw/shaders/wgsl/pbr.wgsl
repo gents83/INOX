@@ -87,7 +87,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
 
         let world_pos = gbuffer_1.xyz;
         let n = unpack_normal(gbuffer_2.xy);
-        color = pbr(world_pos, n, material_id, color, gbuffer_3);;
+        color = pbr(world_pos, n, material_id, color, gbuffer_3);
     }
 
     return color;
