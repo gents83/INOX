@@ -186,6 +186,17 @@ impl Pass for ComputePbrPass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.vertex_uvs,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 5,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &render_context.core,
+                &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.meshes,
                 BindingInfo {
                     group_index: 1,

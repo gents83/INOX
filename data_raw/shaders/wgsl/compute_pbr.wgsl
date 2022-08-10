@@ -20,6 +20,8 @@ var<storage, read> indices: Indices;
 var<storage, read> vertices: Vertices;
 @group(0) @binding(4)
 var<storage, read> positions_and_colors: PositionsAndColors;
+@group(0) @binding(5)
+var<storage, read> uvs: UVs;
 
 @group(1) @binding(0)
 var<storage, read> meshes: Meshes;
@@ -39,92 +41,8 @@ var render_target: texture_storage_2d_array<rgba8unorm, read_write>;
 
 #import "texture_utils.wgsl"
 #import "material_utils.wgsl"
+#import "geom_utils.wgsl"
 #import "pbr_utils.wgsl"
-
-struct Derivatives {
-    dx: vec3<f32>,
-    dy: vec3<f32>,
-}
-
-struct GradientInterpolation
-{
-	interp: vec2<f32>,
-	dx: vec2<f32>,
-	dy: vec2<f32>,
-};
-
-fn compute_barycentrics_2d(a: vec2<f32>, b: vec2<f32>, c: vec2<f32>, p: vec2<f32>) -> vec3<f32> {
-    let v0 = b - a;
-    let v1 = c - a;
-    let v2 = p - a;
-    
-    let d00 = dot(v0, v0);    
-    let d01 = dot(v0, v1);    
-    let d11 = dot(v1, v1);
-    let d20 = dot(v2, v0);
-    let d21 = dot(v2, v1);
-    
-    let inv_denom = 1. / (d00 * d11 - d01 * d01);    
-    let v = (d11 * d20 - d01 * d21) * inv_denom;    
-    let w = (d00 * d21 - d01 * d20) * inv_denom;    
-    let u = 1. - v - w;
-
-    return vec3 (u,v,w);
-}
-
-fn compute_barycentrics(a: vec3<f32>, b: vec3<f32>, c: vec3<f32>, p: vec3<f32>) -> vec3<f32> {
-    let v0 = b - a;
-    let v1 = c - a;
-    let v2 = p - a;
-    
-    let d00 = dot(v0, v0);    
-    let d01 = dot(v0, v1);    
-    let d11 = dot(v1, v1);
-    let d20 = dot(v2, v0);
-    let d21 = dot(v2, v1);
-    
-    let inv_denom = 1. / (d00 * d11 - d01 * d01);    
-    let v = (d11 * d20 - d01 * d21) * inv_denom;    
-    let w = (d00 * d21 - d01 * d20) * inv_denom;    
-    let u = 1. - v - w;
-
-    return vec3 (u,v,w);
-}
-
-fn compute_partial_derivatives(v0: vec2<f32>, v1: vec2<f32>, v2: vec2<f32>) -> Derivatives
-{
-    let d = 1. / determinant(mat2x2<f32>(v2-v1, v0-v1));
-    
-    var deriv: Derivatives;
-    deriv.dx = vec3<f32>(v1.y - v2.y, v2.y - v0.y, v0.y - v1.y) * d;
-    deriv.dy = vec3<f32>(v2.x - v1.x, v0.x - v2.x, v1.x - v0.x) * d;
-    return deriv;
-}
-
-fn interpolate_attribute(attributes: vec3<f32>, db_dx: vec3<f32>, db_dy: vec3<f32>, d: vec2<f32>) -> f32
-{
-	let attribute_x = dot(attributes, db_dx);
-	let attribute_y = dot(attributes, db_dy);
-	let attribute_s = attributes.x;
-	return (attribute_s + d.x * attribute_x + d.y * attribute_y);
-}
-
-// Interpolate 2D attributes using the partial derivatives and generates dx and dy for texture sampling.
-fn interpolate_attribute_with_gradient(v0: vec2<f32>, v1: vec2<f32>, v2: vec2<f32>, 
-    db_dx: vec3<f32>, db_dy: vec3<f32>, d: vec2<f32>, scale_over_resolution: vec2<f32>) -> GradientInterpolation
-{
-    let attr0 = vec3<f32>(v0.x, v1.x, v2.x);
-    let attr1 = vec3<f32>(v0.y, v1.y, v2.y);
-	let attribute_x = vec2<f32>(dot(db_dx, attr0), dot(db_dx, attr1));
-	let attribute_y = vec2<f32>(dot(db_dy, attr0), dot(db_dy, attr1));
-	let attribute_s = v0.xy;
-
-    var r: GradientInterpolation;
-	r.dx = attribute_x * scale_over_resolution.x;
-	r.dy = attribute_y * scale_over_resolution.y;
-	r.interp = (attribute_s + d.x * attribute_x + d.y * attribute_y);
-	return r;
-}
 
 
 @compute
@@ -170,30 +88,54 @@ fn main(
 
         let mvp = constant_data.proj * constant_data.view;
 
-        let screen_pixel = vec2<f32>(f32(pixel.x), f32(pixel.y));
-        let scale_over_resolution = vec2<f32>(1. / constant_data.screen_width, 1. / constant_data.screen_height);
-
+        var screen_pixel = vec2<f32>(f32(pixel.x), f32(pixel.y));
+        screen_pixel = screen_pixel / vec2<f32>(f32(pbr_data.width), f32(pbr_data.height));
+        screen_pixel.y = 1. - screen_pixel.y;
+        
         let index_offset = (*mesh).indices_offset + (*meshlet).indices_offset + 3u * primitive_id;
         let i1 = indices.data[index_offset];
         let i2 = indices.data[index_offset + 1u];
         let i3 = indices.data[index_offset + 2u];
 
-        let vertex_offset = (*mesh).vertex_offset + (*meshlet).vertex_offset;
+        let vertex_offset = (*mesh).vertex_offset;
         let v1 = &vertices.data[vertex_offset + i1];
         let v2 = &vertices.data[vertex_offset + i2];
         let v3 = &vertices.data[vertex_offset + i3];
 
-        let p1 = mvp * (*mesh).transform * vec4<f32>(positions_and_colors.data[(*v1).position_and_color_offset].xyz, 1.);
-        let p2 = mvp * (*mesh).transform * vec4<f32>(positions_and_colors.data[(*v2).position_and_color_offset].xyz, 1.);
-        let p3 = mvp * (*mesh).transform * vec4<f32>(positions_and_colors.data[(*v3).position_and_color_offset].xyz, 1.);
+        var p1 = mvp * (*mesh).transform * vec4<f32>(positions_and_colors.data[(*v1).position_and_color_offset].xyz, 1.);
+        var p2 = mvp * (*mesh).transform * vec4<f32>(positions_and_colors.data[(*v2).position_and_color_offset].xyz, 1.);
+        var p3 = mvp * (*mesh).transform * vec4<f32>(positions_and_colors.data[(*v3).position_and_color_offset].xyz, 1.);
+
+        // Calculate the inverse of w, since it's going to be used several times
+        let one_over_w = 1. / vec3<f32>(p1.w, p2.w, p3.w);
+        p1 = (p1 * one_over_w.x + 1.) * 0.5;
+        p2 = (p2 * one_over_w.y + 1.) * 0.5;
+        p3 = (p3 * one_over_w.z + 1.) * 0.5;
 
         let c1 = unpack_unorm_to_4_f32(u32(positions_and_colors.data[(*v1).position_and_color_offset].w));
         let c2 = unpack_unorm_to_4_f32(u32(positions_and_colors.data[(*v2).position_and_color_offset].w));
         let c3 = unpack_unorm_to_4_f32(u32(positions_and_colors.data[(*v3).position_and_color_offset].w));
 
-        let b = compute_barycentrics_2d(p1.xy, p2.xy, p3.xy, screen_pixel.xy);
-        let vertex_color = b.x * c1 + b.y * c2 + b.z * c3;
-        color = vertex_color;
+        let barycentrics = compute_barycentrics(p1.xy, p2.xy, p3.xy, screen_pixel.xy);
+
+        let vertex_color = barycentrics.x * c1 + barycentrics.y * c2 + barycentrics.z * c3;
+
+        let coords_set = material_texture_coord_set(material_id, TEXTURE_TYPE_BASE_COLOR);
+        let texture_id = material_texture_index(material_id, TEXTURE_TYPE_BASE_COLOR);
+
+        let uv1 = uvs.data[(*v1).uvs_offset[coords_set]].xy;
+        let uv2 = uvs.data[(*v2).uvs_offset[coords_set]].xy;
+        let uv3 = uvs.data[(*v3).uvs_offset[coords_set]].xy;
+
+        // Get delta vector that describes current screen point relative to vertex 0
+		let delta = screen_pixel + -p1.xy;
+        let deriv = compute_partial_derivatives(p1.xy, p2.xy, p3.xy);
+
+        var pixel_uv = interpolate_attribute(uv1, uv2, uv3, deriv, delta);
+        let uv = vec3<f32>(pixel_uv, f32(texture_id));
+
+        let texture_color = sample_texture(uv);
+        color = vec4<f32>(vertex_color.rgb * texture_color.rgb, vertex_color.a);
     }
 
     textureStore(render_target, pixel.xy, 0, color);

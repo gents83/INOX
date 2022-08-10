@@ -17,7 +17,7 @@ use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
 
 use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
-const USE_VISIBILITY_BUFFER_RENDERING: bool = false;
+const USE_VISIBILITY_BUFFER_RENDERING: bool = true;
 const ADD_COMPUTE_RASTER_PASS: bool = false;
 const ADD_WIREFRAME_PASS: bool = true;
 const ADD_DEBUG_PASS: bool = false;

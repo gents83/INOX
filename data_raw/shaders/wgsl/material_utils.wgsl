@@ -20,10 +20,19 @@ fn compute_uvs(material_index: u32, texture_type: u32, uv_0_1: vec4<f32>, uv_2_3
     return vec3<f32>(uv, f32(texture_index));
 }
 
-fn sample_material_texture(gbuffer_uvs: vec4<f32>, material_index: u32, texture_tyoe: u32) -> vec4<f32> {
+fn material_texture_index(material_index: u32, texture_type: u32) -> i32 {
     let material = &materials.data[material_index];
-    let texture_id = u32((*material).textures_indices[texture_tyoe]);
-    let coords_set = (*material).textures_coord_set[texture_tyoe];
-    let uv = get_uv(gbuffer_uvs, texture_id, coords_set);
+    return (*material).textures_indices[texture_type];
+}
+
+fn material_texture_coord_set(material_index: u32, texture_type: u32) -> u32 {
+    let material = &materials.data[material_index];
+    return (*material).textures_coord_set[texture_type];
+}
+
+fn sample_material_texture(gbuffer_uvs: vec4<f32>, material_index: u32, texture_type: u32) -> vec4<f32> {
+    let texture_id = material_texture_index(material_index, texture_type);
+    let coords_set = material_texture_coord_set(material_index, texture_type);
+    let uv = get_uv(gbuffer_uvs, u32(texture_id), coords_set);
     return sample_texture(uv);
 }
