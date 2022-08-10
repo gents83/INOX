@@ -12,7 +12,7 @@ pub struct HandleImpl {
 
 impl HandleImpl {
     pub fn as_raw_window_handle(&self) -> RawWindowHandle {
-        let mut handle = raw_window_handle::AndroidNdkHandle::empty();
+        let mut handle = raw_window_handle::AndroidWindowHandle::empty();
         if let Some(native_window) = ndk_glue::native_window().as_ref() {
             handle.a_native_window = unsafe { native_window.ptr().as_mut() as *mut _ as *mut _ }
         } else {

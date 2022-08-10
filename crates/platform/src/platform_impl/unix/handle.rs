@@ -14,7 +14,7 @@ pub struct HandleImpl {
 
 impl HandleImpl {
     pub fn as_raw_window_handle(&self) -> RawWindowHandle {
-        let mut handle = raw_window_handle::XlibHandle::empty();
+        let mut handle = raw_window_handle::XlibWindowHandle::empty();
         handle.window = self.window;
         handle.display = self.display;
         RawWindowHandle::Xlib(handle)

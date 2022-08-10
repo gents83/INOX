@@ -13,7 +13,7 @@ pub struct HandleImpl {
 
 impl HandleImpl {
     pub fn as_raw_window_handle(&self) -> RawWindowHandle {
-        let mut handle = raw_window_handle::UiKitHandle::empty();
+        let mut handle = raw_window_handle::UiKitWindowHandle::empty();
         handle.ui_window = self.window as _;
         handle.ui_view = self.view as _;
         handle.ui_view_controller = self.view_controller as _;

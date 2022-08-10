@@ -12,7 +12,7 @@ pub struct HandleImpl {
 
 impl HandleImpl {
     pub fn as_raw_window_handle(&self) -> RawWindowHandle {
-        let mut handle = raw_window_handle::AppKitHandle::empty();
+        let mut handle = raw_window_handle::AppKitWindowHandle::empty();
         handle.ns_window = *self.ns_window as *mut _;
         handle.ns_view = *self.ns_view as *mut _;
         RawWindowHandle::AppKit(handle)

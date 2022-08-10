@@ -13,7 +13,7 @@ pub struct HandleImpl {
 
 impl HandleImpl {
     pub fn as_raw_window_handle(&self) -> RawWindowHandle {
-        let mut handle = raw_window_handle::WebHandle::empty();
+        let mut handle = raw_window_handle::WebWindowHandle::empty();
         handle.id = self.id;
         RawWindowHandle::Web(handle)
     }
