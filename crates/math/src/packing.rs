@@ -54,7 +54,7 @@ pub fn pack_4_f32_to_unorm(value: Vector4) -> u32 {
 // Assumes reconstruction function (q / (2^N-1)), which is the case for fixed-function normalized fixed point conversion
 // Maximum reconstruction error: 1/2^(N+1)
 #[inline]
-pub fn quantize_unorm(mut v: f32, n: u32) -> i32 {
+pub fn quantize_unorm(mut v: f32, n: u32) -> u32 {
     let scale = ((1 << n) - 1) as f32;
     v = if v >= 0. { v } else { 0. };
     v = if v <= 1. { v } else { 1. };
