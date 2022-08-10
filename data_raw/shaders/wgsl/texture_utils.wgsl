@@ -98,7 +98,3 @@ fn get_uv(uvs: vec4<f32>, texture_index: u32, coords_set: u32) -> vec3<f32> {
     }
     return vec3<f32>(uv, f32(texture_index));
 }
-
-fn load(texture_index: u32, v: vec2<i32>) -> vec4<f32> {  
-    return load_texture(vec3<i32>(v.xy, i32(texture_index)));
-}

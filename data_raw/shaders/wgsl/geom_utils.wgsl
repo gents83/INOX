@@ -34,12 +34,27 @@ fn compute_partial_derivatives(v0: vec2<f32>, v1: vec2<f32>, v2: vec2<f32>) -> D
     return deriv;
 }
 
-fn interpolate_attribute(a0: vec2<f32>, a1: vec2<f32>, a2: vec2<f32>, deriv: Derivatives, delta: vec2<f32>) -> vec2<f32>
+// Interpolate 2D attributes using the partial derivatives and generates dx and dy for texture sampling.
+fn interpolate_2d_attribute(a0: vec2<f32>, a1: vec2<f32>, a2: vec2<f32>, deriv: Derivatives, delta: vec2<f32>) -> vec2<f32>
 {
 	let attr0 = vec3<f32>(a0.x, a1.x, a2.x);
 	let attr1 = vec3<f32>(a0.y, a1.y, a2.y);
 	let attribute_x = vec2<f32>(dot(deriv.dx, attr0), dot(deriv.dx, attr1));
 	let attribute_y = vec2<f32>(dot(deriv.dy, attr0), dot(deriv.dy, attr1));
+	let attribute_s = a0;
+	
+	return (attribute_s + delta.x * attribute_x + delta.y * attribute_y);
+}
+
+// Interpolate vertex attributes at point 'd' using the partial derivatives
+fn interpolate_3d_attribute(a0: vec3<f32>, a1: vec3<f32>, a2: vec3<f32>, deriv: Derivatives, delta: vec2<f32>) -> vec3<f32>
+{
+	let attr0 = vec3<f32>(a0.x, a1.x, a2.x);
+	let attr1 = vec3<f32>(a0.y, a1.y, a2.y);
+	let attr2 = vec3<f32>(a0.z, a1.z, a2.z);
+    let attributes = mat3x3<f32>(a0, a1, a2);
+	let attribute_x = attributes * deriv.dx;
+	let attribute_y = attributes * deriv.dy;
 	let attribute_s = a0;
 	
 	return (attribute_s + delta.x * attribute_x + delta.y * attribute_y);
