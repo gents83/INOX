@@ -1,4 +1,4 @@
-use raw_window_handle::RawWindowHandle;
+use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
 
 use super::super::handle::*;
 use core::ffi::c_void;
@@ -18,6 +18,13 @@ impl HandleImpl {
         handle.window = self.window;
         handle.display = self.display;
         RawWindowHandle::Xlib(handle)
+    }
+    pub fn as_raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
+        let mut display_handle = XlibDisplayHandle::empty();
+        display_handle.display = self.xconn.display as *mut _;
+        display_handle.screen =
+            unsafe { (self.xconn.xlib.XDefaultScreen)(self.xconn.display as *mut _) };
+        RawDisplayHandle::Xlib(display_handle)
     }
     pub fn is_valid(&self) -> bool {
         !self.display.is_null()

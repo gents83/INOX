@@ -1,4 +1,4 @@
-use raw_window_handle::RawWindowHandle;
+use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
 
 use super::super::handle::*;
 use core::ffi::c_void;
@@ -18,6 +18,10 @@ impl HandleImpl {
         handle.ui_view = self.view as _;
         handle.ui_view_controller = self.view_controller as _;
         RawWindowHandle::UiKit(handle)
+    }
+    #[inline]
+    pub fn as_raw_display_handle(&self) -> RawDisplayHandle {
+        RawDisplayHandle::UiKit(raw_window_handle::UiKitDisplayHandle::empty())
     }
     pub fn is_valid(&self) -> bool {
         !self.ui_window.is_null()

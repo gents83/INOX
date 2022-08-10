@@ -1,4 +1,4 @@
-use raw_window_handle::RawWindowHandle;
+use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HandleImpl {
@@ -16,6 +16,10 @@ impl HandleImpl {
         let mut handle = raw_window_handle::WebHandle::empty();
         handle.id = self.id;
         RawWindowHandle::Web(handle)
+    }
+    #[inline]
+    pub fn as_raw_display_handle(&self) -> RawDisplayHandle {
+        RawDisplayHandle::Web(raw_window_handle::WebDisplayHandle::empty())
     }
     pub fn is_valid(&self) -> bool {
         self.id != 0

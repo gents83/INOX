@@ -1,4 +1,4 @@
-use raw_window_handle::RawWindowHandle;
+use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
 
 use super::super::handle::*;
 use core::ffi::c_void;
@@ -19,6 +19,10 @@ impl HandleImpl {
             panic!("Cannot get the native window");
         };
         RawWindowHandle::AndroidNdk(handle)
+    }
+    #[inline]
+    pub fn as_raw_display_handle(&self) -> RawDisplayHandle {
+        RawDisplayHandle::Android(raw_window_handle::AndroidDisplayHandle::empty())
     }
     pub fn is_valid(&self) -> bool {
         !self.a_native_window.is_null()
