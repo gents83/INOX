@@ -30,9 +30,9 @@ fn material_texture_coord_set(material_index: u32, texture_type: u32) -> u32 {
     return (*material).textures_coord_set[texture_type];
 }
 
-fn sample_material_texture(gbuffer_uvs: vec4<f32>, material_index: u32, texture_type: u32) -> vec4<f32> {
+fn sample_material_texture(uvs_0_1: vec4<f32>, material_index: u32, texture_type: u32) -> vec4<f32> {
     let texture_id = material_texture_index(material_index, texture_type);
     let coords_set = material_texture_coord_set(material_index, texture_type);
-    let uv = get_uv(gbuffer_uvs, u32(texture_id), coords_set);
+    let uv = get_uv(uvs_0_1, u32(texture_id), coords_set);
     return sample_texture(uv);
 }

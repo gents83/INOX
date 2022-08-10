@@ -78,13 +78,13 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let material_id = u32(meshes.data[mesh_id].material_index);
         let texture_color = sample_material_texture(gbuffer_3, material_id, TEXTURE_TYPE_BASE_COLOR);
         let vertex_color = unpack_unorm_to_4_f32(vertex_color);
-        color = vec4<f32>(vertex_color.rgb * texture_color.rgb, vertex_color.a);
 
         let alpha = compute_alpha(material_id, vertex_color.a);
         if alpha < 0. {
             discard;
         }
 
+        color = vec4<f32>(vertex_color.rgb * texture_color.rgb, alpha);
         let world_pos = gbuffer_1.xyz;
         let n = unpack_normal(gbuffer_2.xy);
         color = pbr(world_pos, n, material_id, color, gbuffer_3);

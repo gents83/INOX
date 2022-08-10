@@ -54,12 +54,12 @@ fn microfacet_distribution(alpha_roughness: f32, NdotH: f32) -> f32 {
     return roughnessSq / (PI * f * f);
 }
 
-fn pbr(world_pos: vec3<f32>, n: vec3<f32>, material_id: u32, color: vec4<f32>, gbuffer_uvs: vec4<f32>,) -> vec4<f32> {
+fn pbr(world_pos: vec3<f32>, n: vec3<f32>, material_id: u32, color: vec4<f32>, uvs_0_1: vec4<f32>,) -> vec4<f32> {
     let material = &materials.data[material_id];
     var perceptual_roughness = (*material).roughness_factor;
     var metallic = (*material).metallic_factor;
     if (has_texture(material_id, TEXTURE_TYPE_METALLIC_ROUGHNESS)) {
-        let t = sample_material_texture(gbuffer_uvs, material_id, TEXTURE_TYPE_METALLIC_ROUGHNESS);
+        let t = sample_material_texture(uvs_0_1, material_id, TEXTURE_TYPE_METALLIC_ROUGHNESS);
         metallic = metallic * t.b;
         perceptual_roughness = perceptual_roughness * t.g;
     }
@@ -72,13 +72,13 @@ fn pbr(world_pos: vec3<f32>, n: vec3<f32>, material_id: u32, color: vec4<f32>, g
     var ao = 1.0;
     var occlusion_strength = 1.;
     if (has_texture(material_id, TEXTURE_TYPE_OCCLUSION)) {
-        let t = sample_material_texture(gbuffer_uvs, material_id, TEXTURE_TYPE_OCCLUSION);
+        let t = sample_material_texture(uvs_0_1, material_id, TEXTURE_TYPE_OCCLUSION);
         ao = ao * t.r;
         occlusion_strength = (*material).occlusion_strength;
     }
     var emissive_color = vec3<f32>(0., 0., 0.);
     if (has_texture(material_id, TEXTURE_TYPE_EMISSIVE)) {
-        let t = sample_material_texture(gbuffer_uvs, material_id, TEXTURE_TYPE_EMISSIVE);
+        let t = sample_material_texture(uvs_0_1, material_id, TEXTURE_TYPE_EMISSIVE);
         emissive_color = t.rgb * (*material).emissive_color;
     }
 
@@ -128,11 +128,11 @@ fn pbr(world_pos: vec3<f32>, n: vec3<f32>, material_id: u32, color: vec4<f32>, g
         let D = microfacet_distribution(alpha_roughness, NdotH);
 
         // Calculation of analytical lighting contribution
-        var intensity = max(100., (*light).intensity);
-        intensity = intensity / (4.0 * PI);
-        let range = max(100., (*light).range);
+        var intensity = max(200., (*light).intensity);
+        intensity = intensity / (4. * PI);
+        let range = max(5., (*light).range);
         let light_contrib = (1. - min(dist / range, 1.)) * intensity;
-        let diffuse_contrib = (1.0 - F) * diffuse_color / PI;
+        let diffuse_contrib = (1. - F) * diffuse_color / PI;
         let spec_contrib = F * G * D / (4.0 * NdotL * NdotV);
         var light_color = NdotL * (*light).color.rgb * (diffuse_contrib + spec_contrib);
         light_color = light_color * light_contrib;

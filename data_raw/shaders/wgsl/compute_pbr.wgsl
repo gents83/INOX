@@ -71,14 +71,13 @@ fn main(
                 continue;
             }
 
-            var meshlet_id = (visibility_id >> 8u) - 1u; 
+            let meshlet_id = (visibility_id >> 8u) - 1u; 
             let primitive_id = visibility_id & 255u;
 
             let meshlet = &meshlets.data[meshlet_id];
             let mesh_id = (*meshlet).mesh_index;
 
-            let display_meshlets = constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS;
-            if (display_meshlets != 0u) {
+            if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS) != 0u) {
                 let c = hash(meshlet_id);
                 color = vec4<f32>(vec3<f32>(
                     f32(c & 255u), 
@@ -145,7 +144,7 @@ fn main(
                 let uv_0_1 = vec4<f32>(uv_0.xy, uv_1.xy);
 
                 let texture_color = sample_material_texture(uv_0_1, material_id, TEXTURE_TYPE_BASE_COLOR);
-                color = vec4<f32>(vertex_color.rgb * texture_color.rgb, vertex_color.a);
+                color = vec4<f32>(vertex_color.rgb * texture_color.rgb, alpha);
 
                 let n1 = normals_and_padding.data[(*v1).normal_offset].xyz;
                 let n2 = normals_and_padding.data[(*v2).normal_offset].xyz;
