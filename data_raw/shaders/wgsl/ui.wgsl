@@ -92,8 +92,6 @@ fn get_texture_color(tex_coords_and_texture_index: vec3<f32>) -> vec4<f32> {
         return textureSampleLevel(texture_7, default_sampler, tex_coords.xy, layer_index, tex_coords.z);
     } else if (atlas_index == 7u) {
         return textureSampleLevel(texture_8, default_sampler, tex_coords.xy, layer_index, tex_coords.z);
-    } else if (atlas_index == 8u) {
-        return textureSampleLevel(texture_9, default_sampler, tex_coords.xy, layer_index, tex_coords.z);
     }
     return textureSampleLevel(texture_1, default_sampler, tex_coords.xy, layer_index, tex_coords.z);
 #endif

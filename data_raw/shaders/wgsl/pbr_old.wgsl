@@ -280,8 +280,6 @@ fn get_texture_color(material_index: i32, texture_type: u32, tex_coords: vec2<f3
         return textureSampleLevel(texture_7, default_sampler, t.xy, layer_index, t.z);
     } else if (atlas_index == 7u) {
         return textureSampleLevel(texture_8, default_sampler, t.xy, layer_index, t.z);
-    } else if (atlas_index == 8u) {
-        return textureSampleLevel(texture_9, default_sampler, t.xy, layer_index, t.z);
     }
     return textureSampleLevel(texture_1, default_sampler, t.xy, layer_index, t.z);
 #endif

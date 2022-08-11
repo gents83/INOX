@@ -51,23 +51,7 @@ var texture_6: texture_2d_array<f32>;
 @group(1) @binding(9)
 var texture_7: texture_2d_array<f32>;
 @group(1) @binding(10)
-var texture_8: texture_2d_array<f32>;
-@group(1) @binding(11)
-var texture_9: texture_2d_array<f32>;
-@group(1) @binding(12)
-var texture_10: texture_2d_array<f32>;
-@group(1) @binding(13)
-var texture_11: texture_2d_array<f32>;
-@group(1) @binding(14)
-var texture_12: texture_2d_array<f32>;
-@group(1) @binding(15)
-var texture_13: texture_2d_array<f32>;
-@group(1) @binding(16)
-var texture_14: texture_2d_array<f32>;
-@group(1) @binding(17)
-var texture_15: texture_2d_array<f32>;
-@group(1) @binding(18)
-var texture_16: texture_2d_array<f32>;
+var texture_8: texture_2d_array<f32>;;
 #endif
 
 
@@ -102,22 +86,6 @@ fn get_texture_color(tex_coords_and_texture_index: vec3<f32>) -> vec4<f32> {
         return textureSampleLevel(texture_7, default_sampler, tex_coords.xy, layer_index, tex_coords.z);
     } else if (atlas_index == 7u) {
         return textureSampleLevel(texture_8, default_sampler, tex_coords.xy, layer_index, tex_coords.z);
-    } else if (atlas_index == 8u) {
-        return textureSampleLevel(texture_9, default_sampler, tex_coords.xy, layer_index, tex_coords.z);
-    } else if (atlas_index == 9u) {
-        return textureSampleLevel(texture_10, default_sampler, tex_coords.xy, layer_index, tex_coords.z);
-    } else if (atlas_index == 10u) {
-        return textureSampleLevel(texture_11, default_sampler, tex_coords.xy, layer_index, tex_coords.z);
-    } else if (atlas_index == 11u) {
-        return textureSampleLevel(texture_12, default_sampler, tex_coords.xy, layer_index, tex_coords.z);
-    } else if (atlas_index == 12u) {
-        return textureSampleLevel(texture_13, default_sampler, tex_coords.xy, layer_index, tex_coords.z);
-    } else if (atlas_index == 13u) {
-        return textureSampleLevel(texture_14, default_sampler, tex_coords.xy, layer_index, tex_coords.z);
-    } else if (atlas_index == 14u) {
-        return textureSampleLevel(texture_15, default_sampler, tex_coords.xy, layer_index, tex_coords.z);
-    } else if (atlas_index == 15u) {
-        return textureSampleLevel(texture_16, default_sampler, tex_coords.xy, layer_index, tex_coords.z);
     }
     return textureSampleLevel(texture_1, default_sampler, tex_coords.xy, layer_index, tex_coords.z);
 #endif

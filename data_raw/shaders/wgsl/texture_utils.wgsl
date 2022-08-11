@@ -54,9 +54,7 @@ fn sample_texture(tex_coords_and_texture_index: vec3<f32>) -> vec4<f32> {
         case 5u: { return textureSampleLevel(texture_6, default_sampler, tex_coords.xy, layer_index, tex_coords.z); }
         case 6u: { return textureSampleLevel(texture_7, default_sampler, tex_coords.xy, layer_index, tex_coords.z); }
         case 7u: { return textureSampleLevel(texture_8, default_sampler, tex_coords.xy, layer_index, tex_coords.z); }
-        case 8u: { return textureSampleLevel(texture_9, default_sampler, tex_coords.xy, layer_index, tex_coords.z); }
     }
-    return textureSampleLevel(texture_1, default_sampler, tex_coords.xy, layer_index, tex_coords.z);
 #endif
 }
 
@@ -78,7 +76,6 @@ fn load_texture(tex_coords_and_texture_index: vec3<i32>) -> vec4<f32> {
         case 5: { return textureLoad(texture_6, tex_coords_and_texture_index.xy, layer_index, layer_index); }
         case 6: { return textureLoad(texture_7, tex_coords_and_texture_index.xy, layer_index, layer_index); }
         case 7: { return textureLoad(texture_8, tex_coords_and_texture_index.xy, layer_index, layer_index); }
-        case 8: { return textureLoad(texture_9, tex_coords_and_texture_index.xy, layer_index, layer_index); }
     }
 #endif
 }

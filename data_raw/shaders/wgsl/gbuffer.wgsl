@@ -3,7 +3,7 @@
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) mesh_and_meshlet_ids: vec2<u32>,
+    @location(0) @interpolate(flat) mesh_and_meshlet_ids: vec2<u32>,
     @location(1) world_pos_color: vec4<f32>,
     @location(2) normal: vec3<f32>,
     @location(3) uv_0_1: vec4<f32>,
