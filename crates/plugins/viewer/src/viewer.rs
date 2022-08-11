@@ -3,11 +3,11 @@ use std::path::PathBuf;
 use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
-    rendering_system::RenderingSystem, update_system::UpdateSystem, BlitPass, ComputePbrPass,
-    ComputeRasterPass, CullingPass, DebugDrawerSystem, DebugPass, GBufferPass, LoadOperation,
-    PBRPass, Pass, RenderPass, RenderTarget, Renderer, RendererRw, TextureFormat,
-    VisibilityBufferPass, WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH, GBUFFER_PASS_NAME,
-    WIREFRAME_PASS_NAME,
+    platform::has_primitive_index_support, rendering_system::RenderingSystem,
+    update_system::UpdateSystem, BlitPass, ComputePbrPass, ComputeRasterPass, CullingPass,
+    DebugDrawerSystem, DebugPass, GBufferPass, LoadOperation, PBRPass, Pass, RenderPass,
+    RenderTarget, Renderer, RendererRw, TextureFormat, VisibilityBufferPass, WireframePass,
+    DEFAULT_HEIGHT, DEFAULT_WIDTH, GBUFFER_PASS_NAME, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -18,10 +18,10 @@ use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
 use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
 const USE_VISIBILITY_BUFFER_RENDERING: bool = true;
-const ADD_COMPUTE_RASTER_PASS: bool = false;
 const ADD_WIREFRAME_PASS: bool = true;
-const ADD_DEBUG_PASS: bool = false;
 const ADD_UI_PASS: bool = true;
+const ADD_COMPUTE_RASTER_PASS: bool = false;
+const ADD_DEBUG_PASS: bool = false;
 const USE_3DVIEW: bool = false;
 
 pub struct Viewer {
@@ -158,7 +158,7 @@ impl Viewer {
             Self::create_compute_raster_pass(context, renderer, width, height);
         }
         Self::create_culling_pass(context, renderer);
-        if USE_VISIBILITY_BUFFER_RENDERING {
+        if USE_VISIBILITY_BUFFER_RENDERING && has_primitive_index_support() {
             Self::create_visibility_buffer_pass(context, renderer, width, height);
             Self::create_compute_pbr_pass(context, renderer, width, height);
             Self::create_blit_pass(context, renderer);

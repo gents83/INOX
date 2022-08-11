@@ -16,6 +16,3 @@ pub fn platform_limits() -> wgpu::Limits {
     wgpu::Limits::default()
 }
 
-pub fn is_indirect_mode_enabled() -> bool {
-    true
-}

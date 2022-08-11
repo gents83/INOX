@@ -16,3 +16,10 @@ pub fn shader_preprocessor_defs<const PLATFORM_TYPE: PlatformType>() -> Vec<Stri
         vec![]
     }
 }
+
+pub fn has_primitive_index_support() -> bool {
+    required_gpu_features().contains(wgpu::Features::SHADER_PRIMITIVE_INDEX)
+}
+pub fn is_indirect_mode_enabled() -> bool {
+    required_gpu_features().contains(wgpu::Features::MULTI_DRAW_INDIRECT)
+}

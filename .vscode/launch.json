@@ -129,6 +129,26 @@
             "symbolSearchPath": "${workspaceFolder}/crates/target/release/in_use/, ${workspaceFolder}/crates/target/release/, https://msdl.microsoft.com/download/symbols",
         },
         {
+            "name": "RUN BINARIZER RELEASE FOR WEB",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe",
+            "args": [
+                "-plugin inox_binarizer",
+                "-platform web"
+            ],
+            "cwd": "${workspaceFolder}",
+            "stopAtEntry": false,
+            "requireExactSource": false,
+            "preLaunchTask": "COMPILE RELEASE",
+            "postDebugTask": "CLEANUP",
+            "sourceFileMap": {
+                "/rustc/9d1b2106e23b1abd32fce1f17267604a5102f57a": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+            },
+            "console": "integratedTerminal",
+            "symbolSearchPath": "${workspaceFolder}/crates/target/release/in_use/, ${workspaceFolder}/crates/target/release/, https://msdl.microsoft.com/download/symbols",
+        },
+        {
             "name": "RUN LAUNCHER RELEASE",
             "type": "cppvsdbg",
             "request": "launch",

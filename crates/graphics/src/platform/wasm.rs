@@ -8,6 +8,3 @@ pub fn platform_limits() -> wgpu::Limits {
     wgpu::Limits::downlevel_webgl2_defaults()
 }
 
-pub fn is_indirect_mode_enabled() -> bool {
-    false
-}

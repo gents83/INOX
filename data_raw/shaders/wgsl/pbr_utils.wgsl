@@ -130,7 +130,7 @@ fn pbr(world_pos: vec3<f32>, n: vec3<f32>, material_id: u32, color: vec4<f32>, u
         // Calculation of analytical lighting contribution
         var intensity = max(200., (*light).intensity);
         intensity = intensity / (4. * PI);
-        let range = max(5., (*light).range);
+        let range = max(8., (*light).range);
         let light_contrib = (1. - min(dist / range, 1.)) * intensity;
         let diffuse_contrib = (1. - F) * diffuse_color / PI;
         let spec_contrib = F * G * D / (4.0 * NdotL * NdotV);
