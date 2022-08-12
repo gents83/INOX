@@ -21,7 +21,7 @@ var<storage, read> vertices: Vertices;
 @group(0) @binding(4)
 var<storage, read> positions_and_colors: PositionsAndColors;
 @group(0) @binding(5)
-var<storage, read> normals_and_padding: NormalsAndPadding;
+var<storage, read> normals: Normals;
 @group(0) @binding(6)
 var<storage, read> uvs: UVs;
 
@@ -156,9 +156,9 @@ fn main(
                 let texture_color = sample_material_texture(material_id, TEXTURE_TYPE_BASE_COLOR, uv_set);
                 color = vec4<f32>(vertex_color.rgb * texture_color.rgb, alpha);
 
-                let n1 = normals_and_padding.data[(*v1).normal_offset].xyz;
-                let n2 = normals_and_padding.data[(*v2).normal_offset].xyz;
-                let n3 = normals_and_padding.data[(*v3).normal_offset].xyz;
+                let n1 = decode_normal(normals.data[(*v1).normal_offset]);
+                let n2 = decode_normal(normals.data[(*v2).normal_offset]);
+                let n3 = decode_normal(normals.data[(*v3).normal_offset]);
 
                 //let world_pos = barycentrics.x * p1 + barycentrics.y * p2 + barycentrics.z * p3;
                 //let n = barycentrics.x * n1 + barycentrics.y * n2 + barycentrics.z * n3;

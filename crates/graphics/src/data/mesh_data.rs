@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use inox_math::{is_point_in_triangle, quantize_half, VecBase, Vector2, Vector3, Vector4};
+use inox_math::{
+    is_point_in_triangle, quantize_half, quantize_unorm, VecBase, Vector2, Vector3, Vector4,
+};
 
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
@@ -40,9 +42,8 @@ impl Default for MeshletData {
 pub struct MeshData {
     pub positions: Vec<Vector3>,
     pub colors: Vec<Vector4>,
-    pub normals: Vec<Vector3>,
-    pub tangents: Vec<Vector4>,
-    pub uvs: Vec<u32>, // 2 half - f16
+    pub normals: Vec<u32>, // u32 (10 x, 10 y, 10 z, 2 null)
+    pub uvs: Vec<u32>,     // 2 half - f16
     pub vertices: Vec<DrawVertex>,
     pub indices: Vec<u32>,
     pub material: PathBuf,
@@ -67,7 +68,6 @@ impl MeshData {
         self.positions.clear();
         self.colors.clear();
         self.normals.clear();
-        self.tangents.clear();
         self.uvs.clear();
         self.meshlets.clear();
         self.indices.clear();
@@ -92,7 +92,10 @@ impl MeshData {
         };
         self.positions.push(p);
         self.colors.push(c);
-        self.normals.push(n);
+        let nx = quantize_unorm(n.x, 10);
+        let ny = quantize_unorm(n.y, 10);
+        let nz = quantize_unorm(n.z, 10);
+        self.normals.push(nx << 20 | ny << 10 | nz);
         self.vertices.push(vertex);
         self.vertices.len() - 1
     }
@@ -103,8 +106,8 @@ impl MeshData {
             ..Default::default()
         };
         self.positions.push(p);
-        let u = (quantize_half(uv.x) as u32) << 16;
-        let v = quantize_half(uv.y) as u32;
+        let u = quantize_half(uv.x) as u32;
+        let v = (quantize_half(uv.y) as u32) << 16;
         self.uvs.push(u | v);
         self.vertices.push(vertex);
         self.vertices.len() - 1
@@ -117,8 +120,8 @@ impl MeshData {
         };
         self.positions.push(p);
         self.colors.push(c);
-        let u = (quantize_half(uv.x) as u32) << 16;
-        let v = quantize_half(uv.y) as u32;
+        let u = quantize_half(uv.x) as u32;
+        let v = (quantize_half(uv.y) as u32) << 16;
         self.uvs.push(u | v);
         self.vertices.push(vertex);
         self.vertices.len() - 1
@@ -138,9 +141,12 @@ impl MeshData {
         };
         self.positions.push(p);
         self.colors.push(c);
-        self.normals.push(n);
-        let u = (quantize_half(uv.x) as u32) << 16;
-        let v = quantize_half(uv.y) as u32;
+        let nx = quantize_unorm(n.x, 10);
+        let ny = quantize_unorm(n.y, 10);
+        let nz = quantize_unorm(n.z, 10);
+        self.normals.push(nx << 20 | ny << 10 | nz);
+        let u = quantize_half(uv.x) as u32;
+        let v = (quantize_half(uv.y) as u32) << 16;
         self.uvs.push(u | v);
         self.vertices.push(vertex);
         self.vertices.len() - 1
@@ -150,7 +156,6 @@ impl MeshData {
         let index_offset = self.index_count() as u32;
         let position_offset = self.positions.len() as u32;
         let normals_offset = self.normals.len() as u32;
-        let tangents_offset = self.tangents.len() as u32;
         let uvs_offset = self.uvs.len() as u32;
 
         let meshlet = MeshletData {
@@ -165,12 +170,10 @@ impl MeshData {
         self.positions.append(&mut mesh_data.positions);
         self.colors.append(&mut mesh_data.colors);
         self.normals.append(&mut mesh_data.normals);
-        self.tangents.append(&mut mesh_data.tangents);
         self.uvs.append(&mut mesh_data.uvs);
         mesh_data.vertices.iter_mut().for_each(|v| {
             v.position_and_color_offset += position_offset;
             v.normal_offset += normals_offset as i32;
-            v.tangent_offset += tangents_offset as i32;
             v.uv_offset.iter_mut().for_each(|uv| {
                 *uv += uvs_offset as i32;
             });

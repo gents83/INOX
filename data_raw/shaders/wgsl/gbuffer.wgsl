@@ -21,7 +21,7 @@ var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
 var<storage, read> positions_and_colors: PositionsAndColors;
 @group(0) @binding(2)
-var<storage, read> normals: NormalsAndPadding;
+var<storage, read> normals: Normals;
 @group(0) @binding(3)
 var<storage, read> uvs: UVs;
 
@@ -58,7 +58,7 @@ fn vs_main(
     vertex_out.mesh_and_meshlet_ids = vec2<u32>(mesh_id, meshlet_id);
     vertex_out.world_pos_color = vec4<f32>(world_position.xyz, f32(color));
 
-    vertex_out.normal = normals.data[v_in.normal_offset].xyz; 
+    vertex_out.normal = decode_normal(normals.data[v_in.normal_offset]); 
     vertex_out.uv_set =  vec4<u32>(uvs.data[v_in.uvs_offset.x], uvs.data[v_in.uvs_offset.y], uvs.data[v_in.uvs_offset.z], uvs.data[v_in.uvs_offset.w]);
 
     return vertex_out;

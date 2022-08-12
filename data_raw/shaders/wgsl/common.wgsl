@@ -161,8 +161,8 @@ struct PositionsAndColors {
     data: array<vec4<f32>>,
 };
 
-struct NormalsAndPadding {
-    data: array<vec4<f32>>,
+struct Normals {
+    data: array<u32>,
 };
 
 struct Tangents {

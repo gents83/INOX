@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, DrawCommandType, DrawVertex, MeshFlags,
-    Pass, RenderContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
+    BindingData, BindingInfo, CommandBuffer, DrawCommandType, DrawVertex, MeshFlags, Pass,
+    RenderContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
 };
 
 use inox_core::ContextRc;
@@ -109,15 +109,11 @@ impl Pass for GBufferPass {
                 },
             );
         }
-        if !render_context
-            .render_buffers
-            .vertex_normals_and_padding
-            .is_empty()
-        {
+        if !render_context.render_buffers.vertex_normals.is_empty() {
             self.binding_data.add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.vertex_normals_and_padding,
+                &mut render_context.render_buffers.vertex_normals,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,

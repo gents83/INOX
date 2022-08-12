@@ -16,24 +16,12 @@ pub fn normalize_f32_in_0_1(v: f32, min: f32, max: f32) -> f32 {
 
 //input: [-1..1] float; output: [-127..127] integer
 #[inline]
-pub fn encode_f32_to_snorm(v: f32) -> i8 {
-    quantize_snorm(v, 8) as _
-}
-
-//input: [0..1] float; output: [0..255] integer
-#[inline]
-pub fn encode_f32_to_unorm(v: f32) -> u8 {
-    quantize_unorm(v, 8) as _
-}
-
-//input: [-1..1] float; output: [-127..127] integer
-#[inline]
 pub fn pack_4_f32_to_snorm(value: Vector4) -> i32 {
     let v = [
-        encode_f32_to_snorm(value.x),
-        encode_f32_to_snorm(value.y),
-        encode_f32_to_snorm(value.z),
-        encode_f32_to_snorm(value.w),
+        quantize_snorm(value.x, 8),
+        quantize_snorm(value.y, 8),
+        quantize_snorm(value.z, 8),
+        quantize_snorm(value.w, 8),
     ];
     ((v[0] as i32) << 24) | ((v[1] as i32) << 16) | ((v[2] as i32) << 8) | v[3] as i32
 }
@@ -42,10 +30,10 @@ pub fn pack_4_f32_to_snorm(value: Vector4) -> i32 {
 #[inline]
 pub fn pack_4_f32_to_unorm(value: Vector4) -> u32 {
     let v = [
-        encode_f32_to_unorm(value.x),
-        encode_f32_to_unorm(value.y),
-        encode_f32_to_unorm(value.z),
-        encode_f32_to_unorm(value.w),
+        quantize_unorm(value.x, 8),
+        quantize_unorm(value.y, 8),
+        quantize_unorm(value.z, 8),
+        quantize_unorm(value.w, 8),
     ];
     ((v[0] as u32) << 24) | ((v[1] as u32) << 16) | ((v[2] as u32) << 8) | v[3] as u32
 }
@@ -53,12 +41,26 @@ pub fn pack_4_f32_to_unorm(value: Vector4) -> u32 {
 // Quantize a f32 in [0..1] range into an N-bit fixed point unorm value
 // Assumes reconstruction function (q / (2^N-1)), which is the case for fixed-function normalized fixed point conversion
 // Maximum reconstruction error: 1/2^(N+1)
+// let x = quantize_unorm(0.15, 10);
+// let y = quantize_unorm(0.32, 10);
+// let z = quantize_unorm(0.95, 10);
+// println!("{:#08x}, {:#08x}, {:#08x}", x << 20, y << 10, z);
+// let n = x << 20 | y << 10 | z;
+// let nx = decode_unorm((n >> 20) & 0x000003FF, 10);
+// let ny = decode_unorm((n >> 10) & 0x000003FF, 10);
+// let nz = decode_unorm(n & 0x000003FF, 10);
+// println!("{}, {}, {}", nx, ny, nz);
 #[inline]
 pub fn quantize_unorm(mut v: f32, n: u32) -> u32 {
-    let scale = ((1 << n) - 1) as f32;
+    let scale = (1 << n) as f32;
     v = if v >= 0. { v } else { 0. };
     v = if v <= 1. { v } else { 1. };
-    (v * scale + 0.5) as _
+    (v * scale) as _
+}
+#[inline]
+pub fn decode_unorm(i: u32, n: u32) -> f32 {
+    let scale = (1 << n) as f32;
+    i as f32 / scale
 }
 
 // Quantize a f32 in [-1..1] range into an N-bit fixed point snorm value
@@ -66,11 +68,15 @@ pub fn quantize_unorm(mut v: f32, n: u32) -> u32 {
 // Maximum reconstruction error: 1/2^N
 #[inline]
 pub fn quantize_snorm(mut v: f32, n: u32) -> i32 {
-    let scale = ((1 << (n - 1)) - 1) as f32;
-    let round = if v >= 0. { 0.5 } else { -0.5 };
+    let scale = (1 << (n - 1)) as f32;
     v = if v >= -1. { v } else { -1. };
     v = if v <= 1. { v } else { 1. };
-    (v * scale + round) as _
+    (v * scale) as _
+}
+#[inline]
+pub fn decode_snorm(i: i32, n: u32) -> f32 {
+    let scale = (1 << (n - 1)) as f32;
+    i as f32 / scale
 }
 
 // Quantize a f32 into half-precision floating point value (16 bit)

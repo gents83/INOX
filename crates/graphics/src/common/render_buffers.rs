@@ -22,8 +22,7 @@ pub struct RenderBuffers {
     pub vertices: Buffer<DrawVertex>,  //MeshId <-> [DrawVertex]
     pub indices: Buffer<u32>,          //MeshId <-> [u32]
     pub vertex_positions_and_colors: Buffer<[f32; 4]>, //MeshId <-> [f32; 4]
-    pub vertex_normals_and_padding: Buffer<[f32; 4]>, //MeshId <-> [f32; 4]
-    pub vertex_tangents: Buffer<[f32; 4]>, //MeshId <-> [f32; 4]
+    pub vertex_normals: Buffer<u32>,   //MeshId <-> u32 (10 x, 10 y, 10 z, 2 null)
     pub vertex_uvs: Buffer<u32>,       //MeshId <-> u32 (2 half)
 }
 
@@ -104,24 +103,12 @@ impl RenderBuffers {
 
         let mut normal_range = Range::<usize>::default();
         if !mesh_data.normals.is_empty() {
-            let mut vertex_normals_and_paddings = Vec::new();
-            vertex_normals_and_paddings.reserve(mesh_data.normals.len());
-            for normal in mesh_data.normals.iter() {
-                vertex_normals_and_paddings.push([normal.x, normal.y, normal.z, 1.]);
-            }
             normal_range = self
-                .vertex_normals_and_padding
-                .allocate(mesh_id, vertex_normals_and_paddings.as_slice())
+                .vertex_normals
+                .allocate(mesh_id, to_slice(mesh_data.normals.as_slice()))
                 .1;
         }
 
-        let mut tangent_range = Range::<usize>::default();
-        if !mesh_data.tangents.is_empty() {
-            tangent_range = self
-                .vertex_tangents
-                .allocate(mesh_id, to_slice(mesh_data.tangents.as_slice()))
-                .1;
-        }
         let mut uv_range = Range::<usize>::default();
         if !mesh_data.uvs.is_empty() {
             uv_range = self
@@ -134,7 +121,6 @@ impl RenderBuffers {
         vertices.iter_mut().for_each(|v| {
             v.position_and_color_offset += position_range.start as u32;
             v.normal_offset += normal_range.start as i32;
-            v.tangent_offset += tangent_range.start as i32;
             (0..MAX_TEXTURE_COORDS_SETS).for_each(|i| {
                 v.uv_offset[i] += uv_range.start as i32;
             });
@@ -202,8 +188,7 @@ impl RenderBuffers {
         self.vertices.remove(mesh_id);
         self.indices.remove(mesh_id);
         self.vertex_positions_and_colors.remove(mesh_id);
-        self.vertex_normals_and_padding.remove(mesh_id);
-        self.vertex_tangents.remove(mesh_id);
+        self.vertex_normals.remove(mesh_id);
         self.vertex_uvs.remove(mesh_id);
     }
     pub fn add_material(&mut self, material_id: &MaterialId, material: &mut Material) {

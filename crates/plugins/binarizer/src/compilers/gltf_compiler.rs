@@ -23,7 +23,7 @@ use inox_graphics::{
 };
 use inox_log::debug_log;
 use inox_math::{
-    decode_half, quantize_half, Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3,
+    quantize_half, quantize_unorm, Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3,
     Vector4, Vector4h,
 };
 
@@ -33,6 +33,7 @@ use inox_scene::{CameraData, ObjectData, SceneData};
 use inox_serialize::{
     deserialize, inox_serializable::SerializableRegistryRc, Deserialize, Serialize, SerializeFile,
 };
+use meshopt::VertexStream;
 
 const GLTF_EXTENSION: &str = "gltf";
 
@@ -212,7 +213,14 @@ impl GltfCompiler {
                     let num_bytes = self.bytes_from_dimension(&accessor);
                     debug_assert!(num == 3 && num_bytes == 4);
                     if let Some(norm) = self.read_accessor_from_path::<Vector3>(path, &accessor) {
-                        mesh_data.normals.extend_from_slice(norm.as_slice());
+                        let mut normals = Vec::new();
+                        norm.iter().for_each(|n| {
+                            let nx = quantize_unorm(n.x, 10);
+                            let ny = quantize_unorm(n.y, 10);
+                            let nz = quantize_unorm(n.z, 10);
+                            normals.push(nx << 20 | ny << 10 | nz);
+                        });
+                        mesh_data.normals.extend_from_slice(normals.as_slice());
                         mesh_data.vertices.resize(norm.len(), DrawVertex::default());
                         mesh_data
                             .vertices
@@ -223,6 +231,7 @@ impl GltfCompiler {
                             });
                     }
                 }
+                /*
                 Semantic::Tangents => {
                     let num = self.num_from_type(&accessor);
                     let num_bytes = self.bytes_from_dimension(&accessor);
@@ -239,6 +248,7 @@ impl GltfCompiler {
                             });
                     }
                 }
+                */
                 Semantic::Colors(_color_index) => {
                     let num = self.num_from_type(&accessor);
                     let num_bytes = self.bytes_from_dimension(&accessor);
@@ -318,27 +328,15 @@ impl GltfCompiler {
     fn optimize_mesh(&self, old_mesh_data: MeshData) -> MeshData {
         if self.optimize_meshes {
             let mut mesh_data = old_mesh_data.clone();
-            let mut old_vertices = Vec::new();
-            old_vertices.resize(old_mesh_data.vertex_count(), [0f32; 8]);
-            old_vertices.iter_mut().enumerate().for_each(|(i, v)| {
-                if old_mesh_data.positions.len() > i {
-                    v[0] = old_mesh_data.positions[i][0];
-                    v[1] = old_mesh_data.positions[i][1];
-                    v[2] = old_mesh_data.positions[i][2];
-                }
-                if old_mesh_data.normals.len() > i {
-                    v[3] = old_mesh_data.normals[i][0];
-                    v[4] = old_mesh_data.normals[i][1];
-                    v[5] = old_mesh_data.normals[i][2];
-                }
-                if old_mesh_data.uvs.len() > i {
-                    v[6] = decode_half((old_mesh_data.uvs[i] >> 16) as u16);
-                    v[7] = decode_half(old_mesh_data.uvs[i] as u16);
-                }
-            });
 
-            let (num_vertices, vertices_remap_table) = meshopt::generate_vertex_remap(
-                old_vertices.as_slice(),
+            let vertex_streams = [
+                VertexStream::new(old_mesh_data.positions.as_ptr()),
+                VertexStream::new(old_mesh_data.normals.as_ptr()),
+                VertexStream::new(old_mesh_data.uvs.as_ptr()),
+            ];
+            let (num_vertices, vertices_remap_table) = meshopt::generate_vertex_remap_multi(
+                old_mesh_data.vertex_count(),
+                &vertex_streams,
                 Some(old_mesh_data.indices.as_slice()),
             );
             let new_indices = meshopt::remap_index_buffer(
