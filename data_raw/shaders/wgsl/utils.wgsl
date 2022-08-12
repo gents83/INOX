@@ -8,6 +8,10 @@ fn decode_snorm(i: i32, n: u32) -> f32 {
     return (f32(i) / scale);
 }
 
+
+fn decode_uv(v: u32) -> vec2<f32> {
+    return unpack2x16float(v);
+}
 fn decode_normal(n: u32) -> vec3<f32> {
     let nx = decode_unorm((n >> 20u) & 0x000003FFu, 10u);
     let ny = decode_unorm((n >> 10u) & 0x000003FFu, 10u);
