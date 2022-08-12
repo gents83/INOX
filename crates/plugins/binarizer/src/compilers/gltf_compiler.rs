@@ -23,7 +23,8 @@ use inox_graphics::{
 };
 use inox_log::debug_log;
 use inox_math::{
-    InnerSpace, Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4, Vector4h,
+    decode_half, quantize_half, Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3,
+    Vector4, Vector4h,
 };
 
 use inox_nodes::LogicData;
@@ -292,8 +293,14 @@ impl GltfCompiler {
                     debug_assert!(num == 2 && num_bytes == 4);
                     if let Some(tex) = self.read_accessor_from_path::<Vector2>(path, &accessor) {
                         let starting_index = mesh_data.uvs.len();
-                        mesh_data.uvs.extend_from_slice(tex.as_slice());
-                        mesh_data.vertices.resize(tex.len(), DrawVertex::default());
+                        let mut uvs = Vec::new();
+                        tex.iter().for_each(|uv| {
+                            let u = quantize_half(uv.x) as u32;
+                            let v = (quantize_half(uv.y) as u32) << 16;
+                            uvs.push(u | v);
+                        });
+                        mesh_data.uvs.extend_from_slice(uvs.as_slice());
+                        mesh_data.vertices.resize(uvs.len(), DrawVertex::default());
                         mesh_data
                             .vertices
                             .iter_mut()
@@ -325,8 +332,8 @@ impl GltfCompiler {
                     v[5] = old_mesh_data.normals[i][2];
                 }
                 if old_mesh_data.uvs.len() > i {
-                    v[6] = old_mesh_data.uvs[i][0];
-                    v[7] = old_mesh_data.uvs[i][1];
+                    v[6] = decode_half((old_mesh_data.uvs[i] >> 16) as u16);
+                    v[7] = decode_half(old_mesh_data.uvs[i] as u16);
                 }
             });
 
@@ -402,66 +409,6 @@ impl GltfCompiler {
                 vertices_offset += m.vertices.len();
                 indices_offset += m.triangles.len();
             }
-        }
-    }
-    #[allow(dead_code)]
-    fn compute_tangents(&self, mesh_data: &mut MeshData) {
-        let index_count = mesh_data.indices.len();
-        let mut i = 0;
-
-        while i < index_count {
-            let v1 = mesh_data.vertices[mesh_data.indices[i] as usize];
-            let v2 = mesh_data.vertices[mesh_data.indices[i + 1] as usize];
-            let v3 = mesh_data.vertices[mesh_data.indices[i + 2] as usize];
-
-            let p1 = mesh_data.positions[v1.position_and_color_offset as usize];
-            let p2 = mesh_data.positions[v2.position_and_color_offset as usize];
-            let p3 = mesh_data.positions[v3.position_and_color_offset as usize];
-
-            let n1 = mesh_data.normals[v1.normal_offset as usize];
-            let n2 = mesh_data.normals[v2.normal_offset as usize];
-            let n3 = mesh_data.normals[v3.normal_offset as usize];
-
-            let uv1 = mesh_data.uvs[v1.uv_offset[0] as usize];
-            let uv2 = mesh_data.uvs[v2.uv_offset[0] as usize];
-            let uv3 = mesh_data.uvs[v3.uv_offset[0] as usize];
-
-            let delta_pos1 = p2 - p1;
-            let delta_pos2 = p3 - p1;
-
-            let delta_uv1 = uv2 - uv1;
-            let delta_uv2 = uv3 - uv1;
-
-            let t = (delta_pos1 * delta_uv2.y - delta_pos2 * delta_uv1.y).normalize();
-            let b = (delta_pos2 * delta_uv1.x - delta_pos1 * delta_uv2.x).normalize();
-
-            // Gram-Schmidt orthogonalize + Calculate handedness
-            let t1 = (t - (n1 * n1.dot(t))).normalize();
-            let t1_sign = n1.cross(t).dot(b).signum();
-
-            let t2 = (t - (n2 * n2.dot(t))).normalize();
-            let t2_sign = n2.cross(t).dot(b).signum();
-
-            let t3 = (t - (n3 * n3.dot(t))).normalize();
-            let t3_sign = n3.cross(t).dot(b).signum();
-
-            if v1.tangent_offset < 0 {
-                mesh_data.tangents.push([t1.x, t1.y, t1.z, t1_sign].into());
-                let v1 = &mut mesh_data.vertices[mesh_data.indices[i] as usize];
-                v1.tangent_offset = (mesh_data.tangents.len() - 1) as _;
-            }
-            if v2.tangent_offset < 0 {
-                mesh_data.tangents.push([t2.x, t2.y, t2.z, t2_sign].into());
-                let v2 = &mut mesh_data.vertices[mesh_data.indices[i + 1] as usize];
-                v2.tangent_offset = (mesh_data.tangents.len() - 1) as _;
-            }
-            if v3.tangent_offset < 0 {
-                mesh_data.tangents.push([t3.x, t3.y, t3.z, t3_sign].into());
-                let v3 = &mut mesh_data.vertices[mesh_data.indices[i + 2] as usize];
-                v3.tangent_offset = (mesh_data.tangents.len() - 1) as _;
-            }
-
-            i += 3;
         }
     }
 

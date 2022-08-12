@@ -24,7 +24,7 @@ pub struct RenderBuffers {
     pub vertex_positions_and_colors: Buffer<[f32; 4]>, //MeshId <-> [f32; 4]
     pub vertex_normals_and_padding: Buffer<[f32; 4]>, //MeshId <-> [f32; 4]
     pub vertex_tangents: Buffer<[f32; 4]>, //MeshId <-> [f32; 4]
-    pub vertex_uvs: Buffer<[f32; 2]>,  //MeshId <-> [[f32; 2]; 4]
+    pub vertex_uvs: Buffer<u32>,       //MeshId <-> u32 (2 half)
 }
 
 impl RenderBuffers {

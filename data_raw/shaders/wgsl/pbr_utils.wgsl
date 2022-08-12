@@ -1,9 +1,9 @@
 
-const PI: f32 = 3.141592653589793;
-const AMBIENT_COLOR: vec3<f32> = vec3<f32>(0.75, 0.75, 0.75);
-const AMBIENT_INTENSITY = 0.45;
-const NULL_VEC4: vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);
-const MIN_ROUGHNESS = 0.04;
+let PI: f32 = 3.141592653589793;
+let AMBIENT_COLOR: vec3<f32> = vec3<f32>(0.75, 0.75, 0.75);
+let AMBIENT_INTENSITY = 0.45;
+let NULL_VEC4: vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+let MIN_ROUGHNESS = 0.04;
 
 fn compute_alpha(material_index: u32, vertex_color_alpha: f32) -> f32 {
     let material = &materials.data[material_index];

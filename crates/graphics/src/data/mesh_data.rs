@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use inox_math::{is_point_in_triangle, VecBase, Vector2, Vector3, Vector4};
+use inox_math::{is_point_in_triangle, quantize_half, VecBase, Vector2, Vector3, Vector4};
 
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
@@ -42,7 +42,7 @@ pub struct MeshData {
     pub colors: Vec<Vector4>,
     pub normals: Vec<Vector3>,
     pub tangents: Vec<Vector4>,
-    pub uvs: Vec<Vector2>,
+    pub uvs: Vec<u32>, // 2 half - f16
     pub vertices: Vec<DrawVertex>,
     pub indices: Vec<u32>,
     pub material: PathBuf,
@@ -103,7 +103,9 @@ impl MeshData {
             ..Default::default()
         };
         self.positions.push(p);
-        self.uvs.push(uv);
+        let u = (quantize_half(uv.x) as u32) << 16;
+        let v = quantize_half(uv.y) as u32;
+        self.uvs.push(u | v);
         self.vertices.push(vertex);
         self.vertices.len() - 1
     }
@@ -115,7 +117,9 @@ impl MeshData {
         };
         self.positions.push(p);
         self.colors.push(c);
-        self.uvs.push(uv);
+        let u = (quantize_half(uv.x) as u32) << 16;
+        let v = quantize_half(uv.y) as u32;
+        self.uvs.push(u | v);
         self.vertices.push(vertex);
         self.vertices.len() - 1
     }
@@ -135,7 +139,9 @@ impl MeshData {
         self.positions.push(p);
         self.colors.push(c);
         self.normals.push(n);
-        self.uvs.push(uv);
+        let u = (quantize_half(uv.x) as u32) << 16;
+        let v = quantize_half(uv.y) as u32;
+        self.uvs.push(u | v);
         self.vertices.push(vertex);
         self.vertices.len() - 1
     }

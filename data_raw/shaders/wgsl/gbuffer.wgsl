@@ -60,8 +60,8 @@ fn vs_main(
     vertex_out.world_pos_color = vec4<f32>(world_position.xyz, f32(color));
 
     vertex_out.normal = normals.data[v_in.normal_offset].xyz; 
-    vertex_out.uv_0_1 =  vec4<f32>(uvs.data[v_in.uvs_offset.x].xy, uvs.data[v_in.uvs_offset.y].xy);
-    vertex_out.uv_2_3 =  vec4<f32>(uvs.data[v_in.uvs_offset.z].xy, uvs.data[v_in.uvs_offset.w].xy);
+    vertex_out.uv_0_1 =  vec4<f32>(unpack2x16float(uvs.data[v_in.uvs_offset.x]), unpack2x16float(uvs.data[v_in.uvs_offset.y]));
+    vertex_out.uv_2_3 =  vec4<f32>(unpack2x16float(uvs.data[v_in.uvs_offset.z]), unpack2x16float(uvs.data[v_in.uvs_offset.w]));
 
     return vertex_out;
 }

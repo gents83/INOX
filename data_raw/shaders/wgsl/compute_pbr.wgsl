@@ -131,13 +131,13 @@ fn main(
                     continue;
                 }        
 
-                let uv0_1 = uvs.data[(*v1).uvs_offset[0]].xy;
-                let uv0_2 = uvs.data[(*v2).uvs_offset[0]].xy;
-                let uv0_3 = uvs.data[(*v3).uvs_offset[0]].xy;
+                let uv0_1 = unpack2x16float(uvs.data[(*v1).uvs_offset[0]]);
+                let uv0_2 = unpack2x16float(uvs.data[(*v2).uvs_offset[0]]);
+                let uv0_3 = unpack2x16float(uvs.data[(*v3).uvs_offset[0]]);
                 
-                let uv1_1 = uvs.data[(*v1).uvs_offset[1]].xy;
-                let uv1_2 = uvs.data[(*v2).uvs_offset[1]].xy;
-                let uv1_3 = uvs.data[(*v3).uvs_offset[1]].xy;
+                let uv1_1 = unpack2x16float(uvs.data[(*v1).uvs_offset[1]]);
+                let uv1_2 = unpack2x16float(uvs.data[(*v2).uvs_offset[1]]);
+                let uv1_3 = unpack2x16float(uvs.data[(*v3).uvs_offset[1]]);
 
                 var uv_0 = interpolate_2d_attribute(uv0_1, uv0_2, uv0_3, deriv, delta);
                 var uv_1 = interpolate_2d_attribute(uv1_1, uv1_2, uv1_3, deriv, delta);
