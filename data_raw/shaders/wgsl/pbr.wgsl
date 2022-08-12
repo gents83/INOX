@@ -74,9 +74,10 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         );
     } else {
         let gbuffer_3 = sample_texture(vec3<f32>(v_in.uv.xy, f32(data.gbuffer3)));
+        let uv_set = vec4<u32>(u32(gbuffer_3.x), u32(gbuffer_3.y), u32(gbuffer_3.z), u32(gbuffer_3.w));
 
         let material_id = u32(meshes.data[mesh_id].material_index);
-        let texture_color = sample_material_texture(gbuffer_3, material_id, TEXTURE_TYPE_BASE_COLOR);
+        let texture_color = sample_material_texture(material_id, TEXTURE_TYPE_BASE_COLOR, uv_set);
         let vertex_color = unpack_unorm_to_4_f32(vertex_color);
 
         let alpha = compute_alpha(material_id, vertex_color.a);
@@ -87,7 +88,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         color = vec4<f32>(vertex_color.rgb * texture_color.rgb, alpha);
         let world_pos = gbuffer_1.xyz;
         let n = unpack_normal(gbuffer_2.xy);
-        color = pbr(world_pos, n, material_id, color, gbuffer_3);
+        color = compute_brdf(world_pos, n, material_id, color, uv_set);
     }
 
     return color;

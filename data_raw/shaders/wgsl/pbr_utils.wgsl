@@ -53,12 +53,12 @@ fn microfacet_distribution(alpha_roughness: f32, NdotH: f32) -> f32 {
     return roughnessSq / (PI * f * f);
 }
 
-fn pbr(world_pos: vec3<f32>, n: vec3<f32>, material_id: u32, color: vec4<f32>, uvs_0_1: vec4<f32>,) -> vec4<f32> {
+fn compute_brdf(world_pos: vec3<f32>, n: vec3<f32>, material_id: u32, color: vec4<f32>, uv_set: vec4<u32>,) -> vec4<f32> {
     let material = &materials.data[material_id];
     var perceptual_roughness = (*material).roughness_factor;
     var metallic = (*material).metallic_factor;
     if (has_texture(material_id, TEXTURE_TYPE_METALLIC_ROUGHNESS)) {
-        let t = sample_material_texture(uvs_0_1, material_id, TEXTURE_TYPE_METALLIC_ROUGHNESS);
+        let t = sample_material_texture(material_id, TEXTURE_TYPE_METALLIC_ROUGHNESS, uv_set);
         metallic = metallic * t.b;
         perceptual_roughness = perceptual_roughness * t.g;
     }
@@ -71,13 +71,13 @@ fn pbr(world_pos: vec3<f32>, n: vec3<f32>, material_id: u32, color: vec4<f32>, u
     var ao = 1.0;
     var occlusion_strength = 1.;
     if (has_texture(material_id, TEXTURE_TYPE_OCCLUSION)) {
-        let t = sample_material_texture(uvs_0_1, material_id, TEXTURE_TYPE_OCCLUSION);
+        let t = sample_material_texture(material_id, TEXTURE_TYPE_OCCLUSION, uv_set);
         ao = ao * t.r;
         occlusion_strength = (*material).occlusion_strength;
     }
     var emissive_color = vec3<f32>(0., 0., 0.);
     if (has_texture(material_id, TEXTURE_TYPE_EMISSIVE)) {
-        let t = sample_material_texture(uvs_0_1, material_id, TEXTURE_TYPE_EMISSIVE);
+        let t = sample_material_texture(material_id, TEXTURE_TYPE_EMISSIVE, uv_set);
         emissive_color = t.rgb * (*material).emissive_color;
     }
 

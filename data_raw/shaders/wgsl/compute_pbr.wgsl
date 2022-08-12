@@ -139,11 +139,21 @@ fn main(
                 let uv1_2 = unpack2x16float(uvs.data[(*v2).uvs_offset[1]]);
                 let uv1_3 = unpack2x16float(uvs.data[(*v3).uvs_offset[1]]);
 
+                let uv2_1 = unpack2x16float(uvs.data[(*v1).uvs_offset[2]]);
+                let uv2_2 = unpack2x16float(uvs.data[(*v2).uvs_offset[2]]);
+                let uv2_3 = unpack2x16float(uvs.data[(*v3).uvs_offset[2]]);
+                
+                let uv3_1 = unpack2x16float(uvs.data[(*v1).uvs_offset[3]]);
+                let uv3_2 = unpack2x16float(uvs.data[(*v2).uvs_offset[3]]);
+                let uv3_3 = unpack2x16float(uvs.data[(*v3).uvs_offset[3]]);
+
                 var uv_0 = interpolate_2d_attribute(uv0_1, uv0_2, uv0_3, deriv, delta);
                 var uv_1 = interpolate_2d_attribute(uv1_1, uv1_2, uv1_3, deriv, delta);
-                let uv_0_1 = vec4<f32>(uv_0.xy, uv_1.xy);
+                var uv_2 = interpolate_2d_attribute(uv2_1, uv2_2, uv2_3, deriv, delta);
+                var uv_3 = interpolate_2d_attribute(uv3_1, uv3_2, uv3_3, deriv, delta);
+                let uv_set = vec4<u32>(pack2x16float(uv_0.xy), pack2x16float(uv_1.xy), pack2x16float(uv_2.xy), pack2x16float(uv_3.xy));
 
-                let texture_color = sample_material_texture(uv_0_1, material_id, TEXTURE_TYPE_BASE_COLOR);
+                let texture_color = sample_material_texture(material_id, TEXTURE_TYPE_BASE_COLOR, uv_set);
                 color = vec4<f32>(vertex_color.rgb * texture_color.rgb, alpha);
 
                 let n1 = normals_and_padding.data[(*v1).normal_offset].xyz;
@@ -155,7 +165,7 @@ fn main(
                 let world_pos = interpolate_3d_attribute(p1.xyz, p2.xyz, p3.xyz, deriv, delta);
                 let n = interpolate_3d_attribute(n1, n2, n3, deriv, delta);
 
-                color = pbr(world_pos.xyz, n, material_id, color, uv_0_1);
+                color = compute_brdf(world_pos.xyz, n, material_id, color, uv_set);
             }
 
             textureStore(render_target, pixel.xy, 0, color);

@@ -80,18 +80,14 @@ fn load_texture(tex_coords_and_texture_index: vec3<i32>) -> vec4<f32> {
 #endif
 }
 
-fn get_uv(uvs: vec4<f32>, texture_index: u32, coords_set: u32) -> vec3<f32> {
-    //var uv = unpack2x16float(u32(uvs.x));
-    //if (coords_set == 1u) {
-    //    uv = unpack2x16float(u32(uvs.y));
-    //} else if (coords_set == 2u) {
-    //    uv = unpack2x16float(u32(uvs.z));
-    //} else if (coords_set == 3u) {
-    //    uv = unpack2x16float(u32(uvs.w));
-    //}
-    var uv = uvs.xy;
+fn get_uv(uv_set: vec4<u32>, texture_index: u32, coords_set: u32) -> vec3<f32> {
+    var uv = unpack2x16float(uv_set.x);
     if (coords_set == 1u) {
-        uv = uvs.zw;
+        uv = unpack2x16float(uv_set.y);
+    } else if (coords_set == 2u) {
+        uv = unpack2x16float(uv_set.z);
+    } else if (coords_set == 3u) {
+        uv = unpack2x16float(uv_set.w);
     }
     return vec3<f32>(uv, f32(texture_index));
 }

@@ -6,8 +6,7 @@ struct VertexOutput {
     @location(0) @interpolate(flat) mesh_and_meshlet_ids: vec2<u32>,
     @location(1) world_pos_color: vec4<f32>,
     @location(2) normal: vec3<f32>,
-    @location(3) uv_0_1: vec4<f32>,
-    @location(4) uv_2_3: vec4<f32>,
+    @location(3) uv_set: vec4<u32>,
 };
 
 struct FragmentOutput {
@@ -60,8 +59,7 @@ fn vs_main(
     vertex_out.world_pos_color = vec4<f32>(world_position.xyz, f32(color));
 
     vertex_out.normal = normals.data[v_in.normal_offset].xyz; 
-    vertex_out.uv_0_1 =  vec4<f32>(unpack2x16float(uvs.data[v_in.uvs_offset.x]), unpack2x16float(uvs.data[v_in.uvs_offset.y]));
-    vertex_out.uv_2_3 =  vec4<f32>(unpack2x16float(uvs.data[v_in.uvs_offset.z]), unpack2x16float(uvs.data[v_in.uvs_offset.w]));
+    vertex_out.uv_set =  vec4<u32>(uvs.data[v_in.uvs_offset.x], uvs.data[v_in.uvs_offset.y], uvs.data[v_in.uvs_offset.z], uvs.data[v_in.uvs_offset.w]);
 
     return vertex_out;
 }
@@ -80,7 +78,7 @@ fn fs_main(
     // Retrieve the tangent space transform
     var n = normalize(v_in.normal.xyz); 
     if (has_texture(material_id, TEXTURE_TYPE_NORMAL)) {    
-        let uv = compute_uvs(material_id, TEXTURE_TYPE_NORMAL, v_in.uv_0_1, v_in.uv_2_3);    
+        let uv = compute_uvs(material_id, TEXTURE_TYPE_NORMAL, v_in.uv_set);    
         // get edge vectors of the pixel triangle 
         let dp1 = dpdx( v_in.world_pos_color.xyz ); 
         let dp2 = dpdy( v_in.world_pos_color.xyz ); 
@@ -100,13 +98,7 @@ fn fs_main(
     }
     let packed_normal = pack_normal(n);
     fragment_out.gbuffer_2 = vec4<f32>(packed_normal.x, packed_normal.y, f32(mesh_id), f32(v_in.mesh_and_meshlet_ids.y));
-    
-    //let uv0 = pack2x16float(v_in.uv_0_1.xy);
-    //let uv1 = pack2x16float(v_in.uv_0_1.zw);
-    //let uv2 = pack2x16float(v_in.uv_2_3.xy);
-    //let uv3 = pack2x16float(v_in.uv_2_3.zw);
-    //fragment_out.gbuffer_3 = vec4<f32>(f32(uv0), f32(uv1), f32(uv2), f32(uv3));
-    fragment_out.gbuffer_3 = vec4<f32>(v_in.uv_0_1.xy, v_in.uv_0_1.zw);
+    fragment_out.gbuffer_3 = vec4<f32>(f32(v_in.uv_set.x), f32(v_in.uv_set.y), f32(v_in.uv_set.z), f32(v_in.uv_set.w));
     
     return fragment_out;
 }
