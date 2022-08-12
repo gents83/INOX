@@ -31,7 +31,7 @@ impl From<ShaderStage> for wgpu::ShaderStages {
     }
 }
 
-#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(crate = "inox_serialize")]
 pub struct ShaderData {
     pub spirv_code: Vec<u32>,

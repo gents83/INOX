@@ -51,7 +51,7 @@ impl UIVertex {
     }
 }
 
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
 pub struct UIInstance {
     pub index_start: u32,
     pub index_count: u32,

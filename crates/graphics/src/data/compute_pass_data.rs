@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
 #[repr(C)]
-#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(crate = "inox_serialize")]
 pub struct ComputePassData {
     pub name: String,

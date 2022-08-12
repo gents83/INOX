@@ -2,7 +2,7 @@ use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::print_field_size;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(crate = "inox_serialize")]
 pub enum LightType {
     None = 0,

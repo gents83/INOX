@@ -18,7 +18,7 @@ impl From<TextureUsage> for wgpu::TextureUsages {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TextureData {
     pub width: u32,
     pub height: u32,
@@ -28,7 +28,7 @@ pub struct TextureData {
     pub use_texture_atlas: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(crate = "inox_serialize")]
 pub enum TextureType {
     BaseColor = 0,

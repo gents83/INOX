@@ -7,7 +7,7 @@ use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::MeshFlags;
 
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
 #[serde(crate = "inox_serialize")]
 pub enum PolygonMode {
     Fill,
@@ -25,7 +25,7 @@ impl From<PolygonMode> for wgpu::PolygonMode {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
 #[serde(crate = "inox_serialize")]
 pub enum FrontFace {
     CounterClockwise,
@@ -41,7 +41,7 @@ impl From<FrontFace> for wgpu::FrontFace {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
 #[serde(crate = "inox_serialize")]
 pub enum CullMode {
     None,
@@ -59,7 +59,7 @@ impl From<CullMode> for Option<wgpu::Face> {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
 #[serde(crate = "inox_serialize")]
 pub enum BlendFactor {
     Zero,
@@ -101,7 +101,7 @@ impl From<BlendFactor> for wgpu::BlendFactor {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
 #[serde(crate = "inox_serialize")]
 pub enum CompareFunction {
     Never,
@@ -129,7 +129,7 @@ impl From<CompareFunction> for wgpu::CompareFunction {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
 #[serde(crate = "inox_serialize")]
 pub enum BlendOperation {
     /// Src + Dst
@@ -156,14 +156,14 @@ impl From<BlendOperation> for wgpu::BlendOperation {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
 #[serde(crate = "inox_serialize")]
 pub enum DrawMode {
     Batch,
     Single,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(crate = "inox_serialize")]
 pub struct RenderPipelineData {
     pub vertex_shader: PathBuf,

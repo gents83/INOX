@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use inox_resources::ConfigBase;
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
-#[derive(Default, Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(crate = "inox_serialize")]
 pub struct Config {
     pub opaque_pass_pipeline: PathBuf,

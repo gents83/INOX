@@ -1,7 +1,7 @@
 use inox_resources::ConfigBase;
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(crate = "inox_serialize")]
 pub struct Config {
     pub title: String,

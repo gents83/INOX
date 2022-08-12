@@ -18,7 +18,7 @@ pub enum DrawCommandType {
     PerTriangle,
 }
 
-#[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
+#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug)]
 #[serde(crate = "inox_serialize")]
 pub struct DrawIndexedCommand {
     pub vertex_count: u32,
@@ -28,7 +28,7 @@ pub struct DrawIndexedCommand {
     pub base_instance: u32,
 }
 
-#[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
+#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug)]
 #[serde(crate = "inox_serialize")]
 pub struct DrawCommand {
     pub vertex_count: u32,
@@ -124,7 +124,7 @@ impl Default for DrawMaterial {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug)]
 #[serde(crate = "inox_serialize")]
 pub struct DrawVertex {
     pub position_and_color_offset: u32,

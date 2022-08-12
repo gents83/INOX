@@ -6,7 +6,7 @@ use inox_serialize::{Deserialize, Serialize, SerializeFile};
 use crate::TextureType;
 
 #[repr(C)]
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Copy)]
 #[serde(crate = "inox_serialize")]
 pub enum MaterialAlphaMode {
     Opaque = 0,

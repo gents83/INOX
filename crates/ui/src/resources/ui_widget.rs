@@ -32,10 +32,12 @@ macro_rules! implement_widget_data {
     };
 }
 
+pub type UIWidgetUpdateFn = dyn FnMut(&mut dyn UIWidgetData, &Context) -> bool;
+
 pub struct UIWidget {
     type_name: String,
     data: Box<dyn UIWidgetData>,
-    func: Box<dyn FnMut(&mut dyn UIWidgetData, &Context) -> bool>,
+    func: Box<UIWidgetUpdateFn>,
     is_interacting: bool,
 }
 

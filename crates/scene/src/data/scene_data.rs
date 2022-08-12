@@ -1,7 +1,7 @@
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 use std::path::PathBuf;
 
-#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(crate = "inox_serialize")]
 pub struct SceneData {
     pub objects: Vec<PathBuf>,

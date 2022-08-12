@@ -5,7 +5,7 @@ use inox_filesystem::convert_from_local_path;
 use inox_resources::Data;
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(crate = "inox_serialize")]
 pub struct ComputePipelineData {
     pub shader: PathBuf,

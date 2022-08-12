@@ -277,27 +277,24 @@ impl Texture {
             | crate::TextureFormat::R8Uint
             | crate::TextureFormat::R8Snorm
             | crate::TextureFormat::R8Sint => {
-                return vec![0u8; ::std::mem::size_of::<u8>() * width as usize * height as usize];
+                vec![0u8; ::std::mem::size_of::<u8>() * width as usize * height as usize]
             }
             crate::TextureFormat::R16Uint
             | crate::TextureFormat::R16Unorm
             | crate::TextureFormat::R16Float
             | crate::TextureFormat::R16Sint
             | crate::TextureFormat::R16Snorm => {
-                return vec![0u8; ::std::mem::size_of::<u16>() * width as usize * height as usize];
+                vec![0u8; ::std::mem::size_of::<u16>() * width as usize * height as usize]
             }
             crate::TextureFormat::Rg8Unorm
             | crate::TextureFormat::Rg8Uint
             | crate::TextureFormat::Rg8Snorm
             | crate::TextureFormat::Rg8Sint => {
                 let num_channels = 2;
-                return vec![
+                vec![
                     0u8;
-                    num_channels
-                        * ::std::mem::size_of::<u8>()
-                        * width as usize
-                        * height as usize
-                ];
+                    num_channels * ::std::mem::size_of::<u8>() * width as usize * height as usize
+                ]
             }
             crate::TextureFormat::R32Uint
             | crate::TextureFormat::R32Sint
@@ -308,7 +305,7 @@ impl Texture {
             | crate::TextureFormat::Depth24PlusStencil8
             | crate::TextureFormat::Depth24UnormStencil8
             | crate::TextureFormat::Rgb9e5Ufloat => {
-                return vec![0u8; ::std::mem::size_of::<u32>() * width as usize * height as usize];
+                vec![0u8; ::std::mem::size_of::<u32>() * width as usize * height as usize]
             }
             crate::TextureFormat::Rgba8Unorm
             | crate::TextureFormat::Rgba8UnormSrgb
@@ -318,13 +315,10 @@ impl Texture {
             | crate::TextureFormat::Bgra8Unorm
             | crate::TextureFormat::Bgra8UnormSrgb => {
                 let num_channels = 4;
-                return vec![
+                vec![
                     0u8;
-                    num_channels
-                        * ::std::mem::size_of::<u8>()
-                        * width as usize
-                        * height as usize
-                ];
+                    num_channels * ::std::mem::size_of::<u8>() * width as usize * height as usize
+                ]
             }
             crate::TextureFormat::Rg16Uint
             | crate::TextureFormat::Rg16Sint
@@ -332,25 +326,19 @@ impl Texture {
             | crate::TextureFormat::Rg16Snorm
             | crate::TextureFormat::Rg16Float => {
                 let num_channels = 2;
-                return vec![
+                vec![
                     0u8;
-                    num_channels
-                        * ::std::mem::size_of::<u16>()
-                        * width as usize
-                        * height as usize
-                ];
+                    num_channels * ::std::mem::size_of::<u16>() * width as usize * height as usize
+                ]
             }
             crate::TextureFormat::Rg32Uint
             | crate::TextureFormat::Rg32Sint
             | crate::TextureFormat::Rg32Float => {
                 let num_channels = 2;
-                return vec![
+                vec![
                     0u8;
-                    num_channels
-                        * ::std::mem::size_of::<u32>()
-                        * width as usize
-                        * height as usize
-                ];
+                    num_channels * ::std::mem::size_of::<u32>() * width as usize * height as usize
+                ]
             }
             crate::TextureFormat::Rgba16Uint
             | crate::TextureFormat::Rgba16Sint
@@ -358,45 +346,33 @@ impl Texture {
             | crate::TextureFormat::Rgba16Snorm
             | crate::TextureFormat::Rgba16Float => {
                 let num_channels = 4;
-                return vec![
+                vec![
                     0u8;
-                    num_channels
-                        * ::std::mem::size_of::<u16>()
-                        * width as usize
-                        * height as usize
-                ];
+                    num_channels * ::std::mem::size_of::<u16>() * width as usize * height as usize
+                ]
             }
             crate::TextureFormat::Rgba32Uint
             | crate::TextureFormat::Rgba32Sint
             | crate::TextureFormat::Rgba32Float => {
                 let num_channels = 4;
-                return vec![
+                vec![
                     0u8;
-                    num_channels
-                        * ::std::mem::size_of::<u32>()
-                        * width as usize
-                        * height as usize
-                ];
+                    num_channels * ::std::mem::size_of::<u32>() * width as usize * height as usize
+                ]
             }
             crate::TextureFormat::Depth32FloatStencil8 => {
                 let num_channels = 5;
-                return vec![
+                vec![
                     0u8;
-                    num_channels
-                        * ::std::mem::size_of::<u8>()
-                        * width as usize
-                        * height as usize
-                ];
+                    num_channels * ::std::mem::size_of::<u8>() * width as usize * height as usize
+                ]
             }
             crate::TextureFormat::Depth24Plus => {
                 let num_channels = 3;
-                return vec![
+                vec![
                     0u8;
-                    num_channels
-                        * ::std::mem::size_of::<u8>()
-                        * width as usize
-                        * height as usize
-                ];
+                    num_channels * ::std::mem::size_of::<u8>() * width as usize * height as usize
+                ]
             }
             _ => {
                 panic!("Unsupported texture format: {:?}", format);
