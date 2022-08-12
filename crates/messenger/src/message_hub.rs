@@ -82,12 +82,14 @@ trait MsgType: Send + Sync + Any {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
+pub type MessageFromStrFn<T> = dyn Fn(&str) -> Option<T>;
+
 #[derive(Default)]
 pub struct MessageType<T>
 where
     T: Message,
 {
-    msg_from_str: Option<Box<dyn Fn(&str) -> Option<T>>>,
+    msg_from_str: Option<Box<MessageFromStrFn<T>>>,
     new_messages: RwLock<Vec<T>>,
     messages: RwLock<HashMap<MessageId, T>>,
     listeners: RwLock<Vec<ListenerData>>,
