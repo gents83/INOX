@@ -19,10 +19,12 @@ struct FragmentOutput {
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
-var<storage, read> positions_and_colors: PositionsAndColors;
+var<storage, read> positions: Positions;
 @group(0) @binding(2)
-var<storage, read> normals: Normals;
+var<storage, read> colors: Colors;
 @group(0) @binding(3)
+var<storage, read> normals: Normals;
+@group(0) @binding(4)
 var<storage, read> uvs: UVs;
 
 @group(1) @binding(0)
@@ -49,7 +51,8 @@ fn vs_main(
     let mesh_id = u32(meshlets.data[meshlet_id].mesh_index);
     let mesh = &meshes.data[mesh_id];
 
-    let p = &positions_and_colors.data[v_in.position_and_color_offset];
+    let aabb_size = (*mesh).aabb_max - (*mesh).aabb_min;
+    let p = (*mesh).aabb_min + decode_as_vec3(positions.data[v_in.position_and_color_offset]) * aabb_size;
     let world_position = (*mesh).transform * vec4<f32>((*p).xyz, 1.0);
     let color = (*p).w;
     
@@ -58,7 +61,7 @@ fn vs_main(
     vertex_out.mesh_and_meshlet_ids = vec2<u32>(mesh_id, meshlet_id);
     vertex_out.world_pos_color = vec4<f32>(world_position.xyz, f32(color));
 
-    vertex_out.normal = decode_normal(normals.data[v_in.normal_offset]); 
+    vertex_out.normal = decode_as_vec3(normals.data[v_in.normal_offset]); 
     vertex_out.uv_set =  vec4<u32>(uvs.data[v_in.uvs_offset.x], uvs.data[v_in.uvs_offset.y], uvs.data[v_in.uvs_offset.z], uvs.data[v_in.uvs_offset.w]);
 
     return vertex_out;

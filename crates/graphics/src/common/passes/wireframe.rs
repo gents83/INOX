@@ -88,7 +88,7 @@ impl Pass for WireframePass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.vertex_positions_and_colors,
+                &mut render_context.render_buffers.vertex_positions,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,
@@ -100,10 +100,22 @@ impl Pass for WireframePass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.meshes,
+                &mut render_context.render_buffers.vertex_colors,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,
+                    stage: ShaderStage::Vertex,
+
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.meshes,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 3,
                     stage: ShaderStage::Vertex,
 
                     ..Default::default()

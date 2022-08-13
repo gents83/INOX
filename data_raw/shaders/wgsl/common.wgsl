@@ -65,12 +65,12 @@ struct DrawIndexedCommand {
 struct DrawMesh {
     vertex_offset: u32,
     indices_offset: u32,
-    meshlet_offset: u32,
-    meshlet_count: u32,
     material_index: i32,
     mesh_flags: u32,
-    _padding1: u32,
-    _padding2: u32,
+    aabb_min: vec3<f32>,
+    meshlet_offset: u32,
+    aabb_max: vec3<f32>,
+    meshlet_count: u32,
     transform: mat4x4<f32>,
 };
 
@@ -157,8 +157,12 @@ struct Matrices {
     data: array<mat4x4<f32>>,
 };
 
-struct PositionsAndColors {
-    data: array<vec4<f32>>,
+struct Positions {
+    data: array<u32>,
+};
+
+struct Colors {
+    data: array<u32>,
 };
 
 struct Normals {

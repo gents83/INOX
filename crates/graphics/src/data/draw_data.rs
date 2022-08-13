@@ -42,11 +42,12 @@ pub struct DrawCommand {
 pub struct DrawMesh {
     pub vertex_offset: u32,
     pub indices_offset: u32,
-    pub meshlet_offset: u32,
-    pub meshlet_count: u32,
     pub material_index: i32,
     pub mesh_flags: u32,
-    padding: [u32; 2],
+    pub aabb_min: [f32; 3],
+    pub meshlet_offset: u32,
+    pub aabb_max: [f32; 3],
+    pub meshlet_count: u32,
     pub matrix: [[f32; 4]; 4],
 }
 
@@ -55,11 +56,12 @@ impl Default for DrawMesh {
         Self {
             vertex_offset: 0,
             indices_offset: 0,
-            meshlet_offset: 0,
-            meshlet_count: 0,
             material_index: INVALID_INDEX,
             mesh_flags: 0,
-            padding: [0u32; 2],
+            aabb_min: [0.; 3],
+            meshlet_offset: 0,
+            aabb_max: [0.; 3],
+            meshlet_count: 0,
             matrix: Matrix4::default_identity().into(),
         }
     }

@@ -91,18 +91,28 @@ impl Pass for GBufferPass {
                 ..Default::default()
             },
         );
-        if !render_context
-            .render_buffers
-            .vertex_positions_and_colors
-            .is_empty()
-        {
+        if !render_context.render_buffers.vertex_positions.is_empty() {
             self.binding_data.add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.vertex_positions_and_colors,
+                &mut render_context.render_buffers.vertex_positions,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,
+                    stage: ShaderStage::Vertex,
+
+                    ..Default::default()
+                },
+            );
+        }
+        if !render_context.render_buffers.vertex_colors.is_empty() {
+            self.binding_data.add_storage_buffer(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.vertex_colors,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 2,
                     stage: ShaderStage::Vertex,
 
                     ..Default::default()
@@ -116,7 +126,7 @@ impl Pass for GBufferPass {
                 &mut render_context.render_buffers.vertex_normals,
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 2,
+                    binding_index: 3,
                     stage: ShaderStage::Vertex,
 
                     ..Default::default()
@@ -130,7 +140,7 @@ impl Pass for GBufferPass {
                 &mut render_context.render_buffers.vertex_uvs,
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 3,
+                    binding_index: 4,
                     stage: ShaderStage::Vertex,
 
                     ..Default::default()

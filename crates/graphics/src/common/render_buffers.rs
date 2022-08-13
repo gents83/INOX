@@ -1,6 +1,5 @@
 use std::{collections::HashMap, ops::Range};
 
-use inox_math::pack_4_f32_to_unorm;
 use inox_resources::{to_slice, Buffer, HashBuffer};
 
 use crate::{
@@ -21,7 +20,8 @@ pub struct RenderBuffers {
     pub meshlets: Buffer<DrawMeshlet>, //MeshId <-> [DrawMeshlet]
     pub vertices: Buffer<DrawVertex>,  //MeshId <-> [DrawVertex]
     pub indices: Buffer<u32>,          //MeshId <-> [u32]
-    pub vertex_positions_and_colors: Buffer<[f32; 4]>, //MeshId <-> [f32; 4]
+    pub vertex_positions: Buffer<u32>, //MeshId <-> u32 (10 x, 10 y, 10 z, 2 null)
+    pub vertex_colors: Buffer<u32>,    //MeshId <-> u32 (rgba)
     pub vertex_normals: Buffer<u32>,   //MeshId <-> u32 (10 x, 10 y, 10 z, 2 null)
     pub vertex_uvs: Buffer<u32>,       //MeshId <-> u32 (2 half)
 }
@@ -71,35 +71,19 @@ impl RenderBuffers {
             return (0, 0);
         }
 
-        let mut vertex_positions_and_colors = Vec::new();
-        vertex_positions_and_colors.reserve(mesh_data.positions.len());
-        if !mesh_data.colors.is_empty() {
-            debug_assert!(
-                mesh_data.positions.len() == mesh_data.colors.len(),
-                "MeshData positions and colors lengths are not equal"
-            );
-            for (i, position) in mesh_data.positions.iter().enumerate() {
-                vertex_positions_and_colors.push([
-                    position.x,
-                    position.y,
-                    position.z,
-                    pack_4_f32_to_unorm(mesh_data.colors[i]) as _,
-                ]);
-            }
-        } else {
-            for position in mesh_data.positions.iter() {
-                vertex_positions_and_colors.push([
-                    position.x,
-                    position.y,
-                    position.z,
-                    u32::MAX as _,
-                ]);
-            }
-        }
         let position_range = self
-            .vertex_positions_and_colors
-            .allocate(mesh_id, vertex_positions_and_colors.as_slice())
+            .vertex_positions
+            .allocate(mesh_id, to_slice(mesh_data.positions.as_slice()))
             .1;
+        //We're expecting positions and colors to be always present
+        if mesh_data.colors.is_empty() {
+            let colors = vec![0xFFFFFFFFu32; mesh_data.positions.len()];
+            self.vertex_colors
+                .allocate(mesh_id, to_slice(colors.as_slice()));
+        } else {
+            self.vertex_colors
+                .allocate(mesh_id, to_slice(mesh_data.colors.as_slice()));
+        }
 
         let mut normal_range = Range::<usize>::default();
         if !mesh_data.normals.is_empty() {
@@ -187,7 +171,8 @@ impl RenderBuffers {
         self.meshlets.remove(mesh_id);
         self.vertices.remove(mesh_id);
         self.indices.remove(mesh_id);
-        self.vertex_positions_and_colors.remove(mesh_id);
+        self.vertex_positions.remove(mesh_id);
+        self.vertex_colors.remove(mesh_id);
         self.vertex_normals.remove(mesh_id);
         self.vertex_uvs.remove(mesh_id);
     }

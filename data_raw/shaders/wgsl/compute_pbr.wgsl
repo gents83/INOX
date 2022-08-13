@@ -19,10 +19,12 @@ var<storage, read> indices: Indices;
 @group(0) @binding(3)
 var<storage, read> vertices: Vertices;
 @group(0) @binding(4)
-var<storage, read> positions_and_colors: PositionsAndColors;
+var<storage, read> positions: Positions;
 @group(0) @binding(5)
-var<storage, read> normals: Normals;
+var<storage, read> colors: Colors;
 @group(0) @binding(6)
+var<storage, read> normals: Normals;
+@group(0) @binding(7)
 var<storage, read> uvs: UVs;
 
 @group(1) @binding(0)
@@ -105,9 +107,15 @@ fn main(
                 let v2 = &vertices.data[vertex_offset + i2];
                 let v3 = &vertices.data[vertex_offset + i3];
 
-                var p1 = mvp * (*mesh).transform * vec4<f32>(positions_and_colors.data[(*v1).position_and_color_offset].xyz, 1.);
-                var p2 = mvp * (*mesh).transform * vec4<f32>(positions_and_colors.data[(*v2).position_and_color_offset].xyz, 1.);
-                var p3 = mvp * (*mesh).transform * vec4<f32>(positions_and_colors.data[(*v3).position_and_color_offset].xyz, 1.);
+                let aabb_size = (*mesh).aabb_max - (*mesh).aabb_min;
+
+                let vp1 = (*mesh).aabb_min + decode_as_vec3(positions.data[(*v1).position_and_color_offset]) * aabb_size;
+                let vp2 = (*mesh).aabb_min + decode_as_vec3(positions.data[(*v2).position_and_color_offset]) * aabb_size;
+                let vp3 = (*mesh).aabb_min + decode_as_vec3(positions.data[(*v3).position_and_color_offset]) * aabb_size;
+
+                var p1 = mvp * (*mesh).transform * vec4<f32>(vp1, 1.);
+                var p2 = mvp * (*mesh).transform * vec4<f32>(vp2, 1.);
+                var p3 = mvp * (*mesh).transform * vec4<f32>(vp3, 1.);
 
                 // Calculate the inverse of w, since it's going to be used several times
                 let one_over_w = 1. / vec3<f32>(p1.w, p2.w, p3.w);
@@ -120,9 +128,9 @@ fn main(
                 let barycentrics = compute_barycentrics(p1.xy, p2.xy, p3.xy, screen_pixel.xy);
                 let deriv = compute_partial_derivatives(p1.xy, p2.xy, p3.xy);
 
-                let c1 = unpack_unorm_to_4_f32(u32(positions_and_colors.data[(*v1).position_and_color_offset].w));
-                let c2 = unpack_unorm_to_4_f32(u32(positions_and_colors.data[(*v2).position_and_color_offset].w));
-                let c3 = unpack_unorm_to_4_f32(u32(positions_and_colors.data[(*v3).position_and_color_offset].w));
+                let c1 = unpack_unorm_to_4_f32(u32(colors.data[(*v1).position_and_color_offset]));
+                let c2 = unpack_unorm_to_4_f32(u32(colors.data[(*v2).position_and_color_offset]));
+                let c3 = unpack_unorm_to_4_f32(u32(colors.data[(*v3).position_and_color_offset]));
 
                 let vertex_color = barycentrics.x * c1 + barycentrics.y * c2 + barycentrics.z * c3;        
                 let alpha = compute_alpha(material_id, vertex_color.a);
@@ -156,9 +164,9 @@ fn main(
                 let texture_color = sample_material_texture(material_id, TEXTURE_TYPE_BASE_COLOR, uv_set);
                 color = vec4<f32>(vertex_color.rgb * texture_color.rgb, alpha);
 
-                let n1 = decode_normal(normals.data[(*v1).normal_offset]);
-                let n2 = decode_normal(normals.data[(*v2).normal_offset]);
-                let n3 = decode_normal(normals.data[(*v3).normal_offset]);
+                let n1 = decode_as_vec3(normals.data[(*v1).normal_offset]);
+                let n2 = decode_as_vec3(normals.data[(*v2).normal_offset]);
+                let n3 = decode_as_vec3(normals.data[(*v3).normal_offset]);
 
                 //let world_pos = barycentrics.x * p1 + barycentrics.y * p2 + barycentrics.z * p3;
                 //let n = barycentrics.x * n1 + barycentrics.y * n2 + barycentrics.z * n3;
