@@ -39,8 +39,8 @@
         } else {
             window.addEventListener("load", () => {
                 init().then(wasm => {
-                    //var s = '-load_file models/craftman/craftman.scene';
-                    //send_event_from_string(s);
+                    var s = '-load_file models/craftman/craftman.scene';
+                    send_event_from_string(s);
                 }).catch(console.error);
             });
         }

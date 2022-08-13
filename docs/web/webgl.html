@@ -27,8 +27,8 @@
                 const module = window.sc_internal_wrapper().then(module => {
                     window.sc_internal = module;
                     init().then(wasm => {
-                        var s = '-load_file models/Suzanne/Suzanne.scene';
-                        send_event_from_string(s);
+                        //var s = '-load_file models/Suzanne/Suzanne.scene';
+                        //send_event_from_string(s);
                     }).catch(console.error);
                 })
             });
