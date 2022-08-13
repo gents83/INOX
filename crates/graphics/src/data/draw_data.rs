@@ -48,7 +48,7 @@ pub struct DrawMesh {
     pub meshlet_offset: u32,
     pub aabb_max: [f32; 3],
     pub meshlet_count: u32,
-    pub matrix: [[f32; 4]; 4],
+    pub transform: [[f32; 4]; 4],
 }
 
 impl Default for DrawMesh {
@@ -62,7 +62,7 @@ impl Default for DrawMesh {
             meshlet_offset: 0,
             aabb_max: [0.; 3],
             meshlet_count: 0,
-            matrix: Matrix4::default_identity().into(),
+            transform: Matrix4::default_identity().into(),
         }
     }
 }

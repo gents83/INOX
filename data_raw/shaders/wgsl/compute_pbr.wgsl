@@ -107,7 +107,7 @@ fn main(
                 let v2 = &vertices.data[vertex_offset + i2];
                 let v3 = &vertices.data[vertex_offset + i3];
 
-                let aabb_size = (*mesh).aabb_max - (*mesh).aabb_min;
+                let aabb_size = abs((*mesh).aabb_max - (*mesh).aabb_min);
 
                 let vp1 = (*mesh).aabb_min + decode_as_vec3(positions.data[(*v1).position_and_color_offset]) * aabb_size;
                 let vp2 = (*mesh).aabb_min + decode_as_vec3(positions.data[(*v2).position_and_color_offset]) * aabb_size;

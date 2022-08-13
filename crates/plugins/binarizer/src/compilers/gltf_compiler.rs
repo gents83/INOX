@@ -218,7 +218,9 @@ impl GltfCompiler {
                         });
 
                         mesh_data.positions.extend_from_slice(positions.as_slice());
-                        mesh_data.vertices.resize(pos.len(), DrawVertex::default());
+                        mesh_data
+                            .vertices
+                            .resize(positions.len(), DrawVertex::default());
                         mesh_data
                             .vertices
                             .iter_mut()
@@ -457,6 +459,10 @@ impl GltfCompiler {
             };
             positions.push(pos);
         });
+        let mut indices = Vec::new();
+        mesh_data.indices.iter().for_each(|index| {
+            indices.push(mesh_data.vertices[*index as usize].position_and_color_offset);
+        });
 
         let vertices_bytes = to_slice(positions.as_slice());
         let vertex_stride = size_of::<Vector3>();
@@ -465,7 +471,7 @@ impl GltfCompiler {
         let max_triangles = 124;
         let cone_weight = 0.5;
         let meshlets = meshopt::build_meshlets(
-            mesh_data.indices.as_slice(),
+            indices.as_slice(),
             vertex_data_adapter.as_ref().unwrap(),
             max_vertices,
             max_triangles,

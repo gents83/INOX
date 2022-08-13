@@ -51,9 +51,10 @@ fn vs_main(
     let mesh_id = u32(meshlets.data[meshlet_id].mesh_index);
     let mesh = &meshes.data[mesh_id];
 
-    let aabb_size = (*mesh).aabb_max - (*mesh).aabb_min;
+    let aabb_size = abs((*mesh).aabb_max - (*mesh).aabb_min);
+    
     let p = (*mesh).aabb_min + decode_as_vec3(positions.data[v_in.position_and_color_offset]) * aabb_size;
-    let world_position = (*mesh).transform * vec4<f32>((*p).xyz, 1.0);
+    let world_position = (*mesh).transform * vec4<f32>(p, 1.0);
     let color = (*p).w;
     
     var vertex_out: VertexOutput;

@@ -1,6 +1,12 @@
-fn decode_unorm(i: u32, n: u32) -> f32 {
-    let scale = f32(1u << n);
-    return f32(i) / scale;
+fn decode_unorm(i: u32, n: u32) -> f32 {    
+    let scale = f32((1 << n) - 1);
+    if i == 0u {
+        return 0.;
+    } else if i == u32(scale) {
+        return 1.;
+    } else {
+        return (f32(i) - 0.5) / scale;
+    }
 }
 
 fn decode_snorm(i: i32, n: u32) -> f32 {

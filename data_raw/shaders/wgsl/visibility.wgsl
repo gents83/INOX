@@ -31,7 +31,7 @@ fn vs_main(
 
     let mvp = constant_data.proj * constant_data.view;
     
-    let aabb_size = (*mesh).aabb_max - (*mesh).aabb_min;
+    let aabb_size = abs((*mesh).aabb_max - (*mesh).aabb_min);
     let p = (*mesh).aabb_min + decode_as_vec3(positions.data[v_in.position_and_color_offset]) * aabb_size;
     let world_position = (*mesh).transform * vec4<f32>(p, 1.0);
 

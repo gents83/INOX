@@ -121,6 +121,9 @@ impl RenderBuffers {
     pub fn add_mesh(&mut self, mesh_id: &MeshId, mesh_data: &MeshData) {
         inox_profiler::scoped_profile!("render_buffers::add_mesh");
         self.remove_mesh(mesh_id);
+        if mesh_data.vertex_count() == 0 {
+            return;
+        }
 
         let mesh_index = self.meshes.insert(mesh_id, DrawMesh::default());
 
@@ -129,6 +132,8 @@ impl RenderBuffers {
         let mesh = self.meshes.get_mut(mesh_id).unwrap();
         mesh.vertex_offset = vertex_offset;
         mesh.indices_offset = indices_offset;
+        mesh.aabb_min = mesh_data.aabb_min.into();
+        mesh.aabb_max = mesh_data.aabb_max.into();
         let meshlets = Self::extract_meshlets(mesh_data, mesh_index as _);
         if meshlets.is_empty() {
             inox_log::debug_log!("No meshlet data for mesh {:?}", mesh_id);
@@ -160,7 +165,7 @@ impl RenderBuffers {
             if m.mesh_flags != flags {
                 m.mesh_flags = flags;
             }
-            m.matrix = mesh.matrix().into();
+            m.transform = mesh.matrix().into();
             self.meshes.set_dirty(true);
         }
     }

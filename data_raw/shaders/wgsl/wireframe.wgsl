@@ -26,7 +26,7 @@ fn vs_main(
 ) -> VertexOutput {
     let mesh = &meshes.data[v_in.mesh_index];
     
-    let aabb_size = (*mesh).aabb_max - (*mesh).aabb_min;
+    let aabb_size = abs((*mesh).aabb_max - (*mesh).aabb_min);
     let position = (*mesh).aabb_min + decode_as_vec3(positions.data[v_in.position_and_color_offset]) * aabb_size;
 
     let mvp = constant_data.proj * constant_data.view;
