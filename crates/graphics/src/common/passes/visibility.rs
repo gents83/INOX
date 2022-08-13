@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, DrawCommandType, DrawVertex, MeshFlags,
-    Pass, RenderContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
+    BindingData, BindingInfo, CommandBuffer, DrawCommandType, DrawVertex, MeshFlags, Pass,
+    RenderContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
 };
 
 use inox_core::ContextRc;
@@ -87,7 +87,7 @@ impl Pass for VisibilityBufferPass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.vertex_positions_and_colors,
+                &mut render_context.render_buffers.vertex_positions,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,

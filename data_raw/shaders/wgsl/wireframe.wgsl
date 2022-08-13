@@ -14,23 +14,26 @@ struct FragmentOutput {
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
-var<storage, read> positions_and_colors: PositionsAndColors;
+var<storage, read> positions: Positions;
 @group(0) @binding(2)
+var<storage, read> colors: Colors;
+@group(0) @binding(3)
 var<storage, read> meshes: Meshes;
 
 @vertex
 fn vs_main(
     v_in: DrawVertex,
 ) -> VertexOutput {
-    let instance_matrix = meshes.data[v_in.mesh_index].transform;
-    let position = positions_and_colors.data[v_in.position_and_color_offset].xyz;
+    let mesh = &meshes.data[v_in.mesh_index];
+    
+    let aabb_size = abs((*mesh).aabb_max - (*mesh).aabb_min);
+    let position = (*mesh).aabb_min + decode_as_vec3(positions.data[v_in.position_and_color_offset]) * aabb_size;
 
     let mvp = constant_data.proj * constant_data.view;
     var vertex_out: VertexOutput;
-    vertex_out.clip_position = mvp * instance_matrix * vec4<f32>(position, 1.0);
+    vertex_out.clip_position = mvp * (*mesh).transform * vec4<f32>(position, 1.0);
 
-    let color = u32(positions_and_colors.data[v_in.position_and_color_offset].w);
-    vertex_out.color = unpack_unorm_to_4_f32(color);
+    vertex_out.color = unpack_unorm_to_4_f32(colors.data[v_in.position_and_color_offset]);
 
     return vertex_out;
 }

@@ -162,7 +162,7 @@ impl Info {
             .meshes
             .for_each_entry(|_i, mesh| {
                 if mesh.mesh_flags == mesh_flags {
-                    let matrix = Matrix4::from(mesh.matrix);
+                    let matrix = Matrix4::from(mesh.transform);
                     let scale = matrix.scale().z;
                     let meshlets = render_context.render_buffers.meshlets.data();
                     for i in mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count {

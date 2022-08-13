@@ -1,6 +1,12 @@
-fn decode_unorm(i: u32, n: u32) -> f32 {
-    let scale = f32(1u << n);
-    return f32(i) / scale;
+fn decode_unorm(i: u32, n: u32) -> f32 {    
+    let scale = f32((1 << n) - 1);
+    if i == 0u {
+        return 0.;
+    } else if i == u32(scale) {
+        return 1.;
+    } else {
+        return (f32(i) - 0.5) / scale;
+    }
 }
 
 fn decode_snorm(i: i32, n: u32) -> f32 {
@@ -12,11 +18,11 @@ fn decode_snorm(i: i32, n: u32) -> f32 {
 fn decode_uv(v: u32) -> vec2<f32> {
     return unpack2x16float(v);
 }
-fn decode_normal(n: u32) -> vec3<f32> {
-    let nx = decode_unorm((n >> 20u) & 0x000003FFu, 10u);
-    let ny = decode_unorm((n >> 10u) & 0x000003FFu, 10u);
-    let nz = decode_unorm(n & 0x000003FFu, 10u);
-    return vec3<f32>(nx, ny, nz);
+fn decode_as_vec3(v: u32) -> vec3<f32> {
+    let vx = decode_unorm((v >> 20u) & 0x000003FFu, 10u);
+    let vy = decode_unorm((v >> 10u) & 0x000003FFu, 10u);
+    let vz = decode_unorm(v & 0x000003FFu, 10u);
+    return vec3<f32>(vx, vy, vz);
 }
 
 fn pack_normal(normal: vec3<f32>) -> vec2<f32> {

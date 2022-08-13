@@ -1,8 +1,6 @@
 use std::path::PathBuf;
 
-use inox_math::{
-    is_point_in_triangle, quantize_half, quantize_unorm, VecBase, Vector2, Vector3, Vector4,
-};
+use inox_math::{decode_unorm, quantize_half, quantize_unorm, VecBase, Vector2, Vector3, Vector4};
 
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
@@ -37,17 +35,44 @@ impl Default for MeshletData {
     }
 }
 
-#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "inox_serialize")]
 pub struct MeshData {
-    pub positions: Vec<Vector3>,
-    pub colors: Vec<Vector4>,
-    pub normals: Vec<u32>, // u32 (10 x, 10 y, 10 z, 2 null)
-    pub uvs: Vec<u32>,     // 2 half - f16
+    pub aabb_min: Vector3,
+    pub aabb_max: Vector3,
+    pub positions: Vec<u32>, // u32 (10 x, 10 y, 10 z, 2 null)
+    pub colors: Vec<u32>,    //rgba
+    pub normals: Vec<u32>,   // u32 (10 x, 10 y, 10 z, 2 null)
+    pub uvs: Vec<u32>,       // 2 half - f16
     pub vertices: Vec<DrawVertex>,
     pub indices: Vec<u32>,
     pub material: PathBuf,
     pub meshlets: Vec<MeshletData>,
+}
+
+impl Default for MeshData {
+    fn default() -> Self {
+        Self {
+            aabb_min: Vector3 {
+                x: f32::INFINITY,
+                y: f32::INFINITY,
+                z: f32::INFINITY,
+            },
+            aabb_max: Vector3 {
+                x: -f32::INFINITY,
+                y: -f32::INFINITY,
+                z: -f32::INFINITY,
+            },
+            positions: Vec::new(),
+            colors: Vec::new(),
+            normals: Vec::new(),
+            uvs: Vec::new(),
+            vertices: Vec::new(),
+            indices: Vec::new(),
+            material: PathBuf::default(),
+            meshlets: Vec::new(),
+        }
+    }
 }
 
 impl SerializeFile for MeshData {
@@ -74,13 +99,84 @@ impl MeshData {
         self
     }
 
+    pub fn position(&self, i: usize) -> Vector3 {
+        let size = self.aabb_max - self.aabb_min;
+        let p = self.positions[i];
+        let px = decode_unorm((p >> 20) & 0x000003FF, 10);
+        let py = decode_unorm((p >> 10) & 0x000003FF, 10);
+        let pz = decode_unorm(p & 0x000003FF, 10);
+        Vector3 {
+            x: self.aabb_min.x + size.x * px,
+            y: self.aabb_min.y + size.y * py,
+            z: self.aabb_min.z + size.z * pz,
+        }
+    }
+
+    fn insert_position(&mut self, p: Vector3) {
+        let size = self.aabb_max - self.aabb_min;
+        let mut positions = Vec::new();
+        self.positions.iter().for_each(|p| {
+            let px = decode_unorm((p >> 20) & 0x000003FF, 10);
+            let py = decode_unorm((p >> 10) & 0x000003FF, 10);
+            let pz = decode_unorm(p & 0x000003FF, 10);
+            let pos = Vector3 {
+                x: self.aabb_min.x + size.x * px,
+                y: self.aabb_min.y + size.y * py,
+                z: self.aabb_min.z + size.z * pz,
+            };
+            positions.push(pos);
+        });
+        positions.push(p);
+        self.aabb_max = positions.iter().fold(
+            Vector3::new(-f32::INFINITY, -f32::INFINITY, -f32::INFINITY),
+            |a, &b| Vector3::new(a.x.max(b.x), a.y.max(b.y), a.z.max(b.z)),
+        );
+        self.aabb_min = positions.iter().fold(
+            Vector3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY),
+            |a, &b| Vector3::new(a.x.min(b.x), a.y.min(b.y), a.z.min(b.z)),
+        );
+        let size = self.aabb_max - self.aabb_min;
+        self.positions.clear();
+        positions.iter().for_each(|p| {
+            let mut v = *p - self.aabb_min;
+            v.x /= size.x;
+            v.y /= size.y;
+            v.z /= size.z;
+            let vx = quantize_unorm(v.x, 10);
+            let vy = quantize_unorm(v.y, 10);
+            let vz = quantize_unorm(v.z, 10);
+            self.positions.push(vx << 20 | vy << 10 | vz);
+        });
+    }
+
+    fn insert_normal(&mut self, n: Vector3) {
+        let nx = quantize_unorm(n.x, 10);
+        let ny = quantize_unorm(n.y, 10);
+        let nz = quantize_unorm(n.z, 10);
+        self.normals.push(nx << 20 | ny << 10 | nz);
+    }
+
+    fn insert_color(&mut self, c: Vector4) {
+        let r = quantize_unorm(c.x, 8);
+        let g = quantize_unorm(c.y, 8);
+        let b = quantize_unorm(c.z, 8);
+        let a = quantize_unorm(c.w, 8);
+        self.colors.push(r << 24 | g << 16 | b << 8 | a);
+    }
+
+    fn insert_uv(&mut self, uv: Vector2) {
+        let u = quantize_half(uv.x) as u32;
+        let v = (quantize_half(uv.y) as u32) << 16;
+        self.uvs.push(u | v);
+    }
+
     pub fn add_vertex_pos_color(&mut self, p: Vector3, c: Vector4) -> usize {
         let vertex = DrawVertex {
             position_and_color_offset: self.positions.len() as _,
             ..Default::default()
         };
-        self.positions.push(p);
-        self.colors.push(c);
+        self.insert_position(p);
+        self.insert_color(c);
         self.vertices.push(vertex);
         self.vertices.len() - 1
     }
@@ -90,12 +186,9 @@ impl MeshData {
             normal_offset: self.normals.len() as _,
             ..Default::default()
         };
-        self.positions.push(p);
-        self.colors.push(c);
-        let nx = quantize_unorm(n.x, 10);
-        let ny = quantize_unorm(n.y, 10);
-        let nz = quantize_unorm(n.z, 10);
-        self.normals.push(nx << 20 | ny << 10 | nz);
+        self.insert_position(p);
+        self.insert_color(c);
+        self.insert_normal(n);
         self.vertices.push(vertex);
         self.vertices.len() - 1
     }
@@ -105,10 +198,8 @@ impl MeshData {
             uv_offset: [self.uvs.len() as _; MAX_TEXTURE_COORDS_SETS],
             ..Default::default()
         };
-        self.positions.push(p);
-        let u = quantize_half(uv.x) as u32;
-        let v = (quantize_half(uv.y) as u32) << 16;
-        self.uvs.push(u | v);
+        self.insert_position(p);
+        self.insert_uv(uv);
         self.vertices.push(vertex);
         self.vertices.len() - 1
     }
@@ -118,11 +209,9 @@ impl MeshData {
             uv_offset: [self.uvs.len() as _; MAX_TEXTURE_COORDS_SETS],
             ..Default::default()
         };
-        self.positions.push(p);
-        self.colors.push(c);
-        let u = quantize_half(uv.x) as u32;
-        let v = (quantize_half(uv.y) as u32) << 16;
-        self.uvs.push(u | v);
+        self.insert_position(p);
+        self.insert_color(c);
+        self.insert_uv(uv);
         self.vertices.push(vertex);
         self.vertices.len() - 1
     }
@@ -139,15 +228,10 @@ impl MeshData {
             uv_offset: [self.uvs.len() as _; MAX_TEXTURE_COORDS_SETS],
             ..Default::default()
         };
-        self.positions.push(p);
-        self.colors.push(c);
-        let nx = quantize_unorm(n.x, 10);
-        let ny = quantize_unorm(n.y, 10);
-        let nz = quantize_unorm(n.z, 10);
-        self.normals.push(nx << 20 | ny << 10 | nz);
-        let u = quantize_half(uv.x) as u32;
-        let v = (quantize_half(uv.y) as u32) << 16;
-        self.uvs.push(u | v);
+        self.insert_position(p);
+        self.insert_color(c);
+        self.insert_normal(n);
+        self.insert_uv(uv);
         self.vertices.push(vertex);
         self.vertices.len() - 1
     }
@@ -185,23 +269,16 @@ impl MeshData {
             .for_each(|i| self.indices.push(*i + vertex_offset));
     }
 
-    pub fn compute_min_max(&self) -> (Vector3, Vector3) {
-        let mut min = Vector3::new(f32::MAX, f32::MAX, f32::MAX);
-        let mut max = Vector3::new(f32::MIN, f32::MIN, f32::MIN);
-        for i in 0..self.positions.len() {
-            let pos = &self.positions[i];
-            min.x = min.x.min(pos[0]);
-            min.y = min.y.min(pos[1]);
-            min.z = min.z.min(pos[2]);
-            max.x = max.x.max(pos[0]);
-            max.y = max.y.max(pos[1]);
-            max.z = max.z.max(pos[2]);
-        }
-        (min, max)
+    pub fn aabb_min(&self) -> Vector3 {
+        self.aabb_min
+    }
+    pub fn aabb_max(&self) -> Vector3 {
+        self.aabb_max
     }
 
     pub fn compute_center(&self) -> Vector3 {
-        let (min, max) = self.compute_min_max();
+        let min = self.aabb_min();
+        let max = self.aabb_max();
         [
             min.x + (max.x - min.x) * 0.5,
             min.y + (max.y - min.y) * 0.5,
@@ -211,46 +288,13 @@ impl MeshData {
     }
 
     pub fn set_vertex_color(&mut self, color: Vector4) -> &mut Self {
-        self.colors.iter_mut().for_each(|c| *c = color);
-        self
-    }
+        let r = quantize_unorm(color.x, 8);
+        let g = quantize_unorm(color.y, 8);
+        let b = quantize_unorm(color.z, 8);
+        let a = quantize_unorm(color.w, 8);
+        let c = r << 24 | g << 16 | b << 8 | a;
 
-    pub fn clip_in_rect(&mut self, clip_rect: Vector4) -> &mut Self {
-        for i in 0..self.positions.len() {
-            let pos = &mut self.positions[i];
-            pos[0] = pos[0].max(clip_rect.x);
-            pos[0] = pos[0].min(clip_rect.z);
-            pos[1] = pos[1].max(clip_rect.y);
-            pos[1] = pos[1].min(clip_rect.w);
-        }
-        self.compute_center();
+        self.colors.iter_mut().for_each(|old_c| *old_c = c);
         self
-    }
-
-    pub fn is_inside(&self, pos_in_screen_space: Vector2) -> bool {
-        let mut i = 0;
-        let count = self.indices.len();
-        while i < count {
-            let v1 = [
-                self.positions[self.indices[i] as usize][0],
-                self.positions[self.indices[i] as usize][1],
-            ]
-            .into();
-            let v2 = [
-                self.positions[self.indices[i + 1] as usize][0],
-                self.positions[self.indices[i + 1] as usize][1],
-            ]
-            .into();
-            let v3 = [
-                self.positions[self.indices[i + 2] as usize][0],
-                self.positions[self.indices[i + 2] as usize][1],
-            ]
-            .into();
-            if is_point_in_triangle(v1, v2, v3, pos_in_screen_space.x, pos_in_screen_space.y) {
-                return true;
-            }
-            i += 3;
-        }
-        false
     }
 }

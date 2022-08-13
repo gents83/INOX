@@ -41,26 +41,23 @@ pub fn pack_4_f32_to_unorm(value: Vector4) -> u32 {
 // Quantize a f32 in [0..1] range into an N-bit fixed point unorm value
 // Assumes reconstruction function (q / (2^N-1)), which is the case for fixed-function normalized fixed point conversion
 // Maximum reconstruction error: 1/2^(N+1)
-// let x = quantize_unorm(0.15, 10);
-// let y = quantize_unorm(0.32, 10);
-// let z = quantize_unorm(0.95, 10);
-// println!("{:#08x}, {:#08x}, {:#08x}", x << 20, y << 10, z);
-// let n = x << 20 | y << 10 | z;
-// let nx = decode_unorm((n >> 20) & 0x000003FF, 10);
-// let ny = decode_unorm((n >> 10) & 0x000003FF, 10);
-// let nz = decode_unorm(n & 0x000003FF, 10);
-// println!("{}, {}, {}", nx, ny, nz);
 #[inline]
 pub fn quantize_unorm(mut v: f32, n: u32) -> u32 {
-    let scale = (1 << n) as f32;
+    let scale = ((1 << n) - 1) as f32;
     v = if v >= 0. { v } else { 0. };
     v = if v <= 1. { v } else { 1. };
-    (v * scale) as _
+    (0.5 + (v * scale)) as _
 }
 #[inline]
 pub fn decode_unorm(i: u32, n: u32) -> f32 {
-    let scale = (1 << n) as f32;
-    i as f32 / scale
+    let scale = ((1 << n) - 1) as f32;
+    if i == 0 {
+        0.
+    } else if i == scale as _ {
+        1.
+    } else {
+        (i as f32 - 0.5) / scale
+    }
 }
 
 // Quantize a f32 in [-1..1] range into an N-bit fixed point snorm value
@@ -184,4 +181,29 @@ pub fn decode_half(i: u16) -> f32 {
     let exp = ((unbiased_exp + 127) as u32) << 23;
     let man = (half_man & 0x03FFu32) << 13;
     f32::from_bits(sign | exp | man)
+}
+
+#[test]
+fn encode_decode_test() {
+    let v1 = 0.0;
+    let v2 = 0.5;
+    let v3 = 1.0;
+    let a = quantize_unorm(v1, 10);
+    let b = quantize_unorm(v2, 10);
+    let c = quantize_unorm(v3, 10);
+    let composite = a << 20 | b << 10 | c;
+    let composed = 0 << 20 | 512 << 10 | 1023;
+    debug_assert!(composite == composed, "{} != {}", composite, composed);
+    let ca = (composite >> 20) & 0x000003FF;
+    let cb = (composite >> 10) & 0x000003FF;
+    let cc = composite & 0x000003FF;
+    debug_assert!(a == ca, "{} != {}", a, ca);
+    debug_assert!(b == cb, "{} != {}", b, cb);
+    debug_assert!(c == cc, "{} != {}", c, cc);
+    let cv1 = decode_unorm(ca, 10);
+    let cv2 = decode_unorm(cb, 10);
+    let cv3 = decode_unorm(cc, 10);
+    debug_assert!(v1 == cv1, "{} != {}", v1, cv1);
+    debug_assert!(v2 == cv2, "{} != {}", v2, cv2);
+    debug_assert!(v3 == cv3, "{} != {}", v3, cv3);
 }

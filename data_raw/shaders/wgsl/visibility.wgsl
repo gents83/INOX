@@ -13,7 +13,7 @@ struct FragmentOutput {
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
-var<storage, read> positions_and_colors: PositionsAndColors;
+var<storage, read> positions: Positions;
 @group(0) @binding(2)
 var<storage, read> meshes: Meshes;
 @group(0) @binding(3)
@@ -30,8 +30,10 @@ fn vs_main(
     let mesh = &meshes.data[mesh_id];
 
     let mvp = constant_data.proj * constant_data.view;
-    let p = &positions_and_colors.data[v_in.position_and_color_offset];
-    let world_position = (*mesh).transform * vec4<f32>((*p).xyz, 1.0);
+    
+    let aabb_size = abs((*mesh).aabb_max - (*mesh).aabb_min);
+    let p = (*mesh).aabb_min + decode_as_vec3(positions.data[v_in.position_and_color_offset]) * aabb_size;
+    let world_position = (*mesh).transform * vec4<f32>(p, 1.0);
 
     var vertex_out: VertexOutput;
     vertex_out.clip_position = mvp * world_position;

@@ -175,7 +175,7 @@ impl Pass for ComputePbrPass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.vertex_positions_and_colors,
+                &mut render_context.render_buffers.vertex_positions,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 4,
@@ -186,7 +186,7 @@ impl Pass for ComputePbrPass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.vertex_normals,
+                &mut render_context.render_buffers.vertex_colors,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 5,
@@ -197,10 +197,21 @@ impl Pass for ComputePbrPass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.vertex_uvs,
+                &mut render_context.render_buffers.vertex_normals,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 6,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.vertex_uvs,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 7,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },

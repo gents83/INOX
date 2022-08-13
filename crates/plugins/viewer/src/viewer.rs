@@ -4,10 +4,10 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
     platform::has_primitive_index_support, rendering_system::RenderingSystem,
-    update_system::UpdateSystem, BlitPass, ComputePbrPass, ComputeRasterPass, CullingPass,
-    DebugDrawerSystem, DebugPass, GBufferPass, LoadOperation, PBRPass, Pass, RenderPass,
-    RenderTarget, Renderer, RendererRw, TextureFormat, VisibilityBufferPass, WireframePass,
-    DEFAULT_HEIGHT, DEFAULT_WIDTH, GBUFFER_PASS_NAME, WIREFRAME_PASS_NAME,
+    update_system::UpdateSystem, BlitPass, ComputePbrPass, CullingPass, DebugDrawerSystem,
+    GBufferPass, LoadOperation, PBRPass, Pass, RenderPass, RenderTarget, Renderer, RendererRw,
+    TextureFormat, VisibilityBufferPass, WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    GBUFFER_PASS_NAME, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -17,11 +17,8 @@ use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
 
 use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
-const USE_VISIBILITY_BUFFER_RENDERING: bool = true;
 const ADD_WIREFRAME_PASS: bool = true;
 const ADD_UI_PASS: bool = true;
-const ADD_COMPUTE_RASTER_PASS: bool = false;
-const ADD_DEBUG_PASS: bool = false;
 const USE_3DVIEW: bool = false;
 
 pub struct Viewer {
@@ -154,11 +151,8 @@ impl Plugin for Viewer {
 
 impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
-        if ADD_COMPUTE_RASTER_PASS {
-            Self::create_compute_raster_pass(context, renderer, width, height);
-        }
         Self::create_culling_pass(context, renderer);
-        if USE_VISIBILITY_BUFFER_RENDERING && has_primitive_index_support() {
+        if has_primitive_index_support() {
             Self::create_visibility_buffer_pass(context, renderer, width, height);
             Self::create_compute_pbr_pass(context, renderer, width, height);
             Self::create_blit_pass(context, renderer);
@@ -168,9 +162,6 @@ impl Viewer {
         }
         if ADD_WIREFRAME_PASS {
             Self::create_wireframe_pass(context, renderer);
-        }
-        if ADD_DEBUG_PASS {
-            Self::create_debug_pass(context, renderer);
         }
         if ADD_UI_PASS {
             Self::create_ui_pass(context, renderer, width, height);
@@ -300,19 +291,5 @@ impl Viewer {
     fn create_culling_pass(context: &ContextRc, renderer: &RendererRw) {
         let culling_pass = CullingPass::create(context);
         renderer.write().unwrap().add_pass(culling_pass);
-    }
-    fn create_debug_pass(context: &ContextRc, renderer: &RendererRw) {
-        let debug_pass = DebugPass::create(context);
-        renderer.write().unwrap().add_pass(debug_pass);
-    }
-    fn create_compute_raster_pass(
-        context: &ContextRc,
-        renderer: &RendererRw,
-        width: u32,
-        height: u32,
-    ) {
-        let mut compute_raster_pass = ComputeRasterPass::create(context);
-        compute_raster_pass.resolution(width, height);
-        renderer.write().unwrap().add_pass(compute_raster_pass);
     }
 }
