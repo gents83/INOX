@@ -146,8 +146,12 @@ impl Info {
                 );
                 Self::show_frustum(data, &frustum);
             }
-            if data.meshlet_debug == MeshletDebug::Sphere {
-                Self::show_meshlets_sphere(data);
+            match data.meshlet_debug {
+                MeshletDebug::Sphere => {
+                    Self::show_meshlets_sphere(data);
+                }
+                MeshletDebug::BoundingBox => Self::show_meshlets_bounding_box(data),
+                _ => {}
             }
         }
     }
@@ -183,6 +187,28 @@ impl Info {
                             true,
                         ));
                     }
+                }
+            });
+    }
+
+    fn show_meshlets_bounding_box(data: &mut Data) {
+        let renderer = data.params.renderer.read().unwrap();
+        let render_context = renderer.render_context().read().unwrap();
+
+        let mesh_flags: u32 = (MeshFlags::Visible | MeshFlags::Opaque).into();
+        render_context
+            .render_buffers
+            .meshes
+            .for_each_entry(|_i, mesh| {
+                if mesh.mesh_flags == mesh_flags {
+                    let matrix = Matrix4::from(mesh.transform);
+                    data.context
+                        .message_hub()
+                        .send_event(DrawEvent::BoundingBox(
+                            matrix.transform(mesh.aabb_min.into()),
+                            matrix.transform(mesh.aabb_max.into()),
+                            [1.0, 1.0, 0.0, 1.0].into(),
+                        ));
                 }
             });
     }

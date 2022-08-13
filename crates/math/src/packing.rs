@@ -38,6 +38,16 @@ pub fn pack_4_f32_to_unorm(value: Vector4) -> u32 {
     ((v[0] as u32) << 24) | ((v[1] as u32) << 16) | ((v[2] as u32) << 8) | v[3] as u32
 }
 
+#[inline]
+pub fn unpack_unorm_to_4_f32(value: u32) -> Vector4 {
+    Vector4::new(
+        (((value >> 24) / 255) & 255) as f32,
+        (((value >> 16) / 255) & 255) as f32,
+        (((value >> 8) / 255) & 255) as f32,
+        ((value / 255) & 255) as f32,
+    )
+}
+
 // Quantize a f32 in [0..1] range into an N-bit fixed point unorm value
 // Assumes reconstruction function (q / (2^N-1)), which is the case for fixed-function normalized fixed point conversion
 // Maximum reconstruction error: 1/2^(N+1)

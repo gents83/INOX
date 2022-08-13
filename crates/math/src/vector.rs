@@ -23,6 +23,8 @@ pub trait VecBase<T> {
     fn sub(self, rhs: Self) -> Self;
     fn mul(self, rhs: Self) -> Self;
     fn div(self, rhs: Self) -> Self;
+    fn max(self, rhs: Self) -> Self;
+    fn min(self, rhs: Self) -> Self;
     fn dot_product(self, rhs: Self) -> T;
 }
 pub trait VecBaseFloat<T> {
@@ -58,6 +60,12 @@ macro_rules! implement_vector_base {
             }
             fn div(self, rhs: Self) -> Self {
                 self.div_element_wise(rhs)
+            }
+            fn max(self, rhs: Self) -> Self {
+                self.zip(rhs, |a, b| a.max(b))
+            }
+            fn min(self, rhs: Self) -> Self {
+                self.zip(rhs, |a, b| a.min(b))
             }
             fn dot_product(self, rhs: Self) -> $Type {
                 self.dot(rhs)

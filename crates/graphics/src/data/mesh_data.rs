@@ -129,11 +129,11 @@ impl MeshData {
         positions.push(p);
         self.aabb_max = positions.iter().fold(
             Vector3::new(-f32::INFINITY, -f32::INFINITY, -f32::INFINITY),
-            |a, &b| Vector3::new(a.x.max(b.x), a.y.max(b.y), a.z.max(b.z)),
+            |a, &b| a.max(b),
         );
         self.aabb_min = positions.iter().fold(
             Vector3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY),
-            |a, &b| Vector3::new(a.x.min(b.x), a.y.min(b.y), a.z.min(b.z)),
+            |a, &b| a.min(b),
         );
         let size = self.aabb_max - self.aabb_min;
         self.positions.clear();
@@ -251,7 +251,18 @@ impl MeshData {
         };
         self.meshlets.push(meshlet);
 
-        self.positions.append(&mut mesh_data.positions);
+        let size = mesh_data.aabb_max - mesh_data.aabb_min;
+        mesh_data.positions.iter().for_each(|p| {
+            let px = decode_unorm((p >> 20) & 0x000003FF, 10);
+            let py = decode_unorm((p >> 10) & 0x000003FF, 10);
+            let pz = decode_unorm(p & 0x000003FF, 10);
+            let pos = Vector3 {
+                x: mesh_data.aabb_min.x + size.x * px,
+                y: mesh_data.aabb_min.y + size.y * py,
+                z: mesh_data.aabb_min.z + size.z * pz,
+            };
+            self.insert_position(pos);
+        });
         self.colors.append(&mut mesh_data.colors);
         self.normals.append(&mut mesh_data.normals);
         self.uvs.append(&mut mesh_data.uvs);
