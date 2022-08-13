@@ -113,40 +113,45 @@ impl MeshData {
     }
 
     fn insert_position(&mut self, p: Vector3) {
-        let size = self.aabb_max - self.aabb_min;
-        let mut positions = Vec::new();
-        self.positions.iter().for_each(|p| {
-            let px = decode_unorm((p >> 20) & 0x000003FF, 10);
-            let py = decode_unorm((p >> 10) & 0x000003FF, 10);
-            let pz = decode_unorm(p & 0x000003FF, 10);
-            let pos = Vector3 {
-                x: self.aabb_min.x + size.x * px,
-                y: self.aabb_min.y + size.y * py,
-                z: self.aabb_min.z + size.z * pz,
-            };
-            positions.push(pos);
-        });
-        positions.push(p);
-        self.aabb_max = positions.iter().fold(
-            Vector3::new(-f32::INFINITY, -f32::INFINITY, -f32::INFINITY),
-            |a, &b| a.max(b),
-        );
-        self.aabb_min = positions.iter().fold(
-            Vector3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY),
-            |a, &b| a.min(b),
-        );
-        let size = self.aabb_max - self.aabb_min;
-        self.positions.clear();
-        positions.iter().for_each(|p| {
-            let mut v = *p - self.aabb_min;
-            v.x /= size.x;
-            v.y /= size.y;
-            v.z /= size.z;
-            let vx = quantize_unorm(v.x, 10);
-            let vy = quantize_unorm(v.y, 10);
-            let vz = quantize_unorm(v.z, 10);
-            self.positions.push(vx << 20 | vy << 10 | vz);
-        });
+        let old_size = self.aabb_max - self.aabb_min;
+        let new_max = self.aabb_max.max(p);
+        let new_min = self.aabb_min.min(p);
+        let new_size = new_max - new_min;
+        if new_max != self.aabb_max || new_min != self.aabb_min || new_size != old_size {
+            self.positions.iter_mut().for_each(|p| {
+                let px = decode_unorm((*p >> 20) & 0x000003FF, 10);
+                let py = decode_unorm((*p >> 10) & 0x000003FF, 10);
+                let pz = decode_unorm(*p & 0x000003FF, 10);
+                let pos = Vector3 {
+                    x: self.aabb_min.x + old_size.x * px,
+                    y: self.aabb_min.y + old_size.y * py,
+                    z: self.aabb_min.z + old_size.z * pz,
+                };
+
+                let mut v = pos - new_min;
+                v.x /= new_size.x;
+                v.y /= new_size.y;
+                v.z /= new_size.z;
+                let vx = quantize_unorm(v.x, 10);
+                let vy = quantize_unorm(v.y, 10);
+                let vz = quantize_unorm(v.z, 10);
+                let new_p = vx << 20 | vy << 10 | vz;
+                *p = new_p;
+            });
+        }
+
+        let mut v = p - new_min;
+        v.x /= new_size.x;
+        v.y /= new_size.y;
+        v.z /= new_size.z;
+        let vx = quantize_unorm(v.x, 10);
+        let vy = quantize_unorm(v.y, 10);
+        let vz = quantize_unorm(v.z, 10);
+        let new_p = vx << 20 | vy << 10 | vz;
+        self.positions.push(new_p);
+
+        self.aabb_max = new_max;
+        self.aabb_min = new_min;
     }
 
     fn insert_normal(&mut self, n: Vector3) {
@@ -235,23 +240,32 @@ impl MeshData {
         self.vertices.push(vertex);
         self.vertices.len() - 1
     }
-    pub fn append_mesh_data_as_meshlet(&mut self, mut mesh_data: MeshData) {
+
+    pub fn append_mesh_data(&mut self, mut mesh_data: MeshData, as_separate_meshlet: bool) {
         let vertex_offset = self.vertex_count() as u32;
         let index_offset = self.index_count() as u32;
         let position_offset = self.positions.len() as u32;
         let normals_offset = self.normals.len() as u32;
         let uvs_offset = self.uvs.len() as u32;
 
-        let meshlet = MeshletData {
-            vertices_offset: vertex_offset as _,
-            vertices_count: mesh_data.vertex_count() as _,
-            indices_offset: index_offset as _,
-            indices_count: mesh_data.index_count() as _,
-            ..Default::default()
-        };
-        self.meshlets.push(meshlet);
+        if as_separate_meshlet || self.meshlets.is_empty() {
+            let meshlet = MeshletData {
+                vertices_offset: vertex_offset as _,
+                vertices_count: mesh_data.vertex_count() as _,
+                indices_offset: index_offset as _,
+                indices_count: mesh_data.index_count() as _,
+                ..Default::default()
+            };
+            self.meshlets.push(meshlet);
+        } else {
+            let meshlet = self.meshlets.last_mut().unwrap();
+            meshlet.vertices_count += mesh_data.vertex_count() as u32;
+            meshlet.indices_count += mesh_data.index_count() as u32;
+        }
 
         let size = mesh_data.aabb_max - mesh_data.aabb_min;
+        self.positions
+            .reserve(self.positions.len() + mesh_data.positions.len());
         mesh_data.positions.iter().for_each(|p| {
             let px = decode_unorm((p >> 20) & 0x000003FF, 10);
             let py = decode_unorm((p >> 10) & 0x000003FF, 10);
@@ -266,6 +280,8 @@ impl MeshData {
         self.colors.append(&mut mesh_data.colors);
         self.normals.append(&mut mesh_data.normals);
         self.uvs.append(&mut mesh_data.uvs);
+        self.vertices
+            .reserve(self.vertices.len() + mesh_data.vertices.len());
         mesh_data.vertices.iter_mut().for_each(|v| {
             v.position_and_color_offset += position_offset;
             v.normal_offset += normals_offset as i32;
@@ -274,6 +290,8 @@ impl MeshData {
             });
             self.vertices.push(*v);
         });
+        self.indices
+            .reserve(self.vertices.len() + mesh_data.indices.len());
         mesh_data
             .indices
             .iter()
