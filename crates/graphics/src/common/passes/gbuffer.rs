@@ -15,7 +15,8 @@ pub enum GBuffer {
     Albedo = 0,
     Normal = 1,
     Params = 2,
-    Count = 3,
+    UVs = 3,
+    Count = 4,
 }
 
 pub struct GBufferPass {

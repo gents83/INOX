@@ -18,7 +18,7 @@ struct Data {
     pub gbuffer1_texture_index: u32,
     pub gbuffer2_texture_index: u32,
     pub gbuffer3_texture_index: u32,
-    _padding: u32,
+    pub depth_buffer_index: u32,
 }
 
 #[derive(Default, Clone, Copy)]
@@ -150,7 +150,7 @@ impl Pass for PBRPass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.materials,
+                &mut render_context.render_buffers.meshlets,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 3,
@@ -161,7 +161,7 @@ impl Pass for PBRPass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.textures,
+                &mut render_context.render_buffers.materials,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 4,
@@ -172,10 +172,21 @@ impl Pass for PBRPass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.lights,
+                &mut render_context.render_buffers.textures,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 5,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.lights,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 6,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
@@ -257,14 +268,21 @@ impl PBRPass {
             .textures
             .index_of(&self.textures[GBuffer::Params as usize])
             .unwrap_or_default();
+        let depth_buffer_index = render_context
+            .render_buffers
+            .textures
+            .index_of(&self.textures[GBuffer::UVs as usize])
+            .unwrap_or_default();
 
         if self.data.data.gbuffer1_texture_index != gbuffer1_texture_index as u32
             || self.data.data.gbuffer2_texture_index != gbuffer2_texture_index as u32
             || self.data.data.gbuffer3_texture_index != gbuffer3_texture_index as u32
+            || self.data.data.depth_buffer_index != depth_buffer_index as u32
         {
             self.data.data.gbuffer1_texture_index = gbuffer1_texture_index as u32;
             self.data.data.gbuffer2_texture_index = gbuffer2_texture_index as u32;
             self.data.data.gbuffer3_texture_index = gbuffer3_texture_index as u32;
+            self.data.data.depth_buffer_index = depth_buffer_index as u32;
             self.data.set_dirty(true);
         }
 

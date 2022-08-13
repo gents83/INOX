@@ -32,12 +32,24 @@ fn unpack_normal(uv: vec2<f32>) -> vec3<f32> {
     return vec3<f32>(uv.xy * 2. - 1., sqrt(1.-dot(uv.xy, uv.xy)));
 }
 
+fn quantize_unorm(v: f32, n: u32) -> u32 {
+    let scale = f32((1 << n) - 1);
+    return u32(0.5 + (v * scale));
+}
+
+fn pack_4_f32_to_unorm(value: vec4<f32>) -> u32 {
+    let r = quantize_unorm(value.x, 8u) << 24u;
+    let g = quantize_unorm(value.y, 8u) << 16u;
+    let b = quantize_unorm(value.z, 8u) << 8u;
+    let a = quantize_unorm(value.w, 8u);
+    return (r | g | b | a);
+}
 fn unpack_unorm_to_4_f32(color: u32) -> vec4<f32> {
     return vec4<f32>(
-        f32(((color >> 24u) / 255u) & 255u),
-        f32(((color >> 16u) / 255u) & 255u),
-        f32(((color >> 8u) / 255u) & 255u),
-        f32((color / 255u) & 255u),
+        f32((color >> 24u) & 255u),
+        f32((color >> 16u) & 255u),
+        f32((color >> 8u) & 255u),
+        f32(color & 255u),
     );
 }
 

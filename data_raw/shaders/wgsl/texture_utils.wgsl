@@ -91,3 +91,10 @@ fn get_uv(uv_set: vec4<u32>, texture_index: u32, coords_set: u32) -> vec3<f32> {
     }
     return vec3<f32>(uv, f32(texture_index));
 }
+
+
+fn compute_world_position_from_depth(uv: vec2<f32>, depth_texture_index: u32) -> vec3<f32> {
+  let clip_position = vec4<f32>(uv * 2. - 1., sample_texture(vec3<f32>(uv, f32(depth_texture_index))).r * 2. - 1., 1.);
+  let homogeneous = constant_data.inverse_view_proj * clip_position;
+  return homogeneous.xyz / homogeneous.w;
+}

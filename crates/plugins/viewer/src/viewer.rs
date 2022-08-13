@@ -19,6 +19,7 @@ use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
 const ADD_WIREFRAME_PASS: bool = true;
 const ADD_UI_PASS: bool = true;
+const USE_GBUFFER: bool = false;
 const USE_3DVIEW: bool = false;
 
 pub struct Viewer {
@@ -152,13 +153,13 @@ impl Plugin for Viewer {
 impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
         Self::create_culling_pass(context, renderer);
-        if has_primitive_index_support() {
+        if USE_GBUFFER || !has_primitive_index_support() {
+            Self::create_gbuffer_pass(context, renderer, width, height);
+            Self::create_pbr_pass(context, renderer);
+        } else {
             Self::create_visibility_buffer_pass(context, renderer, width, height);
             Self::create_compute_pbr_pass(context, renderer, width, height);
             Self::create_blit_pass(context, renderer);
-        } else {
-            Self::create_gbuffer_pass(context, renderer, width, height);
-            Self::create_pbr_pass(context, renderer);
         }
         if ADD_WIREFRAME_PASS {
             Self::create_wireframe_pass(context, renderer);
@@ -176,19 +177,43 @@ impl Viewer {
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba32Float,
+                format: TextureFormat::Rgba8Unorm,
                 read_back: false,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba16Float,
+                format: TextureFormat::Rgba8Unorm,
                 read_back: false,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba16Float,
+                format: TextureFormat::Rgba8Unorm,
+                read_back: false,
+            })
+            .add_render_target(RenderTarget::Texture {
+                width,
+                height,
+                format: TextureFormat::Rgba8Unorm,
+                read_back: false,
+            })
+            .add_render_target(RenderTarget::Texture {
+                width,
+                height,
+                format: TextureFormat::Rgba8Unorm,
+                read_back: false,
+            })
+            .add_render_target(RenderTarget::Texture {
+                width,
+                height,
+                format: TextureFormat::Rgba8Unorm,
+                read_back: false,
+            })
+            .add_render_target(RenderTarget::Texture {
+                width,
+                height,
+                format: TextureFormat::Rgba8Unorm,
                 read_back: false,
             })
             .add_depth_target(RenderTarget::Texture {

@@ -4,15 +4,23 @@
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) @interpolate(flat) mesh_and_meshlet_ids: vec2<u32>,
-    @location(1) world_pos_color: vec4<f32>,
-    @location(2) normal: vec3<f32>,
-    @location(3) uv_set: vec4<u32>,
+    @location(1) world_pos: vec4<f32>,
+    @location(2) color: vec4<f32>,
+    @location(3) normal: vec3<f32>,
+    @location(4) uv_0: vec2<f32>,
+    @location(5) uv_1: vec2<f32>,
+    @location(6) uv_2: vec2<f32>,
+    @location(7) uv_3: vec2<f32>,
 };
 
 struct FragmentOutput {
-    @location(0) gbuffer_1: vec4<f32>, //world_pos.x, world_pos.y, world_pos.z, color
-    @location(1) gbuffer_2: vec4<f32>, //normal.xy, mesh_id, meshlet_id  
-    @location(2) gbuffer_3: vec4<f32>, //uv_0, uv_1, uv_2, uv_3
+    @location(0) gbuffer_1: vec4<f32>,  //color        
+    @location(1) gbuffer_2: vec4<f32>,  //normal       
+    @location(2) gbuffer_3: vec4<f32>,  //meshlet_id   
+    @location(3) gbuffer_4: vec4<f32>,  //uv_0         
+    @location(4) gbuffer_5: vec4<f32>,  //uv_1         
+    @location(5) gbuffer_6: vec4<f32>,  //uv_2         
+    @location(6) gbuffer_7: vec4<f32>,  //uv_3         
 };
 
 
@@ -55,15 +63,18 @@ fn vs_main(
     
     let p = (*mesh).aabb_min + decode_as_vec3(positions.data[v_in.position_and_color_offset]) * aabb_size;
     let world_position = (*mesh).transform * vec4<f32>(p, 1.0);
-    let color = (*p).w;
+    let color = unpack_unorm_to_4_f32(colors.data[v_in.position_and_color_offset]);
     
     var vertex_out: VertexOutput;
     vertex_out.clip_position = mvp * world_position;
     vertex_out.mesh_and_meshlet_ids = vec2<u32>(mesh_id, meshlet_id);
-    vertex_out.world_pos_color = vec4<f32>(world_position.xyz, f32(color));
-
+    vertex_out.world_pos = world_position;
+    vertex_out.color = color;
     vertex_out.normal = decode_as_vec3(normals.data[v_in.normal_offset]); 
-    vertex_out.uv_set =  vec4<u32>(uvs.data[v_in.uvs_offset.x], uvs.data[v_in.uvs_offset.y], uvs.data[v_in.uvs_offset.z], uvs.data[v_in.uvs_offset.w]);
+    vertex_out.uv_0 = unpack2x16float(uvs.data[v_in.uvs_offset.x]);
+    vertex_out.uv_1 = unpack2x16float(uvs.data[v_in.uvs_offset.y]);
+    vertex_out.uv_2 = unpack2x16float(uvs.data[v_in.uvs_offset.z]);
+    vertex_out.uv_3 = unpack2x16float(uvs.data[v_in.uvs_offset.w]);
 
     return vertex_out;
 }
@@ -74,18 +85,22 @@ fn fs_main(
 ) -> FragmentOutput {    
     var fragment_out: FragmentOutput;
 
-    fragment_out.gbuffer_1 = v_in.world_pos_color;
-
     let mesh_id = u32(v_in.mesh_and_meshlet_ids.x);
     let mesh = &meshes.data[mesh_id];
     let material_id = u32((*mesh).material_index);
+    let uv_set = vec4<u32>(
+        pack2x16float(v_in.uv_0),
+        pack2x16float(v_in.uv_1),
+        pack2x16float(v_in.uv_2),
+        pack2x16float(v_in.uv_3)
+    );
     // Retrieve the tangent space transform
     var n = normalize(v_in.normal.xyz); 
     if (has_texture(material_id, TEXTURE_TYPE_NORMAL)) {    
-        let uv = compute_uvs(material_id, TEXTURE_TYPE_NORMAL, v_in.uv_set);    
+        let uv = compute_uvs(material_id, TEXTURE_TYPE_NORMAL, uv_set);    
         // get edge vectors of the pixel triangle 
-        let dp1 = dpdx( v_in.world_pos_color.xyz ); 
-        let dp2 = dpdy( v_in.world_pos_color.xyz ); 
+        let dp1 = dpdx( v_in.world_pos.xyz ); 
+        let dp2 = dpdy( v_in.world_pos.xyz ); 
         let duv1 = dpdx( uv.xy ); 
         let duv2 = dpdy( uv.xy );   
         // solve the linear system 
@@ -100,9 +115,14 @@ fn fs_main(
         n = tbn * (2.0 * normal.rgb - vec3<f32>(1.0));
         n = normalize(n);
     }
-    let packed_normal = pack_normal(n);
-    fragment_out.gbuffer_2 = vec4<f32>(packed_normal.x, packed_normal.y, f32(mesh_id), f32(v_in.mesh_and_meshlet_ids.y));
-    fragment_out.gbuffer_3 = vec4<f32>(f32(v_in.uv_set.x), f32(v_in.uv_set.y), f32(v_in.uv_set.z), f32(v_in.uv_set.w));
+
+    fragment_out.gbuffer_1 = v_in.color;
+    fragment_out.gbuffer_2 = unpack4x8unorm(pack2x16float(pack_normal(n)));
+    fragment_out.gbuffer_3 = unpack4x8unorm(v_in.mesh_and_meshlet_ids.y + 1u);
+    fragment_out.gbuffer_4 = unpack4x8unorm(pack2x16float(v_in.uv_0));
+    fragment_out.gbuffer_5 = unpack4x8unorm(pack2x16float(v_in.uv_1));
+    fragment_out.gbuffer_6 = unpack4x8unorm(pack2x16float(v_in.uv_2));
+    fragment_out.gbuffer_7 = unpack4x8unorm(pack2x16float(v_in.uv_3));
     
     return fragment_out;
 }
