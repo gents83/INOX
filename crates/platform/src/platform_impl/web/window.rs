@@ -27,24 +27,18 @@ impl Window {
         canvas.set_attribute("data-raw-handle", "0").ok();
         let canvas: web_sys::HtmlCanvasElement =
             canvas.dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
-        let window_width =
-            (window.inner_width().unwrap().as_f64().unwrap()).max(*width as f64) as f32;
-        let window_height =
-            (window.inner_height().unwrap().as_f64().unwrap()).max(*height as f64) as f32;
         let device_pixel_ratio = window.device_pixel_ratio();
-        *scale_factor = device_pixel_ratio.min(1.) as _;
+        *scale_factor = device_pixel_ratio.max(1.) as _;
+        let window_width = (window.inner_width().unwrap().as_f64().unwrap()).max(*width as f64)
+            as f32
+            * *scale_factor;
+        let window_height = (window.inner_height().unwrap().as_f64().unwrap()).max(*height as f64)
+            as f32
+            * *scale_factor;
         *width = window_width as u32;
         *height = window_height as u32;
         canvas.set_width(*width);
         canvas.set_height(*height);
-        canvas
-            .style()
-            .set_property("width", &format!("{}px", *width))
-            .ok();
-        canvas
-            .style()
-            .set_property("height", &format!("{}px", *height))
-            .ok();
         events_dispatcher.send_event(WindowEvent::PosChanged(0, 0));
         events_dispatcher.send_event(WindowEvent::SizeChanged(*width, *height));
         events_dispatcher.send_event(WindowEvent::ScaleFactorChanged(*scale_factor));
@@ -69,12 +63,18 @@ impl Window {
     ) {
         let events_dispatcher = events_dispatcher.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
-            let document = web_sys::window().unwrap().document().unwrap();
+            let window = web_sys::window().unwrap();
+            let document = window.document().unwrap();
             let canvas = document.get_element_by_id("canvas").unwrap();
             let canvas: web_sys::HtmlCanvasElement =
                 canvas.dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
+            let device_pixel_ratio = window.device_pixel_ratio();
+            let scale_factor = device_pixel_ratio.max(1.) as f32;
+            let rect = canvas.get_bounding_client_rect();
             let width = canvas.width() as f32;
             let height = canvas.height() as f32;
+            let x = (event.offset_x() as f32 * (width / rect.width() as f32)) / scale_factor;
+            let y = (event.offset_y() as f32 * (height / rect.height() as f32)) / scale_factor;
             let button = match event.button() {
                 0 => MouseButton::None,
                 1 => MouseButton::Left,
@@ -83,10 +83,10 @@ impl Window {
                 index => MouseButton::Other(index.try_into().unwrap()),
             };
             events_dispatcher.send_event(crate::MouseEvent {
-                x: event.offset_x() as f64,
-                y: event.offset_y() as f64,
-                normalized_x: event.offset_x() as f32 / width,
-                normalized_y: event.offset_y() as f32 / height,
+                x: x as _,
+                y: y as _,
+                normalized_x: x / width,
+                normalized_y: y / height,
                 button,
                 state,
             });
