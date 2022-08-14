@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>INOX WebGPU</title>
+    <style>
+        html,
+        body {
+            margin: 0;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+        }
+
+        canvas {
+            width: 100vw !important;
+            height: 100vh !important;
+            aspect-ratio: 16 / 9;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas" width="1024" height="768"></canvas>
+    <script type="module">
+        function write(text, x, y) {
+            var canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = "#ffffff";
+            ctx.font = '36px Arial';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText(text, x, y);
+        }
+
+        var canvas = document.getElementById('canvas');
+        // Set actual size in memory (scaled to account for extra pixel density).
+        const scale = window.devicePixelRatio; // Change to 1 on retina screens to see blurry canvas.
+        canvas.width = Math.floor(canvas.width * scale);
+        canvas.height = Math.floor(canvas.height * scale);
+
+        var ctx = canvas.getContext('2d');
+        ctx.fillStyle = "#113311";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        write("DPI scale = " + devicePixelRatio, 0, 0);
+        write("Width = " + canvas.width, 0, 100);
+        write("Height = " + canvas.height, 0, 200);
+
+        canvas.addEventListener("mousemove", function (e) {
+            var canvas_rect = canvas.getBoundingClientRect();        // Gets CSS pos, and width/height
+            var device_ratio = window.devicePixelRatio;
+            var canvasX = (e.offsetX * (canvas.width / canvas_rect.width));
+            var canvasY = (e.offsetY * (canvas.height / canvas_rect.height));
+            ctx.fillStyle = "#113311";
+            ctx.fillRect(0, 300, canvas.width, canvas.height);
+            write("Mouse Pos = (" + canvasX + ", " + canvasY + ")", 0, 300);
+        });
+    </script>
+</body>
+
+</html>
