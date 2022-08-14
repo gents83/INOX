@@ -103,12 +103,7 @@ impl PhaseWithSystems {
     }
 
     pub fn remove_system(&mut self, system_id: &SystemId) -> &mut Self {
-        if !self.systems_runners.contains_key(system_id) {
-            eprintln!(
-                "Trying to remove a System with id {:?} in this Phase",
-                system_id,
-            );
-        } else if !self.systems_to_remove.contains(system_id) {
+        if !self.systems_to_remove.contains(system_id) {
             self.systems_to_remove.push(*system_id);
         }
         self
