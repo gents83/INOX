@@ -23,29 +23,61 @@
 </head>
 
 <body>
-    <noscript>This page contains webassembly and javascript content, please enable javascript in your
-        browser.</noscript>
-    <canvas id="canvas" width="1280" height="720" style='position: absolute;'></canvas>
+    <p>Examples:</p>
+    <ul>
+        <li>
+            <a href="empty.html">Base example</a>
+        </li>
+        <li>
+            <a href="test_canvas.html">Canvas info test</a>
+        </li>
+        <li>
+            <a href="test.html">Simple 3D scene</a>
+        </li>
+        <li>
+            <a href="webgl.html">WebGL usage</a>
+        </li>
+    </ul>
+    <canvas id="canvas"></canvas>
+    <canvas id="wgpu_canvas" width="10" height="10"></canvas>
     <script type="module">
-        import init from './web/inox_launcher.js';
-        import { send_event_from_string } from './web/inox_launcher.js';
+        var wgpu_canvas = document.getElementById('wgpu_canvas');
+        var is_wgpu_enabled = false;
+        is_wgpu_enabled = wgpu_canvas.getContext('webgpu') != null;
 
         var canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext('2d');
+        // Set actual size in memory (scaled to account for extra pixel density).
         const scale = window.devicePixelRatio; // Change to 1 on retina screens to see blurry canvas.
         canvas.width = Math.floor(canvas.width * scale);
         canvas.height = Math.floor(canvas.height * scale);
-        var context = canvas.getContext('webgpu');
-        if (!context) {
-            const span = document.createElement('span');
-            span.innerText = 'Your browser does not seem to support WebGPU';
-            document.body.appendChild(span);
+
+        function write_text(text, x, y) {
+            ctx.strokeStyle = "black";
+            ctx.fillStyle = 'white';
+            ctx.lineWidth = 3;
+            ctx.font = '14px Sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.strokeText(text, x, y);
+            ctx.fillText(text, x, y);
+        }
+
+        if (is_wgpu_enabled) {
+            write_text("WebGPU available <3", 5, 10);
         } else {
-            window.addEventListener("load", () => {
-                init().then(wasm => {
-                    //var s = '-load_file models/craftman/craftman.scene';
-                    //send_event_from_string(s);
-                }).catch(console.error);
-            });
+            write_text("WebGPU not supported!", 5, 10);
+            write_text("Make sure you are on a system with WebGPU enabled", 5, 30);
+
+            write_text("In Google Chrome Canary on desktop you can use an experimental flag", 5, 60);
+            write_text("You can enable it at chrome://flags/#enable-unsafe-webgpu", 5, 80);
+
+            write_text("In Mozilla Firefox Nightle on desktop you can use an experimental flag", 5, 110);
+            write_text("You can set in preferences 'dom.webgpu.enabled = true' and 'gfx.webrender.all = true'", 5, 130);
+
+            write_text("In Safari, first make sure the Developer Menu is visible", 5, 160);
+            write_text("(Preferences > Advanced), then ensure Develop > Experimental Features > WebGPU", 5, 180);
+
         }
     </script>
 </body>
