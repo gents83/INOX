@@ -114,20 +114,12 @@ impl UISystem {
         self.listener
             .process_messages(|event: &MouseEvent| {
                 if event.state == MouseState::Move {
-                    self.ui_input.events.push(Event::PointerMoved(
-                        [
-                            event.x as f32 / self.ui_scale,
-                            event.y as f32 / self.ui_scale,
-                        ]
-                        .into(),
-                    ));
+                    self.ui_input
+                        .events
+                        .push(Event::PointerMoved([event.x as f32, event.y as f32].into()));
                 } else if event.state == MouseState::Down || event.state == MouseState::Up {
                     self.ui_input.events.push(Event::PointerButton {
-                        pos: [
-                            event.x as f32 / self.ui_scale,
-                            event.y as f32 / self.ui_scale,
-                        ]
-                        .into(),
+                        pos: [event.x as f32, event.y as f32].into(),
                         button: match event.button {
                             MouseButton::Right => PointerButton::Secondary,
                             MouseButton::Middle => PointerButton::Middle,
