@@ -152,11 +152,11 @@ impl Plugin for Viewer {
 
 impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
-        Self::create_culling_pass(context, renderer);
         if USE_GBUFFER || !has_primitive_index_support() {
             Self::create_gbuffer_pass(context, renderer, width, height);
             Self::create_pbr_pass(context, renderer);
         } else {
+            Self::create_culling_pass(context, renderer);
             Self::create_visibility_buffer_pass(context, renderer, width, height);
             Self::create_compute_pbr_pass(context, renderer, width, height);
             Self::create_blit_pass(context, renderer);

@@ -218,11 +218,17 @@ impl PluginManager {
 
         let mut plugins_to_remove: Vec<PluginId> = Vec::new();
         for plugin_data in self.dynamic_plugins.iter_mut() {
-            while let Ok(FileEvent::Modified(path)) =
-                plugin_data.filewatcher.read_events().try_recv()
-            {
-                if plugin_data.filewatcher.get_path().eq(&path) {
-                    plugins_to_remove.push(plugin_data.plugin_holder.as_ref().unwrap().id());
+            while let Ok(event) = plugin_data.filewatcher.read_events().try_recv() {
+                match event {
+                    FileEvent::Modified(path)
+                    | FileEvent::Created(path)
+                    | FileEvent::RenamedTo(path) => {
+                        if plugin_data.filewatcher.get_path().eq(&path) {
+                            plugins_to_remove
+                                .push(plugin_data.plugin_holder.as_ref().unwrap().id());
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
