@@ -25,12 +25,15 @@
 <body>
     <noscript>This page contains webassembly and javascript content, please enable javascript in your
         browser.</noscript>
-    <canvas id="canvas" width="100%" height="100%"></canvas>
+    <canvas id="canvas" width="1280" height="720" style='position: absolute;'></canvas>
     <script type="module">
-        import init from './inox_launcher.js';
-        import { send_event_from_string } from './inox_launcher.js';
+        import init from './web/inox_launcher.js';
+        import { send_event_from_string } from './web/inox_launcher.js';
 
         var canvas = document.getElementById('canvas');
+        const scale = window.devicePixelRatio; // Change to 1 on retina screens to see blurry canvas.
+        canvas.width = Math.floor(canvas.width * scale);
+        canvas.height = Math.floor(canvas.height * scale);
         var context = canvas.getContext('webgpu');
         if (!context) {
             const span = document.createElement('span');
