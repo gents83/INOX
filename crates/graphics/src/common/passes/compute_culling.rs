@@ -65,8 +65,8 @@ impl Pass for CullingPass {
         let draw_command_type = self.draw_command_type();
 
         if let Some(commands) = render_context.render_buffers.commands.get_mut(&mesh_flags) {
-            let commands = commands.get_mut(&draw_command_type).unwrap();
-            if commands.is_empty() {
+            let commands = commands.map.get_mut(&draw_command_type).unwrap();
+            if commands.commands.is_empty() {
                 return;
             }
             self.binding_data
@@ -106,10 +106,23 @@ impl Pass for CullingPass {
                 .add_storage_buffer(
                     &render_context.core,
                     &render_context.binding_data_buffer,
-                    commands,
+                    &mut commands.count,
                     BindingInfo {
                         group_index: 0,
                         binding_index: 3,
+                        stage: ShaderStage::Compute,
+                        read_only: false,
+                        is_indirect: true,
+                        ..Default::default()
+                    },
+                )
+                .add_storage_buffer(
+                    &render_context.core,
+                    &render_context.binding_data_buffer,
+                    &mut commands.commands,
+                    BindingInfo {
+                        group_index: 0,
+                        binding_index: 4,
                         stage: ShaderStage::Compute,
                         read_only: false,
                         is_indirect: true,
@@ -132,8 +145,8 @@ impl Pass for CullingPass {
         let mesh_flags = self.mesh_flags();
 
         if let Some(commands) = render_context.render_buffers.commands.get_mut(&mesh_flags) {
-            let commands = commands.get_mut(&self.draw_command_type()).unwrap();
-            if commands.is_empty() {
+            let commands = commands.map.get(&self.draw_command_type()).unwrap();
+            if commands.commands.is_empty() {
                 return;
             }
 

@@ -5,8 +5,8 @@ use inox_resources::{to_slice, Buffer, HashBuffer};
 use crate::{
     AsBinding, BindingDataBuffer, DrawCommandType, DrawIndexedCommand, DrawMaterial, DrawMesh,
     DrawMeshlet, DrawVertex, Light, LightData, LightId, Material, MaterialAlphaMode, MaterialData,
-    MaterialId, Mesh, MeshData, MeshFlags, MeshId, RenderCoreContext, TextureId, TextureInfo,
-    TextureType, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS,
+    MaterialId, Mesh, MeshData, MeshFlags, MeshId, RenderCommandsPerType, RenderCoreContext,
+    TextureId, TextureInfo, TextureType, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS,
 };
 
 //Alignment should be 4, 8, 16 or 32 bytes
@@ -15,7 +15,7 @@ pub struct RenderBuffers {
     pub textures: HashBuffer<TextureId, TextureInfo, 0>,
     pub lights: HashBuffer<LightId, LightData, 0>,
     pub materials: HashBuffer<MaterialId, DrawMaterial, 0>,
-    pub commands: HashMap<MeshFlags, HashMap<DrawCommandType, Vec<DrawIndexedCommand>>>,
+    pub commands: HashMap<MeshFlags, RenderCommandsPerType>,
     pub meshes: HashBuffer<MeshId, DrawMesh, 0>,
     pub meshlets: Buffer<DrawMeshlet>, //MeshId <-> [DrawMeshlet]
     pub vertices: Buffer<DrawVertex>,  //MeshId <-> [DrawVertex]
@@ -278,8 +278,9 @@ impl RenderBuffers {
         let entry = self.commands.entry(mesh_flags).or_default();
         let mesh_flags: u32 = mesh_flags.into();
         if commands_type.contains(DrawCommandType::PerMeshlet) {
-            let entry = entry.entry(DrawCommandType::PerMeshlet).or_default();
-            entry.clear();
+            let entry = entry.map.entry(DrawCommandType::PerMeshlet).or_default();
+            entry.count = 0;
+            entry.commands.clear();
             self.meshes.for_each_entry(|_i, mesh| {
                 if mesh.mesh_flags == mesh_flags {
                     let meshlets = self.meshlets.data();
@@ -287,30 +288,42 @@ impl RenderBuffers {
                         mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count
                     {
                         let meshlet = &meshlets[meshlet_index as usize];
-
-                        entry.push(DrawIndexedCommand {
+                        let command = DrawIndexedCommand {
                             vertex_count: meshlet.indices_count as _,
                             instance_count: 1,
                             base_index: (mesh.indices_offset + meshlet.indices_offset) as _,
                             vertex_offset: mesh.vertex_offset as _,
                             base_instance: meshlet_index as _,
-                        });
+                        };
+                        entry.commands.push(command);
                     }
                 }
             });
-            if entry.is_empty() {
+            if entry.commands.is_empty() {
                 return;
             }
-            let commands_id = entry.id();
+            let commands_id = entry.commands.id();
             let usage = wgpu::BufferUsages::STORAGE
                 | wgpu::BufferUsages::COPY_SRC
                 | wgpu::BufferUsages::COPY_DST
                 | wgpu::BufferUsages::INDIRECT;
-            binding_data_buffer.bind_buffer(commands_id, entry, usage, render_core_context);
+            binding_data_buffer.bind_buffer(
+                commands_id,
+                &mut entry.commands,
+                usage,
+                render_core_context,
+            );
+            let count_id = entry.count.id();
+            let usage = wgpu::BufferUsages::STORAGE
+                | wgpu::BufferUsages::COPY_SRC
+                | wgpu::BufferUsages::COPY_DST
+                | wgpu::BufferUsages::INDIRECT;
+            binding_data_buffer.bind_buffer(count_id, &mut entry.count, usage, render_core_context);
         }
         if commands_type.contains(DrawCommandType::PerTriangle) {
-            let entry = entry.entry(DrawCommandType::PerTriangle).or_default();
-            entry.clear();
+            let entry = entry.map.entry(DrawCommandType::PerTriangle).or_default();
+            entry.count = 0;
+            entry.commands.clear();
             self.meshes.for_each_entry(|_i, mesh| {
                 if mesh.mesh_flags == mesh_flags {
                     let meshlets = self.meshlets.data();
@@ -329,28 +342,40 @@ impl RenderBuffers {
                         let mut i = mesh.indices_offset + meshlet.indices_offset;
                         let mut triangle_index = 0;
                         while i < total_indices {
-                            entry.push(DrawIndexedCommand {
+                            let command = DrawIndexedCommand {
                                 vertex_count: 3,
                                 instance_count: 1,
                                 base_index: i as _,
                                 vertex_offset: mesh.vertex_offset as _,
                                 base_instance: (triangle_index << 24 | meshlet_index) as _,
-                            });
+                            };
+                            entry.commands.push(command);
                             i += 3;
                             triangle_index += 1;
                         }
                     }
                 }
             });
-            if entry.is_empty() {
+            if entry.commands.is_empty() {
                 return;
             }
-            let commands_id = entry.id();
+            let commands_id = entry.commands.id();
             let usage = wgpu::BufferUsages::STORAGE
                 | wgpu::BufferUsages::COPY_SRC
                 | wgpu::BufferUsages::COPY_DST
                 | wgpu::BufferUsages::INDIRECT;
-            binding_data_buffer.bind_buffer(commands_id, entry, usage, render_core_context);
+            binding_data_buffer.bind_buffer(
+                commands_id,
+                &mut entry.commands,
+                usage,
+                render_core_context,
+            );
+            let count_id = entry.count.id();
+            let usage = wgpu::BufferUsages::STORAGE
+                | wgpu::BufferUsages::COPY_SRC
+                | wgpu::BufferUsages::COPY_DST
+                | wgpu::BufferUsages::INDIRECT;
+            binding_data_buffer.bind_buffer(count_id, &mut entry.count, usage, render_core_context);
         }
     }
 }

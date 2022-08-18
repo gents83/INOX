@@ -160,3 +160,25 @@ where
         });
     }
 }
+
+impl AsBinding for usize {
+    fn is_dirty(&self) -> bool {
+        true
+    }
+
+    fn set_dirty(&mut self, _is_dirty: bool) {
+        // do nothing
+    }
+
+    fn size(&self) -> u64 {
+        std::mem::size_of_val(self) as u64
+    }
+
+    fn fill_buffer(
+        &self,
+        render_core_context: &crate::RenderCoreContext,
+        buffer: &mut crate::GpuBuffer,
+    ) {
+        buffer.add_to_gpu_buffer(render_core_context, &[self]);
+    }
+}

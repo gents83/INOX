@@ -9,8 +9,8 @@ use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
 
 use crate::{
     platform::is_indirect_mode_enabled, AsBinding, BindingData, BufferId, CommandBuffer,
-    DrawCommandType, DrawIndexedCommand, GpuBuffer, LoadOperation, RenderContext, RenderMode,
-    RenderPassData, RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId, TextureUsage,
+    DrawCommandType, GpuBuffer, LoadOperation, RenderContext, RenderMode, RenderPassData,
+    RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId, TextureUsage,
     VertexBufferLayoutBuilder,
 };
 
@@ -378,17 +378,22 @@ impl RenderPass {
         if is_indirect_mode_enabled() && self.render_mode == RenderMode::Indirect {
             let mesh_flags = self.pipeline().get().data().mesh_flags;
             if let Some(commands) = render_context.render_buffers.commands.get(&mesh_flags) {
-                if let Some(commands) = commands.get(&draw_commands_type) {
-                    let commands_count =
-                        commands.size() / std::mem::size_of::<DrawIndexedCommand>() as u64;
-                    let commands_id = commands.id();
-                    if let Some(buffer) = buffers.get(&commands_id) {
-                        render_pass.multi_draw_indexed_indirect(
-                            buffer.gpu_buffer().unwrap(),
-                            0,
-                            commands_count as _,
-                        );
-                        return;
+                if let Some(commands) = commands.map.get(&draw_commands_type) {
+                    if !commands.commands.is_empty() {
+                        let commands_id = commands.commands.id();
+                        if let Some(commands_buffer) = buffers.get(&commands_id) {
+                            let count_id = commands.count.id();
+                            if let Some(count_buffer) = buffers.get(&count_id) {
+                                render_pass.multi_draw_indexed_indirect_count(
+                                    commands_buffer.gpu_buffer().unwrap(),
+                                    0,
+                                    count_buffer.gpu_buffer().unwrap(),
+                                    0,
+                                    commands.commands.len() as _,
+                                );
+                                return;
+                            }
+                        }
                     }
                 }
             }

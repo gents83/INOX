@@ -2,6 +2,7 @@ pub use super::as_binding::*;
 pub use super::gpu_buffer::*;
 pub use super::passes::*;
 pub use super::render_buffers::*;
+pub use super::render_commands::*;
 pub use super::render_context::*;
 pub use super::renderer::*;
 pub use super::shapes2d::*;
@@ -15,6 +16,7 @@ pub mod shapes3d;
 pub mod utils;
 
 pub mod render_buffers;
+pub mod render_commands;
 pub mod render_context;
 pub mod renderer;
 

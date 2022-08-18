@@ -2,6 +2,10 @@
 #import "common.wgsl"
 
 
+struct VisibleInstances {
+    data: array<u32>,
+};
+
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
@@ -9,7 +13,9 @@ var<storage, read> meshlets: Meshlets;
 @group(0) @binding(2)
 var<storage, read> meshes: Meshes;
 @group(0) @binding(3)
-var<storage, read_write> commands: DrawIndexedCommands;
+var<storage, read_write> count: atomic<u32>;
+@group(0) @binding(4)
+var<storage, read_write> commands: RenderCommands;
 
 
 fn transform_vector(v: vec3<f32>, q: vec4<f32>) -> vec3<f32> {
@@ -56,21 +62,26 @@ fn main(
         return;
     }
     let meshlet = &meshlets.data[meshlet_id];
-    let command = &commands.data[meshlet_id];
     let mesh_id = (*meshlet).mesh_index;
-    let m = &meshes.data[mesh_id].transform;
+    let mesh = &meshes.data[mesh_id];
+    let m = &(*mesh).transform;
 
     let scale = extract_scale((*m));
     let center = (*m) * vec4<f32>((*meshlet).center_radius.xyz, 1.0);
     let radius = (*meshlet).center_radius.w * scale.x;
     let view_pos = constant_data.view[3].xyz;
 
-    var is_visible = is_inside_frustum(center.xyz, radius);
-    if (!is_visible) {
-        (*command).vertex_count = 0u;
-        (*command).instance_count = 0u;
-        return;
-    }
+    if (is_inside_frustum(center.xyz, radius)) 
+    {
+        let index = atomicAdd(&count, 1u);
+        let command = &commands.data[index];
+        (*command).vertex_count = (*meshlet).indices_count;
+        (*command).instance_count = 1u;
+        (*command).base_index = (*mesh).indices_offset + (*meshlet).indices_offset;
+        (*command).vertex_offset = i32((*mesh).vertex_offset);
+        (*command).base_instance = meshlet_id;
+    } 
+    
     //let cone_axis = vec3<f32>((*meshlet).cone_axis[0], (*meshlet).cone_axis[1], (*meshlet).cone_axis[2]);
     //is_visible = is_cone_culled(center.xyz, radius, cone_axis, (*meshlet).cone_cutoff, meshes.meshes[mesh_index].orientation, view_pos);
     //if (!is_visible) {

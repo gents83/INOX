@@ -133,7 +133,7 @@ struct DrawCommands {
     data: array<DrawCommand>,
 };
 
-struct DrawIndexedCommands {
+struct RenderCommands {
     data: array<DrawIndexedCommand>,
 };
 
