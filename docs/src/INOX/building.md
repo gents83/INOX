@@ -72,6 +72,7 @@ Run `cargo apk run -p android-build` optionally with the flag `--target <triple>
 
 ## How to setup your marchine for Web platform
 
+Install wasm bindgen with `cargo install -f wasm-bindgen-cli`
 Add wasm target with `rustup target add wasm32-unknown-unknown`
 
 Use Google Chrome Canary and enable `Unsafe WebGPU` in chrome://flags/
