@@ -220,7 +220,8 @@ Going through Android Studio could be an easy win solution - just remember to go
 <p>Add desired android targets with <code>rustup target add &lt;triple&gt;</code>.</p>
 <p>Run <code>cargo apk run -p android-build</code> optionally with the flag <code>--target &lt;triple&gt;</code> for explicit target selection.</p>
 <h2 id="how-to-setup-your-marchine-for-web-platform"><a class="header" href="#how-to-setup-your-marchine-for-web-platform">How to setup your marchine for Web platform</a></h2>
-<p>Add wasm target with <code>rustup target add wasm32-unknown-unknown</code></p>
+<p>Install wasm bindgen with <code>cargo install -f wasm-bindgen-cli</code>
+Add wasm target with <code>rustup target add wasm32-unknown-unknown</code></p>
 <p>Use Google Chrome Canary and enable <code>Unsafe WebGPU</code> in chrome://flags/</p>
 
                     </main>
