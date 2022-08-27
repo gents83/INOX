@@ -1,5 +1,5 @@
 use inox_bitmask::bitmask;
-use inox_math::{MatBase, Matrix4};
+use inox_math::{Mat4Ops, Matrix4};
 use inox_serialize::{Deserialize, Serialize};
 
 use crate::{
@@ -44,11 +44,11 @@ pub struct DrawMesh {
     pub indices_offset: u32,
     pub material_index: i32,
     pub mesh_flags: u32,
-    pub aabb_min: [f32; 3],
-    pub meshlet_offset: u32,
-    pub aabb_max: [f32; 3],
-    pub meshlet_count: u32,
-    pub transform: [[f32; 4]; 4],
+    pub position: [f32; 3],
+    pub meshlets_offset: u32,
+    pub scale: [f32; 3],
+    pub meshlets_count: u32,
+    pub orientation: [f32; 4],
 }
 
 impl Default for DrawMesh {
@@ -58,12 +58,22 @@ impl Default for DrawMesh {
             indices_offset: 0,
             material_index: INVALID_INDEX,
             mesh_flags: 0,
-            aabb_min: [0.; 3],
-            meshlet_offset: 0,
-            aabb_max: [0.; 3],
-            meshlet_count: 0,
-            transform: Matrix4::default_identity().into(),
+            position: [0.; 3],
+            meshlets_offset: 0,
+            scale: [1.; 3],
+            meshlets_count: 0,
+            orientation: [0., 0., 0., 1.],
         }
+    }
+}
+
+impl DrawMesh {
+    pub fn transform(&self) -> Matrix4 {
+        Matrix4::from_translation_orientation_scale(
+            self.position.into(),
+            self.orientation.into(),
+            self.scale.into(),
+        )
     }
 }
 
@@ -71,10 +81,9 @@ impl Default for DrawMesh {
 #[serde(crate = "inox_serialize")]
 pub struct DrawMeshlet {
     pub mesh_index: u32,
-    pub vertex_offset: u32,
+    pub bb_index: u32,
     pub indices_offset: u32,
     pub indices_count: u32,
-    pub center_radius: [f32; 4],
     pub cone_axis_cutoff: [f32; 4],
 }
 
@@ -87,9 +96,17 @@ impl DrawMeshlet {
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
         layout_builder.add_attribute::<[f32; 4]>(VertexFormat::Float32x4.into());
-        layout_builder.add_attribute::<[f32; 4]>(VertexFormat::Float32x4.into());
         layout_builder
     }
+}
+
+#[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
+#[serde(crate = "inox_serialize")]
+pub struct DrawBoundingBox {
+    pub min: [f32; 3],
+    pub children_start: i32, // bhv node index or none when leaf
+    pub max: [f32; 3],
+    pub parent_or_count: i32, // parent_index or count of children or none
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]

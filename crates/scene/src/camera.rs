@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use inox_graphics::{DEFAULT_HEIGHT, DEFAULT_WIDTH};
+use inox_graphics::{DEFAULT_ASPECT_RATIO, DEFAULT_FAR, DEFAULT_FOV, DEFAULT_NEAR};
 use inox_math::{convert_in_3d, Degrees, Mat4Ops, MatBase, Matrix4, NewAngle, Vector2, Vector3};
 use inox_messenger::MessageHubRc;
 use inox_resources::{
@@ -11,11 +11,6 @@ use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, 
 use inox_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 use crate::{CameraData, Object, ObjectId};
-
-pub const DEFAULT_CAMERA_FOV: f32 = 45.;
-pub const DEFAULT_CAMERA_ASPECT_RATIO: f32 = DEFAULT_WIDTH as f32 / DEFAULT_HEIGHT as f32;
-pub const DEFAULT_CAMERA_NEAR: f32 = 0.1;
-pub const DEFAULT_CAMERA_FAR: f32 = 10000.;
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: Matrix4 = Matrix4::new(
@@ -134,10 +129,10 @@ impl DataTypeResource for Camera {
             parent: None,
             proj: Matrix4::default_identity(),
             is_active: true,
-            fov_in_degrees: Degrees::new(DEFAULT_CAMERA_FOV),
-            near_plane: DEFAULT_CAMERA_NEAR,
-            far_plane: DEFAULT_CAMERA_FAR,
-            aspect_ratio: 1.,
+            fov_in_degrees: Degrees::new(DEFAULT_FOV),
+            near_plane: DEFAULT_NEAR,
+            far_plane: DEFAULT_FAR,
+            aspect_ratio: DEFAULT_ASPECT_RATIO,
         }
     }
     fn is_initialized(&self) -> bool {

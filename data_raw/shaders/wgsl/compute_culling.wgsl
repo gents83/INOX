@@ -2,10 +2,6 @@
 #import "common.wgsl"
 
 
-struct VisibleInstances {
-    data: array<u32>,
-};
-
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
@@ -13,14 +9,11 @@ var<storage, read> meshlets: Meshlets;
 @group(0) @binding(2)
 var<storage, read> meshes: Meshes;
 @group(0) @binding(3)
+var<storage, read> meshlets_bb: AABBs;
+@group(1) @binding(0)
 var<storage, read_write> count: atomic<u32>;
-@group(0) @binding(4)
-var<storage, read_write> commands: RenderCommands;
-
-
-fn transform_vector(v: vec3<f32>, q: vec4<f32>) -> vec3<f32> {
-    return v + 2. * cross(q.xyz, cross(q.xyz, v) + q.w * v);
-}
+@group(1) @binding(1)
+var<storage, read_write> commands: DrawIndexedCommands;
 
 //ScreenSpace Frustum Culling
 fn is_inside_frustum(center: vec3<f32>, radius: f32) -> bool {
@@ -41,7 +34,7 @@ fn is_inside_frustum(center: vec3<f32>, radius: f32) -> bool {
 }
 
 //fn is_cone_culled(center: vec3<f32>, radius: f32, cone_axis: vec3<f32>, cone_cutoff: f32, orientation: vec4<f32>, camera_position: vec3<f32>) -> bool {
-//    let axis = transform_vector(cone_axis, orientation);
+//    let axis = rotate_vector(cone_axis, orientation);
 //
 //    let direction = center - camera_position;
 //    return dot(direction, axis) < cone_cutoff * length(direction) + radius;
@@ -64,14 +57,16 @@ fn main(
     let meshlet = &meshlets.data[meshlet_id];
     let mesh_id = (*meshlet).mesh_index;
     let mesh = &meshes.data[mesh_id];
-    let m = &(*mesh).transform;
+    let bb_id = (*meshlet).aabb_index;
+    let bb = &meshlets_bb.data[bb_id];
 
-    let scale = extract_scale((*m));
-    let center = (*m) * vec4<f32>((*meshlet).center_radius.xyz, 1.0);
-    let radius = (*meshlet).center_radius.w * scale.x;
+    let radius = abs((*bb).max-(*bb).min) * 0.5;
+    let center_bb = (*bb).min + radius;
+    let center = transform_vector(center_bb, (*mesh).position, (*mesh).orientation, (*mesh).scale);
+    let radius = length(radius * (*mesh).scale);
     let view_pos = constant_data.view[3].xyz;
 
-    if (is_inside_frustum(center.xyz, radius)) 
+    if (is_inside_frustum(center, radius)) 
     {
         let index = atomicAdd(&count, 1u);
         let command = &commands.data[index];

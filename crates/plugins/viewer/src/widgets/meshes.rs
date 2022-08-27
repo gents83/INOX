@@ -171,7 +171,7 @@ impl Meshes {
                             .for_each(|(_, (mesh_name, range, color))| {
                                 let bars = vec![Bar::new(
                                     0., //vertices_range.start as _,
-                                    range.len() as _,
+                                    (range.end - range.start + 1) as _,
                                 )
                                 .name(format!("{} - [{},{}]", mesh_name, range.start, range.end))
                                 .base_offset(range.start as _)];

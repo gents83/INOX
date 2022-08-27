@@ -70,9 +70,6 @@ impl BufferData {
     pub fn range(&self) -> &Range<usize> {
         &self.range
     }
-    pub fn item_range(&self) -> Range<usize> {
-        self.range.start..self.range.start + self.range.len()
-    }
     pub fn item_count(&self) -> usize {
         self.range.len()
     }
@@ -266,8 +263,25 @@ where
                 });
         });
     }
+    pub fn for_each_data_mut<F>(&mut self, mut f: F)
+    where
+        F: FnMut(usize, &ResourceId, &mut T),
+    {
+        self.occupied.iter().for_each(|b| {
+            let func = &mut f;
+            self.data[b.range.start..(b.range.end + 1)]
+                .iter_mut()
+                .enumerate()
+                .for_each(|(i, d)| {
+                    func(b.range.start + i, &b.id, d);
+                });
+        });
+    }
     pub fn data(&self) -> &[T] {
         &self.data
+    }
+    pub fn data_mut(&mut self) -> &mut [T] {
+        &mut self.data
     }
     pub fn total_data<U>(&self) -> &[U] {
         to_slice(&self.data)
@@ -316,7 +330,7 @@ where
         }
         self.is_changed = true;
     }
-    fn defrag(&mut self) {
+    pub fn defrag(&mut self) {
         self.free.clear();
         let mut new_data = Vec::<T>::new();
         let mut last_index = 0;

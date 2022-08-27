@@ -8,7 +8,10 @@ use inox_graphics::{
     DrawEvent, MeshFlags, RendererRw, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE,
 };
-use inox_math::{compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle};
+use inox_math::{
+    compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle, VecBase, VecBaseFloat,
+    Vector3,
+};
 use inox_resources::Resource;
 use inox_scene::{Camera, SceneId};
 use inox_ui::{implement_widget_data, ComboBox, UIWidget, Window};
@@ -166,27 +169,27 @@ impl Info {
             .meshes
             .for_each_entry(|_i, mesh| {
                 if mesh.mesh_flags == mesh_flags {
-                    let matrix = Matrix4::from(mesh.transform);
-                    let scale = matrix.scale().z;
-                    let meshlets = render_context.render_buffers.meshlets.data();
-                    for i in mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count {
-                        let meshlet = &meshlets[i as usize];
-                        let p = matrix.transform(
-                            [
-                                meshlet.center_radius[0],
-                                meshlet.center_radius[1],
-                                meshlet.center_radius[2],
-                            ]
-                            .into(),
-                        );
-                        let r = meshlet.center_radius[3] * scale;
+                    let matrix = mesh.transform();
+                    let meshlets = &render_context.render_buffers.meshlets.data()[mesh
+                        .meshlets_offset
+                        as usize
+                        ..(mesh.meshlets_offset + mesh.meshlets_count) as usize];
+                    let meshlets_bhv = render_context.render_buffers.meshlets_aabb.data();
+                    meshlets.iter().for_each(|meshlet| {
+                        let bhv = &meshlets_bhv[meshlet.bb_index as usize];
+                        let max: Vector3 = bhv.max.into();
+                        let min: Vector3 = bhv.min.into();
+                        let radius = (max - min) * 0.5;
+                        let center = min + radius;
+                        let p = matrix.transform(center);
+                        let r = radius.mul(matrix.scale()).length();
                         data.context.message_hub().send_event(DrawEvent::Circle(
                             p,
                             r,
                             [1.0, 1.0, 0.0, 1.0].into(),
                             true,
                         ));
-                    }
+                    });
                 }
             });
     }
@@ -201,14 +204,22 @@ impl Info {
             .meshes
             .for_each_entry(|_i, mesh| {
                 if mesh.mesh_flags == mesh_flags {
-                    let matrix = Matrix4::from(mesh.transform);
-                    data.context
-                        .message_hub()
-                        .send_event(DrawEvent::BoundingBox(
-                            matrix.transform(mesh.aabb_min.into()),
-                            matrix.transform(mesh.aabb_max.into()),
-                            [1.0, 1.0, 0.0, 1.0].into(),
-                        ));
+                    let matrix = mesh.transform();
+                    let meshlets = &render_context.render_buffers.meshlets.data()[mesh
+                        .meshlets_offset
+                        as usize
+                        ..(mesh.meshlets_offset + mesh.meshlets_count) as usize];
+                    let meshlets_bhv = render_context.render_buffers.meshlets_aabb.data();
+                    meshlets.iter().for_each(|meshlet| {
+                        let bhv = &meshlets_bhv[meshlet.bb_index as usize];
+                        data.context
+                            .message_hub()
+                            .send_event(DrawEvent::BoundingBox(
+                                matrix.transform(bhv.min.into()),
+                                matrix.transform(bhv.max.into()),
+                                [1.0, 1.0, 0.0, 1.0].into(),
+                            ));
+                    });
                 }
             });
     }

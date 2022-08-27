@@ -26,8 +26,8 @@ impl Pass for CullingPass {
     fn static_name() -> &'static str {
         CULLING_PASS_NAME
     }
-    fn is_active(&self) -> bool {
-        true
+    fn is_active(&self, render_context: &mut RenderContext) -> bool {
+        render_context.has_commands(&self.draw_command_type(), &self.mesh_flags())
     }
     fn mesh_flags(&self) -> MeshFlags {
         MeshFlags::Visible | MeshFlags::Opaque
@@ -106,10 +106,21 @@ impl Pass for CullingPass {
                 .add_storage_buffer(
                     &render_context.core,
                     &render_context.binding_data_buffer,
-                    &mut commands.count,
+                    &mut render_context.render_buffers.meshlets_aabb,
                     BindingInfo {
                         group_index: 0,
                         binding_index: 3,
+                        stage: ShaderStage::Compute,
+                        ..Default::default()
+                    },
+                )
+                .add_storage_buffer(
+                    &render_context.core,
+                    &render_context.binding_data_buffer,
+                    &mut commands.count,
+                    BindingInfo {
+                        group_index: 1,
+                        binding_index: 0,
                         stage: ShaderStage::Compute,
                         read_only: false,
                         is_indirect: true,
@@ -121,8 +132,8 @@ impl Pass for CullingPass {
                     &render_context.binding_data_buffer,
                     &mut commands.commands,
                     BindingInfo {
-                        group_index: 0,
-                        binding_index: 4,
+                        group_index: 1,
+                        binding_index: 1,
                         stage: ShaderStage::Compute,
                         read_only: false,
                         is_indirect: true,

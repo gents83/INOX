@@ -1,6 +1,6 @@
 use crate::{
-    ComputePipeline, DrawCommandType, Material, MeshFlags, Pass, RenderContext, RenderContextRw,
-    RenderPass, RenderPipeline, Texture, TextureId,
+    ComputePipeline, Material, Pass, RenderContext, RenderContextRw, RenderPass, RenderPipeline,
+    Texture, TextureId,
 };
 use inox_core::ContextRc;
 
@@ -14,6 +14,10 @@ use std::sync::{Arc, RwLock};
 
 pub const DEFAULT_WIDTH: u32 = 1920;
 pub const DEFAULT_HEIGHT: u32 = 1080;
+pub const DEFAULT_FOV: f32 = 45.;
+pub const DEFAULT_ASPECT_RATIO: f32 = DEFAULT_WIDTH as f32 / DEFAULT_HEIGHT as f32;
+pub const DEFAULT_NEAR: f32 = 0.01;
+pub const DEFAULT_FAR: f32 = 100000.;
 
 #[derive(PartialEq, Eq, Copy, Clone)]
 pub enum RendererState {
@@ -220,37 +224,16 @@ impl Renderer {
     pub fn init_passes(&mut self) {
         inox_profiler::scoped_profile!("renderer::send_to_gpu");
 
-        let mut draw_command_type = DrawCommandType::PerMeshlet;
-        let mut mesh_flags_alternatives = Vec::new();
-        self.passes.iter().for_each(|pass| {
-            if pass.is_active() {
-                draw_command_type |= pass.draw_command_type();
-                let mesh_flags = pass.mesh_flags();
-                if mesh_flags != MeshFlags::None
-                    && !mesh_flags_alternatives.iter().any(|f| f == &mesh_flags)
-                {
-                    mesh_flags_alternatives.push(mesh_flags);
-                }
-            }
-        });
-
         let mut render_context = self.render_context.as_ref().unwrap().write().unwrap();
         let render_context: &mut RenderContext = &mut render_context;
         {
             let render_buffers = &mut render_context.render_buffers;
             let render_core_context = &render_context.core;
             let binding_data_buffer = &render_context.binding_data_buffer;
-            mesh_flags_alternatives.iter().for_each(|mesh_flags| {
-                render_buffers.create_commands(
-                    *mesh_flags,
-                    draw_command_type,
-                    binding_data_buffer,
-                    render_core_context,
-                );
-            })
+            render_buffers.bind_commands(binding_data_buffer, render_core_context);
         }
         self.passes.iter_mut().for_each(|pass| {
-            if pass.is_active() {
+            if pass.is_active(render_context) {
                 pass.init(render_context);
             }
         });
@@ -263,7 +246,7 @@ impl Renderer {
         let render_context: &mut RenderContext = &mut render_context;
         let mut command_buffer = render_context.core.new_command_buffer();
         self.passes.iter().for_each(|pass| {
-            if pass.is_active() {
+            if pass.is_active(render_context) {
                 pass.update(render_context, &mut command_buffer);
             }
         });

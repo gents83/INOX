@@ -6,16 +6,15 @@ use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::{DrawVertex, MAX_TEXTURE_COORDS_SETS};
 
-#[repr(C, align(16))]
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "inox_serialize")]
 pub struct MeshletData {
-    pub center: Vector3,
-    pub radius: f32,
+    pub aabb_min: Vector3,
+    pub vertices_offset: u32,
+    pub aabb_max: Vector3,
+    pub vertices_count: u32,
     pub cone_axis: Vector3,
     pub cone_cutoff: f32,
-    pub vertices_count: u32,
-    pub vertices_offset: u32,
     pub indices_count: u32,
     pub indices_offset: u32,
 }
@@ -23,8 +22,8 @@ pub struct MeshletData {
 impl Default for MeshletData {
     fn default() -> Self {
         Self {
-            center: Vector3::default_zero(),
-            radius: 0.0,
+            aabb_min: Vector3::new(f32::MAX, f32::MAX, f32::MAX),
+            aabb_max: Vector3::new(-f32::MAX, -f32::MAX, -f32::MAX),
             cone_axis: Vector3::default_zero(),
             cone_cutoff: 0.0,
             vertices_count: 0,

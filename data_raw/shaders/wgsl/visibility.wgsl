@@ -18,22 +18,25 @@ var<storage, read> positions: Positions;
 var<storage, read> meshes: Meshes;
 @group(0) @binding(3)
 var<storage, read> meshlets: Meshlets;
+@group(0) @binding(4)
+var<storage, read> meshes_aabb: AABBs;
 
 @vertex
 fn vs_main(
     @builtin(instance_index) meshlet_id: u32,
-    v_in: DrawVertex,
+    v_in: Vertex,
 ) -> VertexOutput {
     
     let meshlet = &meshlets.data[meshlet_id];
     let mesh_id = (*meshlet).mesh_index;
     let mesh = &meshes.data[mesh_id];
+    let aabb = &meshes_aabb.data[mesh_id];
 
     let mvp = constant_data.proj * constant_data.view;
     
-    let aabb_size = abs((*mesh).aabb_max - (*mesh).aabb_min);
-    let p = (*mesh).aabb_min + decode_as_vec3(positions.data[v_in.position_and_color_offset]) * aabb_size;
-    let world_position = (*mesh).transform * vec4<f32>(p, 1.0);
+    let aabb_size = abs((*aabb).max - (*aabb).min);
+    let p = (*aabb).min + decode_as_vec3(positions.data[v_in.position_and_color_offset]) * aabb_size;
+    let world_position = vec4<f32>(transform_vector(p, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.0);
 
     var vertex_out: VertexOutput;
     vertex_out.clip_position = mvp * world_position;

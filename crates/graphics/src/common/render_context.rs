@@ -9,8 +9,9 @@ use inox_resources::Resource;
 
 use crate::{
     platform::{platform_limits, required_gpu_features},
-    AsBinding, BufferId, ConstantData, GpuBuffer, MeshFlags, RenderBuffers, RenderPass, RendererRw,
-    Texture, TextureHandler, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    AsBinding, BufferId, ConstantData, DrawCommandType, GpuBuffer, MeshFlags, RenderBuffers,
+    RenderPass, RendererRw, Texture, TextureHandler, CONSTANT_DATA_FLAGS_SUPPORT_SRGB,
+    DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 #[derive(Default)]
@@ -170,6 +171,19 @@ impl RenderContext {
             .data()
             .iter()
             .any(|m| m.mesh_flags == mesh_flags)
+    }
+
+    pub fn has_commands(
+        &self,
+        draw_command_type: &DrawCommandType,
+        mesh_flags: &MeshFlags,
+    ) -> bool {
+        if let Some(commands) = self.render_buffers.commands.get(mesh_flags) {
+            if let Some(entry) = commands.map.get(draw_command_type) {
+                return !entry.commands.is_empty();
+            }
+        }
+        false
     }
 
     pub fn resolution(&self) -> (u32, u32) {

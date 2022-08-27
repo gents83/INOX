@@ -1,9 +1,7 @@
 use inox_math::{Degrees, NewAngle};
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
-use crate::{
-    DEFAULT_CAMERA_ASPECT_RATIO, DEFAULT_CAMERA_FAR, DEFAULT_CAMERA_FOV, DEFAULT_CAMERA_NEAR,
-};
+use inox_graphics::{DEFAULT_ASPECT_RATIO, DEFAULT_FAR, DEFAULT_FOV, DEFAULT_NEAR};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "inox_serialize")]
@@ -23,10 +21,10 @@ impl SerializeFile for CameraData {
 impl Default for CameraData {
     fn default() -> Self {
         Self {
-            aspect_ratio: DEFAULT_CAMERA_ASPECT_RATIO,
-            near: DEFAULT_CAMERA_NEAR,
-            far: DEFAULT_CAMERA_FAR,
-            fov: Degrees::new(DEFAULT_CAMERA_FOV),
+            aspect_ratio: DEFAULT_ASPECT_RATIO,
+            near: DEFAULT_NEAR,
+            far: DEFAULT_FAR,
+            fov: Degrees::new(DEFAULT_FOV),
         }
     }
 }

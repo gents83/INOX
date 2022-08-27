@@ -173,8 +173,8 @@ impl Mesh {
         self.mark_as_dirty();
         self
     }
-    pub fn flags(&self) -> MeshFlags {
-        self.flags
+    pub fn flags(&self) -> &MeshFlags {
+        &self.flags
     }
     pub fn add_flag(&mut self, flag: MeshFlags) -> &mut Self {
         if !self.has_flags(flag) {

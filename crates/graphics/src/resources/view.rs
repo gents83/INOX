@@ -5,7 +5,7 @@ use inox_resources::{
 };
 use inox_serialize::inox_serializable::SerializableRegistryRc;
 
-use crate::{DEFAULT_HEIGHT, DEFAULT_WIDTH};
+use crate::{DEFAULT_FAR, DEFAULT_HEIGHT, DEFAULT_NEAR, DEFAULT_WIDTH};
 
 pub type ViewId = ResourceId;
 
@@ -77,8 +77,8 @@ impl DataTypeResource for View {
             proj: inox_math::perspective(
                 Degrees::new(45.),
                 DEFAULT_WIDTH as f32 / DEFAULT_HEIGHT as f32,
-                0.1,
-                1000.0,
+                DEFAULT_NEAR,
+                DEFAULT_FAR,
             ),
         }
     }

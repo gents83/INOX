@@ -58,11 +58,11 @@ impl Pass for PBRPass {
     fn static_name() -> &'static str {
         PBR_PASS_NAME
     }
-    fn is_active(&self) -> bool {
-        true
+    fn is_active(&self, render_context: &mut RenderContext) -> bool {
+        render_context.has_commands(&self.draw_command_type(), &self.mesh_flags())
     }
     fn mesh_flags(&self) -> MeshFlags {
-        MeshFlags::None
+        MeshFlags::Visible | MeshFlags::Opaque
     }
     fn draw_command_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet

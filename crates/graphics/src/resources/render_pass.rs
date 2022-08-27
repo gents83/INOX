@@ -350,7 +350,7 @@ impl RenderPass {
             .for_each_entry(|index, mesh| {
                 if mesh.mesh_flags == mesh_flags {
                     inox_profiler::scoped_profile!("render_pass::draw_mesh");
-                    for i in mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count {
+                    for i in mesh.meshlets_offset..mesh.meshlets_offset + mesh.meshlets_count {
                         inox_profiler::scoped_profile!("render_pass::draw_indexed");
                         let meshlet = &meshlets[i as usize];
                         render_pass.draw_indexed(
@@ -389,7 +389,7 @@ impl RenderPass {
                                     0,
                                     count_buffer.gpu_buffer().unwrap(),
                                     0,
-                                    commands.commands.len() as _,
+                                    commands.commands.item_count() as _,
                                 );
                                 return;
                             }
@@ -425,7 +425,7 @@ impl RenderPass {
                 if mesh.mesh_flags == mesh_flags {
                     let start = mesh.indices_offset;
                     let mut end = start;
-                    for i in mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count {
+                    for i in mesh.meshlets_offset..mesh.meshlets_offset + mesh.meshlets_count {
                         let meshlet = &meshlets[i as usize];
                         end += meshlet.indices_count;
                     }

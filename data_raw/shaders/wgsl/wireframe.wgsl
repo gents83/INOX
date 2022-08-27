@@ -19,19 +19,22 @@ var<storage, read> positions: Positions;
 var<storage, read> colors: Colors;
 @group(0) @binding(3)
 var<storage, read> meshes: Meshes;
+@group(0) @binding(4)
+var<storage, read> meshes_aabb: AABBs;
 
 @vertex
 fn vs_main(
-    v_in: DrawVertex,
+    v_in: Vertex,
 ) -> VertexOutput {
     let mesh = &meshes.data[v_in.mesh_index];
+    let aabb = &meshes_aabb.data[v_in.mesh_index];
     
-    let aabb_size = abs((*mesh).aabb_max - (*mesh).aabb_min);
-    let position = (*mesh).aabb_min + decode_as_vec3(positions.data[v_in.position_and_color_offset]) * aabb_size;
+    let aabb_size = abs((*aabb).max - (*aabb).min);
+    let position = (*aabb).min + decode_as_vec3(positions.data[v_in.position_and_color_offset]) * aabb_size;
 
     let mvp = constant_data.proj * constant_data.view;
     var vertex_out: VertexOutput;
-    vertex_out.clip_position = mvp * (*mesh).transform * vec4<f32>(position, 1.0);
+    vertex_out.clip_position = mvp * vec4<f32>(transform_vector(position, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.0);
 
     vertex_out.color = unpack_unorm_to_4_f32(colors.data[v_in.position_and_color_offset]);
 

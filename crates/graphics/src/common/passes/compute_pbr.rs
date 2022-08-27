@@ -56,7 +56,7 @@ impl Pass for ComputePbrPass {
     fn static_name() -> &'static str {
         COMPUTE_PBR_PASS_NAME
     }
-    fn is_active(&self) -> bool {
+    fn is_active(&self, _render_context: &mut RenderContext) -> bool {
         true
     }
     fn mesh_flags(&self) -> MeshFlags {
@@ -267,6 +267,17 @@ impl Pass for ComputePbrPass {
                 BindingInfo {
                     group_index: 1,
                     binding_index: 4,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.meshes_aabb,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 5,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },

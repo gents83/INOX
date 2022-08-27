@@ -1,12 +1,13 @@
 use std::{collections::HashMap, ops::Range};
 
+use inox_math::Mat4Ops;
 use inox_resources::{to_slice, Buffer, HashBuffer};
 
 use crate::{
-    AsBinding, BindingDataBuffer, DrawCommandType, DrawIndexedCommand, DrawMaterial, DrawMesh,
-    DrawMeshlet, DrawVertex, Light, LightData, LightId, Material, MaterialAlphaMode, MaterialData,
-    MaterialId, Mesh, MeshData, MeshFlags, MeshId, RenderCommandsPerType, RenderCoreContext,
-    TextureId, TextureInfo, TextureType, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS,
+    AsBinding, BindingDataBuffer, DrawBoundingBox, DrawMaterial, DrawMesh, DrawMeshlet, DrawVertex,
+    Light, LightData, LightId, Material, MaterialAlphaMode, MaterialData, MaterialId, Mesh,
+    MeshData, MeshFlags, MeshId, RenderCommandsPerType, RenderCoreContext, TextureId, TextureInfo,
+    TextureType, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS,
 };
 
 //Alignment should be 4, 8, 16 or 32 bytes
@@ -17,42 +18,70 @@ pub struct RenderBuffers {
     pub materials: HashBuffer<MaterialId, DrawMaterial, 0>,
     pub commands: HashMap<MeshFlags, RenderCommandsPerType>,
     pub meshes: HashBuffer<MeshId, DrawMesh, 0>,
+    pub meshes_aabb: HashBuffer<MeshId, DrawBoundingBox, 0>,
     pub meshlets: Buffer<DrawMeshlet>, //MeshId <-> [DrawMeshlet]
+    pub meshlets_aabb: Buffer<DrawBoundingBox>, //MeshId <-> [DrawBoundingBox]
     pub vertices: Buffer<DrawVertex>,  //MeshId <-> [DrawVertex]
     pub indices: Buffer<u32>,          //MeshId <-> [u32]
-    pub vertex_positions: Buffer<u32>, //MeshId <-> u32 (10 x, 10 y, 10 z, 2 null)
-    pub vertex_colors: Buffer<u32>,    //MeshId <-> u32 (rgba)
-    pub vertex_normals: Buffer<u32>,   //MeshId <-> u32 (10 x, 10 y, 10 z, 2 null)
-    pub vertex_uvs: Buffer<u32>,       //MeshId <-> u32 (2 half)
+    pub vertex_positions: Buffer<u32>, //MeshId <-> [u32] (10 x, 10 y, 10 z, 2 null)
+    pub vertex_colors: Buffer<u32>,    //MeshId <-> [u32] (rgba)
+    pub vertex_normals: Buffer<u32>,   //MeshId <-> [u32] (10 x, 10 y, 10 z, 2 null)
+    pub vertex_uvs: Buffer<u32>,       //MeshId <-> [u32] (2 half)
 }
 
 impl RenderBuffers {
-    fn extract_meshlets(mesh_data: &MeshData, mesh_index: u32) -> Vec<DrawMeshlet> {
+    fn extract_meshlets(
+        &mut self,
+        mesh_data: &MeshData,
+        mesh_id: &MeshId,
+        mesh_index: u32,
+    ) -> Range<usize> {
         inox_profiler::scoped_profile!("render_buffers::extract_meshlets");
 
         let mut meshlets = Vec::new();
-        mesh_data.meshlets.iter().for_each(|meshlet_data| {
-            let meshlet = DrawMeshlet {
-                mesh_index,
-                vertex_offset: meshlet_data.vertices_offset,
-                indices_offset: meshlet_data.indices_offset,
-                indices_count: meshlet_data.indices_count,
-                center_radius: [
-                    meshlet_data.center.x,
-                    meshlet_data.center.y,
-                    meshlet_data.center.z,
-                    meshlet_data.radius,
-                ],
-                cone_axis_cutoff: [
-                    meshlet_data.cone_axis.x,
-                    meshlet_data.cone_axis.y,
-                    meshlet_data.cone_axis.z,
-                    meshlet_data.cone_cutoff,
-                ],
-            };
-            meshlets.push(meshlet);
+        meshlets.resize(mesh_data.meshlets.len(), DrawMeshlet::default());
+        let mut bhvs = Vec::new();
+        bhvs.resize_with(mesh_data.meshlets.len(), || DrawBoundingBox {
+            min: mesh_data.aabb_min.into(),
+            max: mesh_data.aabb_max.into(),
+            parent_or_count: INVALID_INDEX,
+            children_start: INVALID_INDEX,
         });
-        meshlets
+        mesh_data
+            .meshlets
+            .iter()
+            .enumerate()
+            .for_each(|(i, meshlet_data)| {
+                let meshlet = DrawMeshlet {
+                    mesh_index,
+                    bb_index: i as _,
+                    indices_offset: meshlet_data.indices_offset,
+                    indices_count: meshlet_data.indices_count,
+                    cone_axis_cutoff: [
+                        meshlet_data.cone_axis.x,
+                        meshlet_data.cone_axis.y,
+                        meshlet_data.cone_axis.z,
+                        meshlet_data.cone_cutoff,
+                    ],
+                };
+                meshlets[i] = meshlet;
+                bhvs[i].min = meshlet_data.aabb_min.into();
+                bhvs[i].max = meshlet_data.aabb_max.into();
+            });
+        let bhv_range = self.meshlets_aabb.allocate(mesh_id, bhvs.as_slice()).1;
+        meshlets.iter_mut().enumerate().for_each(|(i, meshlet)| {
+            meshlet.bb_index = (bhv_range.start + i) as _;
+        });
+        if meshlets.is_empty() {
+            inox_log::debug_log!("No meshlet data for mesh {:?}", mesh_id);
+        }
+        let mesh_bhv_index = self.add_mesh_bhv(mesh_id, mesh_data, &bhv_range);
+        self.meshlets_aabb.data_mut()[bhv_range]
+            .iter_mut()
+            .for_each(|bhv| {
+                bhv.parent_or_count = mesh_bhv_index as _;
+            });
+        self.meshlets.allocate(mesh_id, meshlets.as_slice()).1
     }
     fn add_vertex_data(
         &mut self,
@@ -118,6 +147,22 @@ impl RenderBuffers {
             .start;
         (vertex_offset as _, indices_offset as _)
     }
+    fn add_mesh_bhv(
+        &mut self,
+        mesh_id: &MeshId,
+        mesh_data: &MeshData,
+        children_range: &Range<usize>,
+    ) -> usize {
+        inox_profiler::scoped_profile!("render_buffers::add_mesh_bhv");
+
+        let bhv = DrawBoundingBox {
+            min: mesh_data.aabb_min.into(),
+            max: mesh_data.aabb_max.into(),
+            children_start: children_range.start as _,
+            parent_or_count: mesh_data.meshlets.len() as _,
+        };
+        self.meshes_aabb.insert(mesh_id, bhv)
+    }
     pub fn add_mesh(&mut self, mesh_id: &MeshId, mesh_data: &MeshData) {
         inox_profiler::scoped_profile!("render_buffers::add_mesh");
         self.remove_mesh(mesh_id);
@@ -129,19 +174,13 @@ impl RenderBuffers {
 
         let (vertex_offset, indices_offset) =
             self.add_vertex_data(mesh_id, mesh_data, mesh_index as _);
+        let range = self.extract_meshlets(mesh_data, mesh_id, mesh_index as _);
+
         let mesh = self.meshes.get_mut(mesh_id).unwrap();
         mesh.vertex_offset = vertex_offset;
         mesh.indices_offset = indices_offset;
-        mesh.aabb_min = mesh_data.aabb_min.into();
-        mesh.aabb_max = mesh_data.aabb_max.into();
-        let meshlets = Self::extract_meshlets(mesh_data, mesh_index as _);
-        if meshlets.is_empty() {
-            inox_log::debug_log!("No meshlet data for mesh {:?}", mesh_id);
-            return;
-        }
-        let range = self.meshlets.allocate(mesh_id, meshlets.as_slice()).1;
-        mesh.meshlet_offset = range.start as _;
-        mesh.meshlet_count = meshlets.len() as _;
+        mesh.meshlets_offset = range.start as _;
+        mesh.meshlets_count = mesh_data.meshlets.len() as _;
     }
     pub fn change_mesh(&mut self, mesh_id: &MeshId, mesh: &mut Mesh) {
         inox_profiler::scoped_profile!("render_buffers::change_mesh");
@@ -159,27 +198,36 @@ impl RenderBuffers {
                     }
                 }
             }
-
             let mesh_flags = mesh.flags();
-            let flags = mesh_flags.into();
-            if m.mesh_flags != flags {
-                m.mesh_flags = flags;
-            }
-            m.transform = mesh.matrix().into();
+            let entry = self.commands.entry(*mesh_flags).or_default();
+            entry.add_commands(mesh_id, m, &self.meshlets);
+
+            let matrix = mesh.matrix();
+            m.position = matrix.translation().into();
+            m.orientation = matrix.orientation().into();
+            m.scale = matrix.scale().into();
+            m.mesh_flags = (*mesh.flags()).into();
             self.meshes.set_dirty(true);
         }
     }
     pub fn remove_mesh(&mut self, mesh_id: &MeshId) {
         inox_profiler::scoped_profile!("render_buffers::remove_mesh");
 
-        self.meshes.remove(mesh_id);
-        self.meshlets.remove(mesh_id);
-        self.vertices.remove(mesh_id);
-        self.indices.remove(mesh_id);
-        self.vertex_positions.remove(mesh_id);
-        self.vertex_colors.remove(mesh_id);
-        self.vertex_normals.remove(mesh_id);
-        self.vertex_uvs.remove(mesh_id);
+        if let Some(mesh) = self.meshes.remove(mesh_id) {
+            let mesh_flags: MeshFlags = mesh.mesh_flags.into();
+            if let Some(entry) = self.commands.get_mut(&mesh_flags) {
+                entry.remove_commands(mesh_id);
+            }
+            self.meshlets.remove(mesh_id);
+            self.meshes_aabb.remove(mesh_id);
+            self.meshlets_aabb.remove(mesh_id);
+            self.vertices.remove(mesh_id);
+            self.indices.remove(mesh_id);
+            self.vertex_positions.remove(mesh_id);
+            self.vertex_colors.remove(mesh_id);
+            self.vertex_normals.remove(mesh_id);
+            self.vertex_uvs.remove(mesh_id);
+        }
     }
     pub fn add_material(&mut self, material_id: &MaterialId, material: &mut Material) {
         inox_profiler::scoped_profile!("render_buffers::add_material");
@@ -266,116 +314,41 @@ impl RenderBuffers {
         self.textures.remove(texture_id);
     }
 
-    pub fn create_commands(
+    pub fn bind_commands(
         &mut self,
-        mesh_flags: MeshFlags,
-        commands_type: DrawCommandType,
         binding_data_buffer: &BindingDataBuffer,
         render_core_context: &RenderCoreContext,
     ) {
-        inox_profiler::scoped_profile!("create_commands_for");
+        inox_profiler::scoped_profile!("bind_commands");
 
-        let entry = self.commands.entry(mesh_flags).or_default();
-        let mesh_flags: u32 = mesh_flags.into();
-        if commands_type.contains(DrawCommandType::PerMeshlet) {
-            let entry = entry.map.entry(DrawCommandType::PerMeshlet).or_default();
-            entry.count = 0;
-            entry.commands.clear();
-            self.meshes.for_each_entry(|_i, mesh| {
-                if mesh.mesh_flags == mesh_flags {
-                    let meshlets = self.meshlets.data();
-                    for meshlet_index in
-                        mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count
-                    {
-                        let meshlet = &meshlets[meshlet_index as usize];
-                        let command = DrawIndexedCommand {
-                            vertex_count: meshlet.indices_count as _,
-                            instance_count: 1,
-                            base_index: (mesh.indices_offset + meshlet.indices_offset) as _,
-                            vertex_offset: mesh.vertex_offset as _,
-                            base_instance: meshlet_index as _,
-                        };
-                        entry.commands.push(command);
-                    }
+        self.commands.iter_mut().for_each(|(_, commands)| {
+            commands.map.iter_mut().for_each(|(_, entry)| {
+                if entry.commands.is_empty() {
+                    return;
                 }
+                let commands_id = entry.commands.id();
+                let usage = wgpu::BufferUsages::STORAGE
+                    | wgpu::BufferUsages::COPY_SRC
+                    | wgpu::BufferUsages::COPY_DST
+                    | wgpu::BufferUsages::INDIRECT;
+                binding_data_buffer.bind_buffer(
+                    commands_id,
+                    &mut entry.commands,
+                    usage,
+                    render_core_context,
+                );
+                let count_id = entry.count.id();
+                let usage = wgpu::BufferUsages::STORAGE
+                    | wgpu::BufferUsages::COPY_SRC
+                    | wgpu::BufferUsages::COPY_DST
+                    | wgpu::BufferUsages::INDIRECT;
+                binding_data_buffer.bind_buffer(
+                    count_id,
+                    &mut entry.count,
+                    usage,
+                    render_core_context,
+                );
             });
-            if entry.commands.is_empty() {
-                return;
-            }
-            let commands_id = entry.commands.id();
-            let usage = wgpu::BufferUsages::STORAGE
-                | wgpu::BufferUsages::COPY_SRC
-                | wgpu::BufferUsages::COPY_DST
-                | wgpu::BufferUsages::INDIRECT;
-            binding_data_buffer.bind_buffer(
-                commands_id,
-                &mut entry.commands,
-                usage,
-                render_core_context,
-            );
-            let count_id = entry.count.id();
-            let usage = wgpu::BufferUsages::STORAGE
-                | wgpu::BufferUsages::COPY_SRC
-                | wgpu::BufferUsages::COPY_DST
-                | wgpu::BufferUsages::INDIRECT;
-            binding_data_buffer.bind_buffer(count_id, &mut entry.count, usage, render_core_context);
-        }
-        if commands_type.contains(DrawCommandType::PerTriangle) {
-            let entry = entry.map.entry(DrawCommandType::PerTriangle).or_default();
-            entry.count = 0;
-            entry.commands.clear();
-            self.meshes.for_each_entry(|_i, mesh| {
-                if mesh.mesh_flags == mesh_flags {
-                    let meshlets = self.meshlets.data();
-                    for meshlet_index in
-                        mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count
-                    {
-                        let meshlet = &meshlets[meshlet_index as usize];
-
-                        let total_indices =
-                            mesh.indices_offset + meshlet.indices_offset + meshlet.indices_count;
-                        debug_assert!(
-                            total_indices % 3 == 0,
-                            "indices count {} is not divisible by 3",
-                            total_indices
-                        );
-                        let mut i = mesh.indices_offset + meshlet.indices_offset;
-                        let mut triangle_index = 0;
-                        while i < total_indices {
-                            let command = DrawIndexedCommand {
-                                vertex_count: 3,
-                                instance_count: 1,
-                                base_index: i as _,
-                                vertex_offset: mesh.vertex_offset as _,
-                                base_instance: (triangle_index << 24 | meshlet_index) as _,
-                            };
-                            entry.commands.push(command);
-                            i += 3;
-                            triangle_index += 1;
-                        }
-                    }
-                }
-            });
-            if entry.commands.is_empty() {
-                return;
-            }
-            let commands_id = entry.commands.id();
-            let usage = wgpu::BufferUsages::STORAGE
-                | wgpu::BufferUsages::COPY_SRC
-                | wgpu::BufferUsages::COPY_DST
-                | wgpu::BufferUsages::INDIRECT;
-            binding_data_buffer.bind_buffer(
-                commands_id,
-                &mut entry.commands,
-                usage,
-                render_core_context,
-            );
-            let count_id = entry.count.id();
-            let usage = wgpu::BufferUsages::STORAGE
-                | wgpu::BufferUsages::COPY_SRC
-                | wgpu::BufferUsages::COPY_DST
-                | wgpu::BufferUsages::INDIRECT;
-            binding_data_buffer.bind_buffer(count_id, &mut entry.count, usage, render_core_context);
-        }
+        });
     }
 }

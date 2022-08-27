@@ -26,8 +26,8 @@ impl Pass for WireframePass {
     fn static_name() -> &'static str {
         WIREFRAME_PASS_NAME
     }
-    fn is_active(&self) -> bool {
-        true
+    fn is_active(&self, render_context: &mut RenderContext) -> bool {
+        render_context.has_commands(&self.draw_command_type(), &self.mesh_flags())
     }
     fn mesh_flags(&self) -> MeshFlags {
         MeshFlags::Visible | MeshFlags::Wireframe
@@ -65,11 +65,6 @@ impl Pass for WireframePass {
     }
     fn init(&mut self, render_context: &mut RenderContext) {
         inox_profiler::scoped_profile!("wireframe_pass::init");
-
-        let mesh_flags = self.mesh_flags();
-        if !render_context.has_meshes(mesh_flags) {
-            return;
-        }
 
         let mut pass = self.render_pass.get_mut();
 
@@ -121,6 +116,18 @@ impl Pass for WireframePass {
                     ..Default::default()
                 },
             )
+            .add_storage_buffer(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.meshes_aabb,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 4,
+                    stage: ShaderStage::Vertex,
+
+                    ..Default::default()
+                },
+            )
             .set_vertex_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
@@ -145,10 +152,6 @@ impl Pass for WireframePass {
     }
     fn update(&self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
         inox_profiler::scoped_profile!("wireframe_pass::update");
-
-        if !render_context.has_meshes(self.mesh_flags()) {
-            return;
-        }
 
         let pass = self.render_pass.get();
         let buffers = render_context.buffers();

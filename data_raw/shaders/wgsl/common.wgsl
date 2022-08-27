@@ -39,7 +39,7 @@ struct ConstantData {
     flags: u32,
 };
 
-struct DrawVertex {
+struct Vertex {
     @location(0) position_and_color_offset: u32,
     @location(1) normal_offset: i32,
     @location(2) tangent_offset: i32,
@@ -62,25 +62,31 @@ struct DrawIndexedCommand {
     base_instance: u32,
 };
 
-struct DrawMesh {
+struct Mesh {
     vertex_offset: u32,
     indices_offset: u32,
     material_index: i32,
     mesh_flags: u32,
-    aabb_min: vec3<f32>,
-    meshlet_offset: u32,
-    aabb_max: vec3<f32>,
-    meshlet_count: u32,
-    transform: mat4x4<f32>,
+    position: vec3<f32>,
+    meshlets_offset: u32,
+    scale: vec3<f32>,
+    meshlets_count: u32,
+    orientation: vec4<f32>,
 };
 
-struct DrawMeshlet {
+struct Meshlet {
     @location(5) mesh_index: u32,
-    @location(6) vertex_offset: u32,
+    @location(6) aabb_index: u32,
     @location(7) indices_offset: u32,
     @location(8) indices_count: u32,
-    @location(9) center_radius: vec4<f32>,
-    @location(10) cone_axis_cutoff: vec4<f32>,
+    @location(9) cone_axis_cutoff: vec4<f32>,
+};
+
+struct AABB {
+    min: vec3<f32>,
+    child_start: i32,
+    max: vec3<f32>,
+    parent_or_count: i32,
 };
 
 
@@ -102,7 +108,7 @@ struct TextureData {
     area: vec4<f32>,
 };
 
-struct DrawMaterial {
+struct Material {
     textures_indices: array<i32, 8>,//TEXTURE_TYPE_COUNT>,
     textures_coord_set: array<u32, 8>,//TEXTURE_TYPE_COUNT>,
     roughness_factor: f32,
@@ -126,23 +132,23 @@ struct Textures {
 };
 
 struct Materials {
-    data: array<DrawMaterial>,
+    data: array<Material>,
 };
 
 struct DrawCommands {
     data: array<DrawCommand>,
 };
 
-struct RenderCommands {
+struct DrawIndexedCommands {
     data: array<DrawIndexedCommand>,
 };
 
 struct Meshes {
-    data: array<DrawMesh>,
+    data: array<Mesh>,
 };
 
 struct Meshlets {
-    data: array<DrawMeshlet>,
+    data: array<Meshlet>,
 };
 
 struct Indices {
@@ -150,7 +156,7 @@ struct Indices {
 };
 
 struct Vertices {
-    data: array<DrawVertex>,
+    data: array<Vertex>,
 };
 
 struct Matrices {
@@ -175,5 +181,9 @@ struct Tangents {
 
 struct UVs {
     data: array<u32>,
+};
+
+struct AABBs {
+    data: array<AABB>,
 };
 

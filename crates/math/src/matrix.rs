@@ -31,10 +31,18 @@ pub trait Mat4Ops {
     fn translation(&self) -> Vector3;
     fn scale(&self) -> Vector3;
     fn rotation(&self) -> Vector3;
+    fn orientation(&self) -> Quaternion;
     fn get_translation_rotation_scale(&self) -> (Vector3, Vector3, Vector3);
     fn from_translation_rotation_scale(
         translation: Vector3,
         roll_yaw_pitch: Vector3,
+        scale: Vector3,
+    ) -> Self
+    where
+        Self: Sized;
+    fn from_translation_orientation_scale(
+        translation: Vector3,
+        orientation: Quaternion,
         scale: Vector3,
     ) -> Self
     where
@@ -94,7 +102,7 @@ macro_rules! implement_matrix4_operations {
                 [sx, sy, sz].into()
             }
             #[inline]
-            fn rotation(&self) -> Vector3 {
+            fn orientation(&self) -> Quaternion {
                 let mut s = Matrix3::from_cols(self.x.xyz(), self.y.xyz(), self.z.xyz());
                 let sx = s.x.length();
                 let sy = s.y.length();
@@ -102,8 +110,12 @@ macro_rules! implement_matrix4_operations {
                 s.x /= sx;
                 s.y /= sy;
                 s.z /= sz;
-                let r = Quaternion::from(s);
-                r.to_euler_angles()
+                Quaternion::from(s)
+            }
+            #[inline]
+            fn rotation(&self) -> Vector3 {
+                let o = self.orientation();
+                o.to_euler_angles()
             }
             #[inline]
             fn get_translation_rotation_scale(&self) -> (Vector3, Vector3, Vector3) {
@@ -118,8 +130,20 @@ macro_rules! implement_matrix4_operations {
             where
                 Self: Sized,
             {
+                let orientation = Quaternion::from_euler_angles(rotation);
+                Self::from_translation_orientation_scale(translation, orientation, scale)
+            }
+            #[inline]
+            fn from_translation_orientation_scale(
+                translation: Vector3,
+                orientation: Quaternion, //in radians
+                scale: Vector3,
+            ) -> Self
+            where
+                Self: Sized,
+            {
                 let t = Matrix4::from_translation(translation);
-                let r = Matrix4::from(Quaternion::from_euler_angles(rotation));
+                let r = Matrix4::from(orientation);
                 let s = Matrix4::from_nonuniform_scale(scale.x, scale.y, scale.z);
 
                 t * r * s

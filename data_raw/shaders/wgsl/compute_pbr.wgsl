@@ -37,6 +37,8 @@ var<storage, read> materials: Materials;
 var<storage, read> textures: Textures;
 @group(1) @binding(4)
 var<storage, read> lights: Lights;
+@group(1) @binding(5)
+var<storage, read> meshes_aabb: AABBs;
 
 @group(3) @binding(0)
 var render_target: texture_storage_2d_array<rgba8unorm, read_write>;
@@ -107,15 +109,16 @@ fn main(
                 let v2 = &vertices.data[vertex_offset + i2];
                 let v3 = &vertices.data[vertex_offset + i3];
 
-                let aabb_size = abs((*mesh).aabb_max - (*mesh).aabb_min);
+                let aabb = &meshes_aabb.data[mesh_id];
+                let aabb_size = abs((*aabb).max - (*aabb).min);
 
-                let vp1 = (*mesh).aabb_min + decode_as_vec3(positions.data[(*v1).position_and_color_offset]) * aabb_size;
-                let vp2 = (*mesh).aabb_min + decode_as_vec3(positions.data[(*v2).position_and_color_offset]) * aabb_size;
-                let vp3 = (*mesh).aabb_min + decode_as_vec3(positions.data[(*v3).position_and_color_offset]) * aabb_size;
+                let vp1 = (*aabb).min + decode_as_vec3(positions.data[(*v1).position_and_color_offset]) * aabb_size;
+                let vp2 = (*aabb).min + decode_as_vec3(positions.data[(*v2).position_and_color_offset]) * aabb_size;
+                let vp3 = (*aabb).min + decode_as_vec3(positions.data[(*v3).position_and_color_offset]) * aabb_size;
 
-                var p1 = mvp * (*mesh).transform * vec4<f32>(vp1, 1.);
-                var p2 = mvp * (*mesh).transform * vec4<f32>(vp2, 1.);
-                var p3 = mvp * (*mesh).transform * vec4<f32>(vp3, 1.);
+                var p1 = mvp * vec4<f32>(transform_vector(vp1, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.);
+                var p2 = mvp * vec4<f32>(transform_vector(vp2, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.);
+                var p3 = mvp * vec4<f32>(transform_vector(vp3, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.);
 
                 // Calculate the inverse of w, since it's going to be used several times
                 let one_over_w = 1. / vec3<f32>(p1.w, p2.w, p3.w);
@@ -128,9 +131,9 @@ fn main(
                 let barycentrics = compute_barycentrics(p1.xy, p2.xy, p3.xy, screen_pixel.xy);
                 let deriv = compute_partial_derivatives(p1.xy, p2.xy, p3.xy);
 
-                let c1 = unpack_unorm_to_4_f32(u32(colors.data[(*v1).position_and_color_offset]));
-                let c2 = unpack_unorm_to_4_f32(u32(colors.data[(*v2).position_and_color_offset]));
-                let c3 = unpack_unorm_to_4_f32(u32(colors.data[(*v3).position_and_color_offset]));
+                let c1 = unpack_unorm_to_4_f32(u32(colors.data[(*v1).position_and_color_offset])) / 255.;
+                let c2 = unpack_unorm_to_4_f32(u32(colors.data[(*v2).position_and_color_offset])) / 255.;
+                let c3 = unpack_unorm_to_4_f32(u32(colors.data[(*v3).position_and_color_offset])) / 255.;
 
                 let vertex_color = barycentrics.x * c1 + barycentrics.y * c2 + barycentrics.z * c3;        
                 let alpha = compute_alpha(material_id, vertex_color.a);

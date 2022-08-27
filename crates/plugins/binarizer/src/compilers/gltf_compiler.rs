@@ -24,7 +24,7 @@ use inox_graphics::{
 use inox_log::debug_log;
 use inox_math::{
     decode_unorm, pack_4_f32_to_unorm, quantize_half, quantize_unorm, Mat4Ops, Matrix4, NewAngle,
-    Parser, Radians, Vector2, Vector3, Vector4, Vector4h,
+    Parser, Radians, VecBase, Vector2, Vector3, Vector4, Vector4h,
 };
 
 use inox_nodes::LogicData;
@@ -198,11 +198,11 @@ impl GltfCompiler {
                     if let Some(pos) = self.read_accessor_from_path::<Vector3>(path, &accessor) {
                         mesh_data.aabb_max = pos.iter().fold(
                             Vector3::new(-f32::INFINITY, -f32::INFINITY, -f32::INFINITY),
-                            |a, &b| Vector3::new(a.x.max(b.x), a.y.max(b.y), a.z.max(b.z)),
+                            |a, &b| a.max(b),
                         );
                         mesh_data.aabb_min = pos.iter().fold(
                             Vector3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY),
-                            |a, &b| Vector3::new(a.x.min(b.x), a.y.min(b.y), a.z.min(b.z)),
+                            |a, &b| a.min(b),
                         );
                         let size = mesh_data.aabb_max - mesh_data.aabb_min;
                         let mut positions = Vec::new();
@@ -485,13 +485,19 @@ impl GltfCompiler {
             for m in meshlets.iter() {
                 let bounds =
                     meshopt::compute_meshlet_bounds(m, vertex_data_adapter.as_ref().unwrap());
+                let mut min = Vector3::new(f32::MAX, f32::MAX, f32::MAX);
+                let mut max = Vector3::new(-f32::MAX, -f32::MAX, -f32::MAX);
+                m.vertices.iter().for_each(|i| {
+                    min = min.min(positions[*i as usize]);
+                    max = max.max(positions[*i as usize]);
+                });
                 mesh_data.meshlets.push(MeshletData {
                     vertices_count: m.vertices.len() as _,
                     vertices_offset: vertices_offset as _,
                     indices_count: m.triangles.len() as _,
                     indices_offset: indices_offset as _,
-                    center: bounds.center.into(),
-                    radius: bounds.radius,
+                    aabb_max: max,
+                    aabb_min: min,
                     cone_axis: bounds.cone_axis.into(),
                     cone_cutoff: bounds.cone_cutoff,
                 });

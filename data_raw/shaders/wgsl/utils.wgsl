@@ -1,8 +1,8 @@
 fn decode_unorm(i: u32, n: u32) -> f32 {    
     let scale = f32((1 << n) - 1);
-    if i == 0u {
+    if (i == 0u) {
         return 0.;
-    } else if i == u32(scale) {
+    } else if (i == u32(scale)) {
         return 1.;
     } else {
         return (f32(i) - 0.5) / scale;
@@ -108,4 +108,11 @@ fn matrix_row(m: mat4x4<f32>, row: u32) -> vec4<f32> {
 
 fn normalize_plane(plane: vec4<f32>) -> vec4<f32> {
     return (plane / length(plane.xyz));
+}
+
+fn rotate_vector(v: vec3<f32>, orientation: vec4<f32>) -> vec3<f32> {
+    return v + 2. * cross(orientation.xyz, cross(orientation.xyz, v) + orientation.w * v);
+}
+fn transform_vector(v: vec3<f32>, position: vec3<f32>, orientation: vec4<f32>, scale: vec3<f32>) -> vec3<f32> {
+    return rotate_vector(v, orientation) * scale + position;
 }
