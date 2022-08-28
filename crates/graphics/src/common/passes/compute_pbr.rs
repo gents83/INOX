@@ -282,7 +282,7 @@ impl Pass for ComputePbrPass {
                     ..Default::default()
                 },
             )
-            .add_textures(
+            .add_sampler_and_textures(
                 &render_context.texture_handler,
                 if self.render_target.is_some() {
                     vec![self.render_target.as_ref().unwrap().id()]
@@ -349,7 +349,7 @@ impl ComputePbrPass {
         self.textures.push(*texture_id);
         self
     }
-    pub fn resolution(&mut self, width: u32, height: u32) -> &mut Self {
+    pub fn add_render_target_with_resolution(&mut self, width: u32, height: u32) -> &mut Self {
         self.render_target = Some(Texture::create_from_format(
             self.context.shared_data(),
             self.context.message_hub(),

@@ -276,14 +276,16 @@ impl Texture {
             crate::TextureFormat::R8Unorm
             | crate::TextureFormat::R8Uint
             | crate::TextureFormat::R8Snorm
-            | crate::TextureFormat::R8Sint => {
+            | crate::TextureFormat::R8Sint
+            | crate::TextureFormat::Stencil8 => {
                 vec![0u8; ::std::mem::size_of::<u8>() * width as usize * height as usize]
             }
             crate::TextureFormat::R16Uint
             | crate::TextureFormat::R16Unorm
             | crate::TextureFormat::R16Float
             | crate::TextureFormat::R16Sint
-            | crate::TextureFormat::R16Snorm => {
+            | crate::TextureFormat::R16Snorm
+            | crate::TextureFormat::Depth16Unorm => {
                 vec![0u8; ::std::mem::size_of::<u16>() * width as usize * height as usize]
             }
             crate::TextureFormat::Rg8Unorm
@@ -303,7 +305,6 @@ impl Texture {
             | crate::TextureFormat::Rg11b10Float
             | crate::TextureFormat::Depth32Float
             | crate::TextureFormat::Depth24PlusStencil8
-            | crate::TextureFormat::Depth24UnormStencil8
             | crate::TextureFormat::Rgb9e5Ufloat => {
                 vec![0u8; ::std::mem::size_of::<u32>() * width as usize * height as usize]
             }

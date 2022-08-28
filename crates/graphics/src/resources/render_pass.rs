@@ -347,7 +347,7 @@ impl RenderPass {
         render_context
             .render_buffers
             .meshes
-            .for_each_entry(|index, mesh| {
+            .for_each_entry(|_, mesh| {
                 if mesh.mesh_flags == mesh_flags {
                     inox_profiler::scoped_profile!("render_pass::draw_mesh");
                     for i in mesh.meshlets_offset..mesh.meshlets_offset + mesh.meshlets_count {
@@ -359,7 +359,7 @@ impl RenderPass {
                                     + meshlet.indices_offset
                                     + meshlet.indices_count) as _,
                             mesh.vertex_offset as _,
-                            index as _..(index as u32 + 1),
+                            i as _..(i as u32 + 1),
                         );
                     }
                 }
@@ -398,7 +398,8 @@ impl RenderPass {
                 }
             }
         }
-        inox_log::debug_log!("Unable to use indirect_draw - using normal draw_indexed");
+        //TODO: use debug_log_once
+        //inox_log::debug_log!("Unable to use indirect_draw - using normal draw_indexed");
         self.draw_meshlets(render_context, render_pass);
     }
 

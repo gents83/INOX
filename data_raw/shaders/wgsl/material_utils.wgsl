@@ -7,7 +7,11 @@ fn has_texture(material_index: u32, texture_type: u32) -> bool {
 
 fn material_texture_index(material_index: u32, texture_type: u32) -> i32 {
     let material = &materials.data[material_index];
-    return (*material).textures_indices[texture_type];
+    let texture_index = (*material).textures_indices[texture_type];
+    if (texture_index < 0) {
+        return 0;
+    }
+    return texture_index;
 }
 
 fn material_texture_coord_set(material_index: u32, texture_type: u32) -> u32 {

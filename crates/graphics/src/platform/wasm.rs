@@ -5,6 +5,5 @@ pub fn required_gpu_features() -> wgpu::Features {
 }
 
 pub fn platform_limits() -> wgpu::Limits {
-    wgpu::Limits::downlevel_webgl2_defaults()
+    wgpu::Limits::default()
 }
-

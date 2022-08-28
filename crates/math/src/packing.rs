@@ -202,7 +202,7 @@ fn encode_decode_test() {
     let b = quantize_unorm(v2, 10);
     let c = quantize_unorm(v3, 10);
     let composite = a << 20 | b << 10 | c;
-    let composed = 0 << 20 | 512 << 10 | 1023;
+    let composed = /*0 << 20 | */512 << 10 | 1023;
     debug_assert!(composite == composed, "{} != {}", composite, composed);
     let ca = (composite >> 20) & 0x000003FF;
     let cb = (composite >> 10) & 0x000003FF;

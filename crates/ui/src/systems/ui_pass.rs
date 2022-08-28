@@ -156,19 +156,19 @@ impl Pass for UIPass {
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.textures,
                 BindingInfo {
-                    group_index: 0,
-                    binding_index: 1,
+                    group_index: 1,
+                    binding_index: 0,
                     stage: ShaderStage::Fragment,
 
                     ..Default::default()
                 },
             )
-            .add_textures(
+            .add_sampler_and_textures(
                 &render_context.texture_handler,
                 render_texture,
                 depth_texture,
                 BindingInfo {
-                    group_index: 1,
+                    group_index: 2,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },

@@ -39,8 +39,7 @@ impl Default for BindingInfo {
 enum BindingType {
     Buffer(usize, BufferId, BufferId),
     DefaultSampler(usize),
-    UnfilteredSampler(usize),
-    DepthSampler(usize),
+    DepthTexture(usize, TextureId),
     TextureArray(usize, Box<[TextureId; MAX_TEXTURE_ATLAS_COUNT as usize]>),
     StorageTextures(usize, Vec<TextureId>),
 }
@@ -375,7 +374,7 @@ impl BindingData {
         self
     }
 
-    pub fn add_textures(
+    pub fn add_sampler_and_textures(
         &mut self,
         texture_handler: &TextureHandler,
         render_targets: Vec<&TextureId>,
@@ -386,52 +385,55 @@ impl BindingData {
 
         if self.bind_group_layout_entries[info.group_index].is_empty() {
             self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
-                binding: 0,
+                binding: info.binding_index as _,
                 visibility: info.stage.into(),
                 ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                 count: None,
             });
             self.is_layout_changed = true;
         }
-        if self.bind_group_layout_entries[info.group_index].len() < 2 {
-            self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
-                binding: 1,
-                visibility: info.stage.into(),
-                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
-                count: None,
-            });
-            self.is_layout_changed = true;
-        }
-        if self.bind_group_layout_entries[info.group_index].len() < 3 {
-            self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
-                binding: 2,
-                visibility: info.stage.into(),
-                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
-                count: None,
-            });
-            self.is_layout_changed = true;
-        }
         if self.binding_types[info.group_index].is_empty() {
-            self.binding_types[info.group_index].push(BindingType::DefaultSampler(0));
-        }
-        if self.binding_types[info.group_index].len() < 2 {
-            self.binding_types[info.group_index].push(BindingType::UnfilteredSampler(1));
-        }
-        if self.binding_types[info.group_index].len() < 3 {
-            self.binding_types[info.group_index].push(BindingType::DepthSampler(2));
+            self.binding_types[info.group_index]
+                .push(BindingType::DefaultSampler(info.binding_index));
         }
 
-        let textures_bind_group_layout_index = 3;
+        let mut first_valid_texture = None;
+        let mut textures = [TextureId::default(); MAX_TEXTURE_ATLAS_COUNT as usize];
+        let textures_atlas = texture_handler.textures_atlas();
+        let num_textures = textures_atlas.len();
+
+        for i in 0..MAX_TEXTURE_ATLAS_COUNT as usize {
+            if first_valid_texture.is_none() {
+                first_valid_texture = Some(i);
+            }
+            let mut index = i;
+            if i >= num_textures
+                || textures_atlas[index]
+                    .texture_format()
+                    .describe()
+                    .sample_type
+                    != (wgpu::TextureSampleType::Float { filterable: true })
+                || render_targets
+                    .iter()
+                    .any(|&id| textures_atlas[i].texture_id() == id)
+            {
+                index = first_valid_texture.unwrap();
+            } else if let Some(id) = depth_target {
+                if textures_atlas[i].texture_id() == id {
+                    index = first_valid_texture.unwrap();
+                }
+            }
+            textures[i] = *textures_atlas[index].texture_id();
+        }
+
+        let textures_bind_group_layout_index = info.binding_index + 1;
         let mut bind_group_layout_count = textures_bind_group_layout_index;
         if required_gpu_features().contains(wgpu::Features::TEXTURE_BINDING_ARRAY) {
             if self.bind_group_layout_entries[info.group_index].len()
                 <= textures_bind_group_layout_index
             {
                 self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
-                    binding: {
-                        bind_group_layout_count += 1;
-                        (bind_group_layout_count - 1) as _
-                    },
+                    binding: bind_group_layout_count as _,
                     visibility: info.stage.into(),
                     ty: wgpu::BindingType::Texture {
                         sample_type: wgpu::TextureSampleType::Float { filterable: true },
@@ -447,10 +449,7 @@ impl BindingData {
         {
             (0..MAX_TEXTURE_ATLAS_COUNT).for_each(|_| {
                 self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
-                    binding: {
-                        bind_group_layout_count += 1;
-                        (bind_group_layout_count - 1) as _
-                    },
+                    binding: bind_group_layout_count as _,
                     visibility: info.stage.into(),
                     ty: wgpu::BindingType::Texture {
                         sample_type: wgpu::TextureSampleType::Float { filterable: true },
@@ -459,42 +458,9 @@ impl BindingData {
                     },
                     count: None,
                 });
+                bind_group_layout_count += 1;
             });
             self.is_layout_changed = true;
-        }
-
-        let mut first_valid_texture = None;
-        let mut textures = [TextureId::default(); MAX_TEXTURE_ATLAS_COUNT as usize];
-        let textures_atlas = texture_handler.textures_atlas();
-        let num_textures = textures_atlas.len();
-
-        for i in 0..MAX_TEXTURE_ATLAS_COUNT as usize {
-            if first_valid_texture.is_none() {
-                first_valid_texture = Some(textures_atlas[i].texture_id());
-            }
-            let mut use_default = false;
-            if i >= num_textures
-                //|| !textures_atlas[i]
-                //    .texture_format()
-                //    .describe()
-                //    .guaranteed_format_features
-                //    .flags
-                //    .contains(wgpu::TextureFormatFeatureFlags::FILTERABLE)
-                || render_targets
-                    .iter()
-                    .any(|&id| textures_atlas[i].texture_id() == id)
-            {
-                use_default = true;
-            } else if let Some(id) = depth_target {
-                if textures_atlas[i].texture_id() == id {
-                    use_default = true;
-                }
-            }
-            if use_default {
-                textures[i] = **first_valid_texture.as_ref().unwrap();
-            } else {
-                textures[i] = *textures_atlas[i].texture_id();
-            }
         }
 
         if DEBUG_BINDINGS {
@@ -526,6 +492,60 @@ impl BindingData {
 
         self
     }
+
+    pub fn add_depth_texture(
+        &mut self,
+        texture_handler: &TextureHandler,
+        depth_target: &TextureId,
+        info: BindingInfo,
+    ) -> &mut Self {
+        self.create_group_and_binding_index(info.group_index);
+
+        if self.bind_group_layout_entries[info.group_index].len() <= info.binding_index {
+            let textures_atlas = texture_handler.textures_atlas();
+            textures_atlas.iter().for_each(|t| {
+                if t.texture_id() == depth_target {
+                    self.bind_group_layout_entries[info.group_index].push(
+                        wgpu::BindGroupLayoutEntry {
+                            binding: info.binding_index as _,
+                            visibility: info.stage.into(),
+                            ty: wgpu::BindingType::Texture {
+                                sample_type: wgpu::TextureSampleType::Depth,
+                                view_dimension: wgpu::TextureViewDimension::D2Array,
+                                multisampled: false,
+                            },
+                            count: None,
+                        },
+                    );
+                }
+            });
+            self.binding_types[info.group_index]
+                .push(BindingType::DepthTexture(info.binding_index, *depth_target));
+            self.is_layout_changed = true;
+        }
+        if self.binding_types[info.group_index].len() > info.binding_index {
+            if let BindingType::DepthTexture(_, id) =
+                &self.binding_types[info.group_index][info.binding_index]
+            {
+                if id != depth_target {
+                    self.binding_types[info.group_index][info.binding_index] =
+                        BindingType::DepthTexture(info.binding_index, *depth_target);
+                    self.is_layout_changed = true;
+                }
+            }
+        }
+
+        if DEBUG_BINDINGS {
+            inox_log::debug_log!(
+                "Add Depth Texture [{}][{}] ",
+                info.group_index,
+                info.binding_index,
+            );
+        }
+
+        self
+    }
+
     pub fn send_to_gpu(&mut self, render_context: &RenderContext, pass_name: &str) {
         inox_profiler::scoped_profile!("binding_data::send_to_gpu");
 
@@ -633,21 +653,15 @@ impl BindingData {
                                 ),
                             });
                         }
-                        BindingType::UnfilteredSampler(binding_index) => {
-                            bind_group.push(wgpu::BindGroupEntry {
-                                binding: *binding_index as _,
-                                resource: wgpu::BindingResource::Sampler(
-                                    render_context.texture_handler.unfiltered_sampler(),
-                                ),
-                            });
-                        }
-                        BindingType::DepthSampler(binding_index) => {
-                            bind_group.push(wgpu::BindGroupEntry {
-                                binding: *binding_index as _,
-                                resource: wgpu::BindingResource::Sampler(
-                                    render_context.texture_handler.depth_sampler(),
-                                ),
-                            });
+                        BindingType::DepthTexture(binding_index, id) => {
+                            if let Some(texture) =
+                                render_context.texture_handler.get_texture_atlas(id)
+                            {
+                                bind_group.push(wgpu::BindGroupEntry {
+                                    binding: *binding_index as _,
+                                    resource: wgpu::BindingResource::TextureView(texture.texture()),
+                                });
+                            }
                         }
                         BindingType::TextureArray(binding_index, _) => {
                             if DEBUG_BINDINGS {

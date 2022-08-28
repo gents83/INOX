@@ -93,29 +93,65 @@ impl RenderContext {
     pub async fn create_render_context(handle: Handle, renderer: RendererRw) {
         inox_profiler::scoped_profile!("render_context::create_render_context");
 
-        let backend = wgpu::Backends::all();
-        let instance = wgpu::Instance::new(backend);
-        let surface = unsafe { instance.create_surface(&handle) };
+        let (instance, surface, adapter, device, queue) = {
+            let backend = wgpu::Backends::all();
+            let instance = wgpu::Instance::new(backend);
+            let surface = unsafe { instance.create_surface(&handle) };
 
-        let adapter =
-            wgpu::util::initialize_adapter_from_env_or_default(&instance, backend, Some(&surface))
-                .await
-                .expect("No suitable GPU adapters found on the system!");
-        let required_features = required_gpu_features();
-        let limits = platform_limits();
-
-        let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    label: None,
-                    features: required_features,
-                    limits,
-                },
-                // Some(&std::path::Path::new("trace")), // Trace path
-                None,
+            let adapter = wgpu::util::initialize_adapter_from_env_or_default(
+                &instance,
+                backend,
+                Some(&surface),
             )
             .await
-            .expect("Failed to create device");
+            .expect("No suitable GPU adapters found on the system!");
+            if let Ok((device, queue)) = adapter
+                .request_device(
+                    &wgpu::DeviceDescriptor {
+                        label: None,
+                        features: required_gpu_features(),
+                        limits: platform_limits(),
+                    },
+                    // Some(&std::path::Path::new("trace")), // Trace path
+                    None,
+                )
+                .await
+            {
+                (instance, surface, adapter, device, queue)
+            } else {
+                let vulkan_backend = wgpu::Backends::VULKAN;
+                let vulkan_instance = wgpu::Instance::new(vulkan_backend);
+                let vulkan_surface = unsafe { vulkan_instance.create_surface(&handle) };
+
+                let vulkan_adapter = wgpu::util::initialize_adapter_from_env_or_default(
+                    &vulkan_instance,
+                    vulkan_backend,
+                    Some(&vulkan_surface),
+                )
+                .await
+                .expect("No suitable VULKAN GPU adapter found on the system!");
+                let (vulkan_device, vulkan_queue) = vulkan_adapter
+                    .request_device(
+                        &wgpu::DeviceDescriptor {
+                            label: None,
+                            features: required_gpu_features(),
+                            limits: platform_limits(),
+                        },
+                        // Some(&std::path::Path::new("trace")), // Trace path
+                        None,
+                    )
+                    .await
+                    .expect("Failed to create device");
+
+                (
+                    vulkan_instance,
+                    vulkan_surface,
+                    vulkan_adapter,
+                    vulkan_device,
+                    vulkan_queue,
+                )
+            }
+        };
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,

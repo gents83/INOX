@@ -101,7 +101,6 @@ impl Pass for BlitPass {
         }
 
         let mut pass = self.render_pass.get_mut();
-        let render_textures = pass.render_textures_id();
 
         if let Some(texture_index) = render_context
             .render_buffers
@@ -109,7 +108,7 @@ impl Pass for BlitPass {
             .index_of(&self.source_texture_id)
         {
             if self.data.data.texture_index != texture_index {
-                self.data.data.texture_index += texture_index;
+                self.data.data.texture_index = texture_index;
                 self.data.set_dirty(true);
             }
         } else {
@@ -139,12 +138,12 @@ impl Pass for BlitPass {
                     ..Default::default()
                 },
             )
-            .add_textures(
+            .add_sampler_and_textures(
                 &render_context.texture_handler,
-                render_textures,
+                pass.render_textures_id(),
                 None,
                 BindingInfo {
-                    group_index: 1,
+                    group_index: 2,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },

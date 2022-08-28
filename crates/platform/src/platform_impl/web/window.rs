@@ -29,12 +29,10 @@ impl Window {
             canvas.dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
         let device_pixel_ratio = window.device_pixel_ratio();
         *scale_factor = device_pixel_ratio.max(1.) as _;
-        let window_width = (window.inner_width().unwrap().as_f64().unwrap()).max(*width as f64)
-            as f32
-            * *scale_factor;
-        let window_height = (window.inner_height().unwrap().as_f64().unwrap()).max(*height as f64)
-            as f32
-            * *scale_factor;
+        let window_width =
+            (window.inner_width().unwrap().as_f64().unwrap()).max(*width as f64) as f32;
+        let window_height =
+            (window.inner_height().unwrap().as_f64().unwrap()).max(*height as f64) as f32;
         *width = window_width as u32;
         *height = window_height as u32;
         canvas.set_width(*width);

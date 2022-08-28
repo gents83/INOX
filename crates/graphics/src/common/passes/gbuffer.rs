@@ -11,13 +11,6 @@ use inox_uid::generate_random_uid;
 
 pub const GBUFFER_PIPELINE: &str = "pipelines/GBuffer.render_pipeline";
 pub const GBUFFER_PASS_NAME: &str = "GBufferPass";
-pub enum GBuffer {
-    Albedo = 0,
-    Normal = 1,
-    Params = 2,
-    UVs = 3,
-    Count = 4,
-}
 
 pub struct GBufferPass {
     render_pass: Resource<RenderPass>,
@@ -214,7 +207,7 @@ impl Pass for GBufferPass {
         }
 
         self.binding_data
-            .add_textures(
+            .add_sampler_and_textures(
                 &render_context.texture_handler,
                 render_textures,
                 depth_texture,

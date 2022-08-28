@@ -256,13 +256,13 @@ impl Viewer {
         height: u32,
     ) {
         let mut compute_pbr_pass = ComputePbrPass::create(context);
-        compute_pbr_pass.resolution(width, height);
+        compute_pbr_pass.add_render_target_with_resolution(width, height);
         if let Some(visibility_pass) = renderer.read().unwrap().pass::<VisibilityBufferPass>() {
-            let gbuffer_pass = visibility_pass.render_pass().get();
-            gbuffer_pass.render_textures_id().iter().for_each(|&id| {
+            let pass = visibility_pass.render_pass().get();
+            pass.render_textures_id().iter().for_each(|&id| {
                 compute_pbr_pass.add_texture(id);
             });
-            if let Some(depth_id) = gbuffer_pass.depth_texture_id() {
+            if let Some(depth_id) = pass.depth_texture_id() {
                 compute_pbr_pass.add_texture(depth_id);
             }
         }
@@ -286,6 +286,8 @@ impl Viewer {
                     .render_textures_id()
                     .as_slice(),
             );
+            pbr_pass
+                .set_depth_texture(gbuffer_pass.render_pass().get().depth_texture_id().unwrap());
         }
         renderer.write().unwrap().add_pass(pbr_pass);
     }
