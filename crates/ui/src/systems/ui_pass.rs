@@ -151,6 +151,17 @@ impl Pass for UIPass {
                     ..Default::default()
                 },
             )
+            .add_uniform_buffer(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut self.custom_data,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 1,
+                    stage: ShaderStage::Vertex,
+                    ..Default::default()
+                },
+            )
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
