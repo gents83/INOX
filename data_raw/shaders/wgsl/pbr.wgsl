@@ -1,5 +1,5 @@
-#import "utils.wgsl"
-#import "common.wgsl"
+#import "utils.inc"
+#import "common.inc"
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
@@ -41,9 +41,9 @@ var gbuffer_7_texture: texture_2d<f32>;
 @group(1) @binding(7)
 var depth_texture: texture_depth_2d;
 
-#import "texture_utils.wgsl"
-#import "material_utils.wgsl"
-#import "pbr_utils.wgsl"
+#import "texture_utils.inc"
+#import "material_utils.inc"
+#import "pbr_utils.inc"
 
 
 
