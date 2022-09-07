@@ -209,12 +209,7 @@ impl Window {
                     let mut mouse_pos = POINT { x: 0, y: 0 };
                     GetCursorPos(&mut mouse_pos);
                     ScreenToClient(handle.handle_impl.hwnd, &mut mouse_pos);
-                    let (dpi_x, _dpi_y) = Self::compute_dpi();
-                    let scale_factor = dpi_x as f64 / DEFAULT_DPI as f64;
-                    let mouse_pos = (
-                        mouse_pos.x as f64 / scale_factor,
-                        mouse_pos.y as f64 / scale_factor,
-                    );
+                    let mouse_pos = (mouse_pos.x as f64, mouse_pos.y as f64);
                     let mut rc: RECT = RECT {
                         left: 0,
                         top: 0,

@@ -123,7 +123,11 @@ impl UISystem {
                     ));
                 } else if event.state == MouseState::Down || event.state == MouseState::Up {
                     self.ui_input.events.push(Event::PointerButton {
-                        pos: [event.x as f32, event.y as f32].into(),
+                        pos: [
+                            event.x as f32 / self.ui_scale,
+                            event.y as f32 / self.ui_scale,
+                        ]
+                        .into(),
                         button: match event.button {
                             MouseButton::Right => PointerButton::Secondary,
                             MouseButton::Middle => PointerButton::Middle,
