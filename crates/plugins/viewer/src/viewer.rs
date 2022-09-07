@@ -225,6 +225,22 @@ impl Viewer {
 
         renderer.write().unwrap().add_pass(gbuffer_pass);
     }
+    fn create_pbr_pass(context: &ContextRc, renderer: &RendererRw) {
+        let mut pbr_pass = PBRPass::create(context);
+
+        if let Some(gbuffer_pass) = renderer.read().unwrap().pass::<GBufferPass>() {
+            pbr_pass.set_gbuffers_textures(
+                gbuffer_pass
+                    .render_pass()
+                    .get()
+                    .render_textures_id()
+                    .as_slice(),
+            );
+            pbr_pass
+                .set_depth_texture(gbuffer_pass.render_pass().get().depth_texture_id().unwrap());
+        }
+        renderer.write().unwrap().add_pass(pbr_pass);
+    }
     fn create_visibility_buffer_pass(
         context: &ContextRc,
         renderer: &RendererRw,
@@ -262,9 +278,6 @@ impl Viewer {
             pass.render_textures_id().iter().for_each(|&id| {
                 compute_pbr_pass.add_texture(id);
             });
-            if let Some(depth_id) = pass.depth_texture_id() {
-                compute_pbr_pass.add_texture(depth_id);
-            }
         }
         renderer.write().unwrap().add_pass(compute_pbr_pass);
     }
@@ -274,22 +287,6 @@ impl Viewer {
             blit_pass.set_source(pbr_pass.render_target_id());
         }
         renderer.write().unwrap().add_pass(blit_pass);
-    }
-    fn create_pbr_pass(context: &ContextRc, renderer: &RendererRw) {
-        let mut pbr_pass = PBRPass::create(context);
-
-        if let Some(gbuffer_pass) = renderer.read().unwrap().pass::<GBufferPass>() {
-            pbr_pass.set_gbuffers_textures(
-                gbuffer_pass
-                    .render_pass()
-                    .get()
-                    .render_textures_id()
-                    .as_slice(),
-            );
-            pbr_pass
-                .set_depth_texture(gbuffer_pass.render_pass().get().depth_texture_id().unwrap());
-        }
-        renderer.write().unwrap().add_pass(pbr_pass);
     }
     fn create_wireframe_pass(context: &ContextRc, renderer: &RendererRw) {
         let wireframe_pass = WireframePass::create(context);

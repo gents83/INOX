@@ -275,12 +275,9 @@ impl UISystem {
                 TextureData {
                     width: image_delta.image.width() as _,
                     height: image_delta.image.height() as _,
-                    data: pixels.to_vec(),
+                    data: Some(pixels.to_vec()),
                     format: TextureFormat::Rgba8Unorm,
-                    use_texture_atlas: true,
-                    usage: TextureUsage::TextureBinding
-                        | TextureUsage::CopyDst
-                        | TextureUsage::RenderAttachment,
+                    usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
                 },
                 None,
             );

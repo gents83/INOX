@@ -1,9 +1,8 @@
 use std::path::PathBuf;
 
 use crate::{
-    AsBinding, BindingData, BindingInfo, CommandBuffer, DrawCommandType, GpuBuffer, MeshFlags,
-    Pass, RenderContext, RenderCoreContext, RenderPass, RenderPassData, RenderTarget, ShaderStage,
-    StoreOperation, TextureId,
+    BindingData, BindingInfo, CommandBuffer, DrawCommandType, MeshFlags, Pass, RenderContext,
+    RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation, TextureId,
 };
 
 use inox_core::ContextRc;
@@ -13,40 +12,10 @@ use inox_uid::{generate_random_uid, INVALID_UID};
 pub const PBR_PIPELINE: &str = "pipelines/PBR.render_pipeline";
 pub const PBR_PASS_NAME: &str = "PBRPass";
 
-#[derive(Default, Debug, Clone, Copy)]
-struct Data {
-    pub gbuffer1_texture_index: u32,
-    pub gbuffer2_texture_index: u32,
-    pub gbuffer3_texture_index: u32,
-    pub gbuffer4_texture_index: u32,
-}
-
-#[derive(Default, Clone, Copy)]
-pub struct PBRPassData {
-    is_dirty: bool,
-    data: Data,
-}
-
-impl AsBinding for PBRPassData {
-    fn is_dirty(&self) -> bool {
-        self.is_dirty
-    }
-    fn set_dirty(&mut self, is_dirty: bool) {
-        self.is_dirty = is_dirty;
-    }
-    fn size(&self) -> u64 {
-        std::mem::size_of_val(&self.data) as u64
-    }
-    fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut GpuBuffer) {
-        buffer.add_to_gpu_buffer(render_core_context, &[self.data]);
-    }
-}
-
 pub struct PBRPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
-    data: PBRPassData,
-    textures: Vec<TextureId>,
+    gbuffer_textures: Vec<TextureId>,
     depth_texture: TextureId,
 }
 unsafe impl Send for PBRPass {}
@@ -92,16 +61,15 @@ impl Pass for PBRPass {
                 None,
             ),
             binding_data: BindingData::default(),
-            data: PBRPassData::default(),
-            textures: Vec::new(),
+            gbuffer_textures: Vec::new(),
             depth_texture: INVALID_UID,
         }
     }
     fn init(&mut self, render_context: &mut RenderContext) {
         inox_profiler::scoped_profile!("pbr_pass::init");
 
-        if self.textures.iter().any(|t| t.is_nil())
-            || self.textures.is_empty()
+        if self.gbuffer_textures.iter().any(|t| t.is_nil())
+            || self.gbuffer_textures.is_empty()
             || self.depth_texture.is_nil()
             || render_context.render_buffers.textures.is_empty()
             || render_context.render_buffers.meshes.is_empty()
@@ -111,10 +79,7 @@ impl Pass for PBRPass {
             return;
         }
 
-        self.fill_data_from_texture_ids(render_context);
-
         let mut pass = self.render_pass.get_mut();
-        let render_textures = pass.render_textures_id();
 
         self.binding_data
             .add_uniform_buffer(
@@ -128,10 +93,10 @@ impl Pass for PBRPass {
                     ..Default::default()
                 },
             )
-            .add_uniform_buffer(
+            .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut self.data,
+                &mut render_context.render_buffers.meshes,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,
@@ -142,7 +107,7 @@ impl Pass for PBRPass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.meshes,
+                &mut render_context.render_buffers.meshlets,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,
@@ -153,7 +118,7 @@ impl Pass for PBRPass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.meshlets,
+                &mut render_context.render_buffers.materials,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 3,
@@ -164,7 +129,7 @@ impl Pass for PBRPass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.materials,
+                &mut render_context.render_buffers.textures,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 4,
@@ -175,41 +140,53 @@ impl Pass for PBRPass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.textures,
+                &mut render_context.render_buffers.lights,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 5,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
-            )
-            .add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.lights,
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 6,
-                    stage: ShaderStage::Fragment,
-                    ..Default::default()
-                },
-            )
-            .add_depth_texture(
+            );
+
+        self.gbuffer_textures
+            .iter()
+            .enumerate()
+            .for_each(|(i, id)| {
+                self.binding_data.add_texture(
+                    &render_context.texture_handler,
+                    id,
+                    BindingInfo {
+                        group_index: 1,
+                        binding_index: i,
+                        stage: ShaderStage::Fragment,
+                        ..Default::default()
+                    },
+                );
+            });
+        self.binding_data.add_texture(
+            &render_context.texture_handler,
+            &self.depth_texture,
+            BindingInfo {
+                group_index: 1,
+                binding_index: self.gbuffer_textures.len(),
+                stage: ShaderStage::Fragment,
+                ..Default::default()
+            },
+        );
+
+        self.binding_data
+            .add_default_sampler(BindingInfo {
+                group_index: 2,
+                binding_index: 0,
+                stage: ShaderStage::Fragment,
+                ..Default::default()
+            })
+            .add_material_textures(
                 &render_context.texture_handler,
-                &self.depth_texture,
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 0,
-                    stage: ShaderStage::Fragment,
-                    ..Default::default()
-                },
-            )
-            .add_sampler_and_textures(
-                &render_context.texture_handler,
-                render_textures,
-                None,
                 BindingInfo {
                     group_index: 2,
+                    binding_index: 1,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
@@ -221,8 +198,8 @@ impl Pass for PBRPass {
     fn update(&self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
         inox_profiler::scoped_profile!("pbr_pass::update");
 
-        if self.textures.iter().any(|t| t.is_nil())
-            || self.textures.is_empty()
+        if self.gbuffer_textures.iter().any(|t| t.is_nil())
+            || self.gbuffer_textures.is_empty()
             || self.depth_texture.is_nil()
             || render_context.render_buffers.textures.is_empty()
             || render_context.render_buffers.meshes.is_empty()
@@ -254,48 +231,11 @@ impl PBRPass {
         &self.render_pass
     }
     pub fn set_gbuffers_textures(&mut self, textures: &[&TextureId]) -> &mut Self {
-        self.textures = textures.iter().map(|&id| *id).collect();
+        self.gbuffer_textures = textures.iter().map(|&id| *id).collect();
         self
     }
     pub fn set_depth_texture(&mut self, texture_id: &TextureId) -> &mut Self {
         self.depth_texture = *texture_id;
-        self
-    }
-
-    fn fill_data_from_texture_ids(&mut self, render_context: &RenderContext) -> &mut Self {
-        let gbuffer1_texture_index = render_context
-            .render_buffers
-            .textures
-            .index_of(self.textures.get(0).unwrap_or(&INVALID_UID))
-            .unwrap_or_default();
-        let gbuffer2_texture_index = render_context
-            .render_buffers
-            .textures
-            .index_of(self.textures.get(1).unwrap_or(&INVALID_UID))
-            .unwrap_or_default();
-        let gbuffer3_texture_index = render_context
-            .render_buffers
-            .textures
-            .index_of(self.textures.get(2).unwrap_or(&INVALID_UID))
-            .unwrap_or_default();
-        let gbuffer4_buffer_index = render_context
-            .render_buffers
-            .textures
-            .index_of(self.textures.get(3).unwrap_or(&INVALID_UID))
-            .unwrap_or_default();
-
-        if self.data.data.gbuffer1_texture_index != gbuffer1_texture_index as u32
-            || self.data.data.gbuffer2_texture_index != gbuffer2_texture_index as u32
-            || self.data.data.gbuffer3_texture_index != gbuffer3_texture_index as u32
-            || self.data.data.gbuffer4_texture_index != gbuffer4_buffer_index as u32
-        {
-            self.data.data.gbuffer1_texture_index = gbuffer1_texture_index as u32;
-            self.data.data.gbuffer2_texture_index = gbuffer2_texture_index as u32;
-            self.data.data.gbuffer3_texture_index = gbuffer3_texture_index as u32;
-            self.data.data.gbuffer4_texture_index = gbuffer4_buffer_index as u32;
-            self.data.set_dirty(true);
-        }
-
         self
     }
 }

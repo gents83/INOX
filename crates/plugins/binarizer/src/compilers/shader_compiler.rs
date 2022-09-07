@@ -21,6 +21,8 @@ use inox_serialize::SerializeFile;
 use inox_uid::generate_random_uid;
 use regex::Regex;
 
+const DEBUG_SHADER_GENERATED_CODE: bool = false;
+
 const SHADERS_FOLDER_NAME: &str = "shaders";
 
 const WGSL_EXTENSION: &str = "wgsl";
@@ -186,12 +188,83 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
             file.read_to_end(&mut data).unwrap();
             let shader_code = String::from_utf8(data).unwrap();
             let preprocessed_code = self.preprocess_code(path, shader_code);
-            let shader_data = ShaderData {
-                wgsl_code: preprocessed_code,
-                ..Default::default()
-            };
-            shader_data.save_to_file(new_path.as_path(), self.shared_data.serializable_registry());
-            send_reloaded_event(&self.message_hub, new_path.as_path());
+
+            let result = naga::front::wgsl::parse_str(&preprocessed_code);
+            match result {
+                Ok(module) => {
+                    match naga::valid::Validator::new(
+                        naga::valid::ValidationFlags::default(),
+                        naga::valid::Capabilities::all(),
+                    )
+                    .validate(&module)
+                    {
+                        Ok(info) => {
+                            if DEBUG_SHADER_GENERATED_CODE {
+                                use naga::back::spv;
+                                use rspirv::binary::Disassemble;
+
+                                let mut flags = spv::WriterFlags::LABEL_VARYINGS;
+                                flags.set(spv::WriterFlags::DEBUG, true);
+
+                                let options = spv::Options {
+                                    lang_version: (1, 1),
+                                    flags,
+                                    ..spv::Options::default()
+                                };
+
+                                module.entry_points.iter().for_each(|ep| {
+                                    let pipeline_options = spv::PipelineOptions {
+                                        entry_point: ep.name.clone(),
+                                        shader_stage: ep.stage,
+                                    };
+                                    let spv = spv::write_vec(
+                                        &module,
+                                        &info,
+                                        &options,
+                                        Some(&pipeline_options),
+                                    )
+                                    .unwrap();
+                                    let dis = rspirv::dr::load_words(spv)
+                                        .expect("Produced invalid SPIR-V")
+                                        .disassemble();
+                                    let spv_path =
+                                        new_path.parent().unwrap().parent().unwrap().join("spv");
+                                    std::fs::create_dir_all(spv_path.as_path()).ok();
+                                    let spv_path = spv_path.join(format!(
+                                        "{}_{}.spv",
+                                        new_path.file_stem().unwrap().to_str().unwrap(),
+                                        ep.name
+                                    ));
+                                    std::fs::write(spv_path.as_path(), dis).unwrap();
+                                });
+                            }
+
+                            let shader_data = ShaderData {
+                                wgsl_code: preprocessed_code,
+                                ..Default::default()
+                            };
+                            shader_data.save_to_file(
+                                new_path.as_path(),
+                                self.shared_data.serializable_registry(),
+                            );
+                            send_reloaded_event(&self.message_hub, new_path.as_path());
+                        }
+                        Err(error) => {
+                            println!(
+                                "Unable to compile shader {:?} - with error: \n{}",
+                                path, error
+                            );
+                        }
+                    };
+                }
+                Err(ref e) => {
+                    println!(
+                        "Unable to compile shader {:?} - with error: \n{}",
+                        path,
+                        e.emit_to_string(e.message())
+                    );
+                }
+            }
         }
     }
 

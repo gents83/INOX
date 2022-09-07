@@ -11,10 +11,7 @@ use inox_resources::{
 use inox_serialize::inox_serializable::SerializableRegistryRc;
 use inox_uid::generate_random_uid;
 
-use crate::{
-    RenderContext, TextureData, TextureFormat, TextureHandler, TextureUsage, INVALID_INDEX,
-    TEXTURE_CHANNEL_COUNT,
-};
+use crate::{TextureData, TextureFormat, TextureUsage, INVALID_INDEX};
 
 pub type TextureId = ResourceId;
 
@@ -30,7 +27,6 @@ pub struct Texture {
     height: u32,
     format: TextureFormat,
     usage: TextureUsage,
-    use_texture_atlas: bool,
     update_from_gpu: bool,
 }
 
@@ -75,11 +71,8 @@ impl DataTypeResource for Texture {
             width: 0,
             height: 0,
             format: TextureFormat::Rgba8Unorm,
-            usage: TextureUsage::TextureBinding
-                | TextureUsage::CopyDst
-                | TextureUsage::RenderAttachment,
+            usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
             update_from_gpu: false,
-            use_texture_atlas: true,
         }
     }
 
@@ -106,11 +99,8 @@ impl DataTypeResource for Texture {
                 width: image_data.width(),
                 height: image_data.height(),
                 format: TextureFormat::Rgba8Unorm,
-                data: image_data.into_rgba8().to_vec(),
-                usage: TextureUsage::TextureBinding
-                    | TextureUsage::CopyDst
-                    | TextureUsage::RenderAttachment,
-                use_texture_atlas: true,
+                data: Some(image_data.into_rgba8().to_vec()),
+                usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
             });
         });
     }
@@ -129,8 +119,9 @@ impl DataTypeResource for Texture {
         texture.height = data.height;
         texture.format = data.format;
         texture.usage = data.usage;
-        texture.use_texture_atlas = data.use_texture_atlas;
-        texture.data = Some(data.data.clone());
+        if let Some(image_data) = &data.data {
+            texture.data = Some(image_data.clone());
+        }
         texture
     }
 }
@@ -199,9 +190,6 @@ impl Texture {
     pub fn format(&self) -> TextureFormat {
         self.format
     }
-    pub fn use_texture_atlas(&self) -> bool {
-        self.use_texture_atlas
-    }
     pub fn usage(&self) -> TextureUsage {
         self.usage
     }
@@ -221,29 +209,6 @@ impl Texture {
         self
     }
 
-    pub fn capture_image(
-        &mut self,
-        texture_id: &TextureId,
-        texture_handler: &TextureHandler,
-        context: &RenderContext,
-    ) {
-        inox_profiler::scoped_profile!("texture::capture_image");
-        if self.data.is_none() {
-            let mut image_data = Vec::new();
-            image_data.resize_with(
-                (self.width * self.height * TEXTURE_CHANNEL_COUNT) as _,
-                || 0u8,
-            );
-            self.data = Some(image_data)
-        }
-        texture_handler.copy(
-            &context.core.device,
-            texture_id,
-            self.data.as_mut().unwrap().as_mut_slice(),
-        );
-        self.mark_as_dirty();
-    }
-
     pub fn create_from_format(
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
@@ -253,7 +218,6 @@ impl Texture {
         usage: TextureUsage,
     ) -> Resource<Texture> {
         let texture_id = generate_random_uid();
-        let image_data = Self::image_data_from_format(width, height, format);
         let mut texture = Texture::create_from_data(
             shared_data,
             message_hub,
@@ -262,8 +226,7 @@ impl Texture {
                 width,
                 height,
                 format,
-                data: image_data,
-                use_texture_atlas: false,
+                data: None,
                 usage,
             },
         );
@@ -277,7 +240,8 @@ impl Texture {
             | crate::TextureFormat::R8Uint
             | crate::TextureFormat::R8Snorm
             | crate::TextureFormat::R8Sint
-            | crate::TextureFormat::Stencil8 => {
+            //| crate::TextureFormat::Stencil8 
+            => {
                 vec![0u8; ::std::mem::size_of::<u8>() * width as usize * height as usize]
             }
             crate::TextureFormat::R16Uint

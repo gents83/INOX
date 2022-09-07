@@ -9,8 +9,9 @@ use inox_resources::{
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 
 use crate::{
-    BindingData, RenderContext, RenderPipelineData, Shader, VertexBufferLayoutBuilder,
-    FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT, VERTEX_SHADER_ENTRY_POINT,
+    BindingData, RenderContext, RenderPipelineData, Shader, TextureFormat,
+    VertexBufferLayoutBuilder, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT,
+    VERTEX_SHADER_ENTRY_POINT,
 };
 
 pub type RenderPipelineId = ResourceId;
@@ -20,7 +21,7 @@ pub struct RenderPipeline {
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
     data: RenderPipelineData,
-    formats: Vec<wgpu::TextureFormat>,
+    formats: Vec<TextureFormat>,
     vertex_shader: Handle<Shader>,
     fragment_shader: Handle<Shader>,
     render_pipeline: Option<wgpu::RenderPipeline>,
@@ -170,8 +171,8 @@ impl RenderPipeline {
     pub fn init(
         &mut self,
         context: &RenderContext,
-        render_formats: Vec<&wgpu::TextureFormat>,
-        depth_format: Option<&wgpu::TextureFormat>,
+        render_formats: Vec<&TextureFormat>,
+        depth_format: Option<&TextureFormat>,
         binding_data: &BindingData,
         vertex_layout: Option<VertexBufferLayoutBuilder>,
         instance_layout: Option<VertexBufferLayoutBuilder>,
@@ -198,16 +199,31 @@ impl RenderPipeline {
                 self.formats = Vec::new();
             }
         }
-        let count = self
-            .formats
-            .iter()
-            .zip(&render_formats)
-            .filter(|&(a, &b)| a == b)
-            .count();
-        let is_same_format = count == self.formats.len() && count == render_formats.len();
+        let is_same_format = if render_formats.is_empty() {
+            !self.formats.is_empty() && self.formats[0] == context.core.config.format.into()
+        } else {
+            let count = self
+                .formats
+                .iter()
+                .zip(&render_formats)
+                .filter(|&(a, &b)| a == b)
+                .count();
+            count == self.formats.len() && count == render_formats.len()
+        };
         if is_same_format {
             return true;
         }
+        let pipeline_render_formats = if render_formats.is_empty() {
+            vec![context.core.config.format]
+        } else {
+            render_formats
+                .iter()
+                .map(|&f| {
+                    let format: wgpu::TextureFormat = (*f).into();
+                    format
+                })
+                .collect()
+        };
         let render_pipeline_layout =
             context
                 .core
@@ -231,7 +247,7 @@ impl RenderPipeline {
         }
 
         let render_pipeline = {
-            inox_profiler::scoped_profile!("render_pipeline::crate[{}]", self.name());
+            inox_profiler::scoped_profile!("render_pipeline::create[{}]", self.name());
             context
                 .core
                 .device
@@ -264,11 +280,11 @@ impl RenderPipeline {
                         } else {
                             SHADER_ENTRY_POINT
                         },
-                        targets: render_formats
+                        targets: pipeline_render_formats
                             .iter()
                             .map(|&render_format| {
                                 Some(wgpu::ColorTargetState {
-                                    format: *render_format,
+                                    format: render_format,
                                     blend: Some(wgpu::BlendState {
                                         color: wgpu::BlendComponent {
                                             src_factor: self.data.src_color_blend_factor.into(),
@@ -300,7 +316,7 @@ impl RenderPipeline {
                         conservative: false,
                     },
                     depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
-                        format: *format,
+                        format: (*format).into(),
                         depth_write_enabled: self.data.depth_write_enabled,
                         depth_compare: self.data.depth_compare.into(),
                         stencil: wgpu::StencilState::default(),
@@ -316,7 +332,7 @@ impl RenderPipeline {
                     multiview: None,
                 })
         };
-        self.formats = render_formats.iter().map(|&f| *f).collect();
+        self.formats = pipeline_render_formats.iter().map(|&f| f.into()).collect();
         self.render_pipeline = Some(render_pipeline);
         true
     }

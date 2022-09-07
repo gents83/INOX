@@ -1,6 +1,6 @@
 use crate::{
     ComputePipeline, Material, Pass, RenderContext, RenderContextRw, RenderPass, RenderPipeline,
-    Texture, TextureId,
+    Texture, TextureId, TextureUsage,
 };
 use inox_core::ContextRc;
 
@@ -171,30 +171,41 @@ impl Renderer {
         inox_profiler::scoped_profile!("renderer::on_texture_changed");
         let mut render_context = self.render_context.as_ref().unwrap().write().unwrap();
         if let Some(texture) = self.shared_data.get_resource::<Texture>(texture_id) {
-            if !texture.get().is_initialized() {
-                if render_context
+            if !texture.get().is_initialized()
+                && texture.get().width() > 0
+                && texture.get().height() > 0
+            {
+                if texture
+                    .get()
+                    .usage()
+                    .contains(TextureUsage::RenderAttachment)
+                {
+                    let uniform_index = render_context.add_image(encoder, &texture);
+                    texture.get_mut().set_texture_index(uniform_index);
+                } else if render_context
                     .texture_handler
                     .texture_info(texture_id)
                     .is_none()
                 {
                     render_context.add_image(encoder, &texture);
-                }
-                if let Some(texture_data) = render_context.texture_handler.texture_info(texture_id)
-                {
-                    let uniform_index = render_context
-                        .render_buffers
-                        .add_texture(texture_id, &texture_data);
-                    texture
-                        .get_mut()
-                        .set_texture_index(uniform_index)
-                        .set_texture_size(texture_data.width(), texture_data.height());
-                    //Need to update all materials that use this texture
-                    self.shared_data
-                        .for_each_resource_mut(|_, m: &mut Material| {
-                            if m.has_texture_id(texture_id) {
-                                m.mark_as_dirty();
-                            }
-                        });
+                    if let Some(texture_info) =
+                        render_context.texture_handler.texture_info(texture_id)
+                    {
+                        let uniform_index = render_context
+                            .render_buffers
+                            .add_texture(texture_id, &texture_info);
+                        texture
+                            .get_mut()
+                            .set_texture_index(uniform_index)
+                            .set_texture_size(texture_info.width(), texture_info.height());
+                        //Need to update all materials that use this texture
+                        self.shared_data
+                            .for_each_resource_mut(|_, m: &mut Material| {
+                                if m.has_texture_id(texture_id) {
+                                    m.mark_as_dirty();
+                                }
+                            });
+                    }
                 }
             }
         }

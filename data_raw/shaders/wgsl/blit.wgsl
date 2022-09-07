@@ -1,29 +1,15 @@
-#import "utils.wgsl"
-#import "common.wgsl"
-
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) uv: vec3<f32>,
+    @location(0) uv: vec2<f32>,
 };
 
 struct FragmentOutput {
     @location(0) color: vec4<f32>,
 };
 
-
-struct BlitPassData {
-    source_texture_index: u32,
-    _padding1: u32,
-    _padding2: u32,
-    _padding3: u32,
-};
-
 @group(0) @binding(0)
-var<uniform> data: BlitPassData;
-@group(0) @binding(1)
-var<storage, read> textures: Textures;
+var source_texture: texture_2d<f32>;
 
-#import "texture_utils.wgsl"
 
 @vertex
 fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
@@ -33,12 +19,15 @@ fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
 
     var vertex_out: VertexOutput;
     vertex_out.clip_position = pos;
-    vertex_out.uv = vec3<f32>(uv.xy, f32(data.source_texture_index));
+    vertex_out.uv = uv;
     return vertex_out;
 }
 
 @fragment
 fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
-    let texture_color = sample_texture(v_in.uv);
+    let d = vec2<f32>(textureDimensions(source_texture));
+    let pixel_coords = vec2<i32>(i32(v_in.uv.x * d.x), i32(v_in.uv.y * d.y));
+
+    let texture_color = textureLoad(source_texture, pixel_coords, 0);     
     return texture_color;
 }

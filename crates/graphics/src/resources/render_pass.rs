@@ -150,6 +150,7 @@ impl RenderPass {
                 height,
                 format,
                 TextureUsage::TextureBinding
+                    | TextureUsage::CopySrc
                     | TextureUsage::CopyDst
                     | TextureUsage::RenderAttachment,
             );
@@ -177,6 +178,7 @@ impl RenderPass {
                     height,
                     format,
                     TextureUsage::TextureBinding
+                        | TextureUsage::CopySrc
                         | TextureUsage::CopyDst
                         | TextureUsage::RenderAttachment,
                 );

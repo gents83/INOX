@@ -8,7 +8,7 @@ use crate::{
 
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Handle, Resource};
-use inox_uid::generate_random_uid;
+use inox_uid::{generate_random_uid, INVALID_UID};
 
 pub const COMPUTE_PBR_PIPELINE: &str = "pipelines/ComputePbr.compute_pipeline";
 pub const COMPUTE_PBR_PASS_NAME: &str = "ComputePbrPass";
@@ -43,7 +43,7 @@ pub struct ComputePbrPass {
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     data: ComputePbrPassData,
-    textures: Vec<TextureId>,
+    visibility_buffer_id: TextureId,
     render_target: Handle<Texture>,
 }
 unsafe impl Send for ComputePbrPass {}
@@ -83,7 +83,7 @@ impl Pass for ComputePbrPass {
                 None,
             ),
             binding_data: BindingData::default(),
-            textures: Vec::new(),
+            visibility_buffer_id: INVALID_UID,
             data: ComputePbrPassData {
                 dimensions: [DEFAULT_WIDTH, DEFAULT_HEIGHT],
                 ..Default::default()
@@ -105,24 +105,13 @@ impl Pass for ComputePbrPass {
             self.data.set_dirty(true);
         }
 
-        if self.textures.is_empty()
+        if self.visibility_buffer_id.is_nil()
             || render_context.render_buffers.textures.is_empty()
             || render_context.render_buffers.meshes.is_empty()
             || render_context.render_buffers.meshlets.is_empty()
             || render_context.render_buffers.lights.is_empty()
         {
             return;
-        }
-
-        if let Some(gbuffer_1) = render_context
-            .render_buffers
-            .textures
-            .get(&self.textures[0])
-        {
-            if self.data.visibility_buffer_texture_index != gbuffer_1.get_texture_index() {
-                self.data.visibility_buffer_texture_index = gbuffer_1.get_texture_index();
-                self.data.set_dirty(true);
-            }
         }
 
         self.binding_data
@@ -282,30 +271,39 @@ impl Pass for ComputePbrPass {
                     ..Default::default()
                 },
             )
-            .add_sampler_and_textures(
+            .add_default_sampler(BindingInfo {
+                group_index: 2,
+                binding_index: 0,
+                stage: ShaderStage::Compute,
+                ..Default::default()
+            })
+            .add_material_textures(
                 &render_context.texture_handler,
-                if self.render_target.is_some() {
-                    vec![self.render_target.as_ref().unwrap().id()]
-                } else {
-                    Vec::new()
-                },
-                None,
                 BindingInfo {
                     group_index: 2,
+                    binding_index: 1,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
             )
-            .add_storage_textures(
-                render_context,
-                if self.render_target.is_some() {
-                    vec![self.render_target.as_ref().unwrap()]
-                } else {
-                    Vec::new()
-                },
+            .add_texture(
+                &render_context.texture_handler,
+                &self.visibility_buffer_id,
                 BindingInfo {
                     group_index: 3,
+                    binding_index: 0,
                     stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_texture(
+                &render_context.texture_handler,
+                self.render_target.as_ref().unwrap().id(),
+                BindingInfo {
+                    group_index: 3,
+                    binding_index: 1,
+                    stage: ShaderStage::Compute,
+                    is_storage: true,
                     read_only: false,
                     ..Default::default()
                 },
@@ -320,7 +318,7 @@ impl Pass for ComputePbrPass {
     fn update(&self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
         inox_profiler::scoped_profile!("compute_pbr_pass::update");
 
-        if self.textures.is_empty()
+        if self.visibility_buffer_id.is_nil()
             || render_context.render_buffers.textures.is_empty()
             || render_context.render_buffers.meshes.is_empty()
             || render_context.render_buffers.meshlets.is_empty()
@@ -346,7 +344,7 @@ impl Pass for ComputePbrPass {
 
 impl ComputePbrPass {
     pub fn add_texture(&mut self, texture_id: &TextureId) -> &mut Self {
-        self.textures.push(*texture_id);
+        self.visibility_buffer_id = *texture_id;
         self
     }
     pub fn add_render_target_with_resolution(&mut self, width: u32, height: u32) -> &mut Self {

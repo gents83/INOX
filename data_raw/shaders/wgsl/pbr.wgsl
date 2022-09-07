@@ -3,7 +3,7 @@
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) uv: vec3<f32>,
+    @location(0) uv: vec2<f32>,
 };
 
 struct FragmentOutput {
@@ -11,30 +11,35 @@ struct FragmentOutput {
 };
 
 
-struct PBRPassData {
-    gbuffer1: u32,
-    gbuffer2: u32,
-    gbuffer3: u32,
-    gbuffer4: u32,
-};
-
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
-var<uniform> data: PBRPassData;
-@group(0) @binding(2)
 var<storage, read> meshes: Meshes;
-@group(0) @binding(3)
+@group(0) @binding(2)
 var<storage, read> meshlets: Meshlets;
-@group(0) @binding(4)
+@group(0) @binding(3)
 var<storage, read> materials: Materials;
-@group(0) @binding(5)
+@group(0) @binding(4)
 var<storage, read> textures: Textures;
-@group(0) @binding(6)
+@group(0) @binding(5)
 var<storage, read> lights: Lights;
 
 @group(1) @binding(0)
-var depth_texture: texture_depth_2d_array;
+var gbuffer_1_texture: texture_2d<f32>;
+@group(1) @binding(1)
+var gbuffer_2_texture: texture_2d<f32>;
+@group(1) @binding(2)
+var gbuffer_3_texture: texture_2d<f32>;
+@group(1) @binding(3)
+var gbuffer_4_texture: texture_2d<f32>;
+@group(1) @binding(4)
+var gbuffer_5_texture: texture_2d<f32>;
+@group(1) @binding(5)
+var gbuffer_6_texture: texture_2d<f32>;
+@group(1) @binding(6)
+var gbuffer_7_texture: texture_2d<f32>;
+@group(1) @binding(7)
+var depth_texture: texture_depth_2d;
 
 #import "texture_utils.wgsl"
 #import "material_utils.wgsl"
@@ -42,8 +47,40 @@ var depth_texture: texture_depth_2d_array;
 
 
 
-fn compute_world_position_from_depth(uv: vec2<f32>) -> vec3<f32> {
-    let z = textureSample(depth_texture, default_sampler, uv, 0);
+
+fn sample_gbuffer(i: u32, pixel_coords: vec2<i32>) -> vec4<f32> {
+    var v = vec4<f32>(0.);
+    switch (i) {
+        case 0u: { 
+            v = textureLoad(gbuffer_1_texture, pixel_coords, 0); 
+        }
+        case 1u: { 
+            v = textureLoad(gbuffer_2_texture, pixel_coords, 0); 
+        }
+        case 2u: { 
+            v = textureLoad(gbuffer_3_texture, pixel_coords, 0); 
+        }
+        case 3u: { 
+            v = textureLoad(gbuffer_4_texture, pixel_coords, 0); 
+        }
+        case 4u: { 
+            v = textureLoad(gbuffer_5_texture, pixel_coords, 0); 
+        }
+        case 5u: { 
+            v = textureLoad(gbuffer_6_texture, pixel_coords, 0); 
+        }
+        case 6u: { 
+            v = textureLoad(gbuffer_7_texture, pixel_coords, 0); 
+        }
+        default: { 
+            v = vec4<f32>(textureLoad(depth_texture, pixel_coords, 0)); 
+        }
+    }
+    return v;
+}
+
+fn compute_world_position_from_depth(pixel_coords: vec2<i32>, uv: vec2<f32>) -> vec3<f32> {
+    let z = sample_gbuffer(7u, pixel_coords).r;
     let clip_position = vec4<f32>(uv * 2. - 1., z * 2. - 1., 1.);
     let homogeneous = constant_data.inverse_view_proj * clip_position;
     return homogeneous.xyz / homogeneous.w;
@@ -57,15 +94,18 @@ fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
 
     var vertex_out: VertexOutput;
     vertex_out.clip_position = pos;
-    vertex_out.uv = vec3<f32>(uv.xy, f32(in_vertex_index));
+    vertex_out.uv = uv;
     return vertex_out;
 }
 
 
 @fragment
 fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
-    let vertex_color = sample_texture(vec3<f32>(v_in.uv.xy, f32(data.gbuffer1)));
-    let meshlet_id = pack4x8unorm(sample_texture(vec3<f32>(v_in.uv.xy, f32(data.gbuffer3))));
+    let d = vec2<f32>(textureDimensions(depth_texture));
+    let pixel_coords = vec2<i32>(i32(v_in.uv.x * d.x), i32(v_in.uv.y * d.y));
+    
+    let vertex_color = sample_gbuffer(0u, pixel_coords);
+    let meshlet_id = pack4x8unorm(sample_gbuffer(2u, pixel_coords));
     if meshlet_id == 0u {
         return vec4<f32>(0., 0., 0., 0.);
     }
@@ -80,10 +120,10 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
             f32((meshlet_color >> 16u) & 255u)
         ) / 255., 1.);
     } else {
-        let uv_0 = pack4x8unorm(sample_texture(vec3<f32>(v_in.uv.xy, f32(data.gbuffer4))));
-        let uv_1 = pack4x8unorm(sample_texture(vec3<f32>(v_in.uv.xy, f32(data.gbuffer4 + 1u))));
-        let uv_2 = pack4x8unorm(sample_texture(vec3<f32>(v_in.uv.xy, f32(data.gbuffer4 + 2u))));
-        let uv_3 = pack4x8unorm(sample_texture(vec3<f32>(v_in.uv.xy, f32(data.gbuffer4 + 3u))));
+        let uv_0 = pack4x8unorm(sample_gbuffer(3u, pixel_coords));
+        let uv_1 = pack4x8unorm(sample_gbuffer(4u, pixel_coords));
+        let uv_2 = pack4x8unorm(sample_gbuffer(5u, pixel_coords));
+        let uv_3 = pack4x8unorm(sample_gbuffer(6u, pixel_coords));
         let uv_set = vec4<u32>(uv_0, uv_1, uv_2, uv_3);
 
         let mesh_id = meshlets.data[meshlet_id - 1u].mesh_index;
@@ -97,9 +137,9 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
 
         color = vec4<f32>(vertex_color.rgb * texture_color.rgb, alpha);
 
-        let packed_normal = unpack2x16float(pack4x8unorm(sample_texture(vec3<f32>(v_in.uv.xy, f32(data.gbuffer2)))));
+        let packed_normal = unpack2x16float(pack4x8unorm(sample_gbuffer(1u, pixel_coords)));
         let n = unpack_normal(packed_normal);
-        let world_pos = compute_world_position_from_depth(v_in.uv.xy);
+        let world_pos = compute_world_position_from_depth(pixel_coords, v_in.uv);
         color = compute_brdf(world_pos, n, material_id, color, uv_set);
     }
 

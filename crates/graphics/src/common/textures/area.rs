@@ -252,25 +252,30 @@ impl AreaAllocator {
         None
     }
 
-    pub fn get_area(&self, id: &TextureId) -> Option<Area> {
+    pub fn get_area(&self, id: &TextureId) -> Option<&Area> {
         if let Some(area) = self.occupied.get_area(id) {
-            return Some(*area);
+            return Some(area);
         }
         None
     }
 
     pub fn remove_texture(&mut self, id: &TextureId) -> bool {
+        let mut area_to_remove = None;
         if let Some(area) = self.get_area(id) {
+            area_to_remove = Some(*area);
+        }
+        if let Some(area) = &area_to_remove {
             self.remove(area);
             return true;
         }
         false
     }
 
-    pub fn remove(&mut self, mut area: Area) {
-        self.occupied.remove(&area);
-        area.id = self.id;
-        self.free.insert(area);
+    pub fn remove(&mut self, area: &Area) {
+        self.occupied.remove(area);
+        let mut free_area = *area;
+        free_area.id = self.id;
+        self.free.insert(free_area);
         self.free.collapse();
     }
 

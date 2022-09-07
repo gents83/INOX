@@ -10,8 +10,8 @@ use inox_resources::Resource;
 use crate::{
     platform::{platform_limits, required_gpu_features},
     AsBinding, BufferId, ConstantData, DrawCommandType, GpuBuffer, MeshFlags, RenderBuffers,
-    RenderPass, RendererRw, Texture, TextureHandler, CONSTANT_DATA_FLAGS_SUPPORT_SRGB,
-    DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    RenderPass, RendererRw, Texture, TextureFormat, TextureHandler,
+    CONSTANT_DATA_FLAGS_SUPPORT_SRGB, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 #[derive(Default)]
@@ -242,8 +242,8 @@ impl RenderContext {
             render_targets.push(self.surface_view.as_ref().unwrap());
         } else {
             render_textures.iter().for_each(|&id| {
-                if let Some(atlas) = self.texture_handler.get_texture_atlas(id) {
-                    render_targets.push(atlas.texture());
+                if let Some(texture_view) = self.texture_handler.texture_view(id) {
+                    render_targets.push(texture_view);
                 }
             });
         }
@@ -255,62 +255,62 @@ impl RenderContext {
         render_pass: &'a RenderPass,
     ) -> Option<&'a wgpu::TextureView> {
         if let Some(texture) = render_pass.depth_texture() {
-            if let Some(atlas) = self.texture_handler.get_texture_atlas(texture.id()) {
-                return Some(atlas.texture());
+            if let Some(texture_view) = self.texture_handler.texture_view(texture.id()) {
+                return Some(texture_view);
             }
         }
         None
     }
 
-    pub fn render_formats(&self, render_pass: &RenderPass) -> Vec<&wgpu::TextureFormat> {
+    pub fn render_formats(&self, render_pass: &RenderPass) -> Vec<&TextureFormat> {
         let mut render_formats = Vec::new();
         let render_textures = render_pass.render_textures_id();
-        if render_textures.is_empty() {
-            render_formats.push(&self.core.config.format);
-        } else {
-            render_textures.iter().for_each(|&id| {
-                if let Some(atlas) = self.texture_handler.get_texture_atlas(id) {
-                    render_formats.push(atlas.texture_format());
-                }
-            });
-        }
+        render_textures.iter().for_each(|&id| {
+            if let Some(format) = self.texture_handler.texture_format(id) {
+                render_formats.push(format);
+            }
+        });
         render_formats
     }
 
-    pub fn depth_format(&self, render_pass: &RenderPass) -> Option<&wgpu::TextureFormat> {
+    pub fn depth_format(&self, render_pass: &RenderPass) -> Option<&TextureFormat> {
         if let Some(texture) = render_pass.depth_texture() {
-            self.texture_handler
-                .get_texture_atlas(texture.id())
-                .map(|atlas| atlas.texture_format())
+            self.texture_handler.texture_format(texture.id())
         } else {
             None
         }
     }
 
-    pub fn add_image(&mut self, encoder: &mut wgpu::CommandEncoder, texture: &Resource<Texture>) {
-        if let Some(image_data) = texture.get().image_data() {
-            let texture_id = texture.id();
-            let width = texture.get().width();
-            let height = texture.get().height();
-            let use_texture_atlas = texture.get().use_texture_atlas();
-            if use_texture_atlas {
-                self.texture_handler.add_image_to_texture_atlas(
-                    &self.core.device,
-                    encoder,
-                    texture_id,
-                    (width, height),
-                    image_data,
-                );
-            } else {
-                self.texture_handler.add_new_texture_atlas(
-                    &self.core.device,
-                    texture_id,
-                    width,
-                    height,
-                    texture.get().format().into(),
-                    texture.get().usage().into(),
-                );
-            }
-        }
+    pub fn add_image(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        texture: &Resource<Texture>,
+    ) -> usize {
+        let texture_id = texture.id();
+        let width = texture.get().width();
+        let height = texture.get().height();
+        let format = texture.get().format();
+        let index = if let Some(image_data) = texture.get().image_data() {
+            let info = self.texture_handler.add_image_to_texture_atlas(
+                &self.core.device,
+                encoder,
+                texture_id,
+                (width, height),
+                format,
+                image_data,
+            );
+            info.texture_index as _
+        } else {
+            let usage = texture.get().usage();
+            let index = self.texture_handler.add_render_target(
+                &self.core.device,
+                texture_id,
+                (width, height),
+                format,
+                usage,
+            );
+            index as _
+        };
+        index
     }
 }

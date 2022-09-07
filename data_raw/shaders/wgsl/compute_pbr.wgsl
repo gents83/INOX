@@ -41,7 +41,9 @@ var<storage, read> lights: Lights;
 var<storage, read> meshes_aabb: AABBs;
 
 @group(3) @binding(0)
-var render_target: texture_storage_2d_array<rgba8unorm, read_write>;
+var visibility_buffer_texture: texture_2d<f32>;
+@group(3) @binding(1)
+var render_target: texture_storage_2d<rgba8unorm, read_write>;
 
 
 
@@ -68,10 +70,10 @@ fn main(
             }
             
             var color = vec4<f32>(0., 0., 0., 0.);
-            let visibility_output = load_texture(pixel);
+            let visibility_output = textureLoad(visibility_buffer_texture, pixel.xy, 0);
             let visibility_id = pack4x8unorm(visibility_output);
             if ((visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
-                textureStore(render_target, pixel.xy, 0, color);
+                textureStore(render_target, pixel.xy, color);
                 continue;
             }
 
@@ -138,7 +140,7 @@ fn main(
                 let vertex_color = barycentrics.x * c1 + barycentrics.y * c2 + barycentrics.z * c3;        
                 let alpha = compute_alpha(material_id, vertex_color.a);
                 if alpha < 0. {
-                    textureStore(render_target, pixel.xy, 0, color);
+                    textureStore(render_target, pixel.xy, color);
                     continue;
                 }        
 
@@ -179,7 +181,7 @@ fn main(
                 color = compute_brdf(world_pos.xyz, n, material_id, color, uv_set);
             }
 
-            textureStore(render_target, pixel.xy, 0, color);
+            textureStore(render_target, pixel.xy, color);
         }   
     }
 }

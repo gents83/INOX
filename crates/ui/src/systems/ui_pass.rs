@@ -136,8 +136,6 @@ impl Pass for UIPass {
         }
 
         let mut pass = self.render_pass.get_mut();
-        let render_texture = pass.render_textures_id();
-        let depth_texture = pass.depth_texture_id();
 
         self.binding_data
             .add_uniform_buffer(
@@ -163,12 +161,17 @@ impl Pass for UIPass {
                     ..Default::default()
                 },
             )
-            .add_sampler_and_textures(
+            .add_default_sampler(BindingInfo {
+                group_index: 2,
+                binding_index: 0,
+                stage: ShaderStage::Fragment,
+                ..Default::default()
+            })
+            .add_material_textures(
                 &render_context.texture_handler,
-                render_texture,
-                depth_texture,
                 BindingInfo {
                     group_index: 2,
+                    binding_index: 1,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },

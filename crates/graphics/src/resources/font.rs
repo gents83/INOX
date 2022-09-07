@@ -71,12 +71,9 @@ impl DataTypeResource for Font {
             TextureData {
                 width: DEFAULT_FONT_TEXTURE_SIZE as _,
                 height: DEFAULT_FONT_TEXTURE_SIZE as _,
-                data: font_data.create_texture(),
+                data: Some(font_data.create_texture()),
                 format: TextureFormat::Rgba8Unorm,
-                use_texture_atlas: true,
-                usage: TextureUsage::TextureBinding
-                    | TextureUsage::CopyDst
-                    | TextureUsage::RenderAttachment,
+                usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
             },
             None,
         );

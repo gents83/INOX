@@ -2,7 +2,7 @@ use std::num::NonZeroU32;
 
 use wgpu::util::DeviceExt;
 
-use crate::TextureId;
+use crate::{TextureFormat, TextureId};
 
 use super::area::Area;
 
@@ -13,7 +13,7 @@ pub struct Texture {
     width: u32,
     height: u32,
     layers_count: u32,
-    format: wgpu::TextureFormat,
+    format: TextureFormat,
 }
 
 impl Texture {
@@ -23,7 +23,7 @@ impl Texture {
         width: u32,
         height: u32,
         layers_count: u32,
-        format: wgpu::TextureFormat,
+        format: TextureFormat,
         usage: wgpu::TextureUsages,
     ) -> Self {
         let size = wgpu::Extent3d {
@@ -37,15 +37,10 @@ impl Texture {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format,
+            format: format.into(),
             usage,
         });
-        let view = texture.create_view(&wgpu::TextureViewDescriptor {
-            dimension: Some(wgpu::TextureViewDimension::D2Array),
-            base_array_layer: 0,
-            array_layer_count: NonZeroU32::new(layers_count),
-            ..Default::default()
-        });
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         Self {
             id,
             texture,
@@ -59,7 +54,7 @@ impl Texture {
     pub fn view(&self) -> &wgpu::TextureView {
         &self.view
     }
-    pub fn format(&self) -> &wgpu::TextureFormat {
+    pub fn format(&self) -> &TextureFormat {
         &self.format
     }
     pub fn id(&self) -> &TextureId {
@@ -69,11 +64,12 @@ impl Texture {
     pub fn width(&self) -> u32 {
         self.width
     }
-
     pub fn height(&self) -> u32 {
         self.height
     }
-
+    pub fn layers_count(&self) -> u32 {
+        self.layers_count
+    }
     pub fn send_to_gpu(
         &self,
         device: &wgpu::Device,
@@ -86,7 +82,8 @@ impl Texture {
         //   BufferCopyView.layout.bytes_per_row % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT == 0
         // So we calculate padded_width by rounding width up to the next
         // multiple of wgpu::COPY_BYTES_PER_ROW_ALIGNMENT.
-        let pixel_size = self.format.describe().block_size as u32;
+        let format: wgpu::TextureFormat = self.format.into();
+        let pixel_size = format.describe().block_size as u32;
         let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
         let padding = (align - (pixel_size * area.width) % align) % align;
         let padded_width = (pixel_size * area.width + padding) as usize;
@@ -133,10 +130,6 @@ impl Texture {
             },
             extent,
         );
-    }
-
-    pub fn read_from_gpu(&self, _device: &wgpu::Device, _area: &Area, _layer_index: u32) {
-        todo!();
     }
 
     pub fn release(&mut self) {

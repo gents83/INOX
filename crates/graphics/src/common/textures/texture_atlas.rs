@@ -1,7 +1,7 @@
 use inox_log::debug_log;
 use inox_uid::generate_random_uid;
 
-use crate::{TextureId, TextureInfo};
+use crate::{TextureFormat, TextureId, TextureInfo};
 
 use super::{
     area::{Area, AreaAllocator, DEFAULT_AREA_SIZE},
@@ -17,7 +17,7 @@ pub struct TextureAtlas {
 }
 
 impl TextureAtlas {
-    pub fn create_default(device: &wgpu::Device) -> Self {
+    pub fn create_default(device: &wgpu::Device, format: TextureFormat) -> Self {
         let mut allocators: Vec<AreaAllocator> = Vec::new();
         for _i in 0..DEFAULT_LAYER_COUNT {
             allocators.push(AreaAllocator::new(DEFAULT_AREA_SIZE, DEFAULT_AREA_SIZE));
@@ -28,34 +28,12 @@ impl TextureAtlas {
             DEFAULT_AREA_SIZE,
             DEFAULT_AREA_SIZE,
             DEFAULT_LAYER_COUNT,
-            wgpu::TextureFormat::Rgba8Unorm,
-            wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::COPY_DST
-                | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format,
+            wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
         );
         Self {
             texture,
             allocators,
-        }
-    }
-
-    pub fn create_texture(
-        device: &wgpu::Device,
-        id: &TextureId,
-        width: u32,
-        height: u32,
-        layers_count: u32,
-        format: wgpu::TextureFormat,
-        usage: wgpu::TextureUsages,
-    ) -> Self {
-        let mut area_allocator = AreaAllocator::new(width, height);
-        if area_allocator.allocate(id, width, height).is_none() {
-            panic!("Unable to create render target");
-        }
-        let texture = Texture::create(device, *id, width, height, layers_count, format, usage);
-        Self {
-            texture,
-            allocators: vec![area_allocator],
         }
     }
 
@@ -66,10 +44,10 @@ impl TextureAtlas {
     pub fn texture_id(&self) -> &TextureId {
         self.texture.id()
     }
-    pub fn texture(&self) -> &wgpu::TextureView {
+    pub fn texture_view(&self) -> &wgpu::TextureView {
         self.texture.view()
     }
-    pub fn texture_format(&self) -> &wgpu::TextureFormat {
+    pub fn texture_format(&self) -> &TextureFormat {
         self.texture.format()
     }
     pub fn width(&self) -> u32 {
@@ -79,7 +57,7 @@ impl TextureAtlas {
         self.texture.height()
     }
 
-    pub fn get_area(&self, texture_id: &TextureId) -> Option<Area> {
+    pub fn get_area(&self, texture_id: &TextureId) -> Option<&Area> {
         for allocator in &self.allocators {
             if let Some(area) = allocator.get_area(texture_id) {
                 return Some(area);
@@ -128,32 +106,22 @@ impl TextureAtlas {
         None
     }
 
-    pub fn remove(&mut self, atlas_index: u32, texture_id: &TextureId) -> bool {
+    pub fn remove(&mut self, texture_id: &TextureId) -> bool {
         for (layer_index, allocator) in self.allocators.iter_mut().enumerate() {
             if allocator.remove_texture(texture_id) {
                 //todo remove the real texture from device memory
                 //atlas.texture.remove_from_layer(device, layer_index, &area);
                 debug_log!(
-                    "Removing from texture atlas {:?} at layer {:}",
-                    atlas_index,
+                    "Removing from texture atlas with format {:?} at layer {:}",
+                    self.texture.format(),
                     layer_index
-                );
-                if self.allocators.iter().all(|a| a.is_empty()) {
-                    return true;
-                }
-                return false;
+                )
             }
         }
-        false
+        self.is_empty()
     }
 
-    pub fn read_from_gpu(&self, device: &wgpu::Device, texture_id: &TextureId) -> bool {
-        for (layer_index, allocator) in self.allocators.iter().enumerate() {
-            if let Some(area) = allocator.get_area(texture_id) {
-                self.texture.read_from_gpu(device, &area, layer_index as _);
-                return true;
-            }
-        }
-        false
+    pub fn is_empty(&self) -> bool {
+        self.allocators.iter().all(|a| a.is_empty())
     }
 }

@@ -65,8 +65,6 @@ impl Pass for GBufferPass {
         inox_profiler::scoped_profile!("gbuffer_pass::init");
 
         let mut pass = self.render_pass.get_mut();
-        let render_textures = pass.render_textures_id();
-        let depth_texture = pass.depth_texture_id();
 
         self.binding_data.add_uniform_buffer(
             &render_context.core,
@@ -207,12 +205,17 @@ impl Pass for GBufferPass {
         }
 
         self.binding_data
-            .add_sampler_and_textures(
+            .add_default_sampler(BindingInfo {
+                group_index: 2,
+                binding_index: 0,
+                stage: ShaderStage::Fragment,
+                ..Default::default()
+            })
+            .add_material_textures(
                 &render_context.texture_handler,
-                render_textures,
-                depth_texture,
                 BindingInfo {
                     group_index: 2,
+                    binding_index: 1,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
