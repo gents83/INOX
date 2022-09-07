@@ -1,6 +1,9 @@
 #import "utils.wgsl"
 #import "common.wgsl"
 
+struct UIPassData {
+    ui_scale: f32,
+}
 
 struct UIVertex {
     @builtin(vertex_index) index: u32,
@@ -26,6 +29,8 @@ struct VertexOutput {
 
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
+@group(0) @binding(1)
+var<uniform> ui_pass_data: UIPassData;
 @group(1) @binding(0)
 var<storage, read> textures: Textures;
 
@@ -38,7 +43,7 @@ fn vs_main(
     i_in: UIInstance,
 ) -> VertexOutput {
 
-    let ui_scale = 2.;
+    let ui_scale = ui_pass_data.ui_scale;
 
     var vertex_out: VertexOutput;
     vertex_out.clip_position = vec4<f32>(

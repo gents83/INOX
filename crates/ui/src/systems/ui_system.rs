@@ -114,9 +114,13 @@ impl UISystem {
         self.listener
             .process_messages(|event: &MouseEvent| {
                 if event.state == MouseState::Move {
-                    self.ui_input
-                        .events
-                        .push(Event::PointerMoved([event.x as f32, event.y as f32].into()));
+                    self.ui_input.events.push(Event::PointerMoved(
+                        [
+                            event.x as f32 / self.ui_scale,
+                            event.y as f32 / self.ui_scale,
+                        ]
+                        .into(),
+                    ));
                 } else if event.state == MouseState::Down || event.state == MouseState::Up {
                     self.ui_input.events.push(Event::PointerButton {
                         pos: [event.x as f32, event.y as f32].into(),
@@ -134,7 +138,6 @@ impl UISystem {
                 ConfigEvent::Loaded(filename, config) => {
                     if filename == self.config.get_filename() {
                         self.config = config.clone();
-
                         self.ui_scale = self.config.ui_scale;
                     }
                 }
@@ -143,11 +146,12 @@ impl UISystem {
                 WindowEvent::SizeChanged(width, height) => {
                     self.ui_input.screen_rect = Some(Rect::from_min_size(
                         Default::default(),
-                        [width as f32 / self.ui_scale, height as f32 / self.ui_scale].into(),
+                        [width as f32, height as f32].into(),
                     ));
                 }
                 WindowEvent::ScaleFactorChanged(v) => {
                     self.ui_input.pixels_per_point = Some(v);
+                    self.ui_scale = v * self.config.ui_scale;
                 }
                 _ => {}
             })

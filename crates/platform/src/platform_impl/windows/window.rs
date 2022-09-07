@@ -98,6 +98,8 @@ impl Window {
             *width = rc.right as _;
             *height = rc.bottom as _;
 
+            events_dispatcher.send_event(WindowEvent::ScaleFactorChanged(*scale_factor));
+
             Handle {
                 handle_impl: HandleImpl {
                     hwnd: win_handle,
