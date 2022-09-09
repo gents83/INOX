@@ -1,5 +1,5 @@
-#import "utils.wgsl"
-#import "common.wgsl"
+#import "utils.inc"
+#import "common.inc"
 
 
 @group(0) @binding(0)

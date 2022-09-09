@@ -79,37 +79,6 @@ fn sample_texture(tex_coords_and_texture_index: vec3<f32>) -> vec4<f32> {
 }
 
 
-
-fn load_texture(tex_coords_and_texture_index: vec3<i32>) -> vec4<f32> {
-    let atlas_index = tex_coords_and_texture_index.z;
-    let layer_index = 0;
-    var v = vec4<f32>(0.);
-
-#ifdef FEATURES_TEXTURE_BINDING_ARRAY
-    v = textureLoad(texture_array[atlas_index], tex_coords_and_texture_index.xy, layer_index, 0);
-#else
-    switch (atlas_index) {
-        case 0: { v = textureLoad(texture_1, tex_coords_and_texture_index.xy, layer_index, 0); }
-        case 1: { v = textureLoad(texture_2, tex_coords_and_texture_index.xy, layer_index, 0); }
-        case 2: { v = textureLoad(texture_3, tex_coords_and_texture_index.xy, layer_index, 0); }
-        case 3: { v = textureLoad(texture_4, tex_coords_and_texture_index.xy, layer_index, 0); }
-        case 4: { v = textureLoad(texture_5, tex_coords_and_texture_index.xy, layer_index, 0); }
-        case 5: { v = textureLoad(texture_6, tex_coords_and_texture_index.xy, layer_index, 0); }
-        case 6: { v = textureLoad(texture_7, tex_coords_and_texture_index.xy, layer_index, 0); }
-        case 7: { v = textureLoad(texture_8, tex_coords_and_texture_index.xy, layer_index, 0); }
-        case 8: { v = textureLoad(texture_9, tex_coords_and_texture_index.xy, layer_index, 0); }
-        case 9: { v = textureLoad(texture_10, tex_coords_and_texture_index.xy, layer_index, 0); }
-        case 10: { v = textureLoad(texture_11, tex_coords_and_texture_index.xy, layer_index, 0); }
-        case 11: { v = textureLoad(texture_12, tex_coords_and_texture_index.xy, layer_index, 0); }
-        case 12: { v = textureLoad(texture_13, tex_coords_and_texture_index.xy, layer_index, 0); }
-        case 13: { v = textureLoad(texture_14, tex_coords_and_texture_index.xy, layer_index, 0); }
-        case 14: { v = textureLoad(texture_15, tex_coords_and_texture_index.xy, layer_index, 0); }
-        default { v = textureLoad(texture_1, tex_coords_and_texture_index.xy, layer_index, 0); }
-    }
-#endif
-    return v;
-}
-
 fn get_uv(uv_set: vec4<u32>, texture_index: u32, coords_set: u32) -> vec3<f32> {
     var uv = vec2<f32>(0., 0.);
     switch (coords_set) {

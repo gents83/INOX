@@ -1,5 +1,5 @@
-#import "utils.wgsl"
-#import "common.wgsl"
+#import "utils.inc"
+#import "common.inc"
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
@@ -46,8 +46,8 @@ var<storage, read> meshlets: Meshlets;
 @group(1) @binding(4)
 var<storage, read> meshes_aabb: AABBs;
 
-#import "texture_utils.wgsl"
-#import "material_utils.wgsl"
+#import "texture_utils.inc"
+#import "material_utils.inc"
 
 
 @vertex

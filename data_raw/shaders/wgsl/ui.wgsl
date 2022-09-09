@@ -1,5 +1,5 @@
-#import "utils.wgsl"
-#import "common.wgsl"
+#import "utils.inc"
+#import "common.inc"
 
 struct UIPassData {
     ui_scale: f32,
@@ -34,7 +34,7 @@ var<uniform> ui_pass_data: UIPassData;
 @group(1) @binding(0)
 var<storage, read> textures: Textures;
 
-#import "texture_utils.wgsl"
+#import "texture_utils.inc"
 
 
 @vertex

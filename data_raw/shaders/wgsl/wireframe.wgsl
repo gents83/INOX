@@ -1,5 +1,5 @@
-#import "utils.wgsl"
-#import "common.wgsl"
+#import "utils.inc"
+#import "common.inc"
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,

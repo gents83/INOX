@@ -1,5 +1,5 @@
-#import "utils.wgsl"
-#import "common.wgsl"
+#import "utils.inc"
+#import "common.inc"
 
 
 struct PbrData {
@@ -47,10 +47,10 @@ var render_target: texture_storage_2d<rgba8unorm, read_write>;
 
 
 
-#import "texture_utils.wgsl"
-#import "material_utils.wgsl"
-#import "geom_utils.wgsl"
-#import "pbr_utils.wgsl"
+#import "texture_utils.inc"
+#import "material_utils.inc"
+#import "geom_utils.inc"
+#import "pbr_utils.inc"
 
 
 @compute
