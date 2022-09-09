@@ -9,7 +9,7 @@ use super::{
 };
 
 pub const DEFAULT_LAYER_COUNT: u32 = 8u32;
-pub const MAX_TEXTURE_ATLAS_COUNT: u32 = 15u32;
+pub const MAX_TEXTURE_ATLAS_COUNT: u32 = 8u32;
 
 pub struct TextureAtlas {
     texture: Texture,
