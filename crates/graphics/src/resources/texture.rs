@@ -84,26 +84,6 @@ impl DataTypeResource for Texture {
     fn is_initialized(&self) -> bool {
         self.texture_index != INVALID_INDEX
     }
-    fn deserialize_data(
-        path: &Path,
-        _registry: &SerializableRegistryRc,
-        mut f: Box<dyn FnMut(Self::DataType) + 'static>,
-    ) {
-        let mut file = File::new(path);
-        let filepath = path.to_path_buf();
-        file.load(move |bytes| {
-            let image_format = ImageFormat::from_path(filepath.as_path()).unwrap();
-            let image_data =
-                image::load_from_memory_with_format(bytes.as_slice(), image_format).unwrap();
-            f(TextureData {
-                width: image_data.width(),
-                height: image_data.height(),
-                format: TextureFormat::Rgba8Unorm,
-                data: Some(image_data.into_rgba8().to_vec()),
-                usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
-            });
-        });
-    }
 
     fn create_from_data(
         shared_data: &SharedDataRc,
@@ -137,6 +117,27 @@ impl SerializableResource for Texture {
 
     fn extension() -> &'static str {
         "png"
+    }
+
+    fn deserialize_data(
+        path: &Path,
+        _registry: &SerializableRegistryRc,
+        mut f: Box<dyn FnMut(Self::DataType) + 'static>,
+    ) {
+        let mut file = File::new(path);
+        let filepath = path.to_path_buf();
+        file.load(move |bytes| {
+            let image_format = ImageFormat::from_path(filepath.as_path()).unwrap();
+            let image_data =
+                image::load_from_memory_with_format(bytes.as_slice(), image_format).unwrap();
+            f(TextureData {
+                width: image_data.width(),
+                height: image_data.height(),
+                format: TextureFormat::Rgba8Unorm,
+                data: Some(image_data.into_rgba8().to_vec()),
+                usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
+            });
+        });
     }
 
     fn is_matching_extension(path: &Path) -> bool {

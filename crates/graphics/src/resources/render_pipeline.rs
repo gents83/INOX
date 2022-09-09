@@ -86,6 +86,14 @@ impl SerializableResource for RenderPipeline {
     fn extension() -> &'static str {
         RenderPipelineData::extension()
     }
+
+    fn deserialize_data(
+        path: &std::path::Path,
+        registry: &SerializableRegistryRc,
+        f: Box<dyn FnMut(Self::DataType) + 'static>,
+    ) {
+        read_from_file::<Self::DataType>(path, registry, f);
+    }
 }
 
 impl DataTypeResource for RenderPipeline {
@@ -113,13 +121,6 @@ impl DataTypeResource for RenderPipeline {
         self.vertex_shader.is_some()
             && self.fragment_shader.is_some()
             && self.render_pipeline.is_some()
-    }
-    fn deserialize_data(
-        path: &std::path::Path,
-        registry: &SerializableRegistryRc,
-        f: Box<dyn FnMut(Self::DataType) + 'static>,
-    ) {
-        read_from_file::<Self::DataType>(path, registry, f);
     }
 
     fn create_from_data(

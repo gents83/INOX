@@ -1,19 +1,9 @@
 use std::path::PathBuf;
 
-use inox_serialize::{Deserialize, Serialize, SerializeFile};
-
-#[repr(C)]
-#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
-#[serde(crate = "inox_serialize")]
+#[derive(Default, Debug, PartialEq, Eq, Clone)]
 pub struct ComputePassData {
     pub name: String,
     pub pipelines: Vec<PathBuf>,
-}
-
-impl SerializeFile for ComputePassData {
-    fn extension() -> &'static str {
-        "compute_pass"
-    }
 }
 
 unsafe impl Send for ComputePassData {}

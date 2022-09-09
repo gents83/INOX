@@ -54,6 +54,14 @@ impl SerializableResource for Scene {
     fn extension() -> &'static str {
         SceneData::extension()
     }
+    
+    fn deserialize_data(
+        path: &std::path::Path,
+        registry: &SerializableRegistryRc,
+        f: Box<dyn FnMut(Self::DataType) + 'static>,
+    ) {
+        read_from_file::<Self::DataType>(path, registry, f);
+    }
 }
 
 impl ResourceTrait for Scene {
@@ -101,13 +109,7 @@ impl DataTypeResource for Scene {
         self.clear();
         self
     }
-    fn deserialize_data(
-        path: &std::path::Path,
-        registry: &SerializableRegistryRc,
-        f: Box<dyn FnMut(Self::DataType) + 'static>,
-    ) {
-        read_from_file::<Self::DataType>(path, registry, f);
-    }
+
     fn create_from_data(
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,

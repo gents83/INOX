@@ -30,11 +30,6 @@ where
 
     fn is_initialized(&self) -> bool;
     fn invalidate(&mut self) -> &mut Self;
-    fn deserialize_data(
-        path: &Path,
-        registry: &SerializableRegistryRc,
-        f: Box<dyn FnMut(Self::DataType) + 'static>,
-    );
 
     fn create_from_data(
         shared_data: &SharedDataRc,
@@ -72,6 +67,11 @@ pub trait SerializableResource: DataTypeResource + Sized {
     fn set_path(&mut self, path: &Path) -> &mut Self;
     fn path(&self) -> &Path;
     fn extension() -> &'static str;
+    fn deserialize_data(
+        path: &Path,
+        registry: &SerializableRegistryRc,
+        f: Box<dyn FnMut(Self::DataType) + 'static>,
+    );
     fn is_matching_extension(path: &Path) -> bool {
         if let Some(extension) = path.extension() {
             if let Some(ext) = extension.to_str() {

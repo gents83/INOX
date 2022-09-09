@@ -5,7 +5,6 @@ use inox_resources::{
     DataTypeResource, Resource, ResourceId, ResourceTrait, SerializableResource, SharedData,
     SharedDataRc,
 };
-use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
 
 use crate::{BindingData, CommandBuffer, ComputePassData, ComputePipeline, RenderContext};
 
@@ -66,13 +65,6 @@ impl DataTypeResource for ComputePass {
     }
     fn is_initialized(&self) -> bool {
         self.is_initialized
-    }
-    fn deserialize_data(
-        path: &std::path::Path,
-        registry: &SerializableRegistryRc,
-        f: Box<dyn FnMut(Self::DataType) + 'static>,
-    ) {
-        read_from_file::<Self::DataType>(path, registry, f);
     }
 
     fn create_from_data(

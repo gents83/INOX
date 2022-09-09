@@ -86,6 +86,14 @@ impl SerializableResource for Camera {
     fn extension() -> &'static str {
         CameraData::extension()
     }
+
+    fn deserialize_data(
+        path: &std::path::Path,
+        registry: &SerializableRegistryRc,
+        f: Box<dyn FnMut(Self::DataType) + 'static>,
+    ) {
+        read_from_file::<Self::DataType>(path, registry, f);
+    }
 }
 
 impl ResourceTrait for Camera {
@@ -141,13 +149,6 @@ impl DataTypeResource for Camera {
     fn invalidate(&mut self) -> &mut Self {
         eprintln!("Camera cannot be invalidated!");
         self
-    }
-    fn deserialize_data(
-        path: &std::path::Path,
-        registry: &SerializableRegistryRc,
-        f: Box<dyn FnMut(Self::DataType) + 'static>,
-    ) {
-        read_from_file::<Self::DataType>(path, registry, f);
     }
 
     fn create_from_data(

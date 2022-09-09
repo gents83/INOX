@@ -69,6 +69,14 @@ impl SerializableResource for Light {
     fn extension() -> &'static str {
         LightData::extension()
     }
+
+    fn deserialize_data(
+        path: &std::path::Path,
+        registry: &SerializableRegistryRc,
+        f: Box<dyn FnMut(Self::DataType) + 'static>,
+    ) {
+        read_from_file::<Self::DataType>(path, registry, f);
+    }
 }
 impl DataTypeResource for Light {
     type DataType = LightData;
@@ -92,14 +100,6 @@ impl DataTypeResource for Light {
     fn invalidate(&mut self) -> &mut Self {
         self.light_index = INVALID_INDEX;
         self
-    }
-
-    fn deserialize_data(
-        path: &std::path::Path,
-        registry: &SerializableRegistryRc,
-        f: Box<dyn FnMut(Self::DataType) + 'static>,
-    ) {
-        read_from_file::<Self::DataType>(path, registry, f);
     }
 
     fn create_from_data(

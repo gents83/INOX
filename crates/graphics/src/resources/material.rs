@@ -60,6 +60,14 @@ impl SerializableResource for Material {
     fn extension() -> &'static str {
         MaterialData::extension()
     }
+
+    fn deserialize_data(
+        path: &std::path::Path,
+        registry: &SerializableRegistryRc,
+        f: Box<dyn FnMut(Self::DataType) + 'static>,
+    ) {
+        read_from_file::<Self::DataType>(path, registry, f);
+    }
 }
 
 impl DataTypeResource for Material {
@@ -82,13 +90,6 @@ impl DataTypeResource for Material {
     fn invalidate(&mut self) -> &mut Self {
         self.material_index = INVALID_INDEX;
         self
-    }
-    fn deserialize_data(
-        path: &std::path::Path,
-        registry: &SerializableRegistryRc,
-        f: Box<dyn FnMut(Self::DataType) + 'static>,
-    ) {
-        read_from_file::<Self::DataType>(path, registry, f);
     }
 
     fn create_from_data(

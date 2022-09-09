@@ -1,11 +1,8 @@
 use std::path::PathBuf;
 
-use inox_serialize::{Deserialize, Serialize, SerializeFile};
-
 use crate::TextureFormat;
 
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
-#[serde(crate = "inox_serialize")]
+#[derive(Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
 pub enum IndexFormat {
     U32,
     U16,
@@ -19,21 +16,18 @@ impl From<IndexFormat> for wgpu::IndexFormat {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
-#[serde(crate = "inox_serialize")]
+#[derive(Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
 pub enum LoadOperation {
     Load,
     Clear,
     DontCare,
 }
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
-#[serde(crate = "inox_serialize")]
+#[derive(Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
 pub enum StoreOperation {
     Store,
     DontCare,
 }
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
-#[serde(crate = "inox_serialize", tag = "type")]
+#[derive(Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
 pub enum RenderTarget {
     None,
     Screen,
@@ -44,16 +38,13 @@ pub enum RenderTarget {
         read_back: bool,
     },
 }
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
-#[serde(crate = "inox_serialize")]
+#[derive(Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
 pub enum RenderMode {
     Indirect,
     Single,
 }
 
-#[repr(C)]
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
-#[serde(crate = "inox_serialize")]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RenderPassData {
     pub name: String,
     pub load_color: LoadOperation,
@@ -64,12 +55,6 @@ pub struct RenderPassData {
     pub depth_target: RenderTarget,
     pub render_mode: RenderMode,
     pub pipeline: PathBuf,
-}
-
-impl SerializeFile for RenderPassData {
-    fn extension() -> &'static str {
-        "render_pass"
-    }
 }
 
 unsafe impl Send for RenderPassData {}

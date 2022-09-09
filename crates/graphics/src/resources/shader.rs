@@ -125,6 +125,14 @@ impl SerializableResource for Shader {
     fn extension() -> &'static str {
         SHADER_EXTENSION
     }
+
+    fn deserialize_data(
+        path: &std::path::Path,
+        registry: &SerializableRegistryRc,
+        f: Box<dyn FnMut(Self::DataType) + 'static>,
+    ) {
+        read_from_file::<Self::DataType>(path, registry, f);
+    }
 }
 
 impl DataTypeResource for Shader {
@@ -145,13 +153,6 @@ impl DataTypeResource for Shader {
     }
     fn is_initialized(&self) -> bool {
         self.module.is_some()
-    }
-    fn deserialize_data(
-        path: &std::path::Path,
-        registry: &SerializableRegistryRc,
-        f: Box<dyn FnMut(Self::DataType) + 'static>,
-    ) {
-        read_from_file::<Self::DataType>(path, registry, f);
     }
 
     fn create_from_data(

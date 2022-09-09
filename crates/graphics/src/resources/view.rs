@@ -3,7 +3,6 @@ use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, Handle, ResourceId, ResourceTrait, SharedData, SharedDataRc,
 };
-use inox_serialize::inox_serializable::SerializableRegistryRc;
 
 use crate::{DEFAULT_FAR, DEFAULT_HEIGHT, DEFAULT_NEAR, DEFAULT_WIDTH};
 
@@ -54,12 +53,6 @@ impl DataTypeResource for View {
     fn invalidate(&mut self) -> &mut Self {
         eprintln!("View cannot be invalidated!");
         self
-    }
-    fn deserialize_data(
-        _path: &std::path::Path,
-        _registry: &SerializableRegistryRc,
-        _f: Box<dyn FnMut(Self::DataType) + 'static>,
-    ) {
     }
 
     fn create_from_data(

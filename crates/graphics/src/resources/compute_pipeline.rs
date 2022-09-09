@@ -73,6 +73,13 @@ impl SerializableResource for ComputePipeline {
     fn extension() -> &'static str {
         ComputePipelineData::extension()
     }
+    fn deserialize_data(
+        path: &std::path::Path,
+        registry: &SerializableRegistryRc,
+        f: Box<dyn FnMut(Self::DataType) + 'static>,
+    ) {
+        read_from_file::<Self::DataType>(path, registry, f);
+    }
 }
 
 impl DataTypeResource for ComputePipeline {
@@ -95,13 +102,6 @@ impl DataTypeResource for ComputePipeline {
     }
     fn is_initialized(&self) -> bool {
         self.shader.is_some() && self.compute_pipeline.is_some()
-    }
-    fn deserialize_data(
-        path: &std::path::Path,
-        registry: &SerializableRegistryRc,
-        f: Box<dyn FnMut(Self::DataType) + 'static>,
-    ) {
-        read_from_file::<Self::DataType>(path, registry, f);
     }
 
     fn create_from_data(
