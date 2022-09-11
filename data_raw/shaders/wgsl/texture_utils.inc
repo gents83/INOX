@@ -53,16 +53,3 @@ fn sample_texture(tex_coords_and_texture_index: vec3<f32>) -> vec4<f32> {
 #endif
     return v;
 }
-
-
-fn get_uv(uv_set: vec4<u32>, texture_index: u32, coords_set: u32) -> vec3<f32> {
-    var uv = vec2<f32>(0., 0.);
-    switch (coords_set) {
-        case 1u: { uv = unpack2x16float(uv_set.y); }
-        case 2u: { uv = unpack2x16float(uv_set.z); }
-        case 3u: { uv = unpack2x16float(uv_set.w); }
-        default { uv = unpack2x16float(uv_set.x); }
-    }
-    return vec3<f32>(uv, f32(texture_index));
-}
-

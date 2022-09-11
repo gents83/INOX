@@ -5,7 +5,7 @@ use std::sync::{
 
 use inox_core::ContextRc;
 use inox_graphics::{
-    DrawEvent, MeshFlags, RendererRw, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
+    DrawEvent, Light, MeshFlags, RendererRw, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE,
 };
 use inox_math::{
@@ -40,6 +40,7 @@ struct Data {
     hierarchy: (bool, Option<Hierarchy>),
     meshes: (bool, Option<Meshes>),
     show_frustum: bool,
+    show_lights: bool,
     freeze_culling_camera: bool,
     meshlet_debug: MeshletDebug,
     fps: u32,
@@ -64,6 +65,7 @@ impl Info {
             hierarchy: (false, None),
             meshes: (false, None),
             show_frustum: false,
+            show_lights: false,
             freeze_culling_camera: false,
             meshlet_debug: MeshletDebug::None,
             fps: 0,
@@ -125,6 +127,9 @@ impl Info {
             data.params
                 .update_culling_camera
                 .store(!data.freeze_culling_camera, Ordering::SeqCst);
+            if data.show_lights {
+                Self::show_lights(data);
+            }
             if data.show_frustum {
                 if !data.freeze_culling_camera {
                     if let Some(camera) = data
@@ -157,6 +162,21 @@ impl Info {
                 _ => {}
             }
         }
+    }
+
+    fn show_lights(data: &Data) {
+        data.context
+            .shared_data()
+            .for_each_resource(|_, l: &Light| {
+                if l.is_active() {
+                    data.context.message_hub().send_event(DrawEvent::Sphere(
+                        l.data().position.into(),
+                        l.data().range,
+                        [l.data().color[0], l.data().color[1], l.data().color[2], 1.].into(),
+                        true,
+                    ));
+                }
+            });
     }
 
     fn show_meshlets_sphere(data: &mut Data) {
@@ -312,6 +332,7 @@ impl Info {
                         ui.label(format!("FPS: {} - ms: {:?}", data.fps, data.dt));
                         ui.checkbox(&mut data.hierarchy.0, "Hierarchy");
                         ui.checkbox(&mut data.meshes.0, "Meshes");
+                        ui.checkbox(&mut data.show_lights, "Show Lights");
                         ui.checkbox(&mut data.show_frustum, "Show Frustum");
                         ui.checkbox(&mut data.freeze_culling_camera, "Freeze Culling Camera");
                         ui.horizontal(|ui| {

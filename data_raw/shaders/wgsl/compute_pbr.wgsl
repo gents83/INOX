@@ -139,7 +139,7 @@ fn main(
 
                 let vertex_color = barycentrics.x * c1 + barycentrics.y * c2 + barycentrics.z * c3;        
                 let alpha = compute_alpha(material_id, vertex_color.a);
-                if alpha < 0. {
+                if alpha <= 0. {
                     textureStore(render_target, pixel.xy, color);
                     continue;
                 }        
@@ -173,12 +173,11 @@ fn main(
                 let n2 = decode_as_vec3(normals.data[(*v2).normal_offset]);
                 let n3 = decode_as_vec3(normals.data[(*v3).normal_offset]);
 
-                //let world_pos = barycentrics.x * p1 + barycentrics.y * p2 + barycentrics.z * p3;
-                //let n = barycentrics.x * n1 + barycentrics.y * n2 + barycentrics.z * n3;
                 let world_pos = interpolate_3d_attribute(p1.xyz, p2.xyz, p3.xyz, deriv, delta);
                 let n = interpolate_3d_attribute(n1, n2, n3, deriv, delta);
+                let normal = rotate_vector(n, (*mesh).orientation);
 
-                color = compute_brdf(world_pos.xyz, n, material_id, color, uv_set);
+                color = compute_brdf(world_pos.xyz, normal, material_id, color, uv_set);
             }
 
             textureStore(render_target, pixel.xy, color);

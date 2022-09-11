@@ -80,20 +80,6 @@ impl System for ViewerSystem {
         let current_frame = timer.current_frame();
         debug_assert!(self.last_frame != current_frame);
         self.last_frame = current_frame;
-        /*
-        self.context
-        .shared_data()
-        .for_each_resource(|_, l: &Light| {
-            if l.is_active() {
-                self.context.message_hub().send_event(DrawEvent::Sphere(
-                    l.data().position.into(),
-                    l.data().range,
-                    [l.data().color[0], l.data().color[1], l.data().color[2], 1.].into(),
-                    true,
-                ));
-            }
-        });
-        */
 
         true
     }

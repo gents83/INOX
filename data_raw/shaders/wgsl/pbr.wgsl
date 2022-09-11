@@ -140,7 +140,8 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let packed_normal = unpack2x16float(pack4x8unorm(sample_gbuffer(1u, pixel_coords)));
         let n = unpack_normal(packed_normal);
         let world_pos = compute_world_position_from_depth(pixel_coords, v_in.uv);
-        color = compute_brdf(world_pos, n, material_id, color, uv_set);
+        let normal = rotate_vector(n, (*mesh).orientation);
+        color = compute_brdf(world_pos, normal, material_id, color, uv_set);
     }
 
     return color;

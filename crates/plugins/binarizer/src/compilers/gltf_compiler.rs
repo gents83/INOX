@@ -764,8 +764,8 @@ impl GltfCompiler {
     fn process_light(&mut self, path: &Path, light: &Light) -> (NodeType, PathBuf) {
         let mut light_data = LightData {
             color: [light.color()[0], light.color()[1], light.color()[2], 1.],
-            intensity: light.intensity().min(1.),
-            range: light.range().unwrap_or(1.),
+            intensity: light.intensity().max(1.),
+            range: light.range().unwrap_or(10.),
             ..Default::default()
         };
         match light.kind() {
