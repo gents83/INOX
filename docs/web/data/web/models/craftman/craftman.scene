@@ -1,1 +1,1 @@
-{"objects":["models/craftman/object/Sketchfab_model.object","models/craftman/object/Light.object","models/craftman/object/Camera.object"],"cameras":[],"lights":[]}
+{"objects":["models/craftman/object/Craftman.object","models/craftman/object/Light.object","models/craftman/object/Camera.object"],"cameras":[],"lights":[]}
