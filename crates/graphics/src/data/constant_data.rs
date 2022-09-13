@@ -86,4 +86,7 @@ impl ConstantData {
         }
         self.is_dirty()
     }
+    pub fn view(&self) -> [[f32; 4]; 4] {
+        self.data.view
+    }
 }

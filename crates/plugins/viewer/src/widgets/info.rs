@@ -1,11 +1,6 @@
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
-
 use inox_core::ContextRc;
 use inox_graphics::{
-    DrawEvent, Light, MeshFlags, RendererRw, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
+    CullingEvent, DrawEvent, Light, MeshFlags, RendererRw, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE,
 };
 use inox_math::{
@@ -22,7 +17,6 @@ pub struct InfoParams {
     pub is_active: bool,
     pub scene_id: SceneId,
     pub renderer: RendererRw,
-    pub update_culling_camera: Arc<AtomicBool>,
 }
 
 #[derive(Default, Debug, PartialEq, Eq)]
@@ -124,9 +118,6 @@ impl Info {
                     data.meshes.1.as_mut().unwrap().update();
                 }
             }
-            data.params
-                .update_culling_camera
-                .store(!data.freeze_culling_camera, Ordering::SeqCst);
             if data.show_lights {
                 Self::show_lights(data);
             }
@@ -334,7 +325,15 @@ impl Info {
                         ui.checkbox(&mut data.meshes.0, "Meshes");
                         ui.checkbox(&mut data.show_lights, "Show Lights");
                         ui.checkbox(&mut data.show_frustum, "Show Frustum");
+                        let is_freezed = data.freeze_culling_camera;
                         ui.checkbox(&mut data.freeze_culling_camera, "Freeze Culling Camera");
+                        if is_freezed != data.freeze_culling_camera {
+                            if data.freeze_culling_camera {
+                                data.context.message_hub().send_event(CullingEvent::FreezeCamera);
+                            } else {
+                                data.context.message_hub().send_event(CullingEvent::UnfreezeCamera);
+                            }
+                        }
                         ui.horizontal(|ui| {
                             ui.label("Show Meshlets");
                             let combo_box = ComboBox::from_id_source("Meshlet Debug")

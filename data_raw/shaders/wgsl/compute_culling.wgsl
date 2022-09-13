@@ -1,44 +1,64 @@
+
+
 #import "utils.inc"
 #import "common.inc"
 
+struct CullingData {
+    view: mat4x4<f32>,
+};
 
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
-var<storage, read> meshlets: Meshlets;
+var<uniform> culling_data: CullingData;
 @group(0) @binding(2)
-var<storage, read> meshes: Meshes;
+var<storage, read> meshlets: Meshlets;
 @group(0) @binding(3)
+var<storage, read> meshes: Meshes;
+@group(0) @binding(4)
 var<storage, read> meshlets_bb: AABBs;
+
 @group(1) @binding(0)
 var<storage, read_write> count: atomic<u32>;
 @group(1) @binding(1)
 var<storage, read_write> commands: DrawIndexedCommands;
 
+
 //ScreenSpace Frustum Culling
-fn is_inside_frustum(center: vec3<f32>, radius: f32) -> bool {
-    let mvp = constant_data.proj * constant_data.view;
-    let row0 = matrix_row(mvp, 0u);
-    let row1 = matrix_row(mvp, 1u);
-    let row3 = matrix_row(mvp, 3u);
-    let frustum_1 = normalize_plane(row3 + row0);
-    let frustum_2 = normalize_plane(row3 - row0);
-    let frustum_3 = normalize_plane(row3 + row1);
-    let frustum_4 = normalize_plane(row3 - row1);
+fn is_sphere_inside_frustum(center: vec3<f32>, radius: f32, frustum: array<vec4<f32>, 4>) -> bool {
     var visible: bool = true;    
-    visible = visible && (dot(frustum_1.xyz, center) + frustum_1.w + radius > 0.);
-    visible = visible && (dot(frustum_2.xyz, center) + frustum_2.w + radius > 0.);
-    visible = visible && (dot(frustum_3.xyz, center) + frustum_3.w + radius > 0.);
-    visible = visible && (dot(frustum_4.xyz, center) + frustum_4.w + radius > 0.);    
+    var f = frustum;
+    for(var i = 0; i < 4; i = i + 1) {  
+        visible = visible && (dot(f[i].xyz, center) + f[i].w + radius > 0.);
+    }   
     return visible;
 }
 
-//fn is_cone_culled(center: vec3<f32>, radius: f32, cone_axis: vec3<f32>, cone_cutoff: f32, orientation: vec4<f32>, camera_position: vec3<f32>) -> bool {
-//    let axis = rotate_vector(cone_axis, orientation);
-//
-//    let direction = center - camera_position;
-//    return dot(direction, axis) < cone_cutoff * length(direction) + radius;
-//}
+fn is_box_inside_frustum(min: vec3<f32>, max: vec3<f32>, frustum: array<vec4<f32>, 4>) -> bool {
+    var visible: bool = false;    
+    var points: array<vec3<f32>, 8>;
+    points[0] = min;
+    points[1] = max;
+    points[2] = vec3<f32>(min.x, min.y, max.z);
+    points[3] = vec3<f32>(min.x, max.y, max.z);
+    points[4] = vec3<f32>(min.x, max.y, min.z);
+    points[5] = vec3<f32>(max.x, min.y, min.z);
+    points[6] = vec3<f32>(max.x, max.y, min.z);
+    points[7] = vec3<f32>(max.x, min.y, max.z);
+      
+    var f = frustum;
+    for(var i = 0; !visible && i < 4; i = i + 1) {  
+        for(var p = 0; !visible && p < 8; p = p + 1) {        
+            visible = visible || (dot(f[i].xyz, points[p]) + f[i].w > 0.);
+        }
+    }   
+    return visible;
+}
+
+fn is_cone_culled(center: vec3<f32>, radius: f32, cone_axis: vec3<f32>, cone_cutoff: f32) -> bool {
+    let direction = center - culling_data.view[3].xyz;
+    return dot(direction, cone_axis) < cone_cutoff * length(direction) + radius;
+}
 
 
 @compute
@@ -64,24 +84,40 @@ fn main(
     let center_bb = (*bb).min + radius;
     let center = transform_vector(center_bb, (*mesh).position, (*mesh).orientation, (*mesh).scale);
     let radius = length(radius * (*mesh).scale);
-    let view_pos = constant_data.view[3].xyz;
 
-    if (is_inside_frustum(center, radius)) 
+    let mvp = constant_data.proj * culling_data.view;
+    let row0 = matrix_row(mvp, 0u);
+    let row1 = matrix_row(mvp, 1u);
+    let row3 = matrix_row(mvp, 3u);
+
+    var frustum: array<vec4<f32>, 4>;
+    frustum[0] = normalize_plane(row3 + row0);
+    frustum[1] = normalize_plane(row3 - row0);
+    frustum[2] = normalize_plane(row3 + row1);
+    frustum[3] = normalize_plane(row3 - row1);
+
+    var is_visible = is_sphere_inside_frustum(center, radius, frustum);
+    if !is_visible {
+        return;
+    }
+    let max = transform_vector((*bb).max, (*mesh).position, (*mesh).orientation, (*mesh).scale);
+    let min = transform_vector((*bb).min, (*mesh).position, (*mesh).orientation, (*mesh).scale);
+    is_visible = is_visible && is_box_inside_frustum(min, max, frustum); 
+    if !is_visible {
+        return;
+    }
+    
+    let cone_axis = rotate_vector((*meshlet).cone_axis_cutoff.xyz, (*mesh).orientation);
+    is_visible = is_visible && is_cone_culled(center, radius, cone_axis, (*meshlet).cone_axis_cutoff.w);
+    
+    if (is_visible)
     {
-        let index = atomicAdd(&count, 1u);
+        let index = atomicAdd(&count, 1u) - 1u;
         let command = &commands.data[index];
         (*command).vertex_count = (*meshlet).indices_count;
         (*command).instance_count = 1u;
         (*command).base_index = (*mesh).indices_offset + (*meshlet).indices_offset;
         (*command).vertex_offset = i32((*mesh).vertex_offset);
         (*command).base_instance = meshlet_id;
-    } 
-    
-    //let cone_axis = vec3<f32>((*meshlet).cone_axis[0], (*meshlet).cone_axis[1], (*meshlet).cone_axis[2]);
-    //is_visible = is_cone_culled(center.xyz, radius, cone_axis, (*meshlet).cone_cutoff, meshes.meshes[mesh_index].orientation, view_pos);
-    //if (!is_visible) {
-    //    (*command).vertex_count = 0u;
-    //    (*command).instance_count = 0u;
-    //    return;
-    //}
+    }
 }

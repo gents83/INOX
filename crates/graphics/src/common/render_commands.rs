@@ -11,7 +11,7 @@ pub struct RenderCommandsPerType {
 
 #[derive(Default)]
 pub struct RenderCommands {
-    pub count: usize,
+    pub count: u32,
     pub commands: Buffer<DrawIndexedCommand>,
 }
 
@@ -19,7 +19,7 @@ impl RenderCommands {
     fn remove_commands(&mut self, mesh_id: &MeshId) -> &mut Self {
         self.commands.remove(mesh_id);
         self.commands.defrag();
-        self.count = self.commands.item_count();
+        self.count = self.commands.item_count() as _;
         self
     }
     fn add_commands(
@@ -78,7 +78,7 @@ impl RenderCommands {
             _ => {}
         }
         self.commands.allocate(mesh_id, commands.as_slice());
-        self.count = self.commands.item_count();
+        self.count = self.commands.item_count() as _;
         self
     }
 }

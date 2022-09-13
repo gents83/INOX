@@ -18,7 +18,9 @@ pub fn to_slice<T: Sized, U: Sized>(a: &[T]) -> &[U] {
         inox_log::debug_log!("to_chunk_slice: empty slice");
     }
     unsafe {
-        let len = a.len() * ::std::mem::size_of::<T>() / ::std::mem::size_of::<U>();
+        let size_of_t = ::std::mem::size_of::<T>();
+        let size_of_u = ::std::mem::size_of::<U>();
+        let len = a.len() * size_of_t / size_of_u;
         ::std::slice::from_raw_parts((&a[0] as *const T) as *const U, len)
     }
 }

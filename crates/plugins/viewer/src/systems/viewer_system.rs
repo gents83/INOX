@@ -1,8 +1,8 @@
 use inox_commands::CommandParser;
 use inox_core::{implement_unique_system_uid, ContextRc, System};
 use inox_graphics::{
-    create_quad, CullingPass, Light, Material, MaterialData, Mesh, MeshData, MeshFlags, RendererRw,
-    Texture, View,
+    create_quad, Light, Material, MaterialData, Mesh, MeshData, MeshFlags, RendererRw, Texture,
+    View,
 };
 use inox_log::debug_log;
 use inox_math::{Mat4Ops, Matrix4, VecBase, Vector2, Vector3};
@@ -12,19 +12,12 @@ use inox_resources::{DataTypeResource, Resource, SerializableResource, Serializa
 use inox_scene::{Camera, Object, Scene};
 use inox_ui::UIWidget;
 use inox_uid::generate_random_uid;
-use std::{
-    path::PathBuf,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-};
+use std::path::PathBuf;
 
 use crate::widgets::{Info, InfoParams, View3D};
 
 pub struct ViewerSystem {
     context: ContextRc,
-    renderer: RendererRw,
     listener: Listener,
     scene: Resource<Scene>,
     last_mouse_pos: Vector2,
@@ -33,7 +26,6 @@ pub struct ViewerSystem {
     info: Option<Info>,
     last_frame: u64,
     camera_index: u32,
-    update_culling_camera: Arc<AtomicBool>,
 }
 
 const FORCE_USE_DEFAULT_CAMERA: bool = false;
@@ -107,7 +99,6 @@ impl ViewerSystem {
             Scene::new(scene_id, shared_data, message_hub),
         );
 
-        let update_culling_camera = Arc::new(AtomicBool::new(true));
         let view_3d = if use_3dview {
             Some(View3D::new(shared_data, message_hub))
         } else {
@@ -119,11 +110,9 @@ impl ViewerSystem {
                 is_active: true,
                 scene_id: *scene.id(),
                 renderer: renderer.clone(),
-                update_culling_camera: update_culling_camera.clone(),
             },
         ));
         Self {
-            renderer: renderer.clone(),
             last_frame: u64::MAX,
             is_on_view3d: false,
             view_3d,
@@ -132,7 +121,6 @@ impl ViewerSystem {
             listener,
             scene,
             camera_index: 0,
-            update_culling_camera,
             last_mouse_pos: Vector2::default_zero(),
         }
     }
@@ -376,15 +364,6 @@ impl ViewerSystem {
 
                         let view_matrix = c.view_matrix();
                         let proj_matrix = c.proj_matrix();
-
-                        if self.update_culling_camera.load(Ordering::SeqCst) {
-                            if let Some(_culling_pass) =
-                                self.renderer.write().unwrap().pass_mut::<CullingPass>()
-                            {
-                                //culling_pass
-                                //    .set_camera_data(c.position(), proj_matrix * view_matrix);
-                            }
-                        }
 
                         view.get_mut()
                             .update_view(view_matrix)

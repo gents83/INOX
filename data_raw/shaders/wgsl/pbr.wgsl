@@ -127,7 +127,8 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let uv_set = vec4<u32>(uv_0, uv_1, uv_2, uv_3);
 
         let mesh_id = meshlets.data[meshlet_id - 1u].mesh_index;
-        let material_id = u32(meshes.data[mesh_id].material_index);
+        let mesh = &meshes.data[mesh_id];
+        let material_id = u32((*mesh).material_index);
         let texture_color = sample_material_texture(material_id, TEXTURE_TYPE_BASE_COLOR, uv_set);
 
         let alpha = compute_alpha(material_id, vertex_color.a);

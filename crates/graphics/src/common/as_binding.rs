@@ -161,7 +161,7 @@ where
     }
 }
 
-impl AsBinding for usize {
+impl AsBinding for u32 {
     fn is_dirty(&self) -> bool {
         true
     }
@@ -179,6 +179,6 @@ impl AsBinding for usize {
         render_core_context: &crate::RenderCoreContext,
         buffer: &mut crate::GpuBuffer,
     ) {
-        buffer.add_to_gpu_buffer(render_core_context, &[self]);
+        buffer.add_to_gpu_buffer(render_core_context, &[*self]);
     }
 }
