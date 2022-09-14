@@ -97,30 +97,9 @@ fn fs_main(
         pack2x16float(v_in.uv_2),
         pack2x16float(v_in.uv_3)
     );
-    // Retrieve the tangent space transform
-    var n = normalize(v_in.normal.xyz); 
-    if (has_texture(material_id, TEXTURE_TYPE_NORMAL)) {    
-        let uv = compute_uvs(material_id, TEXTURE_TYPE_NORMAL, uv_set);    
-        // get edge vectors of the pixel triangle 
-        let dp1 = dpdx( v_in.world_pos.xyz ); 
-        let dp2 = dpdy( v_in.world_pos.xyz ); 
-        let duv1 = dpdx( uv.xy ); 
-        let duv2 = dpdy( uv.xy );   
-        // solve the linear system 
-        let dp2perp = cross( dp2, n ); 
-        let dp1perp = cross( n, dp1 ); 
-        let tangent = dp2perp * duv1.x + dp1perp * duv2.x; 
-        let bitangent = dp2perp * duv1.y + dp1perp * duv2.y;
-        let t = normalize(tangent);
-        let b = normalize(bitangent); 
-        let tbn = mat3x3<f32>(t, b, n);
-        let normal = sample_texture(uv);
-        n = tbn * (2.0 * normal.rgb - vec3<f32>(1.0));
-        n = normalize(n);
-    }
 
     fragment_out.gbuffer_1 = v_in.color;
-    fragment_out.gbuffer_2 = unpack4x8unorm(pack2x16float(pack_normal(n)));
+    fragment_out.gbuffer_2 = unpack4x8unorm(pack2x16float(pack_normal(v_in.normal.xyz)));
     fragment_out.gbuffer_3 = unpack4x8unorm(v_in.mesh_and_meshlet_ids.y + 1u);
     fragment_out.gbuffer_4 = unpack4x8unorm(pack2x16float(v_in.uv_0));
     fragment_out.gbuffer_5 = unpack4x8unorm(pack2x16float(v_in.uv_1));
