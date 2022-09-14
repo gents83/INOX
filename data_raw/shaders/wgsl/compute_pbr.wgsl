@@ -61,9 +61,9 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>, 
     @builtin(workgroup_id) workgroup_id: vec3<u32>
 ) {
-    for (var i = 0u; i < 8u; i++) {     
-        for (var j = 0u; j < 8u; j++) {            
-            let pixel = vec3<i32>(i32(global_invocation_id.x * 8u + i), i32(global_invocation_id.y * 8u + j), i32(pbr_data.visibility_buffer_index));
+    for (var i = 0u; i < 4u; i++) {     
+        for (var j = 0u; j < 4u; j++) {            
+            let pixel = vec3<i32>(i32(global_invocation_id.x * 4u + i), i32(global_invocation_id.y * 4u + j), i32(pbr_data.visibility_buffer_index));
             if (pixel.x >= i32(pbr_data.width) || pixel.y >= i32(pbr_data.height))
             {
                 continue;
