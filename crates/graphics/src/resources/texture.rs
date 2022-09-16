@@ -250,7 +250,7 @@ impl Texture {
             | crate::TextureFormat::R16Float
             | crate::TextureFormat::R16Sint
             | crate::TextureFormat::R16Snorm
-            | crate::TextureFormat::Depth16Unorm => {
+            /*| crate::TextureFormat::Depth16Unorm*/ => {
                 vec![0u8; ::std::mem::size_of::<u16>() * width as usize * height as usize]
             }
             crate::TextureFormat::Rg8Unorm

@@ -112,7 +112,7 @@ fn main(
     
     if (is_visible)
     {
-        let index = atomicAdd(&count, 1u) - 1u;
+        let index = atomicAdd(&count, 1u);
         let command = &commands.data[index];
         (*command).vertex_count = (*meshlet).indices_count;
         (*command).instance_count = 1u;
