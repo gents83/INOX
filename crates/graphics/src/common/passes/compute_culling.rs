@@ -12,7 +12,11 @@ use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
 
 pub const CULLING_PIPELINE: &str = "pipelines/ComputeCulling.compute_pipeline";
+pub const COMPACTION_PIPELINE: &str = "pipelines/ComputeCompact.compute_pipeline";
 pub const CULLING_PASS_NAME: &str = "CullingPass";
+pub const COMPACTION_PASS_NAME: &str = "CompactionPass";
+
+const NUM_COMMANDS_PER_GROUP: u32 = 32;
 
 #[derive(Debug, PartialOrd, PartialEq, Eq, Clone)]
 pub enum CullingEvent {
@@ -62,8 +66,10 @@ impl AsBinding for CullingData {
 
 pub struct CullingPass {
     compute_pass: Resource<ComputePass>,
+    compact_pass: Resource<ComputePass>,
     binding_data: BindingData,
     culling_data: CullingData,
+    visible_draw_data: Vec<u32>,
     listener: Listener,
     update_camera: bool,
 }
@@ -90,9 +96,13 @@ impl Pass for CullingPass {
     where
         Self: Sized,
     {
-        let data = ComputePassData {
+        let compute_data = ComputePassData {
             name: CULLING_PASS_NAME.to_string(),
             pipelines: vec![PathBuf::from(CULLING_PIPELINE)],
+        };
+        let compact_data = ComputePassData {
+            name: COMPACTION_PASS_NAME.to_string(),
+            pipelines: vec![PathBuf::from(COMPACTION_PIPELINE)],
         };
 
         let listener = Listener::new(context.message_hub());
@@ -104,11 +114,19 @@ impl Pass for CullingPass {
                 context.shared_data(),
                 context.message_hub(),
                 generate_random_uid(),
-                data,
+                compute_data,
+                None,
+            ),
+            compact_pass: ComputePass::new_resource(
+                context.shared_data(),
+                context.message_hub(),
+                generate_random_uid(),
+                compact_data,
                 None,
             ),
             binding_data: BindingData::default(),
             culling_data: CullingData::default(),
+            visible_draw_data: Vec::new(),
             listener,
             update_camera: true,
         }
@@ -136,6 +154,11 @@ impl Pass for CullingPass {
                 return;
             }
             commands.count = 0;
+
+            let num_meshlets = render_context.render_buffers.meshlets.item_count();
+            let count = ((num_meshlets as u32 + NUM_COMMANDS_PER_GROUP - 1)
+                / NUM_COMMANDS_PER_GROUP) as usize;
+            self.visible_draw_data = vec![0u32; count];
 
             self.binding_data
                 .add_uniform_buffer(
@@ -219,9 +242,25 @@ impl Pass for CullingPass {
                         ..Default::default()
                     },
                 )
+                .add_storage_buffer(
+                    &render_context.core,
+                    &render_context.binding_data_buffer,
+                    &mut self.visible_draw_data,
+                    BindingInfo {
+                        group_index: 1,
+                        binding_index: 2,
+                        stage: ShaderStage::Compute,
+                        read_only: false,
+                        is_indirect: true,
+                        ..Default::default()
+                    },
+                )
                 .send_to_gpu(render_context, CULLING_PASS_NAME);
 
             let mut pass = self.compute_pass.get_mut();
+            pass.init(render_context, &self.binding_data);
+
+            let mut pass = self.compact_pass.get_mut();
             pass.init(render_context, &self.binding_data);
         }
     }
@@ -239,13 +278,15 @@ impl Pass for CullingPass {
             if commands.commands.is_empty() {
                 return;
             }
+            let count = (num_meshlets as u32 + NUM_COMMANDS_PER_GROUP - 1) / NUM_COMMANDS_PER_GROUP;
 
             let pass = self.compute_pass.get();
-
             let compute_pass = pass.begin(&self.binding_data, command_buffer);
-            let num_meshlet_per_group = 32;
-            let count = (num_meshlets as u32 + num_meshlet_per_group - 1) / num_meshlet_per_group;
             pass.dispatch(compute_pass, count, 1, 1);
+
+            let pass = self.compact_pass.get();
+            let compact_pass = pass.begin(&self.binding_data, command_buffer);
+            pass.dispatch(compact_pass, count, 1, 1);
         }
     }
 }

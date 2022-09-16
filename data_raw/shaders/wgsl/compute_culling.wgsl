@@ -22,6 +22,8 @@ var<storage, read> meshlets_bb: AABBs;
 var<storage, read_write> count: atomic<u32>;
 @group(1) @binding(1)
 var<storage, read_write> commands: DrawIndexedCommands;
+@group(1) @binding(2)
+var<storage, read_write> visible_draw_data: array<atomic<u32>>;
 
 
 //ScreenSpace Frustum Culling
@@ -112,12 +114,8 @@ fn main(
     
     if (is_visible)
     {
-        let index = atomicAdd(&count, 1u);
-        let command = &commands.data[index];
-        (*command).vertex_count = (*meshlet).indices_count;
-        (*command).instance_count = 1u;
-        (*command).base_index = (*mesh).indices_offset + (*meshlet).indices_offset;
-        (*command).vertex_offset = i32((*mesh).vertex_offset);
-        (*command).base_instance = meshlet_id;
+        atomicAdd(&count, 1u);
+        let draw_group_index = workgroup_id.x;
+        atomicOr(&visible_draw_data[draw_group_index], 1u << local_invocation_id.x);
     }
 }
