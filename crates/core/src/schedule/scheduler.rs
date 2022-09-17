@@ -70,7 +70,6 @@ impl Scheduler {
                         let jobs_id_to_wait = phase.get_jobs_id_to_wait();
                         let mut should_wait = true;
                         while should_wait {
-                            thread::yield_now();
                             should_wait = false;
                             jobs_id_to_wait.iter().for_each(|job_id| {
                                 should_wait |= job_handler.has_pending_jobs(job_id);
@@ -85,6 +84,7 @@ impl Scheduler {
                                 {
                                     job.execute();
                                 }
+                                thread::yield_now();
                             }
                         }
                     }
