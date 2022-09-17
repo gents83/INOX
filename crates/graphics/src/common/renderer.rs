@@ -34,7 +34,9 @@ pub struct Renderer {
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
     state: RendererState,
-    passes: Vec<Box<dyn Pass>>,
+    passes: Vec<(Box<dyn Pass>, bool)>,
+    need_recreate: bool,
+    need_commands_rebind: bool,
 }
 pub type RendererRw = Arc<RwLock<Renderer>>;
 
@@ -57,6 +59,8 @@ impl Renderer {
             shared_data: context.shared_data().clone(),
             message_hub: context.message_hub().clone(),
             passes: Vec::new(),
+            need_recreate: false,
+            need_commands_rebind: true,
         }));
 
         #[cfg(target_arch = "wasm32")]
@@ -79,8 +83,26 @@ impl Renderer {
     pub fn render_context(&self) -> &RenderContextRw {
         self.render_context.as_ref().unwrap()
     }
-    pub fn passes(&self) -> &[Box<dyn Pass>] {
-        self.passes.as_slice()
+    pub fn num_passes(&self) -> usize {
+        self.passes.len()
+    }
+    pub fn is_pass_enabled(&self, index: usize) -> bool {
+        if let Some(v) = self.passes.get(index) {
+            return v.1;
+        }
+        false
+    }
+    pub fn set_pass_enabled(&mut self, index: usize, is_enabled: bool) {
+        if let Some(v) = self.passes.get_mut(index) {
+            if v.1 != is_enabled {
+                v.1 = is_enabled;
+                self.need_recreate = true;
+                self.need_commands_rebind = true;
+            }
+        }
+    }
+    pub fn pass_at(&self, index: usize) -> Option<&dyn Pass> {
+        self.passes.get(index).map(|v| v.0.as_ref())
     }
     pub fn pass<T>(&self) -> Option<&T>
     where
@@ -89,9 +111,9 @@ impl Renderer {
         if let Some(p) = self
             .passes
             .iter()
-            .find(|pass| pass.name() == T::static_name())
+            .find(|(pass, _)| pass.name() == T::static_name())
         {
-            return p.downcast_ref::<T>();
+            return p.0.downcast_ref::<T>();
         }
         None
     }
@@ -102,15 +124,15 @@ impl Renderer {
         if let Some(p) = self
             .passes
             .iter_mut()
-            .find(|pass| pass.name() == T::static_name())
+            .find(|(pass, _)| pass.name() == T::static_name())
         {
-            return p.downcast_mut::<T>();
+            return p.0.downcast_mut::<T>();
         }
         None
     }
 
-    pub fn add_pass(&mut self, pass: impl Pass) -> &mut Self {
-        self.passes.push(Box::new(pass));
+    pub fn add_pass(&mut self, pass: impl Pass, is_enabled: bool) -> &mut Self {
+        self.passes.push((Box::new(pass), is_enabled));
         self
     }
 
@@ -134,8 +156,15 @@ impl Renderer {
         self.state != RendererState::Submitted
     }
 
-    pub fn recreate(&self) {
+    pub fn recreate(&mut self) {
         inox_profiler::scoped_profile!("renderer::recreate");
+
+        self.need_recreate = false;
+
+        {
+            let mut render_context = self.render_context().write().unwrap();
+            render_context.core.configure();
+        }
 
         SharedData::for_each_resource_mut(
             &self.shared_data,
@@ -157,9 +186,11 @@ impl Renderer {
         );
     }
 
-    pub fn set_surface_size(&self, width: u32, height: u32) {
-        let mut render_context = self.render_context().write().unwrap();
-        render_context.core.set_surface_size(width, height);
+    pub fn set_surface_size(&mut self, width: u32, height: u32) {
+        {
+            let mut render_context = self.render_context().write().unwrap();
+            render_context.core.set_surface_size(width, height);
+        }
         self.recreate();
     }
 
@@ -212,6 +243,9 @@ impl Renderer {
     }
 
     pub fn obtain_surface_texture(&self) -> bool {
+        if self.need_recreate {
+            return false;
+        }
         let surface_texture = {
             inox_profiler::scoped_profile!("wgpu::get_current_texture");
 
@@ -241,10 +275,15 @@ impl Renderer {
             let render_buffers = &mut render_context.render_buffers;
             let render_core_context = &render_context.core;
             let binding_data_buffer = &render_context.binding_data_buffer;
-            render_buffers.bind_commands(binding_data_buffer, render_core_context);
+            render_buffers.bind_commands(
+                binding_data_buffer,
+                render_core_context,
+                self.need_commands_rebind,
+            );
+            self.need_commands_rebind = false;
         }
-        self.passes.iter_mut().for_each(|pass| {
-            if pass.is_active(render_context) {
+        self.passes.iter_mut().for_each(|(pass, is_enabled)| {
+            if *is_enabled && pass.is_active(render_context) {
                 pass.init(render_context);
             }
         });
@@ -256,8 +295,8 @@ impl Renderer {
         let mut render_context = self.render_context().write().unwrap();
         let render_context: &mut RenderContext = &mut render_context;
         let mut command_buffer = render_context.core.new_command_buffer();
-        self.passes.iter().for_each(|pass| {
-            if pass.is_active(render_context) {
+        self.passes.iter().for_each(|(pass, is_enabled)| {
+            if *is_enabled && pass.is_active(render_context) {
                 pass.update(render_context, &mut command_buffer);
             }
         });

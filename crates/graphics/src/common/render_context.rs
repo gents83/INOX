@@ -71,8 +71,10 @@ impl RenderCoreContext {
     pub fn set_surface_size(&mut self, width: u32, height: u32) {
         self.config.width = width;
         self.config.height = height;
-        self.surface.configure(&self.device, &self.config);
         inox_log::debug_log!("Surface size: {}x{}", width, height);
+    }
+    pub fn configure(&mut self) {
+        self.surface.configure(&self.device, &self.config);
     }
 }
 

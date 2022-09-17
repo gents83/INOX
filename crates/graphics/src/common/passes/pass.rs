@@ -8,7 +8,7 @@ pub trait Pass: Downcast + Send + Sync + 'static {
     fn static_name() -> &'static str
     where
         Self: Sized;
-    fn is_active(&self, render_context: &mut RenderContext) -> bool;
+    fn is_active(&self, render_context: &RenderContext) -> bool;
     fn draw_command_type(&self) -> DrawCommandType;
     fn mesh_flags(&self) -> MeshFlags;
     fn create(context: &ContextRc) -> Self

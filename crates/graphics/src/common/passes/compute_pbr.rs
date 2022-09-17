@@ -56,7 +56,7 @@ impl Pass for ComputePbrPass {
     fn static_name() -> &'static str {
         COMPUTE_PBR_PASS_NAME
     }
-    fn is_active(&self, _render_context: &mut RenderContext) -> bool {
+    fn is_active(&self, _render_context: &RenderContext) -> bool {
         true
     }
     fn mesh_flags(&self) -> MeshFlags {

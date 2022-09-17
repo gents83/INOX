@@ -318,6 +318,7 @@ impl RenderBuffers {
         &mut self,
         binding_data_buffer: &BindingDataBuffer,
         render_core_context: &RenderCoreContext,
+        force_rebind: bool,
     ) {
         inox_profiler::scoped_profile!("bind_commands");
 
@@ -325,6 +326,9 @@ impl RenderBuffers {
             commands.map.iter_mut().for_each(|(_, entry)| {
                 if entry.commands.is_empty() {
                     return;
+                }
+                if force_rebind {
+                    entry.rebind();
                 }
                 let commands_id = entry.commands.id();
                 let usage = wgpu::BufferUsages::STORAGE

@@ -28,7 +28,7 @@ impl Pass for PBRPass {
     fn static_name() -> &'static str {
         PBR_PASS_NAME
     }
-    fn is_active(&self, render_context: &mut RenderContext) -> bool {
+    fn is_active(&self, render_context: &RenderContext) -> bool {
         render_context.has_commands(&self.draw_command_type(), &self.mesh_flags())
     }
     fn mesh_flags(&self) -> MeshFlags {

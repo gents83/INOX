@@ -89,7 +89,7 @@ impl Pass for UIPass {
     fn static_name() -> &'static str {
         UI_PASS_NAME
     }
-    fn is_active(&self, _render_context: &mut RenderContext) -> bool {
+    fn is_active(&self, _render_context: &RenderContext) -> bool {
         true
     }
     fn mesh_flags(&self) -> MeshFlags {

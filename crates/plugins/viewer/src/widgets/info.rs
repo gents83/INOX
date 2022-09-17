@@ -11,7 +11,7 @@ use inox_resources::Resource;
 use inox_scene::{Camera, SceneId};
 use inox_ui::{implement_widget_data, ComboBox, UIWidget, Window};
 
-use super::{Hierarchy, Meshes};
+use super::{Gfx, Hierarchy};
 
 pub struct InfoParams {
     pub is_active: bool,
@@ -32,7 +32,7 @@ struct Data {
     context: ContextRc,
     params: InfoParams,
     hierarchy: (bool, Option<Hierarchy>),
-    meshes: (bool, Option<Meshes>),
+    graphics: (bool, Option<Gfx>),
     show_frustum: bool,
     show_lights: bool,
     freeze_culling_camera: bool,
@@ -57,7 +57,7 @@ impl Info {
             context: context.clone(),
             params,
             hierarchy: (false, None),
-            meshes: (false, None),
+            graphics: (false, None),
             show_frustum: false,
             show_lights: false,
             freeze_culling_camera: false,
@@ -109,13 +109,13 @@ impl Info {
                 data.hierarchy.1 = None;
             }
 
-            if data.meshes.0 && data.meshes.1.is_none() {
-                data.meshes.1 = Some(Meshes::new(&data.context));
-            } else if data.meshes.1.is_some() {
-                if !data.meshes.0 {
-                    data.meshes.1 = None;
+            if data.graphics.0 && data.graphics.1.is_none() {
+                data.graphics.1 = Some(Gfx::new(&data.context, &data.params.renderer));
+            } else if data.graphics.1.is_some() {
+                if !data.graphics.0 {
+                    data.graphics.1 = None;
                 } else {
-                    data.meshes.1.as_mut().unwrap().update();
+                    data.graphics.1.as_mut().unwrap().update();
                 }
             }
             if data.show_lights {
@@ -322,7 +322,7 @@ impl Info {
                     .show(ui_context, |ui| {
                         ui.label(format!("FPS: {} - ms: {:?}", data.fps, data.dt));
                         ui.checkbox(&mut data.hierarchy.0, "Hierarchy");
-                        ui.checkbox(&mut data.meshes.0, "Meshes");
+                        ui.checkbox(&mut data.graphics.0, "Graphics");
                         ui.checkbox(&mut data.show_lights, "Show Lights");
                         ui.checkbox(&mut data.show_frustum, "Show Frustum");
                         let is_freezed = data.freeze_culling_camera;

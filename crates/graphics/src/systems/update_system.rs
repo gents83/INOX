@@ -242,8 +242,8 @@ impl System for UpdateSystem {
         }
 
         {
-            let renderer = self.renderer.read().unwrap();
-            if self.resolution_changed || !renderer.obtain_surface_texture() {
+            if self.resolution_changed || !self.renderer.read().unwrap().obtain_surface_texture() {
+                let mut renderer = self.renderer.write().unwrap();
                 renderer.set_surface_size(self.width as f32 as _, self.height as f32 as _);
 
                 self.resolution_changed = false;
