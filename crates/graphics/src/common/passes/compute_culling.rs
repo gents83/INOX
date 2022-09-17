@@ -106,7 +106,6 @@ impl Pass for CullingPass {
         };
 
         let listener = Listener::new(context.message_hub());
-        context.message_hub().register_type::<CullingEvent>();
         listener.register::<CullingEvent>();
 
         Self {

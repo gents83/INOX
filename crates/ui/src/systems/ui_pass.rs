@@ -6,8 +6,11 @@ use inox_graphics::{
     Pass, RenderContext, RenderCoreContext, RenderPass, RenderPassData, RenderTarget, ShaderStage,
     StoreOperation, VertexBufferLayoutBuilder, VertexFormat,
 };
+use inox_messenger::Listener;
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
+
+use crate::UIEvent;
 
 const UI_PIPELINE: &str = "pipelines/UI.render_pipeline";
 pub const UI_PASS_NAME: &str = "UIPass";
@@ -78,6 +81,7 @@ pub struct UIPass {
     vertices: Vec<UIVertex>,
     indices: Vec<u32>,
     instances: Vec<UIInstance>,
+    listener: Listener,
 }
 unsafe impl Send for UIPass {}
 unsafe impl Sync for UIPass {}
@@ -109,6 +113,8 @@ impl Pass for UIPass {
             pipeline: PathBuf::from(UI_PIPELINE),
             ..Default::default()
         };
+        let listener = Listener::new(context.message_hub());
+        listener.register::<UIEvent>();
         Self {
             render_pass: RenderPass::new_resource(
                 context.shared_data(),
@@ -118,18 +124,24 @@ impl Pass for UIPass {
                 None,
             ),
             binding_data: BindingData::default(),
-            custom_data: UIPassData::default(),
+            custom_data: UIPassData {
+                ui_scale: 2.,
+                is_dirty: true,
+            },
             vertices: Vec::new(),
             indices: Vec::new(),
             instances: Vec::new(),
+            listener,
         }
     }
     fn init(&mut self, render_context: &mut RenderContext) {
         inox_profiler::scoped_profile!("ui_pass::init");
 
+        self.process_messages();
+
         if self.instances.is_empty()
             || self.vertices.is_empty()
-            || self.instances.is_empty()
+            || self.indices.is_empty()
             || render_context.render_buffers.textures.is_empty()
         {
             return;
@@ -248,25 +260,20 @@ impl UIPass {
     pub fn render_pass(&self) -> &Resource<RenderPass> {
         &self.render_pass
     }
-    pub fn set_ui_scale(&mut self, ui_scale: f32) {
-        if self.custom_data.ui_scale != ui_scale {
-            self.custom_data.ui_scale = ui_scale;
-            self.custom_data.is_dirty = true;
-        }
-    }
-    pub fn clear_instances(&mut self) {
-        self.instances.clear();
-        self.vertices.clear();
-        self.indices.clear();
-    }
-    pub fn set_instances(
-        &mut self,
-        vertices: Vec<UIVertex>,
-        indices: Vec<u32>,
-        instances: Vec<UIInstance>,
-    ) {
-        self.vertices = vertices;
-        self.indices = indices;
-        self.instances = instances;
+    fn process_messages(&mut self) {
+        self.listener
+            .process_messages(|event: &UIEvent| match event {
+                UIEvent::Scale(ui_scale) => {
+                    if self.custom_data.ui_scale != *ui_scale {
+                        self.custom_data.ui_scale = *ui_scale;
+                        self.custom_data.is_dirty = true;
+                    }
+                }
+                UIEvent::DrawData(vertices, indices, instances) => {
+                    self.vertices = vertices.clone();
+                    self.indices = indices.clone();
+                    self.instances = instances.clone();
+                }
+            });
     }
 }

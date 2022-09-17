@@ -17,7 +17,7 @@ use inox_core::{
     SystemUID,
 };
 
-use inox_graphics::{RendererRw, Texture, TextureData, TextureFormat, TextureUsage};
+use inox_graphics::{Texture, TextureData, TextureFormat, TextureUsage};
 
 use inox_log::debug_log;
 use inox_messenger::{Listener, MessageHubRc};
@@ -28,7 +28,7 @@ use inox_resources::{to_slice, ConfigBase, ConfigEvent, DataTypeResource, Resour
 use inox_serialize::read_from_file;
 use inox_uid::generate_random_uid;
 
-use crate::{UIInstance, UIPass, UIVertex, UIWidget};
+use crate::{UIEvent, UIInstance, UIVertex, UIWidget};
 
 use super::config::Config;
 
@@ -38,7 +38,6 @@ pub struct UISystem {
     job_handler: JobHandlerRw,
     message_hub: MessageHubRc,
     listener: Listener,
-    renderer: RendererRw,
     ui_context: Context,
     ui_textures: HashMap<eguiTextureId, Resource<Texture>>,
     ui_input: RawInput,
@@ -48,7 +47,7 @@ pub struct UISystem {
 }
 
 impl UISystem {
-    pub fn new(context: &ContextRc, renderer: RendererRw) -> Self {
+    pub fn new(context: &ContextRc) -> Self {
         let listener = Listener::new(context.message_hub());
 
         crate::register_resource_types(context.shared_data(), context.message_hub());
@@ -59,7 +58,6 @@ impl UISystem {
             message_hub: context.message_hub().clone(),
             job_handler: context.job_handler().clone(),
             listener,
-            renderer,
             ui_context: Context::default(),
             ui_textures: HashMap::new(),
             ui_input: RawInput::default(),
@@ -99,13 +97,8 @@ impl UISystem {
                 indices.extend_from_slice(&mesh.indices);
             }
         }
-        let mut r = self.renderer.write().unwrap();
-        if let Some(ui_pass) = r.pass_mut::<UIPass>() {
-            ui_pass.clear_instances();
-            if !instances.is_empty() {
-                ui_pass.set_instances(vertices, indices, instances);
-            }
-        }
+        self.message_hub
+            .send_event(UIEvent::DrawData(vertices, indices, instances));
     }
 
     fn update_events(&mut self) -> &mut Self {
@@ -143,6 +136,7 @@ impl UISystem {
                     if filename == self.config.get_filename() {
                         self.config = config.clone();
                         self.ui_scale = self.config.ui_scale;
+                        self.message_hub.send_event(UIEvent::Scale(self.ui_scale));
                     }
                 }
             })
@@ -156,6 +150,7 @@ impl UISystem {
                 WindowEvent::ScaleFactorChanged(v) => {
                     self.ui_input.pixels_per_point = Some(v);
                     self.ui_scale = v * self.config.ui_scale;
+                    self.message_hub.send_event(UIEvent::Scale(self.ui_scale));
                 }
                 _ => {}
             })
@@ -330,12 +325,6 @@ impl System for UISystem {
 
     fn run(&mut self) -> bool {
         self.update_events();
-        {
-            let mut r = self.renderer.write().unwrap();
-            if let Some(ui_pass) = r.pass_mut::<UIPass>() {
-                ui_pass.set_ui_scale(self.ui_scale);
-            }
-        }
 
         let output = {
             inox_profiler::scoped_profile!("ui_context::run");

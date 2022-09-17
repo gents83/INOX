@@ -60,7 +60,7 @@ impl Plugin for Viewer {
         let render_update_system = UpdateSystem::new(self.renderer.clone(), context);
         let rendering_draw_system = RenderingSystem::new(self.renderer.clone(), context);
         let mut ui_system = if ADD_UI_PASS {
-            Some(UISystem::new(context, self.renderer.clone()))
+            Some(UISystem::new(context))
         } else {
             None
         };
