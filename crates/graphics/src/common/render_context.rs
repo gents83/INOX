@@ -56,6 +56,7 @@ pub struct RenderCoreContext {
 
 impl RenderCoreContext {
     pub fn new_command_buffer(&self) -> CommandBuffer {
+        inox_profiler::scoped_profile!("render_context::new_command_buffer");
         CommandBuffer {
             encoder: self
                 .device
@@ -65,6 +66,7 @@ impl RenderCoreContext {
         }
     }
     pub fn submit(&self, command_buffer: CommandBuffer) {
+        inox_profiler::scoped_profile!("render_context::submit");
         let command_buffer = command_buffer.encoder.finish();
         self.queue.submit(std::iter::once(command_buffer));
     }
@@ -74,6 +76,7 @@ impl RenderCoreContext {
         inox_log::debug_log!("Surface size: {}x{}", width, height);
     }
     pub fn configure(&mut self) {
+        inox_profiler::scoped_profile!("render_context::configure");
         self.surface.configure(&self.device, &self.config);
     }
 }

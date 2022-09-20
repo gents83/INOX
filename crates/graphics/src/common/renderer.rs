@@ -253,7 +253,7 @@ impl Renderer {
     }
 
     pub fn init_passes(&mut self) {
-        inox_profiler::scoped_profile!("renderer::send_to_gpu");
+        inox_profiler::scoped_profile!("renderer::init_passes");
 
         let mut render_context = self.render_context.as_ref().unwrap().write().unwrap();
         let render_context: &mut RenderContext = &mut render_context;
@@ -276,7 +276,7 @@ impl Renderer {
     }
 
     pub fn update_passes(&self) {
-        inox_profiler::scoped_profile!("renderer::execute_passes");
+        inox_profiler::scoped_profile!("renderer::update_passes");
 
         let mut render_context = self.render_context().write().unwrap();
         let render_context: &mut RenderContext = &mut render_context;
