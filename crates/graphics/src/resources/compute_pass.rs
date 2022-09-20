@@ -2,8 +2,7 @@ use std::path::PathBuf;
 
 use inox_messenger::MessageHubRc;
 use inox_resources::{
-    DataTypeResource, Resource, ResourceId, ResourceTrait, SerializableResource, SharedData,
-    SharedDataRc,
+    DataTypeResource, Resource, ResourceId, ResourceTrait, SerializableResource, SharedDataRc,
 };
 
 use crate::{BindingData, CommandBuffer, ComputePassData, ComputePipeline, RenderContext};
@@ -20,35 +19,17 @@ pub struct ComputePass {
 }
 
 impl ResourceTrait for ComputePass {
-    type OnCreateData = ();
-
-    fn on_create(
-        &mut self,
-        _shared_data_rc: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: &ComputePassId,
-        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) {
+    fn invalidate(&mut self) -> &mut Self {
+        self.is_initialized = false;
+        self
     }
-    fn on_destroy(
-        &mut self,
-        _shared_data: &SharedData,
-        _message_hub: &MessageHubRc,
-        _id: &ComputePassId,
-    ) {
-    }
-    fn on_copy(&mut self, other: &Self)
-    where
-        Self: Sized,
-    {
-        *self = other.clone();
-        self.invalidate();
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
     }
 }
 
 impl DataTypeResource for ComputePass {
     type DataType = ComputePassData;
-    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
     fn new(_id: ResourceId, shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
         Self {
@@ -58,13 +39,6 @@ impl DataTypeResource for ComputePass {
             pipelines: Vec::new(),
             is_initialized: false,
         }
-    }
-    fn invalidate(&mut self) -> &mut Self {
-        self.is_initialized = false;
-        self
-    }
-    fn is_initialized(&self) -> bool {
-        self.is_initialized
     }
 
     fn create_from_data(

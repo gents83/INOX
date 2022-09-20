@@ -22,29 +22,17 @@ pub struct Font {
 }
 
 impl ResourceTrait for Font {
-    type OnCreateData = ();
-
-    fn on_create(
-        &mut self,
-        _shared_data_rc: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: &FontId,
-        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) {
+    fn is_initialized(&self) -> bool {
+        self.texture.is_some()
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _message_hub: &MessageHubRc, _id: &FontId) {
-    }
-    fn on_copy(&mut self, other: &Self)
-    where
-        Self: Sized,
-    {
-        *self = other.clone();
+    fn invalidate(&mut self) -> &mut Self {
+        self.texture = None;
+        self
     }
 }
 
 impl DataTypeResource for Font {
     type DataType = FontData;
-    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
     fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
         Self {
@@ -64,17 +52,18 @@ impl DataTypeResource for Font {
         Self: Sized,
     {
         let mut font_data = data.clone();
+        let texture_data = TextureData {
+            width: DEFAULT_FONT_TEXTURE_SIZE as _,
+            height: DEFAULT_FONT_TEXTURE_SIZE as _,
+            data: Some(font_data.create_texture()),
+            format: TextureFormat::Rgba8Unorm,
+            usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
+        };
         let texture = Texture::new_resource(
             shared_data,
             message_hub,
             generate_random_uid(),
-            TextureData {
-                width: DEFAULT_FONT_TEXTURE_SIZE as _,
-                height: DEFAULT_FONT_TEXTURE_SIZE as _,
-                data: Some(font_data.create_texture()),
-                format: TextureFormat::Rgba8Unorm,
-                usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
-            },
+            &texture_data,
             None,
         );
         Self {
@@ -83,16 +72,7 @@ impl DataTypeResource for Font {
             path: PathBuf::new(),
         }
     }
-
-    fn is_initialized(&self) -> bool {
-        self.texture.is_some()
-    }
-    fn invalidate(&mut self) -> &mut Self {
-        self.texture = None;
-        self
-    }
 }
-
 impl SerializableResource for Font {
     fn set_path(&mut self, path: &Path) -> &mut Self {
         self.path = path.to_path_buf();

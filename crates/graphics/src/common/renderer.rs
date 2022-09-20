@@ -5,10 +5,9 @@ use crate::{
 use inox_core::ContextRc;
 
 use inox_messenger::MessageHubRc;
-use inox_resources::DataTypeResource;
 
 use inox_platform::Handle;
-use inox_resources::{SharedData, SharedDataRc};
+use inox_resources::{ResourceTrait, SharedData, SharedDataRc};
 
 use std::sync::{Arc, RwLock};
 

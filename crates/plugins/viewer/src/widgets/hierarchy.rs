@@ -9,6 +9,7 @@ use inox_ui::{
 };
 use inox_uid::INVALID_UID;
 
+#[derive(Clone)]
 struct HierarchyData {
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
@@ -17,6 +18,7 @@ struct HierarchyData {
 }
 implement_widget_data!(HierarchyData);
 
+#[derive(Clone)]
 pub struct Hierarchy {
     ui_page: Resource<UIWidget>,
 }

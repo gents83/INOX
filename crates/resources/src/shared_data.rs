@@ -84,7 +84,7 @@ impl SharedData {
     #[inline]
     pub fn register_type<T>(&self, message_hub: &MessageHubRc)
     where
-        T: ResourceTrait + 'static,
+        T: ResourceTrait + 'static + Clone,
     {
         let typeid = generate_uid_from_string(type_name::<T>());
         debug_assert!(

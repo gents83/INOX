@@ -4,7 +4,7 @@ use inox_log::debug_log;
 use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
-    SharedData, SharedDataRc,
+    SharedDataRc,
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 
@@ -45,32 +45,14 @@ impl Clone for RenderPipeline {
 }
 
 impl ResourceTrait for RenderPipeline {
-    type OnCreateData = ();
-
-    fn on_create(
-        &mut self,
-        _shared_data_rc: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: &RenderPipelineId,
-        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) {
+    fn invalidate(&mut self) -> &mut Self {
+        self.formats = Vec::new();
+        self
     }
-    fn on_destroy(
-        &mut self,
-        _shared_data: &SharedData,
-        _message_hub: &MessageHubRc,
-        _id: &RenderPipelineId,
-    ) {
-        self.render_pipeline = None;
-        self.vertex_shader = None;
-        self.fragment_shader = None;
-    }
-    fn on_copy(&mut self, other: &Self)
-    where
-        Self: Sized,
-    {
-        *self = other.clone();
-        self.invalidate();
+    fn is_initialized(&self) -> bool {
+        self.vertex_shader.is_some()
+            && self.fragment_shader.is_some()
+            && self.render_pipeline.is_some()
     }
 }
 
@@ -98,7 +80,6 @@ impl SerializableResource for RenderPipeline {
 
 impl DataTypeResource for RenderPipeline {
     type DataType = RenderPipelineData;
-    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
     fn new(_id: ResourceId, shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
         Self {
@@ -111,16 +92,6 @@ impl DataTypeResource for RenderPipeline {
             fragment_shader: None,
             render_pipeline: None,
         }
-    }
-
-    fn invalidate(&mut self) -> &mut Self {
-        self.formats = Vec::new();
-        self
-    }
-    fn is_initialized(&self) -> bool {
-        self.vertex_shader.is_some()
-            && self.fragment_shader.is_some()
-            && self.render_pipeline.is_some()
     }
 
     fn create_from_data(

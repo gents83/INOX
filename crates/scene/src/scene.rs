@@ -2,8 +2,7 @@ use std::path::{Path, PathBuf};
 
 use inox_messenger::MessageHubRc;
 use inox_resources::{
-    DataTypeResource, Resource, ResourceId, ResourceTrait, SerializableResource, SharedData,
-    SharedDataRc,
+    DataTypeResource, Resource, ResourceId, ResourceTrait, SerializableResource, SharedDataRc,
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 use inox_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
@@ -54,7 +53,7 @@ impl SerializableResource for Scene {
     fn extension() -> &'static str {
         SceneData::extension()
     }
-    
+
     fn deserialize_data(
         path: &std::path::Path,
         registry: &SerializableRegistryRc,
@@ -65,34 +64,16 @@ impl SerializableResource for Scene {
 }
 
 impl ResourceTrait for Scene {
-    type OnCreateData = ();
-
-    fn on_create(
-        &mut self,
-        _shared_data_rc: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: &SceneId,
-        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) {
+    fn is_initialized(&self) -> bool {
+        !self.objects.is_empty()
     }
-    fn on_destroy(
-        &mut self,
-        _shared_data: &SharedData,
-        _message_hub: &MessageHubRc,
-        _id: &SceneId,
-    ) {
-    }
-    fn on_copy(&mut self, other: &Self)
-    where
-        Self: Sized,
-    {
-        *self = other.clone();
+    fn invalidate(&mut self) -> &mut Self {
+        self
     }
 }
 
 impl DataTypeResource for Scene {
     type DataType = SceneData;
-    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
     fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
         Self {
@@ -100,14 +81,6 @@ impl DataTypeResource for Scene {
             objects: Vec::new(),
             cameras: Vec::new(),
         }
-    }
-
-    fn is_initialized(&self) -> bool {
-        !self.objects.is_empty()
-    }
-    fn invalidate(&mut self) -> &mut Self {
-        self.clear();
-        self
     }
 
     fn create_from_data(

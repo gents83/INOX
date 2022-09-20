@@ -16,29 +16,16 @@ pub struct View {
 }
 
 impl ResourceTrait for View {
-    type OnCreateData = ();
-
-    fn on_create(
-        &mut self,
-        _shared_data_rc: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: &ViewId,
-        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) {
+    fn is_initialized(&self) -> bool {
+        true
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _message_hub: &MessageHubRc, _id: &ViewId) {
-    }
-    fn on_copy(&mut self, other: &Self)
-    where
-        Self: Sized,
-    {
-        *self = other.clone();
+    fn invalidate(&mut self) -> &mut Self {
+        self
     }
 }
 
 impl DataTypeResource for View {
     type DataType = u32;
-    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
     fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
         Self {
@@ -46,13 +33,6 @@ impl DataTypeResource for View {
             view: Matrix4::default_identity(),
             proj: Matrix4::default_identity(),
         }
-    }
-    fn is_initialized(&self) -> bool {
-        true
-    }
-    fn invalidate(&mut self) -> &mut Self {
-        eprintln!("View cannot be invalidated!");
-        self
     }
 
     fn create_from_data(

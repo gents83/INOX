@@ -3,19 +3,13 @@ use std::path::{Path, PathBuf};
 use inox_math::Vector3;
 use inox_messenger::MessageHubRc;
 use inox_resources::{
-    DataTypeResource, ResourceEvent, ResourceId, ResourceTrait, SerializableResource, SharedData,
-    SharedDataRc,
+    DataTypeResource, ResourceEvent, ResourceId, ResourceTrait, SerializableResource, SharedDataRc,
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 
 use crate::{LightData, INVALID_INDEX};
 
 pub type LightId = ResourceId;
-
-#[derive(Clone)]
-pub struct OnLightCreateData {
-    pub position: Vector3,
-}
 
 #[derive(Clone)]
 pub struct Light {
@@ -28,31 +22,13 @@ pub struct Light {
 }
 
 impl ResourceTrait for Light {
-    type OnCreateData = OnLightCreateData;
+    fn is_initialized(&self) -> bool {
+        self.light_index != INVALID_INDEX
+    }
 
-    fn on_create(
-        &mut self,
-        _shared_data_rc: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: &LightId,
-        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) {
-        if let Some(on_create_data) = on_create_data {
-            self.set_position(on_create_data.position);
-        }
-    }
-    fn on_destroy(
-        &mut self,
-        _shared_data: &SharedData,
-        _message_hub: &MessageHubRc,
-        _id: &LightId,
-    ) {
-    }
-    fn on_copy(&mut self, other: &Self)
-    where
-        Self: Sized,
-    {
-        *self = other.clone();
+    fn invalidate(&mut self) -> &mut Self {
+        self.light_index = INVALID_INDEX;
+        self
     }
 }
 
@@ -80,7 +56,6 @@ impl SerializableResource for Light {
 }
 impl DataTypeResource for Light {
     type DataType = LightData;
-    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
     fn new(id: ResourceId, _shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
         Self {
@@ -91,15 +66,6 @@ impl DataTypeResource for Light {
             is_active: true,
             message_hub: message_hub.clone(),
         }
-    }
-
-    fn is_initialized(&self) -> bool {
-        self.light_index != INVALID_INDEX
-    }
-
-    fn invalidate(&mut self) -> &mut Self {
-        self.light_index = INVALID_INDEX;
-        self
     }
 
     fn create_from_data(

@@ -40,7 +40,7 @@ impl UpdateSystem {
                 context.shared_data(),
                 context.message_hub(),
                 generate_random_uid(),
-                0,
+                &0,
                 None,
             ),
             config: Config::default(),

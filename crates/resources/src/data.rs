@@ -8,7 +8,7 @@ use inox_serialize::inox_serializable::SerializableRegistryRc;
 use inox_uid::generate_uid_from_string;
 
 use crate::{
-    DataTypeResourceEvent, Resource, ResourceEvent, ResourceId, ResourceTrait,
+    DataTypeResourceEvent, OnCreateData, Resource, ResourceEvent, ResourceId, ResourceTrait,
     SerializableResourceEvent, SharedData, SharedDataRc,
 };
 
@@ -19,17 +19,10 @@ pub const PC_FOLDER: &str = "pc";
 pub const WEB_FOLDER: &str = "web";
 
 pub struct Data {}
-pub trait DataTypeResource: ResourceTrait
-where
-    <Self as DataTypeResource>::OnCreateData: Clone,
-{
+pub trait DataTypeResource: ResourceTrait {
     type DataType;
-    type OnCreateData;
 
     fn new(id: ResourceId, shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self;
-
-    fn is_initialized(&self) -> bool;
-    fn invalidate(&mut self) -> &mut Self;
 
     fn create_from_data(
         shared_data: &SharedDataRc,
@@ -44,26 +37,39 @@ where
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         id: ResourceId,
-        data: Self::DataType,
-        on_create_data: Option<<Self as ResourceTrait>::OnCreateData>,
+        data: &Self::DataType,
+        on_create_data: Option<OnCreateData<Self>>,
     ) -> Resource<Self>
     where
-        Self: Sized + 'static,
+        Self: Sized + 'static + Clone,
         <Self as DataTypeResource>::DataType: Send + Sync,
     {
-        let mut resource = Self::create_from_data(shared_data, message_hub, id, &data);
-        resource.on_create(shared_data, message_hub, &id, on_create_data.as_ref());
+        let mut resource = Self::create_from_data(shared_data, message_hub, id, data);
+        if let Some(mut on_create_data) = on_create_data {
+            on_create_data.call_func(&mut resource);
+        }
         let resource = shared_data.add_resource(message_hub, id, resource);
-
-        message_hub.send_event(ResourceEvent::<Self>::Created(
-            shared_data.get_resource(&id).unwrap(),
-        ));
-        message_hub.send_event(DataTypeResourceEvent::<Self>::Loaded(id, data));
+        if crate::DEBUG_RESOURCES {
+            inox_log::debug_log!(
+                "Created resource {:?} with id {:?}",
+                <Self as ResourceTrait>::typename(),
+                id
+            );
+        }
+        if let Some(r) = shared_data.get_resource(&id) {
+            message_hub.send_event(ResourceEvent::<Self>::Created(r));
+        } else {
+            inox_log::debug_log!(
+                "Unable to create resource {:?} with id {:?}",
+                Self::typename(),
+                id
+            );
+        }
         resource
     }
 }
 
-pub trait SerializableResource: DataTypeResource + Sized {
+pub trait SerializableResource: DataTypeResource + Sized + Clone {
     fn set_path(&mut self, path: &Path) -> &mut Self;
     fn path(&self) -> &Path;
     fn extension() -> &'static str;
@@ -97,7 +103,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         filepath: &Path,
-        mut on_create_data: Option<<Self as ResourceTrait>::OnCreateData>,
+        mut on_create_data: Option<OnCreateData<Self>>,
     ) where
         Self: Sized + DataTypeResource + 'static,
         <Self as DataTypeResource>::DataType: Send + Sync,
@@ -124,10 +130,20 @@ pub trait SerializableResource: DataTypeResource + Sized {
                     &cloned_shared_data,
                     &cloned_message_hub,
                     resource_id,
-                    data,
+                    &data,
                     on_create_data.take(),
                 );
                 resource.get_mut().set_path(cloned_path.as_path());
+                cloned_message_hub
+                    .send_event(DataTypeResourceEvent::<Self>::Loaded(resource_id, data));
+                if crate::DEBUG_RESOURCES {
+                    inox_log::debug_log!(
+                        "Loaded resource {:?} with id {:?} form path {:?}",
+                        <Self as ResourceTrait>::typename(),
+                        resource_id,
+                        cloned_path.as_path()
+                    );
+                }
             }),
         );
     }
@@ -136,7 +152,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         filepath: &Path,
-        on_create_data: Option<<Self as ResourceTrait>::OnCreateData>,
+        on_create_data: Option<OnCreateData<Self>>,
     ) -> Resource<Self>
     where
         Self: Sized + DataTypeResource + 'static,

@@ -7,7 +7,7 @@ use inox_graphics::{
     StoreOperation, VertexBufferLayoutBuilder, VertexFormat,
 };
 use inox_messenger::Listener;
-use inox_resources::{DataTypeResource, Resource};
+use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::generate_random_uid;
 
 use crate::UIEvent;
@@ -120,7 +120,7 @@ impl Pass for UIPass {
                 context.shared_data(),
                 context.message_hub(),
                 generate_random_uid(),
-                data,
+                &data,
                 None,
             ),
             binding_data: BindingData::default(),

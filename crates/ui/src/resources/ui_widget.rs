@@ -2,7 +2,7 @@ use std::any::{type_name, Any};
 
 use egui::{CollapsingHeader, Context, Ui};
 use inox_messenger::MessageHubRc;
-use inox_resources::{Resource, ResourceId, ResourceTrait, SharedData, SharedDataRc};
+use inox_resources::{Resource, ResourceId, ResourceTrait, SharedDataRc};
 use inox_uid::generate_random_uid;
 
 use crate::{UIProperties, UIPropertiesRegistry};
@@ -12,6 +12,7 @@ pub type UIWidgetId = ResourceId;
 pub trait UIWidgetData: Send + Sync + Any + 'static {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn as_boxed(&self) -> Box<dyn UIWidgetData>;
 }
 #[macro_export]
 macro_rules! implement_widget_data {
@@ -28,42 +29,50 @@ macro_rules! implement_widget_data {
             fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
                 self
             }
+            fn as_boxed(&self) -> Box<dyn $crate::UIWidgetData> {
+                Box::new(self.clone())
+            }
         }
     };
 }
+impl Clone for Box<dyn UIWidgetData> {
+    fn clone(&self) -> Self {
+        (**self).as_boxed()
+    }
+}
 
-pub type UIWidgetUpdateFn = dyn FnMut(&mut dyn UIWidgetData, &Context) -> bool;
+pub trait UIWidgetUpdateFn: FnMut(&mut dyn UIWidgetData, &Context) -> bool {
+    fn as_boxed(&self) -> Box<dyn UIWidgetUpdateFn>;
+}
+impl<F> UIWidgetUpdateFn for F
+where
+    F: 'static + FnMut(&mut dyn UIWidgetData, &Context) -> bool + Clone,
+{
+    fn as_boxed(&self) -> Box<dyn UIWidgetUpdateFn> {
+        Box::new(self.clone())
+    }
+}
+impl Clone for Box<dyn UIWidgetUpdateFn> {
+    fn clone(&self) -> Self {
+        (**self).as_boxed()
+    }
+}
 
+#[derive(Clone)]
 pub struct UIWidget {
     type_name: String,
     data: Box<dyn UIWidgetData>,
-    func: Box<UIWidgetUpdateFn>,
+    func: Box<dyn UIWidgetUpdateFn>,
     is_interacting: bool,
 }
 
 impl ResourceTrait for UIWidget {
-    type OnCreateData = ();
-
-    fn on_create(
-        &mut self,
-        _shared_data_rc: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: &UIWidgetId,
-        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) {
+    fn is_initialized(&self) -> bool {
+        true
     }
-    fn on_copy(&mut self, _other: &Self)
-    where
-        Self: Sized,
-    {
-        debug_assert!(false, "UIWidget::on_copy should not be called");
-    }
-    fn on_destroy(
-        &mut self,
-        _shared_data: &SharedData,
-        _message_hub: &MessageHubRc,
-        _id: &UIWidgetId,
-    ) {
+    fn invalidate(&mut self) -> &mut Self {
+        eprintln!("UIWidget cannot be invalidated!");
+        self
     }
 }
 
@@ -106,7 +115,7 @@ impl UIWidget {
     ) -> Resource<Self>
     where
         D: UIWidgetData + Sized,
-        F: FnMut(&mut dyn UIWidgetData, &Context) -> bool + 'static,
+        F: FnMut(&mut dyn UIWidgetData, &Context) -> bool + 'static + Clone,
     {
         let ui_page = Self {
             type_name: type_name::<D>().to_string(),

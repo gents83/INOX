@@ -35,11 +35,6 @@ fn test_serialize() {
 }
 
 #[derive(Clone)]
-pub struct OnMeshCreateData {
-    pub parent_matrix: Matrix4,
-}
-
-#[derive(Clone)]
 pub struct Mesh {
     id: MeshId,
     message_hub: MessageHubRc,
@@ -51,26 +46,13 @@ pub struct Mesh {
 }
 
 impl ResourceTrait for Mesh {
-    type OnCreateData = OnMeshCreateData;
+    fn is_initialized(&self) -> bool {
+        self.material.is_some()
+    }
 
-    fn on_create(
-        &mut self,
-        _shared_data_rc: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: &MeshId,
-        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) {
-        if let Some(on_create_data) = on_create_data {
-            self.set_matrix(on_create_data.parent_matrix);
-        }
-    }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _message_hub: &MessageHubRc, _id: &MeshId) {
-    }
-    fn on_copy(&mut self, other: &Self)
-    where
-        Self: Sized,
-    {
-        *self = other.clone();
+    fn invalidate(&mut self) -> &mut Self {
+        self.mark_as_dirty();
+        self
     }
 }
 
@@ -98,7 +80,6 @@ impl SerializableResource for Mesh {
 
 impl DataTypeResource for Mesh {
     type DataType = MeshData;
-    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
     fn new(id: ResourceId, shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
         Self {
@@ -110,14 +91,6 @@ impl DataTypeResource for Mesh {
             material: None,
             flags: MeshFlags::Visible | MeshFlags::Opaque,
         }
-    }
-    fn is_initialized(&self) -> bool {
-        self.material.is_some()
-    }
-
-    fn invalidate(&mut self) -> &mut Self {
-        self.mark_as_dirty();
-        self
     }
 
     fn create_from_data(

@@ -7,6 +7,7 @@ use inox_ui::{
     UIWidget, Widget,
 };
 
+#[derive(Clone)]
 struct View3DData {
     shared_data: SharedDataRc,
     is_interacting: bool,

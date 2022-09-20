@@ -4,19 +4,14 @@ use inox_messenger::MessageHubRc;
 use inox_nodes::LogicData;
 use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
-    SharedData, SharedDataRc,
+    SharedDataRc,
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 use inox_time::Timer;
 
-use crate::{Object, ObjectId};
+use crate::Object;
 
 pub type ScriptId = ResourceId;
-
-#[derive(Clone)]
-pub struct OnScriptCreateData {
-    pub parent_id: ObjectId,
-}
 
 #[derive(Clone)]
 pub struct Script {
@@ -49,39 +44,16 @@ impl SerializableResource for Script {
 }
 
 impl ResourceTrait for Script {
-    type OnCreateData = OnScriptCreateData;
-
-    fn on_create(
-        &mut self,
-        shared_data_rc: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: &ObjectId,
-        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) {
-        if let Some(on_create_data) = on_create_data {
-            if let Some(parent) = shared_data_rc.get_resource::<Object>(&on_create_data.parent_id) {
-                self.set_parent(&parent);
-            }
-        }
+    fn is_initialized(&self) -> bool {
+        self.logic.is_initialized()
     }
-    fn on_destroy(
-        &mut self,
-        _shared_data: &SharedData,
-        _message_hub: &MessageHubRc,
-        _id: &ObjectId,
-    ) {
-    }
-    fn on_copy(&mut self, other: &Self)
-    where
-        Self: Sized,
-    {
-        *self = other.clone();
+    fn invalidate(&mut self) -> &mut Self {
+        self
     }
 }
 
 impl DataTypeResource for Script {
     type DataType = LogicData;
-    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
     fn new(_id: ResourceId, _shared_data_rc: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
         Self {
@@ -91,13 +63,6 @@ impl DataTypeResource for Script {
         }
     }
 
-    fn is_initialized(&self) -> bool {
-        self.logic.is_initialized()
-    }
-    fn invalidate(&mut self) -> &mut Self {
-        eprintln!("Script cannot be invalidated!");
-        self
-    }
     fn create_from_data(
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,

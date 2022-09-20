@@ -3,7 +3,9 @@ use std::path::PathBuf;
 use inox_commands::CommandParser;
 use inox_messenger::implement_message;
 
-use crate::{DataTypeResource, Resource, ResourceId, ResourceTrait, SerializableResource};
+use crate::{
+    DataTypeResource, OnCreateData, Resource, ResourceId, ResourceTrait, SerializableResource,
+};
 
 pub enum ResourceEvent<T>
 where
@@ -81,7 +83,7 @@ pub enum SerializableResourceEvent<T>
 where
     T: SerializableResource + ?Sized,
 {
-    Load(PathBuf, Option<<T as ResourceTrait>::OnCreateData>),
+    Load(PathBuf, Option<OnCreateData<T>>),
 }
 implement_message!(
     SerializableResourceEvent<SerializableResource>,

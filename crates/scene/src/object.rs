@@ -4,26 +4,21 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use inox_graphics::{Light, Mesh, OnLightCreateData, OnMeshCreateData};
+use inox_graphics::{Light, Mesh};
 use inox_math::{Mat4Ops, MatBase, Matrix4, Vector3};
 use inox_messenger::MessageHubRc;
 use inox_resources::{
-    DataTypeResource, GenericResource, Handle, Resource, ResourceCastTo, ResourceId, ResourceTrait,
-    SerializableResource, SharedData, SharedDataRc,
+    DataTypeResource, GenericResource, Handle, OnCreateData, Resource, ResourceCastTo, ResourceId,
+    ResourceTrait, SerializableResource, SharedDataRc,
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 use inox_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 use inox_uid::generate_random_uid;
 
-use crate::{Camera, ObjectData, OnCameraCreateData, OnScriptCreateData, Script};
+use crate::{Camera, ObjectData, Script};
 
 pub type ComponentId = ResourceId;
 pub type ObjectId = ResourceId;
-
-#[derive(Clone)]
-pub struct OnObjectCreateData {
-    pub parent_id: ObjectId,
-}
 
 #[derive(Clone)]
 pub struct Object {
@@ -87,7 +82,7 @@ impl SerializableResource for Object {
     fn extension() -> &'static str {
         ObjectData::extension()
     }
-    
+
     fn deserialize_data(
         path: &std::path::Path,
         registry: &SerializableRegistryRc,
@@ -98,38 +93,16 @@ impl SerializableResource for Object {
 }
 
 impl ResourceTrait for Object {
-    type OnCreateData = OnObjectCreateData;
-
-    fn on_create(
-        &mut self,
-        shared_data_rc: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: &ObjectId,
-        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) {
-        if let Some(on_create_data) = on_create_data {
-            let parent = shared_data_rc.get_resource::<Object>(&on_create_data.parent_id);
-            self.set_parent(parent);
-        }
+    fn is_initialized(&self) -> bool {
+        !self.components.is_empty()
     }
-    fn on_destroy(
-        &mut self,
-        _shared_data: &SharedData,
-        _message_hub: &MessageHubRc,
-        _id: &ObjectId,
-    ) {
-    }
-    fn on_copy(&mut self, other: &Self)
-    where
-        Self: Sized,
-    {
-        *self = other.clone();
+    fn invalidate(&mut self) -> &mut Self {
+        self
     }
 }
 
 impl DataTypeResource for Object {
     type DataType = ObjectData;
-    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
     fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
         Self {
@@ -140,15 +113,6 @@ impl DataTypeResource for Object {
             children: Vec::new(),
             components: HashMap::new(),
         }
-    }
-
-    fn is_initialized(&self) -> bool {
-        !self.components.is_empty()
-    }
-    fn invalidate(&mut self) -> &mut Self {
-        self.components.clear();
-        self.children.clear();
-        self
     }
 
     fn create_from_data(
@@ -163,50 +127,77 @@ impl DataTypeResource for Object {
         object_data.components.iter().for_each(|component_path| {
             let path = component_path.as_path();
             if <Mesh as SerializableResource>::is_matching_extension(path) {
+                let shared_data_rc = shared_data.clone();
+                let object_id = id;
                 let mesh = Mesh::request_load(
                     shared_data,
                     message_hub,
                     path,
-                    Some(OnMeshCreateData {
-                        parent_matrix: object_data.transform,
+                    OnCreateData::create(move |mesh: &mut Mesh| {
+                        if let Some(object) = shared_data_rc.get_resource::<Object>(&object_id) {
+                            let parent_matrix = object.get().transform();
+                            mesh.set_matrix(parent_matrix);
+                        }
                     }),
                 );
                 object.add_component::<Mesh>(mesh);
             } else if <Camera as SerializableResource>::is_matching_extension(path) {
+                let shared_data_rc = shared_data.clone();
+                let object_id = id;
                 let camera = Camera::request_load(
                     shared_data,
                     message_hub,
                     path,
-                    Some(OnCameraCreateData { parent_id: id }),
+                    OnCreateData::create(move |camera: &mut Camera| {
+                        if let Some(object) = shared_data_rc.get_resource::<Object>(&object_id) {
+                            camera.set_parent(&object);
+                        }
+                    }),
                 );
                 object.add_component::<Camera>(camera);
             } else if <Light as SerializableResource>::is_matching_extension(path) {
+                let shared_data_rc = shared_data.clone();
+                let object_id = id;
                 let light = Light::request_load(
                     shared_data,
                     message_hub,
                     path,
-                    Some(OnLightCreateData {
-                        position: object.position(),
+                    OnCreateData::create(move |light: &mut Light| {
+                        if let Some(object) = shared_data_rc.get_resource::<Object>(&object_id) {
+                            let parent_matrix = object.get().transform();
+                            light.set_position(parent_matrix.translation());
+                        }
                     }),
                 );
                 object.add_component::<Light>(light);
             } else if <Script as SerializableResource>::is_matching_extension(path) {
+                let shared_data_rc = shared_data.clone();
+                let object_id = id;
                 let script = Script::request_load(
                     shared_data,
                     message_hub,
                     path,
-                    Some(OnScriptCreateData { parent_id: id }),
+                    OnCreateData::create(move |script: &mut Script| {
+                        if let Some(object) = shared_data_rc.get_resource::<Object>(&object_id) {
+                            script.set_parent(&object);
+                        }
+                    }),
                 );
                 object.add_component::<Script>(script);
             }
         });
 
         for child in object_data.children.iter() {
+            let shared_data_rc = shared_data.clone();
+            let object_id = id;
             let child = Object::request_load(
                 shared_data,
                 message_hub,
                 child.as_path(),
-                Some(OnObjectCreateData { parent_id: id }),
+                OnCreateData::create(move |child: &mut Object| {
+                    let parent = shared_data_rc.get_resource::<Object>(&object_id);
+                    child.set_parent(parent);
+                }),
             );
             object.add_child(child);
         }
@@ -384,12 +375,12 @@ impl Object {
             if let Some(parent_transform) = parent_transform {
                 self.transform = parent_transform * self.transform;
             }
+            self.components_of_type::<Mesh>().iter().for_each(|mesh| {
+                mesh.get_mut().set_matrix(self.transform);
+            });
+            self.components_of_type::<Light>().iter().for_each(|light| {
+                light.get_mut().set_position(self.position());
+            });
         }
-        self.components_of_type::<Mesh>().iter().for_each(|mesh| {
-            mesh.get_mut().set_matrix(self.transform);
-        });
-        self.components_of_type::<Light>().iter().for_each(|light| {
-            light.get_mut().set_position(self.position());
-        });
     }
 }

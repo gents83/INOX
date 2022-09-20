@@ -13,13 +13,14 @@ use inox_ui::{implement_widget_data, ComboBox, UIWidget, Window};
 
 use super::{Gfx, Hierarchy};
 
+#[derive(Clone)]
 pub struct InfoParams {
     pub is_active: bool,
     pub scene_id: SceneId,
     pub renderer: RendererRw,
 }
 
-#[derive(Default, Debug, PartialEq, Eq)]
+#[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
 enum MeshletDebug {
     #[default]
     None,
@@ -28,6 +29,7 @@ enum MeshletDebug {
     BoundingBox,
 }
 
+#[derive(Clone)]
 struct Data {
     context: ContextRc,
     params: InfoParams,

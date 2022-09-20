@@ -3,34 +3,9 @@ use std::marker::PhantomData;
 use inox_messenger::{Listener, MessageHubRc};
 
 use crate::{
-    DataTypeResource, DataTypeResourceEvent, ResourceEvent, ResourceId, ResourceTrait,
-    SerializableResource, SerializableResourceEvent, SharedDataRc,
+    DataTypeResource, DataTypeResourceEvent, ResourceEvent, ResourceTrait, SerializableResource,
+    SerializableResourceEvent, SharedDataRc,
 };
-
-pub trait Function<T>:
-    Fn(&mut T, &ResourceId, Option<&<T as ResourceTrait>::OnCreateData>)
-where
-    T: ResourceTrait,
-{
-    fn as_boxed(&self) -> Box<dyn Function<T>>;
-}
-impl<F, T> Function<T> for F
-where
-    F: 'static + Fn(&mut T, &ResourceId, Option<&<T as ResourceTrait>::OnCreateData>) + Clone,
-    T: ResourceTrait,
-{
-    fn as_boxed(&self) -> Box<dyn Function<T>> {
-        Box::new(self.clone())
-    }
-}
-impl<T> Clone for Box<dyn Function<T>>
-where
-    T: ResourceTrait,
-{
-    fn clone(&self) -> Self {
-        (**self).as_boxed()
-    }
-}
 
 pub trait DeserializeFunction: FnOnce(&SharedDataRc, &MessageHubRc) + Send + Sync {}
 impl<F> DeserializeFunction for F where F: FnOnce(&SharedDataRc, &MessageHubRc) + Send + Sync {}

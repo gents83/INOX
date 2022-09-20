@@ -164,7 +164,7 @@ impl ViewerSystem {
                 self.context.shared_data(),
                 self.context.message_hub(),
                 generate_random_uid(),
-                MaterialData::default(),
+                &MaterialData::default(),
                 None,
             );
             let texture = Texture::request_load(
@@ -218,7 +218,7 @@ impl ViewerSystem {
                 self.context.shared_data(),
                 self.context.message_hub(),
                 generate_random_uid(),
-                MaterialData::default(),
+                &MaterialData::default(),
                 None,
             );
             wireframe_mesh

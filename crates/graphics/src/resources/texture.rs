@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use image::ImageFormat;
 use inox_filesystem::{convert_from_local_path, File};
-use inox_log::debug_log;
+
 use inox_messenger::MessageHubRc;
 use inox_resources::{
     Data, DataTypeResource, Handle, Resource, ResourceEvent, ResourceId, ResourceTrait,
@@ -31,34 +31,17 @@ pub struct Texture {
 }
 
 impl ResourceTrait for Texture {
-    type OnCreateData = ();
-
-    fn on_create(
-        &mut self,
-        _shared_data_rc: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: &TextureId,
-        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) {
+    fn invalidate(&mut self) -> &mut Self {
+        self.texture_index = INVALID_INDEX;
+        self
     }
-    fn on_destroy(
-        &mut self,
-        _shared_data: &SharedData,
-        _message_hub: &MessageHubRc,
-        _id: &TextureId,
-    ) {
-    }
-    fn on_copy(&mut self, other: &Self)
-    where
-        Self: Sized,
-    {
-        *self = other.clone();
+    fn is_initialized(&self) -> bool {
+        self.texture_index != INVALID_INDEX
     }
 }
 
 impl DataTypeResource for Texture {
     type DataType = TextureData;
-    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
     fn new(id: ResourceId, shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
         Self {
@@ -74,15 +57,6 @@ impl DataTypeResource for Texture {
             usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
             update_from_gpu: false,
         }
-    }
-
-    fn invalidate(&mut self) -> &mut Self {
-        self.texture_index = INVALID_INDEX;
-        debug_log!("Texture {:?} will be reloaded", self.path);
-        self
-    }
-    fn is_initialized(&self) -> bool {
-        self.texture_index != INVALID_INDEX
     }
 
     fn create_from_data(
@@ -219,7 +193,7 @@ impl Texture {
         usage: TextureUsage,
     ) -> Resource<Texture> {
         let texture_id = generate_random_uid();
-        let mut texture = Texture::create_from_data(
+        let texture = Texture::create_from_data(
             shared_data,
             message_hub,
             texture_id,
@@ -231,7 +205,6 @@ impl Texture {
                 usage,
             },
         );
-        texture.on_create(shared_data, message_hub, &texture_id, None);
         shared_data.add_resource(message_hub, texture_id, texture)
     }
 

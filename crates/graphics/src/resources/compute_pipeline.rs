@@ -4,7 +4,7 @@ use inox_log::debug_log;
 use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
-    SharedData, SharedDataRc,
+    SharedDataRc,
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 
@@ -33,31 +33,12 @@ impl Clone for ComputePipeline {
 }
 
 impl ResourceTrait for ComputePipeline {
-    type OnCreateData = ();
-
-    fn on_create(
-        &mut self,
-        _shared_data_rc: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: &ComputePipelineId,
-        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) {
-    }
-    fn on_destroy(
-        &mut self,
-        _shared_data: &SharedData,
-        _message_hub: &MessageHubRc,
-        _id: &ComputePipelineId,
-    ) {
+    fn invalidate(&mut self) -> &mut Self {
         self.compute_pipeline = None;
-        self.shader = None;
+        self
     }
-    fn on_copy(&mut self, other: &Self)
-    where
-        Self: Sized,
-    {
-        *self = other.clone();
-        self.invalidate();
+    fn is_initialized(&self) -> bool {
+        self.shader.is_some() && self.compute_pipeline.is_some()
     }
 }
 
@@ -84,7 +65,6 @@ impl SerializableResource for ComputePipeline {
 
 impl DataTypeResource for ComputePipeline {
     type DataType = ComputePipelineData;
-    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
     fn new(_id: ResourceId, shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
         Self {
@@ -94,14 +74,6 @@ impl DataTypeResource for ComputePipeline {
             shader: None,
             compute_pipeline: None,
         }
-    }
-
-    fn invalidate(&mut self) -> &mut Self {
-        self.compute_pipeline = None;
-        self
-    }
-    fn is_initialized(&self) -> bool {
-        self.shader.is_some() && self.compute_pipeline.is_some()
     }
 
     fn create_from_data(

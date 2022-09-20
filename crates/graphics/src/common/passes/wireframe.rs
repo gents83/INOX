@@ -6,7 +6,7 @@ use crate::{
 };
 
 use inox_core::ContextRc;
-use inox_resources::{DataTypeResource, Resource};
+use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::generate_random_uid;
 
 pub const WIREFRAME_PIPELINE: &str = "pipelines/Wireframe.render_pipeline";
@@ -57,7 +57,7 @@ impl Pass for WireframePass {
                 context.shared_data(),
                 context.message_hub(),
                 generate_random_uid(),
-                data,
+                &data,
                 None,
             ),
             binding_data: BindingData::default(),

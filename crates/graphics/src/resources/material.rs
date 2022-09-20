@@ -5,7 +5,7 @@ use crate::{MaterialData, Texture, TextureId, TextureType, INVALID_INDEX};
 use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceEvent, ResourceId, ResourceTrait,
-    SerializableResource, SharedData, SharedDataRc,
+    SerializableResource, SharedDataRc,
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 
@@ -22,29 +22,12 @@ pub struct Material {
 }
 
 impl ResourceTrait for Material {
-    type OnCreateData = ();
-
-    fn on_create(
-        &mut self,
-        _shared_data_rc: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: &MaterialId,
-        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) {
+    fn is_initialized(&self) -> bool {
+        self.material_index != INVALID_INDEX
     }
-    fn on_destroy(
-        &mut self,
-        _shared_data: &SharedData,
-        _message_hub: &MessageHubRc,
-        _id: &MaterialId,
-    ) {
-    }
-    fn on_copy(&mut self, other: &Self)
-    where
-        Self: Sized,
-    {
-        *self = other.clone();
-        self.invalidate();
+    fn invalidate(&mut self) -> &mut Self {
+        self.material_index = INVALID_INDEX;
+        self
     }
 }
 
@@ -72,7 +55,6 @@ impl SerializableResource for Material {
 
 impl DataTypeResource for Material {
     type DataType = MaterialData;
-    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
     fn new(id: ResourceId, shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
         Self {
@@ -83,13 +65,6 @@ impl DataTypeResource for Material {
             path: PathBuf::new(),
             textures: Default::default(),
         }
-    }
-    fn is_initialized(&self) -> bool {
-        self.material_index != INVALID_INDEX
-    }
-    fn invalidate(&mut self) -> &mut Self {
-        self.material_index = INVALID_INDEX;
-        self
     }
 
     fn create_from_data(

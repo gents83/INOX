@@ -5,6 +5,7 @@ use inox_messenger::MessageHubRc;
 use inox_resources::{Resource, SharedDataRc};
 use inox_ui::{implement_widget_data, UIWidget, Widget, Window};
 
+#[derive(Clone)]
 struct GfxData {
     vertices_count: usize,
     indices_count: usize,
@@ -14,6 +15,7 @@ struct GfxData {
 }
 implement_widget_data!(GfxData);
 
+#[derive(Clone)]
 pub struct Gfx {
     ui_page: Resource<UIWidget>,
     renderer: RendererRw,

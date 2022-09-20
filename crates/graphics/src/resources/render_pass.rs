@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::Range, path::Path};
 use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
-    SharedData, SharedDataRc,
+    SharedDataRc,
 };
 
 use crate::{
@@ -31,35 +31,16 @@ pub struct RenderPass {
 }
 
 impl ResourceTrait for RenderPass {
-    type OnCreateData = ();
-
-    fn on_create(
-        &mut self,
-        _shared_data_rc: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: &RenderPassId,
-        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) {
+    fn invalidate(&mut self) -> &mut Self {
+        self
     }
-    fn on_destroy(
-        &mut self,
-        _shared_data: &SharedData,
-        _message_hub: &MessageHubRc,
-        _id: &RenderPassId,
-    ) {
-    }
-    fn on_copy(&mut self, other: &Self)
-    where
-        Self: Sized,
-    {
-        *self = other.clone();
-        self.invalidate();
+    fn is_initialized(&self) -> bool {
+        true
     }
 }
 
 impl DataTypeResource for RenderPass {
     type DataType = RenderPassData;
-    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
     fn new(_id: ResourceId, shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
         Self {
@@ -75,12 +56,6 @@ impl DataTypeResource for RenderPass {
             render_textures: Vec::new(),
             depth_texture: None,
         }
-    }
-    fn invalidate(&mut self) -> &mut Self {
-        self
-    }
-    fn is_initialized(&self) -> bool {
-        true
     }
 
     fn create_from_data(

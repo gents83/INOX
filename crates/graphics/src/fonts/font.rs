@@ -99,7 +99,7 @@ impl FontData {
     fn new_ttf_font(filepath: &Path) -> Self {
         let font_data = ::std::fs::read(filepath).unwrap();
 
-        let face = Face::from_slice(font_data.as_slice(), 0).unwrap();
+        let face = Face::parse(font_data.as_slice(), 0).unwrap();
 
         let mut max_glyph_metrics = Metrics::default();
         for character in 0..DEFAULT_FONT_COUNT {

@@ -271,17 +271,18 @@ impl UISystem {
                 }
             };
             let pixels: &[u8] = to_slice(color32.as_slice());
+            let texture_data = TextureData {
+                width: image_delta.image.width() as _,
+                height: image_delta.image.height() as _,
+                data: Some(pixels.to_vec()),
+                format: TextureFormat::Rgba8Unorm,
+                usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
+            };
             let texture = Texture::new_resource(
                 &self.shared_data,
                 &self.message_hub,
                 generate_random_uid(),
-                TextureData {
-                    width: image_delta.image.width() as _,
-                    height: image_delta.image.height() as _,
-                    data: Some(pixels.to_vec()),
-                    format: TextureFormat::Rgba8Unorm,
-                    usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
-                },
+                &texture_data,
                 None,
             );
             self.ui_textures.insert(egui_texture_id, texture);

@@ -63,11 +63,12 @@ pub struct DebugDrawerSystem {
 
 impl DebugDrawerSystem {
     pub fn new(context: &ContextRc) -> Self {
+        let mesh_data = MeshData::default();
         let mesh_instance = Mesh::new_resource(
             context.shared_data(),
             context.message_hub(),
             generate_random_uid(),
-            MeshData::default(),
+            &mesh_data,
             None,
         );
         mesh_instance
@@ -79,7 +80,7 @@ impl DebugDrawerSystem {
             context.shared_data(),
             context.message_hub(),
             generate_random_uid(),
-            MeshData::default(),
+            &mesh_data,
             None,
         );
         wireframe_mesh_instance
@@ -140,11 +141,12 @@ impl DebugDrawerSystem {
                             self.config.wireframe_pipeline.as_path(),
                             None,
                         );
+                        let material_data = MaterialData::default();
                         let material = Material::new_resource(
                             &self.shared_data,
                             &self.message_hub,
                             generate_random_uid(),
-                            MaterialData::default(),
+                            &material_data,
                             None,
                         );
                         self.mesh_instance.get_mut().set_material(material);
@@ -152,7 +154,7 @@ impl DebugDrawerSystem {
                             &self.shared_data,
                             &self.message_hub,
                             generate_random_uid(),
-                            MaterialData::default(),
+                            &material_data,
                             None,
                         );
                         self.wireframe_mesh_instance

@@ -1,30 +1,73 @@
-use inox_messenger::MessageHubRc;
 use inox_uid::Uid;
 use std::{
     any::Any,
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
-use crate::{SharedData, SharedDataRc};
+pub const DEBUG_RESOURCES: bool = false;
 
 pub type ResourceId = Uid;
 
-pub trait ResourceTrait: Send + Sync
+pub trait Function<T>: FnMut(&mut T)
 where
-    Self::OnCreateData: Send + Sync + Clone,
+    T: ResourceTrait,
 {
-    type OnCreateData;
-    fn on_create(
-        &mut self,
-        shared_data: &SharedDataRc,
-        message_hub: &MessageHubRc,
-        id: &ResourceId,
-        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    );
-    fn on_copy(&mut self, other: &Self)
+    fn as_boxed(&self) -> Box<dyn Function<T>>;
+}
+impl<F, T> Function<T> for F
+where
+    F: 'static + FnMut(&mut T) + Clone,
+    T: ResourceTrait,
+{
+    fn as_boxed(&self) -> Box<dyn Function<T>> {
+        Box::new(self.clone())
+    }
+}
+impl<T> Clone for Box<dyn Function<T>>
+where
+    T: ResourceTrait,
+{
+    fn clone(&self) -> Self {
+        (**self).as_boxed()
+    }
+}
+
+#[derive(Clone)]
+pub struct OnCreateData<T>
+where
+    T: ResourceTrait,
+{
+    func: Vec<Box<dyn Function<T>>>,
+}
+unsafe impl<T> Send for OnCreateData<T> where T: ResourceTrait {}
+unsafe impl<T> Sync for OnCreateData<T> where T: ResourceTrait {}
+
+impl<T> OnCreateData<T>
+where
+    T: ResourceTrait,
+{
+    pub fn create<F>(f: F) -> Option<Self>
     where
-        Self: Sized;
-    fn on_destroy(&mut self, shared_data: &SharedData, message_hub: &MessageHubRc, id: &ResourceId);
+        F: Function<T> + 'static,
+    {
+        Some(Self {
+            func: vec![Box::new(f)],
+        })
+    }
+
+    pub fn call_func(&mut self, r: &mut T) {
+        self.func.iter_mut().for_each(|f| {
+            f(r);
+        });
+    }
+}
+
+pub trait ResourceTrait: Send + Sync {
+    fn is_initialized(&self) -> bool;
+    fn invalidate(&mut self) -> &mut Self;
+    fn typename() -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 pub trait GenericResourceTrait: Send + Sync + Any {
@@ -116,12 +159,23 @@ impl ResourceCastTo for GenericResource {
 
 pub fn swap_resource<T>(resource: &Resource<T>, other: &Resource<T>)
 where
-    T: ResourceTrait,
+    T: ResourceTrait + Clone,
 {
     inox_profiler::scoped_profile!("swap_resource");
-    resource
-        .data
-        .write()
-        .unwrap()
-        .on_copy(&other.data.read().unwrap());
+    let new = {
+        let o = other.data.read().unwrap();
+        o.clone()
+    };
+    {
+        let old = &mut *resource.data.write().unwrap();
+        *old = new;
+        old.invalidate();
+    }
+    if DEBUG_RESOURCES {
+        inox_log::debug_log!(
+            "Swapping resource {:?} with id {:?}",
+            T::typename(),
+            resource.id()
+        );
+    }
 }

@@ -6,7 +6,7 @@ use crate::{
 };
 
 use inox_core::ContextRc;
-use inox_resources::{DataTypeResource, Resource};
+use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::{generate_random_uid, INVALID_UID};
 
 pub const BLIT_PIPELINE: &str = "pipelines/Blit.render_pipeline";
@@ -56,7 +56,7 @@ impl Pass for BlitPass {
                 context.shared_data(),
                 context.message_hub(),
                 generate_random_uid(),
-                data,
+                &data,
                 None,
             ),
             binding_data: BindingData::default(),

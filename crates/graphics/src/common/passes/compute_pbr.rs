@@ -79,7 +79,7 @@ impl Pass for ComputePbrPass {
                 context.shared_data(),
                 context.message_hub(),
                 generate_random_uid(),
-                data,
+                &data,
                 None,
             ),
             binding_data: BindingData::default(),

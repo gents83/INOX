@@ -65,7 +65,7 @@ where
 
 impl<T> TypedStorage for Storage<T>
 where
-    T: ResourceTrait + Sized + 'static,
+    T: ResourceTrait + Clone + 'static,
 {
     #[inline]
     fn remove_all(&mut self) {
@@ -91,15 +91,14 @@ where
         }
         let mut to_remove = Vec::new();
         self.resources.iter_mut().for_each(|data| {
-            /*
-            inox_log::debug_log!(
-                "[{:?}] Strong: {} Weak: {}",
-                data.id(),
-                Arc::strong_count(data),
-                Arc::weak_count(data)
-            );
-            */
             if Arc::strong_count(data) == 1 && Arc::weak_count(data) == 0 {
+                if crate::DEBUG_RESOURCES {
+                    inox_log::debug_log!(
+                        "Removing resource {:?} with id {:?}",
+                        T::typename(),
+                        data.id()
+                    );
+                }
                 to_remove.push(*data.id());
             }
         });
@@ -112,15 +111,12 @@ where
     fn remove(
         &mut self,
         resource_id: &ResourceId,
-        shared_data: &SharedData,
+        _shared_data: &SharedData,
         message_hub: &MessageHubRc,
     ) {
         if let Some(index) = self.resources.iter().position(|r| r.id() == resource_id) {
-            let resource = self.resources.remove(index);
+            self.resources.remove(index);
             message_hub.send_event(ResourceEvent::<T>::Destroyed(*resource_id));
-            resource
-                .get_mut()
-                .on_destroy(shared_data, message_hub, resource_id);
             //debug_log!("Resource {} destroyed", resource_id);
         }
     }
@@ -167,9 +163,23 @@ where
         let handle = Arc::new(ResourceHandle::new(resource_id, data));
         if self.resources.iter().any(|r| r.id() == &resource_id) {
             self.pending.push(handle.clone());
+            if crate::DEBUG_RESOURCES {
+                inox_log::debug_log!(
+                    "Adding to pending resource {:?} with id {:?}",
+                    T::typename(),
+                    resource_id
+                );
+            }
         } else {
-            message_hub.send_event(ResourceEvent::<T>::Created(handle.clone()));
             self.resources.push(handle.clone());
+            if crate::DEBUG_RESOURCES {
+                inox_log::debug_log!(
+                    "Creating resource {:?} with id {:?}",
+                    T::typename(),
+                    resource_id
+                );
+            }
+            message_hub.send_event(ResourceEvent::<T>::Created(handle.clone()));
         }
         handle
     }
