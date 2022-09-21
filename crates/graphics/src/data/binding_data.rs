@@ -52,6 +52,7 @@ pub struct BindingData {
     vertex_buffers: Vec<BufferId>,
     index_buffer: Option<BufferId>,
     is_layout_changed: bool,
+    is_data_changed: bool,
 }
 
 impl BindingData {
@@ -84,6 +85,7 @@ impl BindingData {
             wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::VERTEX;
         let (is_changed, _buffer_id) =
             binding_data_buffer.bind_buffer(data_id, data, usage, render_core_context);
+        self.is_data_changed |= is_changed;
 
         if DEBUG_BINDINGS {
             inox_log::debug_log!(
@@ -115,6 +117,7 @@ impl BindingData {
             wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::INDEX;
         let (is_changed, _buffer_id) =
             binding_data_buffer.bind_buffer(data_id, data, usage, render_core_context);
+        self.is_data_changed |= is_changed;
 
         if DEBUG_BINDINGS {
             inox_log::debug_log!("Set IndexBuffer = {:?} - Changed {:?}", data_id, is_changed);
@@ -151,6 +154,7 @@ impl BindingData {
         let usage = wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST;
         let (is_changed, buffer_id) =
             binding_data_buffer.bind_buffer(data_id, data, usage, render_core_context);
+        self.is_data_changed |= is_changed;
 
         if DEBUG_BINDINGS {
             inox_log::debug_log!(
@@ -195,12 +199,14 @@ impl BindingData {
                 data_id,
                 *buffer_id,
             ));
+            self.is_data_changed = true;
         } else if let BindingType::Buffer(_, old_data_id, old_buffer_id) =
             &mut self.binding_types[info.group_index][info.binding_index]
         {
             if *old_buffer_id != *buffer_id || *old_data_id != data_id {
                 *old_data_id = data_id;
                 *old_buffer_id = *buffer_id;
+                self.is_data_changed = true;
             }
         }
         self
@@ -239,6 +245,7 @@ impl BindingData {
         }
         let (is_changed, buffer_id) =
             binding_data_buffer.bind_buffer(data_id, data, usage, render_core_context);
+        self.is_data_changed |= is_changed;
 
         if DEBUG_BINDINGS {
             inox_log::debug_log!(
@@ -286,12 +293,14 @@ impl BindingData {
                 data_id,
                 *buffer_id,
             ));
+            self.is_data_changed = true;
         } else if let BindingType::Buffer(_, old_data_id, old_buffer_id) =
             &mut self.binding_types[info.group_index][info.binding_index]
         {
             if *old_buffer_id != *buffer_id || *old_data_id != data_id {
                 *old_data_id = data_id;
                 *old_buffer_id = *buffer_id;
+                self.is_data_changed = true;
             }
         }
         self
@@ -312,6 +321,7 @@ impl BindingData {
         if self.binding_types[info.group_index].is_empty() {
             self.binding_types[info.group_index]
                 .push(BindingType::DefaultSampler(info.binding_index));
+            self.is_data_changed = true;
         }
         self
     }
@@ -386,6 +396,7 @@ impl BindingData {
                 textures_bind_group_layout_index,
                 Box::new(textures),
             ));
+            self.is_data_changed = true;
         } else if let BindingType::TextureArray(_, old_textures) =
             &self.binding_types[info.group_index][textures_bind_group_layout_index]
         {
@@ -396,6 +407,7 @@ impl BindingData {
             {
                 self.binding_types[info.group_index][textures_bind_group_layout_index] =
                     BindingType::TextureArray(textures_bind_group_layout_index, Box::new(textures));
+                self.is_data_changed = true;
             }
         }
 
@@ -444,10 +456,11 @@ impl BindingData {
                     count: None,
                 });
             }
+            self.is_layout_changed = true;
 
             self.binding_types[info.group_index]
                 .push(BindingType::Texture(info.binding_index, *texture_id));
-            self.is_layout_changed = true;
+            self.is_data_changed = true;
         }
         if self.binding_types[info.group_index].len() > info.binding_index {
             if let BindingType::Texture(_, id) =
@@ -456,7 +469,7 @@ impl BindingData {
                 if id != texture_id {
                     self.binding_types[info.group_index][info.binding_index] =
                         BindingType::Texture(info.binding_index, *texture_id);
-                    self.is_layout_changed = true;
+                        self.is_data_changed = true;
                 }
             }
         }
@@ -483,6 +496,11 @@ impl BindingData {
             self.bind_group_layout.clear();
             self.bind_group_layout_entries.iter().enumerate().for_each(
                 |(index, bind_group_layout_entry)| {
+                    inox_profiler::scoped_profile!(
+                        "binding_data::create_{}_bind_group_layout_{}",
+                        pass_name,
+                        index
+                    );
                     let label = format!("{} bind group layout {}", pass_name, index);
 
                     let data_bind_group_layout = render_context
@@ -498,139 +516,150 @@ impl BindingData {
             self.is_layout_changed = false;
         }
 
-        self.bind_group.clear();
-        self.binding_types
-            .iter()
-            .enumerate()
-            .for_each(|(group_index, binding_type_array)| {
-                let label = format!("{} bind group {}", pass_name, group_index);
+        if self.is_data_changed {
 
-                let mut textures_view = Vec::new();
-                binding_type_array.iter().for_each(|binding_type| {
-                    if let BindingType::TextureArray(_, textures) = binding_type {
-                        textures.iter().for_each(|id| {
-                            if let Some(texture_view) =
-                                render_context.texture_handler.texture_view(id)
-                            {
-                                textures_view.push(texture_view);
-                            }
-                        });
-                    }
-                });
-                let bind_data_buffer = render_context.binding_data_buffer.buffers.read().unwrap();
-                let mut bind_group = Vec::new();
-                binding_type_array
-                    .iter()
-                    .for_each(|binding_type| match binding_type {
-                        BindingType::Buffer(binding_index, data_id, buffer_id) => {
-                            if DEBUG_BINDINGS {
-                                inox_log::debug_log!(
-                                    "Binding Buffer[{}][{}] = {:?} with {:?}",
-                                    group_index,
-                                    binding_index,
-                                    data_id,
-                                    buffer_id
-                                );
-                            }
-                            if let Some(buffer) = bind_data_buffer.get(data_id) {
-                                if buffer.gpu_buffer().is_some() && buffer.size() != 0 {
-                                    let entry = wgpu::BindGroupEntry {
-                                        binding: *binding_index as _,
-                                        resource: buffer.gpu_buffer().unwrap().as_entire_binding(),
-                                    };
-                                    bind_group.push(entry);
-                                } else if DEBUG_BINDINGS {
+            self.bind_group.clear();
+            self.binding_types
+                .iter()
+                .enumerate()
+                .for_each(|(group_index, binding_type_array)| {
+                    let label = format!("{} bind group {}", pass_name, group_index);
+    
+                    let mut textures_view = Vec::new();
+                    binding_type_array.iter().for_each(|binding_type| {
+                        if let BindingType::TextureArray(_, textures) = binding_type {
+                            textures.iter().for_each(|id| {
+                                if let Some(texture_view) =
+                                    render_context.texture_handler.texture_view(id)
+                                {
+                                    textures_view.push(texture_view);
+                                }
+                            });
+                        }
+                    });
+                    let bind_data_buffer = render_context.binding_data_buffer.buffers.read().unwrap();
+                    let mut bind_group = Vec::new();
+                    binding_type_array
+                        .iter()
+                        .for_each(|binding_type| match binding_type {
+                            BindingType::Buffer(binding_index, data_id, buffer_id) => {
+                                if DEBUG_BINDINGS {
                                     inox_log::debug_log!(
-                                        "Binding Buffer[{}][{}] = {:?} with {:?} but buffer is empty",
+                                        "Binding Buffer[{}][{}] = {:?} with {:?}",
                                         group_index,
                                         binding_index,
                                         data_id,
                                         buffer_id
                                     );
                                 }
-                            } else if DEBUG_BINDINGS {
-                                inox_log::debug_log!(
-                                    "Binding Buffer[{}][{}] = {:?} with {:?} but buffer is not found",
-                                    group_index,
-                                    binding_index,
-                                    data_id,
-                                    buffer_id
-                                );
+                                if let Some(buffer) = bind_data_buffer.get(data_id) {
+                                    if buffer.gpu_buffer().is_some() && buffer.size() != 0 {
+                                        let entry = wgpu::BindGroupEntry {
+                                            binding: *binding_index as _,
+                                            resource: buffer.gpu_buffer().unwrap().as_entire_binding(),
+                                        };
+                                        bind_group.push(entry);
+                                    } else if DEBUG_BINDINGS {
+                                        inox_log::debug_log!(
+                                            "Binding Buffer[{}][{}] = {:?} with {:?} but buffer is empty",
+                                            group_index,
+                                            binding_index,
+                                            data_id,
+                                            buffer_id
+                                        );
+                                    }
+                                } else if DEBUG_BINDINGS {
+                                    inox_log::debug_log!(
+                                        "Binding Buffer[{}][{}] = {:?} with {:?} but buffer is not found",
+                                        group_index,
+                                        binding_index,
+                                        data_id,
+                                        buffer_id
+                                    );
+                                }
                             }
-                        }
-                        BindingType::DefaultSampler(binding_index) => {
-                            if DEBUG_BINDINGS {
-                                inox_log::debug_log!(
-                                    "Binding Default sampler [{}][{}]",
-                                    group_index,
-                                    binding_index
-                                );
-                            }
-                            bind_group.push(wgpu::BindGroupEntry {
-                                binding: *binding_index as _,
-                                resource: wgpu::BindingResource::Sampler(
-                                    render_context.texture_handler.default_sampler(),
-                                ),
-                            });
-                        }
-                        BindingType::Texture(binding_index, id) => {
-                            if DEBUG_BINDINGS {
-                                inox_log::debug_log!(
-                                    "Binding Texture[{}][{}] with id {:?}",
-                                    group_index,
-                                    binding_index,
-                                    id
-                                );
-                            }
-                            if let Some(texture) =
-                                render_context.texture_handler.render_target(id)
-                            {
+                            BindingType::DefaultSampler(binding_index) => {
+                                if DEBUG_BINDINGS {
+                                    inox_log::debug_log!(
+                                        "Binding Default sampler [{}][{}]",
+                                        group_index,
+                                        binding_index
+                                    );
+                                }
                                 bind_group.push(wgpu::BindGroupEntry {
                                     binding: *binding_index as _,
-                                    resource: wgpu::BindingResource::TextureView(texture.view()),
+                                    resource: wgpu::BindingResource::Sampler(
+                                        render_context.texture_handler.default_sampler(),
+                                    ),
                                 });
                             }
-                        }
-                        BindingType::TextureArray(binding_index, _) => {
-                            if DEBUG_BINDINGS {
-                                inox_log::debug_log!(
-                                    "Binding Textures[{}][{}] - NumTexturesView {:?}",
-                                    group_index,
-                                    binding_index,
-                                    textures_view.len()
-                                );
-                            }
-                            if required_gpu_features()
-                                .contains(wgpu::Features::TEXTURE_BINDING_ARRAY)
-                            {
-                                bind_group.push(wgpu::BindGroupEntry {
-                                    binding: *binding_index as _,
-                                    resource: wgpu::BindingResource::TextureViewArray({
-                                        textures_view.as_slice()
-                                    }),
-                                });
-                            } else {
-                                (0..MAX_TEXTURE_ATLAS_COUNT).for_each(|i| {
+                            BindingType::Texture(binding_index, id) => {
+                                if DEBUG_BINDINGS {
+                                    inox_log::debug_log!(
+                                        "Binding Texture[{}][{}] with id {:?}",
+                                        group_index,
+                                        binding_index,
+                                        id
+                                    );
+                                }
+                                if let Some(texture) =
+                                    render_context.texture_handler.render_target(id)
+                                {
                                     bind_group.push(wgpu::BindGroupEntry {
-                                        binding: *binding_index as u32 + i,
-                                        resource: wgpu::BindingResource::TextureView(
-                                            textures_view[i as usize],
-                                        ),
+                                        binding: *binding_index as _,
+                                        resource: wgpu::BindingResource::TextureView(texture.view()),
                                     });
-                                });
+                                }
                             }
-                        }
-                    });
-                let data_bind_group =
-                    render_context
-                        .core
-                        .device
-                        .create_bind_group(&wgpu::BindGroupDescriptor {
-                            layout: &self.bind_group_layout[group_index],
-                            entries: bind_group.as_slice(),
-                            label: Some(label.as_str()),
+                            BindingType::TextureArray(binding_index, _) => {
+                                if DEBUG_BINDINGS {
+                                    inox_log::debug_log!(
+                                        "Binding Textures[{}][{}] - NumTexturesView {:?}",
+                                        group_index,
+                                        binding_index,
+                                        textures_view.len()
+                                    );
+                                }
+                                if required_gpu_features()
+                                    .contains(wgpu::Features::TEXTURE_BINDING_ARRAY)
+                                {
+                                    bind_group.push(wgpu::BindGroupEntry {
+                                        binding: *binding_index as _,
+                                        resource: wgpu::BindingResource::TextureViewArray({
+                                            textures_view.as_slice()
+                                        }),
+                                    });
+                                } else {
+                                    (0..MAX_TEXTURE_ATLAS_COUNT).for_each(|i| {
+                                        bind_group.push(wgpu::BindGroupEntry {
+                                            binding: *binding_index as u32 + i,
+                                            resource: wgpu::BindingResource::TextureView(
+                                                textures_view[i as usize],
+                                            ),
+                                        });
+                                    });
+                                }
+                            }
                         });
-                self.bind_group.push(data_bind_group);
-            });
+                        {
+                            inox_profiler::scoped_profile!(
+                                "binding_data::create_{}_bind_group_{}",
+                                pass_name,
+                                group_index
+                            );
+                            let data_bind_group =
+                                render_context
+                                    .core
+                                    .device
+                                    .create_bind_group(&wgpu::BindGroupDescriptor {
+                                        layout: &self.bind_group_layout[group_index],
+                                        entries: bind_group.as_slice(),
+                                        label: Some(label.as_str()),
+                                    });
+                            self.bind_group.push(data_bind_group);
+                        }
+                });
+            self.is_data_changed = false;
+        }
     }
 }
