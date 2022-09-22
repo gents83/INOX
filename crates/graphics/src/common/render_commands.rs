@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use inox_resources::Buffer;
 
-use crate::{AsBinding, DrawCommandType, DrawIndexedCommand, DrawMesh, DrawMeshlet, MeshId};
+use crate::{DrawCommandType, DrawIndexedCommand, DrawMesh, DrawMeshlet, MeshId};
 
 #[derive(Default)]
 pub struct RenderCommandsPerType {
@@ -18,7 +18,6 @@ pub struct RenderCommands {
 impl RenderCommands {
     pub fn rebind(&mut self) {
         self.commands.defrag();
-        self.commands.set_dirty(true);
         self.count = self.commands.item_count() as _;
     }
     fn remove_commands(&mut self, mesh_id: &MeshId) -> &mut Self {

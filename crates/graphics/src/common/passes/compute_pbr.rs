@@ -18,24 +18,26 @@ const COMPUTE_PBR_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rgba8Unorm;
 struct ComputePbrPassData {
     dimensions: [u32; 2],
     visibility_buffer_texture_index: u32,
-    _padding: u32,
+    is_dirty: u32,
 }
 
 impl AsBinding for ComputePbrPassData {
     fn is_dirty(&self) -> bool {
-        true
+        self.is_dirty != 0u32
     }
-    fn set_dirty(&mut self, _is_dirty: bool) {}
+    fn set_dirty(&mut self, is_dirty: bool) {
+        self.is_dirty = is_dirty as _;
+    }
     fn size(&self) -> u64 {
         std::mem::size_of_val(&self.dimensions) as u64
             + std::mem::size_of_val(&self.visibility_buffer_texture_index) as u64
-            + std::mem::size_of_val(&self._padding) as u64
+            + std::mem::size_of_val(&self.is_dirty) as u64
     }
 
     fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut GpuBuffer) {
         buffer.add_to_gpu_buffer(render_core_context, &[self.dimensions]);
         buffer.add_to_gpu_buffer(render_core_context, &[self.visibility_buffer_texture_index]);
-        buffer.add_to_gpu_buffer(render_core_context, &[self._padding]);
+        buffer.add_to_gpu_buffer(render_core_context, &[self.is_dirty]);
     }
 }
 pub struct ComputePbrPass {

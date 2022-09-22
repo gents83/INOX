@@ -155,7 +155,7 @@ impl GpuBuffer {
             data.fill_buffer(render_core_context, self);
             data.set_dirty(false);
         }
-        let buffer_id = generate_buffer_id(self);
+        let buffer_id = generate_buffer_id(self.gpu_buffer().unwrap());
         (is_changed, buffer_id)
     }
     pub fn read_from_gpu(&self, render_core_context: &RenderCoreContext) -> Option<Vec<u8>> {

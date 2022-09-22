@@ -333,17 +333,19 @@ where
         self.is_changed = true;
     }
     pub fn defrag(&mut self) {
-        self.free.clear();
-        let mut new_data = Vec::<T>::new();
-        let mut last_index = 0;
-        self.occupied.iter_mut().for_each(|d| {
-            new_data.extend_from_slice(&self.data[d.range.start..=d.range.end]);
-            d.range.start = last_index;
-            last_index = new_data.len();
-            d.range.end = last_index - 1;
-        });
-        self.data = new_data;
-        self.is_changed = true;
+        if !self.free.is_empty() {
+            self.free.clear();
+            let mut new_data = Vec::<T>::new();
+            let mut last_index = 0;
+            self.occupied.iter_mut().for_each(|d| {
+                new_data.extend_from_slice(&self.data[d.range.start..=d.range.end]);
+                d.range.start = last_index;
+                last_index = new_data.len();
+                d.range.end = last_index - 1;
+            });
+            self.data = new_data;
+            self.is_changed = true;
+        }
     }
 }
 

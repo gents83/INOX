@@ -8,6 +8,7 @@ use inox_platform::Handle;
 use inox_resources::Resource;
 
 use crate::{
+    generate_buffer_id,
     platform::{platform_limits, required_gpu_features},
     AsBinding, BufferId, ConstantData, DrawCommandType, GpuBuffer, MeshFlags, RenderBuffers,
     RenderPass, RendererRw, Texture, TextureFormat, TextureHandler,
@@ -22,6 +23,13 @@ pub struct BindingDataBuffer {
 impl BindingDataBuffer {
     pub fn has_buffer(&self, uid: &BufferId) -> bool {
         self.buffers.read().unwrap().contains_key(uid)
+    }
+    pub fn buffer_id(&self, id: &BufferId) -> BufferId {
+        let bind_data_buffer = self.buffers.read().unwrap();
+        bind_data_buffer
+            .get(id)
+            .map(generate_buffer_id)
+            .unwrap_or_default()
     }
     pub fn bind_buffer<T>(
         &self,

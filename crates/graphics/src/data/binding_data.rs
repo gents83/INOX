@@ -492,7 +492,7 @@ impl BindingData {
             inox_log::debug_log!("Sending to gpu BindingData of {}", pass_name);
         }
 
-        if self.is_layout_changed {
+        if self.is_data_changed || self.is_layout_changed {
             self.bind_group_layout.clear();
             self.bind_group_layout_entries.iter().enumerate().for_each(
                 |(index, bind_group_layout_entry)| {
