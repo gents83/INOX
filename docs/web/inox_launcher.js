@@ -768,19 +768,19 @@ function getImports() {
         const ret = getObject(arg0).createRenderPipeline(getObject(arg1));
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper3539 = function(arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper3540 = function(arg0, arg1, arg2) {
         const ret = makeMutClosure(arg0, arg1, 242, __wbg_adapter_26);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper5206 = function(arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper5207 = function(arg0, arg1, arg2) {
         const ret = makeMutClosure(arg0, arg1, 344, __wbg_adapter_29);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper5212 = function(arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper5213 = function(arg0, arg1, arg2) {
         const ret = makeMutClosure(arg0, arg1, 344, __wbg_adapter_29);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper7466 = function(arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper7467 = function(arg0, arg1, arg2) {
         const ret = makeMutClosure(arg0, arg1, 401, __wbg_adapter_29);
         return addHeapObject(ret);
     };
