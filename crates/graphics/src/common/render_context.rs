@@ -167,7 +167,7 @@ impl RenderContext {
             format: *surface.get_supported_formats(&adapter).first().unwrap(),
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
-            present_mode: wgpu::PresentMode::AutoVsync,
+            present_mode: wgpu::PresentMode::AutoNoVsync,
             alpha_mode: *surface.get_supported_alpha_modes(&adapter).first().unwrap(),
         };
 
