@@ -351,7 +351,7 @@ impl RenderPass {
                     if !commands.commands.is_empty() {
                         let commands_id = commands.commands.id();
                         if let Some(commands_buffer) = buffers.get(&commands_id) {
-                            let count_id = commands.count.id();
+                            let count_id = commands.counter.id();
                             if let Some(count_buffer) = buffers.get(&count_id) {
                                 render_pass.multi_draw_indexed_indirect_count(
                                     commands_buffer.gpu_buffer().unwrap(),

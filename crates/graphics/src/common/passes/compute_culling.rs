@@ -1,8 +1,9 @@
 use std::path::PathBuf;
 
 use crate::{
-    AsBinding, BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    DrawCommandType, GpuBuffer, MeshFlags, Pass, RenderContext, RenderCoreContext, ShaderStage,
+    declare_as_binding_vector, AsBinding, BindingData, BindingInfo, CommandBuffer, ComputePass,
+    ComputePassData, DrawCommandType, GpuBuffer, MeshFlags, Pass, RenderContext, RenderCoreContext,
+    ShaderStage,
 };
 
 use inox_commands::CommandParser;
@@ -64,12 +65,14 @@ impl AsBinding for CullingData {
     }
 }
 
+declare_as_binding_vector!(VecVisibleDrawData, u32);
+
 pub struct CullingPass {
     compute_pass: Resource<ComputePass>,
     compact_pass: Resource<ComputePass>,
     binding_data: BindingData,
     culling_data: CullingData,
-    visible_draw_data: Vec<u32>,
+    visible_draw_data: VecVisibleDrawData,
     listener: Listener,
     update_camera: bool,
 }
@@ -125,7 +128,7 @@ impl Pass for CullingPass {
             ),
             binding_data: BindingData::default(),
             culling_data: CullingData::default(),
-            visible_draw_data: Vec::new(),
+            visible_draw_data: VecVisibleDrawData::default(),
             listener,
             update_camera: true,
         }
@@ -140,8 +143,11 @@ impl Pass for CullingPass {
         }
 
         if self.update_camera {
-            self.culling_data.view = render_context.constant_data.view();
-            self.culling_data.set_dirty(true);
+            let view = render_context.constant_data.view();
+            if self.culling_data.view != view {
+                self.culling_data.view = view;
+                self.culling_data.set_dirty(true);
+            }
         }
 
         let mesh_flags = self.mesh_flags();
@@ -152,12 +158,14 @@ impl Pass for CullingPass {
             if commands.commands.is_empty() {
                 return;
             }
-            commands.count = 0;
+            commands.counter.count = 0;
 
             let num_meshlets = render_context.render_buffers.meshlets.item_count();
             let count = ((num_meshlets as u32 + NUM_COMMANDS_PER_GROUP - 1)
                 / NUM_COMMANDS_PER_GROUP) as usize;
-            self.visible_draw_data = vec![0u32; count];
+            if self.visible_draw_data.data.len() < count {
+                self.visible_draw_data.set(vec![0u32; count]);
+            }
 
             self.binding_data
                 .add_uniform_buffer(
@@ -218,7 +226,7 @@ impl Pass for CullingPass {
                 .add_storage_buffer(
                     &render_context.core,
                     &render_context.binding_data_buffer,
-                    &mut commands.count,
+                    &mut commands.counter,
                     BindingInfo {
                         group_index: 1,
                         binding_index: 0,

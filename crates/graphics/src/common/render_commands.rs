@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use inox_resources::Buffer;
 
-use crate::{DrawCommandType, DrawIndexedCommand, DrawMesh, DrawMeshlet, MeshId};
+use crate::{AsBinding, DrawCommandType, DrawIndexedCommand, DrawMesh, DrawMeshlet, MeshId};
 
 #[derive(Default)]
 pub struct RenderCommandsPerType {
@@ -10,15 +10,47 @@ pub struct RenderCommandsPerType {
 }
 
 #[derive(Default)]
-pub struct RenderCommands {
+pub struct RenderCommandsCount {
     pub count: u32,
+    is_dirty: bool,
+}
+
+impl AsBinding for RenderCommandsCount {
+    fn is_dirty(&self) -> bool {
+        self.is_dirty
+    }
+
+    fn set_dirty(&mut self, is_dirty: bool) {
+        self.is_dirty = is_dirty;
+    }
+
+    fn size(&self) -> u64 {
+        std::mem::size_of_val(&self.count) as u64
+    }
+
+    fn fill_buffer(
+        &self,
+        render_core_context: &crate::RenderCoreContext,
+        buffer: &mut crate::GpuBuffer,
+    ) {
+        buffer.add_to_gpu_buffer(render_core_context, &[self.count]);
+    }
+}
+
+#[derive(Default)]
+pub struct RenderCommands {
+    pub counter: RenderCommandsCount,
     pub commands: Buffer<DrawIndexedCommand>,
 }
 
 impl RenderCommands {
     pub fn rebind(&mut self) {
         self.commands.defrag();
-        self.count = self.commands.item_count() as _;
+        let count = self.commands.item_count() as _;
+        if self.counter.count != count {
+            self.counter.count = count;
+            self.counter.set_dirty(true);
+        }
     }
     fn remove_commands(&mut self, mesh_id: &MeshId) -> &mut Self {
         self.commands.remove(mesh_id);
@@ -81,7 +113,11 @@ impl RenderCommands {
             _ => {}
         }
         self.commands.allocate(mesh_id, commands.as_slice());
-        self.count = self.commands.item_count() as _;
+        let count = self.commands.item_count() as _;
+        if self.counter.count != count {
+            self.counter.count = count;
+            self.counter.set_dirty(true);
+        }
         self
     }
 }

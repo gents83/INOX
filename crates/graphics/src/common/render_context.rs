@@ -8,7 +8,7 @@ use inox_platform::Handle;
 use inox_resources::Resource;
 
 use crate::{
-    generate_buffer_id,
+    generate_id_from_address,
     platform::{platform_limits, required_gpu_features},
     AsBinding, BufferId, ConstantData, DrawCommandType, GpuBuffer, MeshFlags, RenderBuffers,
     RenderPass, RendererRw, Texture, TextureFormat, TextureHandler,
@@ -24,16 +24,8 @@ impl BindingDataBuffer {
     pub fn has_buffer(&self, uid: &BufferId) -> bool {
         self.buffers.read().unwrap().contains_key(uid)
     }
-    pub fn buffer_id(&self, id: &BufferId) -> BufferId {
-        let bind_data_buffer = self.buffers.read().unwrap();
-        bind_data_buffer
-            .get(id)
-            .map(generate_buffer_id)
-            .unwrap_or_default()
-    }
     pub fn bind_buffer<T>(
         &self,
-        id: BufferId,
         data: &mut T,
         usage: wgpu::BufferUsages,
         render_core_context: &RenderCoreContext,
@@ -43,9 +35,13 @@ impl BindingDataBuffer {
     {
         let mut bind_data_buffer = self.buffers.write().unwrap();
         let buffer = bind_data_buffer
-            .entry(id)
+            .entry(data.id())
             .or_insert_with(GpuBuffer::default);
-        buffer.bind(id, data, usage, render_core_context)
+        if data.is_dirty() {
+            buffer.bind(data.id(), data, usage, render_core_context)
+        } else {
+            (false, generate_id_from_address(buffer))
+        }
     }
 }
 

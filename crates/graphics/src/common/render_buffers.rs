@@ -320,7 +320,7 @@ impl RenderBuffers {
         render_core_context: &RenderCoreContext,
         force_rebind: bool,
     ) {
-        inox_profiler::scoped_profile!("bind_commands");
+        inox_profiler::scoped_profile!("render_buffers::bind_commands");
 
         self.commands.iter_mut().for_each(|(_, commands)| {
             commands.map.iter_mut().for_each(|(_, entry)| {
@@ -330,28 +330,24 @@ impl RenderBuffers {
                 if force_rebind {
                     entry.rebind();
                 }
-                let commands_id = entry.commands.id();
-                let usage = wgpu::BufferUsages::STORAGE
-                    | wgpu::BufferUsages::COPY_SRC
-                    | wgpu::BufferUsages::COPY_DST
-                    | wgpu::BufferUsages::INDIRECT;
-                binding_data_buffer.bind_buffer(
-                    commands_id,
-                    &mut entry.commands,
-                    usage,
-                    render_core_context,
-                );
-                let count_id = entry.count.id();
-                let usage = wgpu::BufferUsages::STORAGE
-                    | wgpu::BufferUsages::COPY_SRC
-                    | wgpu::BufferUsages::COPY_DST
-                    | wgpu::BufferUsages::INDIRECT;
-                binding_data_buffer.bind_buffer(
-                    count_id,
-                    &mut entry.count,
-                    usage,
-                    render_core_context,
-                );
+                if entry.commands.is_dirty() {
+                    let usage = wgpu::BufferUsages::STORAGE
+                        | wgpu::BufferUsages::COPY_SRC
+                        | wgpu::BufferUsages::COPY_DST
+                        | wgpu::BufferUsages::INDIRECT;
+                    binding_data_buffer.bind_buffer(
+                        &mut entry.commands,
+                        usage,
+                        render_core_context,
+                    );
+                }
+                if entry.counter.is_dirty() {
+                    let usage = wgpu::BufferUsages::STORAGE
+                        | wgpu::BufferUsages::COPY_SRC
+                        | wgpu::BufferUsages::COPY_DST
+                        | wgpu::BufferUsages::INDIRECT;
+                    binding_data_buffer.bind_buffer(&mut entry.counter, usage, render_core_context);
+                }
             });
         });
     }

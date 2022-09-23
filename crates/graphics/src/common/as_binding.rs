@@ -1,13 +1,10 @@
 use crate::{GpuBuffer, RenderCoreContext};
 use inox_resources::{Buffer, HashBuffer};
-use inox_uid::{generate_uid_from_string, Uid};
+pub type BufferId = u64;
 
-pub type BufferId = Uid;
-
-pub fn generate_buffer_id<T>(v: &T) -> BufferId {
-    let address = v as *const T;
-    let string = format!("{:p}", address);
-    generate_uid_from_string(string.as_str())
+#[inline]
+pub fn generate_id_from_address<T>(v: &T) -> BufferId {
+    (v as *const T) as _
 }
 
 pub trait AsBinding {
@@ -15,7 +12,7 @@ pub trait AsBinding {
     where
         Self: Sized,
     {
-        generate_buffer_id(self)
+        generate_id_from_address(self)
     }
     fn is_dirty(&self) -> bool;
     fn set_dirty(&mut self, is_dirty: bool);
@@ -82,29 +79,6 @@ where
     }
 }
 
-impl<T> AsBinding for Vec<T>
-where
-    T: Sized + Clone,
-{
-    fn is_dirty(&self) -> bool {
-        true
-    }
-
-    fn set_dirty(&mut self, _is_dirty: bool) {}
-
-    fn size(&self) -> u64 {
-        self.len() as u64 * std::mem::size_of::<T>() as u64
-    }
-
-    fn fill_buffer(
-        &self,
-        render_core_context: &crate::RenderCoreContext,
-        buffer: &mut crate::GpuBuffer,
-    ) {
-        buffer.add_to_gpu_buffer(render_core_context, self.as_slice());
-    }
-}
-
 impl<T> AsBinding for Buffer<T>
 where
     T: Sized + Clone,
@@ -161,24 +135,51 @@ where
     }
 }
 
-impl AsBinding for u32 {
-    fn is_dirty(&self) -> bool {
-        true
-    }
+#[macro_export]
+macro_rules! declare_as_binding_vector {
+    ($VecType:ident, $Type:ident) => {
+        struct $VecType {
+            data: Vec<$Type>,
+            is_dirty: bool,
+        }
 
-    fn set_dirty(&mut self, _is_dirty: bool) {
-        // do nothing
-    }
+        impl $VecType {
+            fn set(&mut self, data: Vec<$Type>) -> &mut Self {
+                self.data = data;
+                self.set_dirty(true);
+                self
+            }
+        }
 
-    fn size(&self) -> u64 {
-        std::mem::size_of_val(self) as u64
-    }
+        impl Default for $VecType {
+            fn default() -> Self {
+                Self {
+                    data: Vec::default(),
+                    is_dirty: true,
+                }
+            }
+        }
 
-    fn fill_buffer(
-        &self,
-        render_core_context: &crate::RenderCoreContext,
-        buffer: &mut crate::GpuBuffer,
-    ) {
-        buffer.add_to_gpu_buffer(render_core_context, &[*self]);
-    }
+        impl AsBinding for $VecType {
+            fn is_dirty(&self) -> bool {
+                self.is_dirty
+            }
+
+            fn set_dirty(&mut self, is_dirty: bool) {
+                self.is_dirty = is_dirty;
+            }
+
+            fn size(&self) -> u64 {
+                self.data.len() as u64 * std::mem::size_of::<$Type>() as u64
+            }
+
+            fn fill_buffer(
+                &self,
+                render_core_context: &$crate::RenderCoreContext,
+                buffer: &mut $crate::GpuBuffer,
+            ) {
+                buffer.add_to_gpu_buffer(render_core_context, self.data.as_slice());
+            }
+        }
+    };
 }
