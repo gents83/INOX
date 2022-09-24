@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -14,13 +13,8 @@ use inox_uid::generate_uid_from_string;
 
 use crate::{
     ContextRc, JobHandlerTrait, JobPriority, PluginHolder, PluginId, PluginManager, System,
-    SystemEvent, Worker,
+    SystemEvent,
 };
-
-#[cfg(target_arch = "wasm32")]
-const NUM_WORKER_THREADS: usize = 0;
-#[cfg(all(not(target_arch = "wasm32")))]
-const NUM_WORKER_THREADS: usize = 5;
 
 pub struct App {
     context: ContextRc,
@@ -28,7 +22,6 @@ pub struct App {
     is_enabled: Arc<AtomicBool>,
     listener: Listener,
     plugin_manager: PluginManager,
-    workers: HashMap<String, Worker>,
 }
 
 impl Default for App {
@@ -47,7 +40,6 @@ impl Default for App {
             is_enabled: Arc::new(AtomicBool::new(true)),
             is_profiling: false,
             plugin_manager: PluginManager::default(),
-            workers: HashMap::new(),
             context,
             listener,
         }
@@ -56,7 +48,7 @@ impl Default for App {
 
 impl Drop for App {
     fn drop(&mut self) {
-        self.stop_worker_threads();
+        self.context.job_handler().stop();
 
         if self.is_profiling {
             inox_profiler::write_profile_file!();
@@ -78,24 +70,9 @@ impl Drop for App {
 impl App {
     pub fn start(&mut self) -> &mut Self {
         self.context.global_timer_mut().update();
-        self.setup_worker_threads();
+        self.context.job_handler().start(&self.is_enabled);
         self.context.scheduler_mut().start();
         self
-    }
-
-    fn setup_worker_threads(&mut self) {
-        if NUM_WORKER_THREADS > 0 {
-            for i in 1..NUM_WORKER_THREADS + 1 {
-                self.add_worker(format!("Worker{}", i).as_str());
-            }
-        }
-    }
-
-    fn stop_worker_threads(&mut self) {
-        for (_name, w) in self.workers.iter_mut() {
-            w.stop();
-        }
-        self.context.job_handler().clear_pending_jobs();
     }
 
     fn update_events(&mut self) {
@@ -148,21 +125,9 @@ impl App {
 
         self.is_profiling = is_profiling;
 
-        self.update_workers(is_enabled);
-    }
-
-    fn update_workers(&mut self, is_enabled: bool) {
-        if NUM_WORKER_THREADS == 0 {
-            //no workers - need to handle events ourself
-            self.context.job_handler().execute_all_jobs();
-        }
-        if self.is_enabled.load(Ordering::SeqCst) && !is_enabled {
-            self.is_enabled.store(is_enabled, Ordering::SeqCst);
-            self.stop_worker_threads();
-        } else if !self.is_enabled.load(Ordering::SeqCst) && is_enabled {
-            self.is_enabled.store(is_enabled, Ordering::SeqCst);
-            self.setup_worker_threads();
-        }
+        self.context
+            .job_handler()
+            .update_workers(&self.is_enabled, is_enabled);
     }
 
     pub fn run(&mut self) -> bool {
@@ -253,14 +218,6 @@ impl App {
         }
     }
 
-    fn add_worker(&mut self, name: &str) -> &mut Worker {
-        let key = String::from(name);
-        let w = self.workers.entry(key).or_insert_with(Worker::default);
-        if !w.is_started() {
-            w.start(name, &self.is_enabled, self.context.job_handler());
-        }
-        w
-    }
     pub fn context(&self) -> &ContextRc {
         &self.context
     }

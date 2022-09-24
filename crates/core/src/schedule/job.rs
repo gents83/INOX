@@ -1,13 +1,20 @@
 use std::{
     collections::HashMap,
     sync::{
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
         mpsc::{channel, Receiver, Sender},
         Arc, Mutex, RwLock,
     },
 };
 
 use inox_uid::Uid;
+
+use crate::Worker;
+
+#[cfg(target_arch = "wasm32")]
+const NUM_WORKER_THREADS: usize = 0;
+#[cfg(all(not(target_arch = "wasm32")))]
+const NUM_WORKER_THREADS: usize = 5;
 
 pub type JobId = Uid;
 pub const INDEPENDENT_JOB_ID: JobId = inox_uid::generate_static_uid_from_string("IndependentJob");
@@ -106,61 +113,26 @@ impl Default for PrioChannel {
 pub struct JobHandler {
     channel: [PrioChannel; JobPriority::Count as usize],
     pending_jobs: HashMap<JobId, Arc<AtomicUsize>>,
+    workers: HashMap<String, Worker>,
 }
 
 unsafe impl Sync for JobHandler {}
 unsafe impl Send for JobHandler {}
 
-pub trait JobHandlerTrait {
-    fn add_job<F>(&self, job_category: &JobId, job_name: &str, job_priority: JobPriority, func: F)
-    where
-        F: FnOnce() + Send + Sync + 'static;
-    fn get_job_with_priority(&self, job_priority: JobPriority) -> Option<Job>;
-    fn has_pending_jobs(&self, job_category: &JobId) -> bool;
-    fn get_pending_jobs_count(&self, job_category: &JobId) -> usize;
-    fn execute_all_jobs(&self);
-    fn clear_pending_jobs(&self);
-    fn receivers(&self) -> Vec<JobReceiverRw>;
-}
-
-impl JobHandlerTrait for JobHandlerRw {
-    #[inline]
-    fn add_job<F>(&self, job_category: &JobId, job_name: &str, job_priority: JobPriority, func: F)
-    where
-        F: FnOnce() + Send + Sync + 'static,
-    {
-        inox_profiler::scoped_profile!("JobHandler::add_job[{}]", job_name);
-        let pending_jobs = self
-            .write()
-            .unwrap()
-            .pending_jobs
-            .entry(*job_category)
-            .or_insert_with(|| Arc::new(AtomicUsize::new(0)))
-            .clone();
-        let job = Job::new(job_name, func, pending_jobs);
-        self.write().unwrap().channel[job_priority as usize]
-            .sender
-            .send(job)
-            .ok();
-    }
-
-    #[inline]
-    fn has_pending_jobs(&self, job_category: &JobId) -> bool {
-        self.get_pending_jobs_count(job_category) > 0
-    }
-
+impl JobHandler {
     #[inline]
     fn get_pending_jobs_count(&self, job_category: &JobId) -> usize {
-        if let Some(pending_jobs) = self.read().unwrap().pending_jobs.get(job_category) {
+        inox_profiler::scoped_profile!("JobHandler::get_pending_jobs_count");
+        if let Some(pending_jobs) = self.pending_jobs.get(job_category) {
             pending_jobs.load(Ordering::SeqCst)
         } else {
             0
         }
     }
+    #[inline]
     fn get_job_with_priority(&self, job_priority: JobPriority) -> Option<Job> {
         inox_profiler::scoped_profile!("JobReceiver::get_job_with_priority[{:?}]", job_priority);
-        let handler = self.read().unwrap();
-        handler.channel[job_priority as usize].receiver.get_job()
+        self.channel[job_priority as usize].receiver.get_job()
     }
     #[inline]
     fn execute_all_jobs(&self) {
@@ -172,26 +144,116 @@ impl JobHandlerTrait for JobHandlerRw {
         }
     }
 
-    #[inline]
-    fn clear_pending_jobs(&self) {
-        self.write()
-            .unwrap()
-            .pending_jobs
-            .iter()
-            .for_each(|(_, pending_jobs)| {
-                pending_jobs.store(0, Ordering::SeqCst);
-            });
-        self.write().unwrap().pending_jobs.clear();
+    fn add_worker(&mut self, name: &str, can_continue: &Arc<AtomicBool>) -> &mut Worker {
+        let key = String::from(name);
+        let w = self.workers.entry(key).or_insert_with(Worker::default);
+        if !w.is_started() {
+            w.start(
+                name,
+                can_continue,
+                self.channel
+                    .iter()
+                    .map(|channel| channel.receiver.clone())
+                    .collect(),
+            );
+        }
+        w
     }
 
     #[inline]
-    fn receivers(&self) -> Vec<JobReceiverRw> {
-        let handler = self.read().unwrap();
-        handler
-            .channel
-            .iter()
-            .map(|channel| channel.receiver.clone())
-            .collect()
+    fn setup_worker_threads(&mut self, can_continue: &Arc<AtomicBool>) {
+        if NUM_WORKER_THREADS > 0 {
+            for i in 1..NUM_WORKER_THREADS + 1 {
+                self.add_worker(format!("Worker{}", i).as_str(), can_continue);
+            }
+        }
+    }
+
+    #[inline]
+    fn clear(&mut self) {
+        for (_name, w) in self.workers.iter_mut() {
+            w.stop();
+        }
+        self.pending_jobs.iter().for_each(|(_, pending_jobs)| {
+            pending_jobs.store(0, Ordering::SeqCst);
+        });
+        self.pending_jobs.clear();
+    }
+
+    fn add_job<F>(
+        &mut self,
+        job_category: &JobId,
+        job_name: &str,
+        job_priority: JobPriority,
+        func: F,
+    ) where
+        F: FnOnce() + Send + Sync + 'static,
+    {
+        inox_profiler::scoped_profile!("JobHandler::add_job[{}]", job_name);
+        let pending_jobs = self
+            .pending_jobs
+            .entry(*job_category)
+            .or_insert_with(|| Arc::new(AtomicUsize::new(0)))
+            .clone();
+        let job = Job::new(job_name, func, pending_jobs);
+        self.channel[job_priority as usize].sender.send(job).ok();
+        self.workers.iter().for_each(|(_n, w)| {
+            w.wakeup();
+        });
+    }
+}
+
+pub trait JobHandlerTrait {
+    fn add_job<F>(&self, job_category: &JobId, job_name: &str, job_priority: JobPriority, func: F)
+    where
+        F: FnOnce() + Send + Sync + 'static;
+    fn get_job_with_priority(&self, job_priority: JobPriority) -> Option<Job>;
+    fn has_pending_jobs(&self, job_category: &JobId) -> bool;
+    fn update_workers(&self, can_continue: &Arc<AtomicBool>, is_enabled: bool);
+    fn start(&self, can_continue: &Arc<AtomicBool>);
+    fn stop(&self);
+}
+
+impl JobHandlerTrait for JobHandlerRw {
+    #[inline]
+    fn add_job<F>(&self, job_category: &JobId, job_name: &str, job_priority: JobPriority, func: F)
+    where
+        F: FnOnce() + Send + Sync + 'static,
+    {
+        self.write()
+            .unwrap()
+            .add_job(job_category, job_name, job_priority, func);
+    }
+
+    #[inline]
+    fn has_pending_jobs(&self, job_category: &JobId) -> bool {
+        self.read().unwrap().get_pending_jobs_count(job_category) > 0
+    }
+    #[inline]
+    fn get_job_with_priority(&self, job_priority: JobPriority) -> Option<Job> {
+        self.read().unwrap().get_job_with_priority(job_priority)
+    }
+    #[inline]
+    fn start(&self, can_continue: &Arc<AtomicBool>) {
+        self.write().unwrap().setup_worker_threads(can_continue);
+    }
+    #[inline]
+    fn stop(&self) {
+        self.write().unwrap().clear();
+    }
+
+    fn update_workers(&self, can_continue: &Arc<AtomicBool>, is_enabled: bool) {
+        if NUM_WORKER_THREADS == 0 {
+            //no workers - need to handle events ourself
+            self.read().unwrap().execute_all_jobs();
+        }
+        if can_continue.load(Ordering::SeqCst) && !is_enabled {
+            can_continue.store(is_enabled, Ordering::SeqCst);
+            self.stop();
+        } else if !can_continue.load(Ordering::SeqCst) && is_enabled {
+            can_continue.store(is_enabled, Ordering::SeqCst);
+            self.start(can_continue);
+        }
     }
 }
 

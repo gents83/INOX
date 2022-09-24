@@ -6,7 +6,7 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use crate::{JobHandlerRw, JobHandlerTrait, JobReceiverTrait};
+use crate::{JobReceiverRw, JobReceiverTrait};
 
 #[derive(Default)]
 pub struct Worker {
@@ -21,28 +21,33 @@ impl Worker {
         &mut self,
         name: &str,
         can_continue: &Arc<AtomicBool>,
-        job_handler: &JobHandlerRw,
+        receivers: Vec<JobReceiverRw>,
     ) {
         if self.thread_handle.is_none() {
-            let receivers = job_handler.receivers();
             let builder = thread::Builder::new().name(name.into());
             let can_continue = can_continue.clone();
 
             let t = builder
                 .spawn(move || {
                     inox_profiler::register_thread!();
+                    let receivers_count = receivers.len() as i32;
+                    let mut i;
                     loop {
-                        let mut i = 0;
-                        while i < receivers.len() {
-                            if let Some(job) = receivers[i].get_job() {
+                        i = 0i32;
+                        while i >= 0 && i < receivers_count {
+                            if let Some(job) = receivers[i as usize].get_job() {
                                 job.execute();
                                 //force exit from loop
-                                i = receivers.len();
+                                i = -1;
+                            } else {
+                                i += 1;
                             }
-                            i += 1;
                         }
                         if !can_continue.load(Ordering::SeqCst) {
                             return false;
+                        }
+                        if i >= 0 {
+                            std::thread::park();
                         }
                     }
                 })
@@ -51,10 +56,16 @@ impl Worker {
         }
     }
 
+    pub fn wakeup(&self) {
+        if let Some(t) = &self.thread_handle {
+            t.thread().unpark();
+        }
+    }
+
     pub fn stop(&mut self) {
+        self.wakeup();
         if self.thread_handle.is_some() {
             let t = self.thread_handle.take().unwrap();
-
             t.join().unwrap();
 
             self.thread_handle = None;
