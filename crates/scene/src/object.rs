@@ -8,8 +8,8 @@ use inox_graphics::{Light, Mesh};
 use inox_math::{Mat4Ops, MatBase, Matrix4, Vector3};
 use inox_messenger::MessageHubRc;
 use inox_resources::{
-    DataTypeResource, GenericResource, Handle, OnCreateData, Resource, ResourceCastTo, ResourceId,
-    ResourceTrait, SerializableResource, SharedDataRc,
+    DataTypeResource, GenericResource, Handle, OnCreateData, Resource, ResourceCastTo,
+    ResourceEvent, ResourceId, ResourceTrait, SerializableResource, SharedDataRc,
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 use inox_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
@@ -22,7 +22,9 @@ pub type ObjectId = ResourceId;
 
 #[derive(Clone)]
 pub struct Object {
+    id: ObjectId,
     filepath: PathBuf,
+    message_hub: MessageHubRc,
     transform: Matrix4,
     parent: Handle<Object>,
     is_transform_dirty: bool,
@@ -104,9 +106,11 @@ impl ResourceTrait for Object {
 impl DataTypeResource for Object {
     type DataType = ObjectData;
 
-    fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
+    fn new(id: ResourceId, _shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
         Self {
+            id,
             filepath: PathBuf::new(),
+            message_hub: message_hub.clone(),
             transform: Matrix4::default_identity(),
             parent: None,
             is_transform_dirty: true,
@@ -259,6 +263,8 @@ impl Object {
     }
 
     fn set_dirty(&mut self) {
+        self.message_hub
+            .send_event(ResourceEvent::<Self>::Changed(self.id));
         self.is_transform_dirty = true;
         self.children.iter().for_each(|c| {
             c.get_mut().set_dirty();

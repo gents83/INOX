@@ -66,7 +66,7 @@ impl Plugin for Viewer {
         };
 
         let viewer_system = ViewerSystem::new(context, &self.renderer, USE_3DVIEW);
-        let object_system = ObjectSystem::new(context.shared_data());
+        let object_system = ObjectSystem::new(context);
         let script_system = ScriptSystem::new(context);
 
         context.add_system(inox_core::Phases::PlatformUpdate, window_system, None);
