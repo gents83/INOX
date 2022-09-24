@@ -145,7 +145,6 @@ impl<const PLATFORM_TYPE: PlatformType> Binarizer<PLATFORM_TYPE> {
 
                 loop {
                     binarizer.update();
-                    thread::yield_now();
 
                     if info.should_end_on_completion.load(Ordering::SeqCst) {
                         can_continue.store(false, Ordering::SeqCst);

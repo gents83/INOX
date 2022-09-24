@@ -84,7 +84,6 @@ impl Scheduler {
                                 {
                                     job.execute();
                                 }
-                                thread::yield_now();
                             }
                         }
                     }

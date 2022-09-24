@@ -157,7 +157,6 @@ impl PhaseWithSystems {
                 {
                     job.execute();
                 }
-                thread::yield_now();
             }
         }
         self.can_continue.load(Ordering::Relaxed)

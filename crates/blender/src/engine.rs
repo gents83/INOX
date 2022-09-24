@@ -230,7 +230,6 @@ fn client_thread_execution(thread_data: Arc<RwLock<ThreadData>>) {
 
                     stream.write_all(msg).ok();
                 }
-                thread::yield_now();
             }
             stream
                 .shutdown(Shutdown::Both)
