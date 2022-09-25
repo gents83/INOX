@@ -21,7 +21,7 @@ use std::{
 };
 
 pub type GlobalProfiler = Arc<Profiler>;
-pub static mut SABI_PROFILER_LIB: Option<Library> = None;
+pub static mut INOX_PROFILER_LIB: Option<Library> = None;
 
 pub const GET_PROFILER_FUNCTION_NAME: &str = "get_profiler";
 pub type PfnGetProfiler = ::std::option::Option<unsafe extern "C" fn() -> GlobalProfiler>;

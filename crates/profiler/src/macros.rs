@@ -6,13 +6,13 @@ macro_rules! load_profiler_lib {
             use std::path::PathBuf;
             use $crate::*;
 
-            if SABI_PROFILER_LIB.is_none() {
+            if INOX_PROFILER_LIB.is_none() {
                 let library_name = library_filename("inox_profiler");
                 let (path, filename) =
                     library::compute_folder_and_filename(PathBuf::from(library_name).as_path());
                 let fullpath = path.join(filename);
                 let library = Library::new(fullpath.to_str().unwrap());
-                SABI_PROFILER_LIB = Some(library);
+                INOX_PROFILER_LIB = Some(library);
             }
         }
     };
@@ -26,7 +26,7 @@ macro_rules! get_profiler {
             use $crate::*;
             $crate::load_profiler_lib!();
             if GLOBAL_PROFILER.is_none() {
-                if let Some(get_profiler_fn) = SABI_PROFILER_LIB
+                if let Some(get_profiler_fn) = INOX_PROFILER_LIB
                     .as_ref()
                     .unwrap()
                     .get::<PfnGetProfiler>(GET_PROFILER_FUNCTION_NAME)
@@ -48,7 +48,7 @@ macro_rules! create_profiler {
 
             $crate::load_profiler_lib!();
 
-            if let Some(create_fn) = SABI_PROFILER_LIB
+            if let Some(create_fn) = INOX_PROFILER_LIB
                 .as_ref()
                 .unwrap()
                 .get::<PfnCreateProfiler>(CREATE_PROFILER_FUNCTION_NAME)
