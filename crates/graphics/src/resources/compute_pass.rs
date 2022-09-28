@@ -92,40 +92,69 @@ impl ComputePass {
 
     pub fn begin<'a>(
         &'a self,
+        render_context: &RenderContext,
         binding_data: &'a BindingData,
         command_buffer: &'a mut CommandBuffer,
     ) -> wgpu::ComputePass<'a> {
         let label = format!("ComputePass {}", self.name);
-        let mut compute_pass =
+        let mut compute_pass = {
+            inox_profiler::gpu_scoped_profile!(
+                &mut command_buffer.encoder,
+                &render_context.core.device,
+                "encoder::begin_compute_pass",
+            );
             command_buffer
                 .encoder
                 .begin_compute_pass(&wgpu::ComputePassDescriptor {
                     label: Some(label.as_str()),
-                });
+                })
+        };
 
         binding_data
             .bind_groups()
             .iter()
             .enumerate()
             .for_each(|(index, bind_group)| {
+                inox_profiler::gpu_scoped_profile!(
+                    &mut compute_pass,
+                    &render_context.core.device,
+                    "compute_pass::set_bind_group",
+                );
                 compute_pass.set_bind_group(index as _, bind_group, &[]);
             });
 
         compute_pass
     }
 
-    pub fn dispatch(&self, compute_pass: wgpu::ComputePass, x: u32, y: u32, z: u32) {
+    pub fn dispatch(
+        &self,
+        render_context: &RenderContext,
+        compute_pass: wgpu::ComputePass,
+        x: u32,
+        y: u32,
+        z: u32,
+    ) {
         let pipelines = self.pipelines().iter().map(|h| h.get()).collect::<Vec<_>>();
         {
             let mut is_ready = false;
             let mut compute_pass = compute_pass;
             pipelines.iter().for_each(|pipeline| {
                 if pipeline.is_initialized() {
+                    inox_profiler::gpu_scoped_profile!(
+                        &mut compute_pass,
+                        &render_context.core.device,
+                        "compute_pass::set_pipeline",
+                    );
                     compute_pass.set_pipeline(pipeline.compute_pipeline());
                     is_ready = true;
                 }
             });
             if is_ready {
+                inox_profiler::gpu_scoped_profile!(
+                    &mut compute_pass,
+                    &render_context.core.device,
+                    "compute_pass::dispatch_workgroups",
+                );
                 compute_pass.dispatch_workgroups(x, y, z);
             }
         }

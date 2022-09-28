@@ -69,8 +69,11 @@ impl RenderCoreContext {
                 }),
         }
     }
-    pub fn submit(&self, command_buffer: CommandBuffer) {
+    pub fn submit(&self, mut command_buffer: CommandBuffer) {
         inox_profiler::scoped_profile!("render_context::submit");
+
+        inox_profiler::gpu_profiler_pre_submit!(&mut command_buffer.encoder);
+
         let command_buffer = command_buffer.encoder.finish();
         self.queue.submit(std::iter::once(command_buffer));
     }
@@ -173,6 +176,8 @@ impl RenderContext {
 
         //debug_log!("Surface format: {:?}", config.format);
         surface.configure(&device, &config);
+
+        inox_profiler::create_gpu_profiler!(&device, &queue, false);
 
         let render_core_context = RenderCoreContext {
             instance,

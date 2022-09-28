@@ -20,28 +20,29 @@ use std::{
     u64,
 };
 
-pub type GlobalProfiler = Arc<Profiler>;
+pub type GlobalCpuProfiler = Arc<CpuProfiler>;
+
 pub static mut INOX_PROFILER_LIB: Option<Library> = None;
 
-pub const GET_PROFILER_FUNCTION_NAME: &str = "get_profiler";
-pub type PfnGetProfiler = ::std::option::Option<unsafe extern "C" fn() -> GlobalProfiler>;
+pub const GET_CPU_PROFILER_FUNCTION_NAME: &str = "get_cpu_profiler";
+pub type PfnGetCpuProfiler = ::std::option::Option<unsafe extern "C" fn() -> GlobalCpuProfiler>;
 
-pub const CREATE_PROFILER_FUNCTION_NAME: &str = "create_profiler";
-pub type PfnCreateProfiler = ::std::option::Option<unsafe extern "C" fn()>;
+pub const CREATE_CPU_PROFILER_FUNCTION_NAME: &str = "create_cpu_profiler";
+pub type PfnCreateCpuProfiler = ::std::option::Option<unsafe extern "C" fn()>;
 
-pub static mut GLOBAL_PROFILER: Option<GlobalProfiler> = None;
+pub static mut GLOBAL_CPU_PROFILER: Option<GlobalCpuProfiler> = None;
 thread_local!(pub static THREAD_PROFILER: RefCell<Option<Arc<ThreadProfiler>>> = RefCell::new(None));
 
 #[no_mangle]
-pub extern "C" fn get_profiler() -> GlobalProfiler {
-    unsafe { GLOBAL_PROFILER.as_ref().unwrap().clone() }
+pub extern "C" fn get_cpu_profiler() -> GlobalCpuProfiler {
+    unsafe { GLOBAL_CPU_PROFILER.as_ref().unwrap().clone() }
 }
 
 #[no_mangle]
-pub extern "C" fn create_profiler() {
+pub extern "C" fn create_cpu_profiler() {
     unsafe {
-        GLOBAL_PROFILER.replace(Arc::new(Profiler::new()));
-        if let Some(profiler) = &GLOBAL_PROFILER {
+        GLOBAL_CPU_PROFILER.replace(Arc::new(CpuProfiler::new()));
+        if let Some(profiler) = &GLOBAL_CPU_PROFILER {
             profiler.current_thread_profiler();
         }
     }
@@ -61,7 +62,7 @@ unsafe impl Sync for ThreadProfiler {}
 unsafe impl Send for ThreadProfiler {}
 
 impl ThreadProfiler {
-    fn push_sample(&self, category: String, name: String, time_start: f64, time_end: f64) {
+    pub fn push_sample(&self, category: String, name: String, time_start: f64, time_end: f64) {
         let sample = Sample {
             tid: self.id,
             category,
@@ -88,21 +89,21 @@ struct LockedData {
 }
 
 #[repr(C)]
-pub struct Profiler {
+pub struct CpuProfiler {
     is_started: AtomicBool,
     time_start: AtomicU64,
     rx: Receiver<Sample>,
     tx: Sender<Sample>,
     locked_data: Mutex<LockedData>,
 }
-unsafe impl Sync for Profiler {}
-unsafe impl Send for Profiler {}
+unsafe impl Sync for CpuProfiler {}
+unsafe impl Send for CpuProfiler {}
 
-impl Profiler {
-    fn new() -> Profiler {
+impl CpuProfiler {
+    fn new() -> CpuProfiler {
         let (tx, rx) = channel();
 
-        Profiler {
+        CpuProfiler {
             is_started: AtomicBool::new(false),
             time_start: AtomicU64::new(0),
             rx,
@@ -125,13 +126,13 @@ impl Profiler {
         self.is_started
             .swap(true, std::sync::atomic::Ordering::SeqCst);
         self.time_start
-            .swap(Profiler::get_time(), std::sync::atomic::Ordering::SeqCst);
+            .swap(CpuProfiler::get_time(), std::sync::atomic::Ordering::SeqCst);
         debug_log!("Starting profiler");
     }
     pub fn stop(&self) {
         self.is_started
             .swap(false, std::sync::atomic::Ordering::SeqCst);
-        let current_time = Profiler::get_time();
+        let current_time = CpuProfiler::get_time();
         let start_time = self.time_start.load(std::sync::atomic::Ordering::SeqCst);
         debug_log!(
             "Stopping profiler for a total duration of {:.3}",
@@ -139,7 +140,7 @@ impl Profiler {
         );
     }
     pub fn get_elapsed_time(&self) -> f64 {
-        let current_time = Profiler::get_time();
+        let current_time = CpuProfiler::get_time();
         let start_time = self.time_start.load(std::sync::atomic::Ordering::SeqCst);
         (current_time - start_time) as _
     }
@@ -213,7 +214,7 @@ impl Profiler {
                         "id": thread.index,
                         "tid": thread_id,
                         "cat": thread_id,
-                        "name": sample.name,
+                        "name": format!("[{}]{}", sample.category, sample.name),
                         "ph": "B",
                         "ts": sample.time_start,
                     }));
@@ -242,14 +243,14 @@ impl Profiler {
 }
 
 pub struct ScopedProfile {
-    profiler: GlobalProfiler,
+    profiler: GlobalCpuProfiler,
     category: String,
     name: String,
     time_start: f64,
 }
 
 impl ScopedProfile {
-    pub fn new(profiler: GlobalProfiler, category: &str, name: &str) -> Self {
+    pub fn new(profiler: GlobalCpuProfiler, category: &str, name: &str) -> Self {
         let time_start = profiler.get_elapsed_time();
         Self {
             profiler,
@@ -265,7 +266,7 @@ impl Drop for ScopedProfile {
         let time_end = self.profiler.get_elapsed_time();
         THREAD_PROFILER.with(|profiler| {
             if profiler.borrow().is_none() {
-                let thread_profiler = get_profiler().current_thread_profiler();
+                let thread_profiler = get_cpu_profiler().current_thread_profiler();
                 *profiler.borrow_mut() = Some(thread_profiler);
             }
             profiler.borrow().as_ref().unwrap().push_sample(

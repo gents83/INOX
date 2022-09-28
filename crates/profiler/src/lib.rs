@@ -1,19 +1,22 @@
 #![warn(clippy::all)]
 #![allow(dead_code)]
 
-pub use inox_filesystem::*;
+#[cfg(feature = "gpu")]
+pub use wgpu_profiler::*;
 
 pub use self::macros::*;
 pub mod macros;
 
-pub use self::profiler::*;
+pub mod cpu_profiler;
+#[cfg(feature = "gpu")]
+pub mod gpu_profiler;
 
-pub mod profiler;
+pub use self::cpu_profiler::*;
+pub use self::gpu_profiler::*;
 
 //Using Chrome browser for profiling
 //https://www.chromium.org/developers/how-tos/trace-event-profiling-tool
 //go to chrome://tracing and click on "Load"
-
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 

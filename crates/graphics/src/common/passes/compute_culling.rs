@@ -288,12 +288,12 @@ impl Pass for CullingPass {
             let count = (num_meshlets as u32 + NUM_COMMANDS_PER_GROUP - 1) / NUM_COMMANDS_PER_GROUP;
 
             let pass = self.compute_pass.get();
-            let compute_pass = pass.begin(&self.binding_data, command_buffer);
-            pass.dispatch(compute_pass, count, 1, 1);
+            let compute_pass = pass.begin(render_context, &self.binding_data, command_buffer);
+            pass.dispatch(render_context, compute_pass, count, 1, 1);
 
             let pass = self.compact_pass.get();
-            let compact_pass = pass.begin(&self.binding_data, command_buffer);
-            pass.dispatch(compact_pass, count, 1, 1);
+            let compact_pass = pass.begin(render_context, &self.binding_data, command_buffer);
+            pass.dispatch(render_context, compact_pass, count, 1, 1);
         }
     }
 }

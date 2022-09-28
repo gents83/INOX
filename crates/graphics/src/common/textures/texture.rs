@@ -109,6 +109,8 @@ impl Texture {
             height: area.height,
             depth_or_array_layers: 1,
         };
+
+        inox_profiler::gpu_scoped_profile!(encoder, device, "encoder::copy_buffer_to_texture");
         encoder.copy_buffer_to_texture(
             wgpu::ImageCopyBuffer {
                 buffer: &buffer,

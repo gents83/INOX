@@ -26,7 +26,7 @@ pub struct App {
 
 impl Default for App {
     fn default() -> Self {
-        inox_profiler::create_profiler!();
+        inox_profiler::create_cpu_profiler!();
 
         let context = ContextRc::default();
         let listener = Listener::new(context.message_hub());

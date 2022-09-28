@@ -29,7 +29,7 @@ impl Worker {
 
             let t = builder
                 .spawn(move || {
-                    inox_profiler::register_thread!();
+                    inox_profiler::register_profiler_thread!();
                     let receivers_count = receivers.len() as i32;
                     let mut i;
                     loop {

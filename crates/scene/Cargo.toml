@@ -12,6 +12,7 @@ crate-type = ["lib"]
 inox_core = { path = "../core" }
 inox_math = { path = "../math" }
 inox_nodes = { path = "../nodes" }
+inox_filesystem = { path = "../filesystem" }
 inox_graphics = { path = "../graphics" }
 inox_messenger = { path = "../messenger" }
 inox_profiler = { path = "../profiler" }

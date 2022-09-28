@@ -3,7 +3,7 @@ use std::{
     process,
 };
 
-use inox_filesystem::{library, Library};
+use inox_filesystem::{delete_file, library, Library};
 use inox_platform::{FileEvent, FileWatcher};
 
 use crate::{

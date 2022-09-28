@@ -301,5 +301,7 @@ impl Renderer {
         if let Some(surface_texture) = surface_texture {
             surface_texture.present();
         }
+
+        inox_profiler::gpu_profiler_post_present!();
     }
 }

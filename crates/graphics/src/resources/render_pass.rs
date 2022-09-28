@@ -237,6 +237,11 @@ impl RenderPass {
         command_buffer: &'a mut CommandBuffer,
     ) -> wgpu::RenderPass<'a> {
         inox_profiler::scoped_profile!("render_pass::begin");
+        inox_profiler::gpu_scoped_profile!(
+            &mut command_buffer.encoder,
+            &render_context.core.device,
+            "render_pass::begin",
+        );
 
         let render_targets = render_context.render_targets(self);
         let depth_target = render_context.depth_target(self);
@@ -245,7 +250,12 @@ impl RenderPass {
         let depth_write_enabled = pipeline.data().depth_write_enabled;
 
         let label = format!("RenderPass {}", self.name);
-        let mut render_pass =
+        let mut render_pass = {
+            inox_profiler::gpu_scoped_profile!(
+                &mut command_buffer.encoder,
+                &render_context.core.device,
+                "encoder::begin_render_pass",
+            );
             command_buffer
                 .encoder
                 .begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -273,24 +283,42 @@ impl RenderPass {
                             stencil_ops: None,
                         }
                     }),
+                })
+        };
+        {
+            binding_data
+                .bind_groups()
+                .iter()
+                .enumerate()
+                .for_each(|(index, bind_group)| {
+                    inox_profiler::scoped_profile!("render_pass::bind_groups");
+                    inox_profiler::gpu_scoped_profile!(
+                        &mut render_pass,
+                        &render_context.core.device,
+                        "render_pass::bind_groups",
+                    );
+                    render_pass.set_bind_group(index as _, bind_group, &[]);
                 });
-
-        binding_data
-            .bind_groups()
-            .iter()
-            .enumerate()
-            .for_each(|(index, bind_group)| {
-                inox_profiler::scoped_profile!("render_pass::bind_groups");
-                render_pass.set_bind_group(index as _, bind_group, &[]);
-            });
-
-        render_pass.set_pipeline(pipeline.render_pipeline());
+        }
+        {
+            inox_profiler::gpu_scoped_profile!(
+                &mut render_pass,
+                &render_context.core.device,
+                "render_pass::set_pipeline",
+            );
+            render_pass.set_pipeline(pipeline.render_pipeline());
+        }
 
         let num_vertex_buffers = binding_data.vertex_buffers_count();
         for i in 0..num_vertex_buffers {
             inox_profiler::scoped_profile!("render_pass::bind_vertex_buffer");
             let id = binding_data.vertex_buffer(i);
             if let Some(buffer) = buffers.get(id) {
+                inox_profiler::gpu_scoped_profile!(
+                    &mut render_pass,
+                    &render_context.core.device,
+                    "render_pass::set_vertex_buffer",
+                );
                 render_pass.set_vertex_buffer(i as _, buffer.gpu_buffer().unwrap().slice(..));
             }
         }
@@ -298,6 +326,11 @@ impl RenderPass {
         if let Some(index_id) = binding_data.index_buffer() {
             if let Some(buffer) = buffers.get(index_id) {
                 inox_profiler::scoped_profile!("render_pass::bind_index_buffer");
+                inox_profiler::gpu_scoped_profile!(
+                    &mut render_pass,
+                    &render_context.core.device,
+                    "render_pass::set_index_buffer",
+                );
                 render_pass.set_index_buffer(
                     buffer.gpu_buffer().unwrap().slice(..),
                     crate::IndexFormat::U32.into(),
@@ -321,6 +354,11 @@ impl RenderPass {
                     inox_profiler::scoped_profile!("render_pass::draw_mesh");
                     for i in mesh.meshlets_offset..mesh.meshlets_offset + mesh.meshlets_count {
                         inox_profiler::scoped_profile!("render_pass::draw_indexed");
+                        inox_profiler::gpu_scoped_profile!(
+                            &mut render_pass,
+                            &render_context.core.device,
+                            "render_pass::draw_indexed",
+                        );
                         let meshlet = &meshlets[i as usize];
                         render_pass.draw_indexed(
                             (mesh.indices_offset + meshlet.indices_offset) as _
@@ -353,6 +391,11 @@ impl RenderPass {
                         if let Some(commands_buffer) = buffers.get(&commands_id) {
                             let count_id = commands.counter.id();
                             if let Some(count_buffer) = buffers.get(&count_id) {
+                                inox_profiler::gpu_scoped_profile!(
+                                    &mut render_pass,
+                                    &render_context.core.device,
+                                    "render_pass::multi_draw_indexed_indirect_count",
+                                );
                                 render_pass.multi_draw_indexed_indirect_count(
                                     commands_buffer.gpu_buffer().unwrap(),
                                     0,
@@ -374,12 +417,17 @@ impl RenderPass {
 
     pub fn draw(
         &self,
+        render_context: &RenderContext,
         mut render_pass: wgpu::RenderPass,
         vertices: Range<u32>,
         instances: Range<u32>,
     ) {
         inox_profiler::scoped_profile!("render_pass::draw");
-
+        inox_profiler::gpu_scoped_profile!(
+            &mut render_pass,
+            &render_context.core.device,
+            "render_pass::draw",
+        );
         render_pass.draw(vertices, instances);
     }
 
@@ -399,6 +447,11 @@ impl RenderPass {
                         let meshlet = &meshlets[i as usize];
                         end += meshlet.indices_count;
                     }
+                    inox_profiler::gpu_scoped_profile!(
+                        &mut render_pass,
+                        &render_context.core.device,
+                        "render_pass::draw_indexed",
+                    );
                     render_pass.draw_indexed(
                         start..end as _,
                         mesh.vertex_offset as _,

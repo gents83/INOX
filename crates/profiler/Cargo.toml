@@ -13,6 +13,12 @@ serde_json = { path = "../../extern/json"}
 inox_filesystem = { path = "../filesystem" }
 inox_log = { path = "../log" }
 inox_platform = { path = "../platform" }
+wgpu = { path = "../../extern/wgpu/wgpu", optional = true }
+wgpu-profiler = { path = "../../extern/wgpu-profiler", optional = true }
+
+[features]
+default = ["gpu"]
+gpu = ["dep:wgpu", "dep:wgpu-profiler"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2.81"

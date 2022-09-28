@@ -3,6 +3,7 @@ macro_rules! load_profiler_lib {
     () => {
         #[cfg(all(not(target_arch = "wasm32")))]
         {
+            use inox_filesystem::*;
             use std::path::PathBuf;
             use $crate::*;
 
@@ -19,20 +20,21 @@ macro_rules! load_profiler_lib {
 }
 
 #[macro_export]
-macro_rules! get_profiler {
+macro_rules! get_cpu_profiler {
     () => {
         #[cfg(all(not(target_arch = "wasm32")))]
         unsafe {
             use $crate::*;
+
             $crate::load_profiler_lib!();
-            if GLOBAL_PROFILER.is_none() {
+            if GLOBAL_CPU_PROFILER.is_none() {
                 if let Some(get_profiler_fn) = INOX_PROFILER_LIB
                     .as_ref()
                     .unwrap()
-                    .get::<PfnGetProfiler>(GET_PROFILER_FUNCTION_NAME)
+                    .get::<PfnGetCpuProfiler>(GET_CPU_PROFILER_FUNCTION_NAME)
                 {
                     let profiler = get_profiler_fn.unwrap()();
-                    GLOBAL_PROFILER.replace(profiler);
+                    GLOBAL_CPU_PROFILER.replace(profiler);
                 }
             }
         }
@@ -40,7 +42,7 @@ macro_rules! get_profiler {
 }
 
 #[macro_export]
-macro_rules! create_profiler {
+macro_rules! create_cpu_profiler {
     () => {
         #[cfg(all(not(target_arch = "wasm32")))]
         unsafe {
@@ -51,9 +53,82 @@ macro_rules! create_profiler {
             if let Some(create_fn) = INOX_PROFILER_LIB
                 .as_ref()
                 .unwrap()
-                .get::<PfnCreateProfiler>(CREATE_PROFILER_FUNCTION_NAME)
+                .get::<PfnCreateCpuProfiler>(CREATE_CPU_PROFILER_FUNCTION_NAME)
             {
                 unsafe { create_fn.unwrap()() };
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! get_gpu_profiler {
+    () => {
+        #[cfg(all(not(target_arch = "wasm32")))]
+        unsafe {
+            use $crate::gpu_profiler::*;
+            use $crate::*;
+
+            $crate::load_profiler_lib!();
+            if GLOBAL_GPU_PROFILER.is_none() {
+                if let Some(get_profiler_fn) = INOX_PROFILER_LIB
+                    .as_ref()
+                    .unwrap()
+                    .get::<PfnGetGpuProfiler>(GET_GPU_PROFILER_FUNCTION_NAME)
+                {
+                    let profiler = get_profiler_fn.unwrap()();
+                    GLOBAL_GPU_PROFILER.replace(profiler);
+                }
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! create_gpu_profiler {
+    ($device: expr, $queue: expr, $start: expr) => {
+        #[cfg(all(not(target_arch = "wasm32")))]
+        unsafe {
+            use $crate::*;
+
+            $crate::load_profiler_lib!();
+
+            if let Some(create_fn) = INOX_PROFILER_LIB
+                .as_ref()
+                .unwrap()
+                .get::<PfnCreateGpuProfiler>(CREATE_GPU_PROFILER_FUNCTION_NAME)
+            {
+                unsafe { create_fn.unwrap()($device, $queue, $start) };
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! gpu_profiler_pre_submit {
+    ($encoder: expr) => {
+        #[cfg(all(not(target_arch = "wasm32")))]
+        unsafe {
+            use $crate::gpu_profiler::*;
+
+            $crate::get_gpu_profiler!();
+            if let Some(profiler) = &GLOBAL_GPU_PROFILER {
+                profiler.write().unwrap().resolve_queries($encoder);
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! gpu_profiler_post_present {
+    () => {
+        #[cfg(all(not(target_arch = "wasm32")))]
+        unsafe {
+            use $crate::gpu_profiler::*;
+
+            $crate::get_gpu_profiler!();
+            if let Some(profiler) = &GLOBAL_GPU_PROFILER {
+                let _ = profiler.write().unwrap().end_frame();
             }
         }
     };
@@ -66,10 +141,17 @@ macro_rules! start_profiler {
         unsafe {
             use $crate::*;
 
-            $crate::get_profiler!();
+            $crate::get_cpu_profiler!();
 
-            if let Some(profiler) = &GLOBAL_PROFILER {
+            if let Some(profiler) = &GLOBAL_CPU_PROFILER {
                 profiler.start();
+            }
+
+            use $crate::gpu_profiler::*;
+
+            $crate::get_gpu_profiler!();
+            if let Some(profiler) = &GLOBAL_GPU_PROFILER {
+                profiler.write().unwrap().start();
             }
         }
     };
@@ -82,25 +164,32 @@ macro_rules! stop_profiler {
         unsafe {
             use $crate::*;
 
-            $crate::get_profiler!();
+            $crate::get_cpu_profiler!();
 
-            if let Some(profiler) = &GLOBAL_PROFILER {
+            if let Some(profiler) = &GLOBAL_CPU_PROFILER {
                 profiler.stop();
+            }
+
+            use $crate::gpu_profiler::*;
+
+            $crate::get_gpu_profiler!();
+            if let Some(profiler) = &GLOBAL_GPU_PROFILER {
+                profiler.write().unwrap().stop();
             }
         }
     };
 }
 
 #[macro_export]
-macro_rules! register_thread {
+macro_rules! register_profiler_thread {
     () => {
         #[cfg(all(not(target_arch = "wasm32")))]
         unsafe {
             use $crate::*;
 
-            $crate::get_profiler!();
+            $crate::get_cpu_profiler!();
 
-            if let Some(profiler) = &GLOBAL_PROFILER {
+            if let Some(profiler) = &GLOBAL_CPU_PROFILER {
                 profiler.current_thread_profiler();
             }
         }
@@ -114,9 +203,35 @@ macro_rules! write_profile_file {
         unsafe {
             use $crate::*;
 
-            $crate::get_profiler!();
+            $crate::get_cpu_profiler!();
 
-            if let Some(profiler) = &GLOBAL_PROFILER {
+            use $crate::gpu_profiler::*;
+
+            $crate::get_gpu_profiler!();
+
+            if let Some(profiler) = &GLOBAL_GPU_PROFILER {
+                let mut wgpu_results = Vec::new();
+                while let Some(mut results) = profiler.write().unwrap().process_finished_frame() {
+                    wgpu_results.append(&mut results);
+                }
+
+                THREAD_PROFILER.with(|profiler| {
+                    if profiler.borrow().is_none() {
+                        let thread_profiler = $crate::get_cpu_profiler().current_thread_profiler();
+                        *profiler.borrow_mut() = Some(thread_profiler);
+                    }
+                    wgpu_results.iter().for_each(|r| {
+                        profiler.borrow().as_ref().unwrap().push_sample(
+                            "GPU".to_string(),
+                            r.label.to_string(),
+                            r.time.start * 1000.0 * 1000.0,
+                            r.time.end * 1000.0 * 1000.0,
+                        );
+                    });
+                });
+            }
+
+            if let Some(profiler) = &GLOBAL_CPU_PROFILER {
                 profiler.write_profile_file()
             }
         }
@@ -134,14 +249,14 @@ macro_rules! scoped_profile {
         use $crate::*;
 
         #[cfg(all(not(target_arch = "wasm32")))]
-        $crate::get_profiler!();
+        $crate::get_cpu_profiler!();
 
         #[cfg(all(not(target_arch = "wasm32")))]
-        let _profile_scope = if let Some(profiler) = unsafe { &GLOBAL_PROFILER } {
+        let _profile_scope = if let Some(profiler) = unsafe { &GLOBAL_CPU_PROFILER } {
             if profiler.is_started() {
                 let string = format!("{}", &format_args!($($t)*).to_string());
                 let scoped_profiler =
-                    Box::new($crate::ScopedProfile::new(profiler.clone(), "", string.as_str()));
+                    Box::new($crate::ScopedProfile::new(profiler.clone(), "CPU", string.as_str()));
                 Some(scoped_profiler)
             } else {
                 None
@@ -149,5 +264,31 @@ macro_rules! scoped_profile {
         } else {
             None
         };
+    };
+}
+
+/// Easy to use profiling scope.
+///
+/// Example:
+/// ```ignore
+/// {
+///     wgpu_scoped_profiler!("name of your scope", &mut encoder, &device);
+///     // wgpu commands go here
+///     //i.e.: render_pass.draw(0..3, 0..1);
+/// }
+/// ```
+#[macro_export]
+macro_rules! gpu_scoped_profile {
+    ($encoder_or_pass:expr, $device:expr, $($t:tt)*) => {
+        #[cfg(all(not(target_arch = "wasm32")))]
+        unsafe {
+            use $crate::gpu_profiler::*;
+
+            $crate::get_gpu_profiler!();
+
+            let mut gpu_profiler = GLOBAL_GPU_PROFILER.as_ref().unwrap().write().unwrap();
+            let string = format!("{}", &format_args!($($t)*).to_string());
+            let _scoped_profiler = Box::new($crate::scope::Scope::start(string.as_str(), &mut gpu_profiler, $encoder_or_pass, $device));
+        }
     };
 }

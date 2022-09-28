@@ -222,7 +222,7 @@ impl Pass for PBRPass {
             &pipeline,
             command_buffer,
         );
-        pass.draw(render_pass, 0..3, 0..1);
+        pass.draw(render_context, render_pass, 0..3, 0..1);
     }
 }
 
