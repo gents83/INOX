@@ -151,7 +151,7 @@ macro_rules! start_profiler {
 
             $crate::get_gpu_profiler!();
             if let Some(profiler) = &GLOBAL_GPU_PROFILER {
-                profiler.write().unwrap().start();
+                profiler.write().unwrap().enable(true);
             }
         }
     };
@@ -174,7 +174,7 @@ macro_rules! stop_profiler {
 
             $crate::get_gpu_profiler!();
             if let Some(profiler) = &GLOBAL_GPU_PROFILER {
-                profiler.write().unwrap().stop();
+                profiler.write().unwrap().enable(false);
             }
         }
     };
