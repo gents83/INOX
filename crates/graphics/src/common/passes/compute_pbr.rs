@@ -330,7 +330,6 @@ impl Pass for ComputePbrPass {
 
         let pass = self.compute_pass.get();
 
-        let compute_pass = pass.begin(render_context, &self.binding_data, command_buffer);
         let max_cluster_size = 32;
         let x_pixels_managed_in_shader = 4 * 8;
         let y_pixels_managed_in_shader = 4 * 4;
@@ -340,7 +339,16 @@ impl Pass for ComputePbrPass {
         let y = max_cluster_size
             * ((self.data.dimensions[1] + max_cluster_size - 1) / max_cluster_size)
             / y_pixels_managed_in_shader;
-        pass.dispatch(render_context, compute_pass, x, y, 1);
+
+        let mut compute_pass = pass.begin(render_context, &self.binding_data, command_buffer);
+        {
+            inox_profiler::gpu_scoped_profile!(
+                &mut compute_pass,
+                &render_context.core.device,
+                "compute_pbr_pass",
+            );
+            pass.dispatch(render_context, compute_pass, x, y, 1);
+        }
     }
 }
 

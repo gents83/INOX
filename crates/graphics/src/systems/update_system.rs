@@ -277,10 +277,7 @@ impl System for UpdateSystem {
                 );
             }
 
-            renderer.init_passes();
-
-            let render_context = renderer.render_context().read().unwrap();
-            render_context.core.submit(command_buffer);
+            renderer.init_passes(command_buffer);
         }
 
         {

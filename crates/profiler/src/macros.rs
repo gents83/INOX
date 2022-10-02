@@ -126,9 +126,40 @@ macro_rules! gpu_profiler_post_present {
         unsafe {
             use $crate::gpu_profiler::*;
 
+            use $crate::gpu_profiler::*;
+            use $crate::*;
+
+            $crate::get_cpu_profiler!();
             $crate::get_gpu_profiler!();
-            if let Some(profiler) = &GLOBAL_GPU_PROFILER {
-                let _ = profiler.write().unwrap().end_frame();
+
+            if let Some(gpu_profiler) = &GLOBAL_GPU_PROFILER {
+                let _ = gpu_profiler.write().unwrap().end_frame();
+                if let Some(cpu_profiler) = &GLOBAL_CPU_PROFILER {
+                    let mut wgpu_results = Vec::new();
+                    while let Some(mut results) =
+                        gpu_profiler.write().unwrap().process_finished_frame()
+                    {
+                        wgpu_results.append(&mut results);
+                    }
+                    if !wgpu_results.is_empty() {
+                        let start_time = cpu_profiler.start_time() as f64;
+                        THREAD_PROFILER.with(|profiler| {
+                            if profiler.borrow().is_none() {
+                                let thread_profiler =
+                                    $crate::get_cpu_profiler().current_thread_profiler();
+                                *profiler.borrow_mut() = Some(thread_profiler);
+                            }
+                            wgpu_results.iter().for_each(|r| {
+                                profiler.borrow().as_ref().unwrap().push_sample(
+                                    "GPU".to_string(),
+                                    r.label.to_string(),
+                                    r.cpu_time.start - start_time,
+                                    r.cpu_time.end - start_time,
+                                );
+                            });
+                        });
+                    }
+                }
             }
         }
     };
@@ -205,34 +236,8 @@ macro_rules! write_profile_file {
 
             $crate::get_cpu_profiler!();
 
-            use $crate::gpu_profiler::*;
-
-            $crate::get_gpu_profiler!();
-
-            if let Some(profiler) = &GLOBAL_GPU_PROFILER {
-                let mut wgpu_results = Vec::new();
-                while let Some(mut results) = profiler.write().unwrap().process_finished_frame() {
-                    wgpu_results.append(&mut results);
-                }
-
-                THREAD_PROFILER.with(|profiler| {
-                    if profiler.borrow().is_none() {
-                        let thread_profiler = $crate::get_cpu_profiler().current_thread_profiler();
-                        *profiler.borrow_mut() = Some(thread_profiler);
-                    }
-                    wgpu_results.iter().for_each(|r| {
-                        profiler.borrow().as_ref().unwrap().push_sample(
-                            "GPU".to_string(),
-                            r.label.to_string(),
-                            r.time.start * 1000.0 * 1000.0,
-                            r.time.end * 1000.0 * 1000.0,
-                        );
-                    });
-                });
-            }
-
-            if let Some(profiler) = &GLOBAL_CPU_PROFILER {
-                profiler.write_profile_file()
+            if let Some(cpu_profiler) = &GLOBAL_CPU_PROFILER {
+                cpu_profiler.write_profile_file()
             }
         }
     };

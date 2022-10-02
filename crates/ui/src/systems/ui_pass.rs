@@ -249,13 +249,19 @@ impl Pass for UIPass {
             return;
         }
 
+        let mut render_pass = pass.begin(
+            render_context,
+            &self.binding_data,
+            &buffers,
+            &pipeline,
+            command_buffer,
+        );
+
         {
-            let mut render_pass = pass.begin(
-                render_context,
-                &self.binding_data,
-                &buffers,
-                &pipeline,
-                command_buffer,
+            inox_profiler::gpu_scoped_profile!(
+                &mut render_pass,
+                &render_context.core.device,
+                "ui_pass",
             );
             self.instances
                 .data

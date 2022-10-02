@@ -69,11 +69,8 @@ impl RenderCoreContext {
                 }),
         }
     }
-    pub fn submit(&self, mut command_buffer: CommandBuffer) {
+    pub fn submit(&self, command_buffer: CommandBuffer) {
         inox_profiler::scoped_profile!("render_context::submit");
-
-        inox_profiler::gpu_profiler_pre_submit!(&mut command_buffer.encoder);
-
         let command_buffer = command_buffer.encoder.finish();
         self.queue.submit(std::iter::once(command_buffer));
     }
@@ -93,6 +90,7 @@ pub struct RenderContext {
     pub frame_commands: Option<wgpu::CommandEncoder>,
     pub surface_texture: Option<wgpu::SurfaceTexture>,
     pub surface_view: Option<wgpu::TextureView>,
+    pub command_buffer: Option<CommandBuffer>,
     pub constant_data: ConstantData,
     pub texture_handler: TextureHandler,
     pub binding_data_buffer: BindingDataBuffer,
@@ -197,6 +195,7 @@ impl RenderContext {
                 frame_commands: None,
                 surface_texture: None,
                 surface_view: None,
+                command_buffer: None,
                 constant_data: ConstantData::default(),
                 binding_data_buffer: BindingDataBuffer::default(),
                 render_buffers: RenderBuffers::default(),

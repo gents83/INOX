@@ -1,6 +1,6 @@
 use crate::{
-    ComputePipeline, Material, Pass, RenderContext, RenderContextRw, RenderPass, RenderPipeline,
-    Texture, TextureId, TextureUsage,
+    CommandBuffer, ComputePipeline, Material, Pass, RenderContext, RenderContextRw, RenderPass,
+    RenderPipeline, Texture, TextureId, TextureUsage,
 };
 use inox_core::ContextRc;
 
@@ -252,7 +252,7 @@ impl Renderer {
         }
     }
 
-    pub fn init_passes(&mut self) {
+    pub fn init_passes(&mut self, command_buffer: CommandBuffer) {
         inox_profiler::scoped_profile!("renderer::init_passes");
 
         let mut render_context = self.render_context.as_ref().unwrap().write().unwrap();
@@ -273,6 +273,7 @@ impl Renderer {
                 pass.init(render_context);
             }
         });
+        render_context.command_buffer = Some(command_buffer);
     }
 
     pub fn update_passes(&self) {
@@ -280,13 +281,17 @@ impl Renderer {
 
         let mut render_context = self.render_context().write().unwrap();
         let render_context: &mut RenderContext = &mut render_context;
-        let mut command_buffer = render_context.core.new_command_buffer();
-        self.passes.iter().for_each(|(pass, is_enabled)| {
-            if *is_enabled && pass.is_active(render_context) {
-                pass.update(render_context, &mut command_buffer);
+        if let Some(mut command_buffer) = render_context.command_buffer.take() {
+            self.passes.iter().for_each(|(pass, is_enabled)| {
+                if *is_enabled && pass.is_active(render_context) {
+                    pass.update(render_context, &mut command_buffer);
+                }
+            });
+            {
+                inox_profiler::gpu_profiler_pre_submit!(&mut command_buffer.encoder);
+                render_context.core.submit(command_buffer);
             }
-        });
-        render_context.core.submit(command_buffer);
+        }
     }
 
     pub fn present(&self) {
@@ -300,8 +305,7 @@ impl Renderer {
 
         if let Some(surface_texture) = surface_texture {
             surface_texture.present();
+            inox_profiler::gpu_profiler_post_present!();
         }
-
-        inox_profiler::gpu_profiler_post_present!();
     }
 }

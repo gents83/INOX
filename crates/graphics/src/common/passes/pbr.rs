@@ -215,14 +215,21 @@ impl Pass for PBRPass {
             return;
         }
 
-        let render_pass = pass.begin(
+        let mut render_pass = pass.begin(
             render_context,
             &self.binding_data,
             &buffers,
             &pipeline,
             command_buffer,
         );
-        pass.draw(render_context, render_pass, 0..3, 0..1);
+        {
+            inox_profiler::gpu_scoped_profile!(
+                &mut render_pass,
+                &render_context.core.device,
+                "pbr_pass",
+            );
+            pass.draw(render_context, render_pass, 0..3, 0..1);
+        }
     }
 }
 

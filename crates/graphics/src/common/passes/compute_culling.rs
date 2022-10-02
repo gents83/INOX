@@ -288,12 +288,26 @@ impl Pass for CullingPass {
             let count = (num_meshlets as u32 + NUM_COMMANDS_PER_GROUP - 1) / NUM_COMMANDS_PER_GROUP;
 
             let pass = self.compute_pass.get();
-            let compute_pass = pass.begin(render_context, &self.binding_data, command_buffer);
-            pass.dispatch(render_context, compute_pass, count, 1, 1);
+            let mut compute_pass = pass.begin(render_context, &self.binding_data, command_buffer);
+            {
+                inox_profiler::gpu_scoped_profile!(
+                    &mut compute_pass,
+                    &render_context.core.device,
+                    "compute_culling_pass",
+                );
+                pass.dispatch(render_context, compute_pass, count, 1, 1);
+            }
 
             let pass = self.compact_pass.get();
-            let compact_pass = pass.begin(render_context, &self.binding_data, command_buffer);
-            pass.dispatch(render_context, compact_pass, count, 1, 1);
+            let mut compact_pass = pass.begin(render_context, &self.binding_data, command_buffer);
+            {
+                inox_profiler::gpu_scoped_profile!(
+                    &mut compact_pass,
+                    &render_context.core.device,
+                    "compute_compact_pass",
+                );
+                pass.dispatch(render_context, compact_pass, count, 1, 1);
+            }
         }
     }
 }

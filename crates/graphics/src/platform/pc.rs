@@ -10,9 +10,10 @@ pub fn required_gpu_features() -> wgpu::Features {
         | wgpu::Features::SAMPLED_TEXTURE_AND_STORAGE_BUFFER_ARRAY_NON_UNIFORM_INDEXING
         | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
         | wgpu::Features::SHADER_PRIMITIVE_INDEX
+        | wgpu::Features::WRITE_TIMESTAMP_INSIDE_PASSES
+        | wgpu::Features::TIMESTAMP_QUERY
 }
 
 pub fn platform_limits() -> wgpu::Limits {
     wgpu::Limits::default()
 }
-

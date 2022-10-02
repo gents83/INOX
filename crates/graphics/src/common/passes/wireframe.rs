@@ -160,19 +160,26 @@ impl Pass for WireframePass {
             return;
         }
 
-        let render_pass = pass.begin(
+        let mut render_pass = pass.begin(
             render_context,
             &self.binding_data,
             &buffers,
             &pipeline,
             command_buffer,
         );
-        pass.indirect_indexed_draw(
-            render_context,
-            &buffers,
-            self.draw_command_type(),
-            render_pass,
-        );
+        {
+            inox_profiler::gpu_scoped_profile!(
+                &mut render_pass,
+                &render_context.core.device,
+                "wireframe_pass",
+            );
+            pass.indirect_indexed_draw(
+                render_context,
+                &buffers,
+                self.draw_command_type(),
+                render_pass,
+            );
+        }
     }
 }
 

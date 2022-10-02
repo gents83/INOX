@@ -6,7 +6,6 @@ use inox_platform::{get_raw_thread_id, RawThreadId};
 use std::{
     cell::RefCell,
     collections::HashMap,
-    convert::TryInto,
     fs::File,
     io::BufWriter,
     process,
@@ -16,9 +15,10 @@ use std::{
         Arc, Mutex,
     },
     thread::{self},
-    time::{SystemTime, UNIX_EPOCH},
     u64,
 };
+
+use crate::current_time_in_micros;
 
 pub type GlobalCpuProfiler = Arc<CpuProfiler>;
 
@@ -114,34 +114,32 @@ impl CpuProfiler {
     pub fn is_started(&self) -> bool {
         self.is_started.load(std::sync::atomic::Ordering::SeqCst)
     }
-    pub fn get_time() -> u64 {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_micros()
-            .try_into()
-            .unwrap()
-    }
     pub fn start(&self) {
         self.is_started
             .swap(true, std::sync::atomic::Ordering::SeqCst);
-        self.time_start
-            .swap(CpuProfiler::get_time(), std::sync::atomic::Ordering::SeqCst);
+        self.time_start.swap(
+            current_time_in_micros(),
+            std::sync::atomic::Ordering::SeqCst,
+        );
         debug_log!("Starting profiler");
     }
     pub fn stop(&self) {
         self.is_started
             .swap(false, std::sync::atomic::Ordering::SeqCst);
-        let current_time = CpuProfiler::get_time();
+        let current_time = current_time_in_micros();
         let start_time = self.time_start.load(std::sync::atomic::Ordering::SeqCst);
         debug_log!(
             "Stopping profiler for a total duration of {:.3}",
             (current_time - start_time) as f64 / 1000. / 1000.
         );
     }
+    #[inline]
+    pub fn start_time(&self) -> u64 {
+        self.time_start.load(std::sync::atomic::Ordering::SeqCst)
+    }
     pub fn get_elapsed_time(&self) -> f64 {
-        let current_time = CpuProfiler::get_time();
-        let start_time = self.time_start.load(std::sync::atomic::Ordering::SeqCst);
+        let current_time = current_time_in_micros();
+        let start_time = self.start_time();
         (current_time - start_time) as _
     }
     pub fn current_thread_profiler(&self) -> Arc<ThreadProfiler> {
@@ -213,8 +211,8 @@ impl CpuProfiler {
                         "pid": process::id(),
                         "id": thread.index,
                         "tid": thread_id,
-                        "cat": thread_id,
-                        "name": format!("[{}]{}", sample.category, sample.name),
+                        "cat": sample.category,
+                        "name": sample.name,
                         "ph": "B",
                         "ts": sample.time_start,
                     }));
@@ -222,7 +220,7 @@ impl CpuProfiler {
                         "pid": process::id(),
                         "id": thread.index,
                         "tid": thread_id,
-                        "cat": thread_id,
+                        "cat": sample.category,
                         "name": sample.name,
                         "ph": "E",
                         "ts": sample.time_end,
