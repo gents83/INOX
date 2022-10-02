@@ -20,8 +20,7 @@ pub static mut GLOBAL_GPU_PROFILER: Option<GlobalGpuProfiler> = None;
 pub extern "C" fn create_gpu_profiler(device: &wgpu::Device, queue: &wgpu::Queue, start: bool) {
     unsafe {
         if GLOBAL_GPU_PROFILER.is_none() {
-            let mut gpu_profiler = GpuProfiler::new(device, queue, start);
-            gpu_profiler.calibrate_time(device, queue);
+            let gpu_profiler = GpuProfiler::new(device, queue, start);
             GLOBAL_GPU_PROFILER.replace(Arc::new(RwLock::new(gpu_profiler)));
         }
     }

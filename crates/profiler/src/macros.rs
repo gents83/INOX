@@ -153,8 +153,8 @@ macro_rules! gpu_profiler_post_present {
                                 profiler.borrow().as_ref().unwrap().push_sample(
                                     "GPU".to_string(),
                                     r.label.to_string(),
-                                    r.cpu_time.start - start_time,
-                                    r.cpu_time.end - start_time,
+                                    r.cpu_time.start * 1000. - start_time,
+                                    r.cpu_time.end * 1000. - start_time,
                                 );
                             });
                         });
