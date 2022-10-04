@@ -55,3 +55,6 @@
 [submodule "extern/wgpu-profiler"]
 	path = extern/wgpu-profiler
 	url = https://github.com/gents83/wgpu-profiler.git
+[submodule "extern/superluminal-perf-rs"]
+	path = extern/superluminal-perf-rs
+	url = https://github.com/EmbarkStudios/superluminal-perf-rs

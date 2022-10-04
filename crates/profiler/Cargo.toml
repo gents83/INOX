@@ -15,10 +15,13 @@ inox_log = { path = "../log" }
 inox_platform = { path = "../platform" }
 wgpu = { path = "../../extern/wgpu/wgpu", optional = true }
 wgpu-profiler = { path = "../../extern/wgpu-profiler", optional = true }
+superluminal-perf =  { path = "../../extern/superluminal-perf-rs", optional = true }
 
 [features]
-default = ["gpu"]
+default = ["gpu", "chrometrace"]
 gpu = ["dep:wgpu", "dep:wgpu-profiler"]
+chrometrace = ["gpu"]
+superluminal = ["dep:superluminal-perf"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2.81"

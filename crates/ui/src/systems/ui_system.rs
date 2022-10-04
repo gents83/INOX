@@ -238,7 +238,7 @@ impl UISystem {
             }
         });
         while wait_count.load(Ordering::SeqCst) > 0 {
-            thread::yield_now();
+            std::thread::yield_now();
         }
     }
 

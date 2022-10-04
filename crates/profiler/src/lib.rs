@@ -4,15 +4,22 @@
 #[cfg(feature = "gpu")]
 pub use wgpu_profiler::*;
 
-pub use self::macros::*;
-pub mod macros;
+#[cfg(feature = "superluminal")]
+pub use self::superluminal::*;
+pub mod superluminal;
+
+#[cfg(feature = "chrometrace")]
+pub use self::chrometrace::*;
+pub mod chrometrace;
 
 pub mod cpu_profiler;
-#[cfg(feature = "gpu")]
 pub mod gpu_profiler;
 
 pub use self::cpu_profiler::*;
 pub use self::gpu_profiler::*;
+pub use self::macros::*;
+
+pub mod macros;
 
 //Using Chrome browser for profiling
 //https://www.chromium.org/developers/how-tos/trace-event-profiling-tool
