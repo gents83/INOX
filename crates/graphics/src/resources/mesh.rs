@@ -28,7 +28,7 @@ pub enum MeshFlags {
 
 #[test]
 fn test_serialize() {
-    let flags = MeshFlags::Visible | MeshFlags::Custom;
+    let flags = MeshFlags::Visible | MeshFlags::Tranparent;
     let registry = SerializableRegistryRc::default();
     let s = inox_serialize::serialize(&flags, &registry);
     println!("{}", s);

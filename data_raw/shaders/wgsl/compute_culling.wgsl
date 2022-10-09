@@ -31,7 +31,7 @@ fn is_sphere_inside_frustum(center: vec3<f32>, radius: f32, frustum: array<vec4<
     var visible: bool = true;    
     var f = frustum;
     for(var i = 0; i < 4; i = i + 1) {  
-        visible = visible && (dot(f[i].xyz, center) + f[i].w + radius > 0.);
+        visible = visible && (dot(f[i].xyz, center) + f[i].w + radius >= 0.);
     }   
     return visible;
 }
@@ -57,9 +57,9 @@ fn is_box_inside_frustum(min: vec3<f32>, max: vec3<f32>, frustum: array<vec4<f32
     return visible;
 }
 
-fn is_cone_culled(center: vec3<f32>, radius: f32, cone_axis: vec3<f32>, cone_cutoff: f32) -> bool {
+fn is_cone_visible(center: vec3<f32>, radius: f32, cone_axis: vec3<f32>, cone_cutoff: f32) -> bool {
     let direction = center - culling_data.view[3].xyz;
-    return dot(direction, cone_axis) < cone_cutoff * length(direction) + radius;
+    return dot(normalize(direction), cone_axis) < cone_cutoff;
 }
 
 
@@ -98,19 +98,20 @@ fn main(
     frustum[2] = normalize_plane(row3 + row1);
     frustum[3] = normalize_plane(row3 - row1);
 
-    var is_visible = is_sphere_inside_frustum(center, radius, frustum);
-    if !is_visible {
-        return;
-    }
-    let max = transform_vector((*bb).max, (*mesh).position, (*mesh).orientation, (*mesh).scale);
-    let min = transform_vector((*bb).min, (*mesh).position, (*mesh).orientation, (*mesh).scale);
-    is_visible = is_visible && is_box_inside_frustum(min, max, frustum); 
-    if !is_visible {
-        return;
-    }
+    var is_visible = true;
+    //is_sphere_inside_frustum(center, radius, frustum);
+    //if !is_visible {
+    //    return;
+    //}
+    //let max = transform_vector((*bb).max, (*mesh).position, (*mesh).orientation, (*mesh).scale);
+    //let min = transform_vector((*bb).min, (*mesh).position, (*mesh).orientation, (*mesh).scale);
+    //is_visible = is_visible && is_box_inside_frustum(min, max, frustum); 
+    //if !is_visible {
+    //    return;
+    //}
     
     let cone_axis = rotate_vector((*meshlet).cone_axis_cutoff.xyz, (*mesh).orientation);
-    is_visible = is_visible && is_cone_culled(center, radius, cone_axis, (*meshlet).cone_axis_cutoff.w);
+    is_visible = is_visible && is_cone_visible(center, radius, cone_axis, (*meshlet).cone_axis_cutoff.w);
     
     if (is_visible)
     {

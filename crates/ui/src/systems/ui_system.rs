@@ -267,7 +267,7 @@ impl UISystem {
                 }
                 egui::ImageData::Font(image) => {
                     let gamma = 1.0;
-                    Cow::Owned(image.srgba_pixels(gamma).collect())
+                    Cow::Owned(image.srgba_pixels(Some(gamma)).collect())
                 }
             };
             let pixels: &[u8] = to_slice(color32.as_slice());

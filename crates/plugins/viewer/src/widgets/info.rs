@@ -1,17 +1,56 @@
 use inox_core::ContextRc;
 use inox_graphics::{
-    CullingEvent, DrawEvent, Light, MeshFlags, RendererRw, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
-    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE,
+    CullingEvent, DrawEvent, Light, Mesh, MeshFlags, MeshId, RendererRw,
+    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
+    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE,
 };
 use inox_math::{
-    compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle, VecBase, VecBaseFloat,
-    Vector3,
+    compute_frustum, Degrees, Frustum, InnerSpace, Mat4Ops, MatBase, Matrix4, NewAngle, VecBase,
+    VecBaseFloat, Vector3,
 };
-use inox_resources::Resource;
+use inox_messenger::Listener;
+use inox_resources::{DataTypeResourceEvent, HashBuffer, Resource, ResourceEvent};
 use inox_scene::{Camera, SceneId};
 use inox_ui::{implement_widget_data, ComboBox, UIWidget, Window};
 
 use super::{Gfx, Hierarchy};
+
+#[derive(Clone)]
+struct MeshInfo {
+    meshlets: Vec<MeshletInfo>,
+    matrix: Matrix4,
+    flags: MeshFlags,
+}
+
+impl Default for MeshInfo {
+    fn default() -> Self {
+        Self {
+            meshlets: Vec::new(),
+            matrix: Matrix4::default_identity(),
+            flags: MeshFlags::None,
+        }
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Clone)]
+struct MeshletInfo {
+    min: Vector3,
+    max: Vector3,
+    center: Vector3,
+    axis: Vector3,
+}
+
+impl Default for MeshletInfo {
+    fn default() -> Self {
+        Self {
+            min: Vector3::default_zero(),
+            max: Vector3::default_zero(),
+            center: Vector3::default_zero(),
+            axis: Vector3::default_zero(),
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct InfoParams {
@@ -27,6 +66,7 @@ enum MeshletDebug {
     Color,
     Sphere,
     BoundingBox,
+    ConeAxis,
 }
 
 #[derive(Clone)]
@@ -51,10 +91,16 @@ implement_widget_data!(Data);
 
 pub struct Info {
     ui_page: Resource<UIWidget>,
+    listener: Listener,
+    meshes: HashBuffer<MeshId, MeshInfo, 0>,
 }
 
 impl Info {
     pub fn new(context: &ContextRc, params: InfoParams) -> Self {
+        let listener = Listener::new(context.message_hub());
+        listener
+            .register::<DataTypeResourceEvent<Mesh>>()
+            .register::<ResourceEvent<Mesh>>();
         let data = Data {
             context: context.clone(),
             params,
@@ -74,6 +120,8 @@ impl Info {
         };
         Self {
             ui_page: Self::create(data),
+            listener,
+            meshes: HashBuffer::default(),
         }
     }
 
@@ -94,8 +142,51 @@ impl Info {
         }
     }
 
+    fn update_events(&mut self) {
+        inox_profiler::scoped_profile!("Info::update_events");
+
+        self.listener
+            .process_messages(|e: &DataTypeResourceEvent<Mesh>| {
+                let DataTypeResourceEvent::Loaded(id, mesh_data) = e;
+                let mut meshlets = Vec::new();
+                mesh_data.meshlets.iter().for_each(|meshlet| {
+                    meshlets.push(MeshletInfo {
+                        min: meshlet.aabb_min,
+                        max: meshlet.aabb_max,
+                        center: meshlet.aabb_min + (meshlet.aabb_max - meshlet.aabb_min) * 0.5,
+                        axis: meshlet.cone_axis,
+                    });
+                });
+                self.meshes.insert(
+                    id,
+                    MeshInfo {
+                        meshlets,
+                        ..Default::default()
+                    },
+                );
+            })
+            .process_messages(|e: &ResourceEvent<Mesh>| match e {
+                ResourceEvent::Changed(id) => {
+                    if let Some(data) = self.ui_page.get().data::<Data>() {
+                        if let Some(mesh) = data.context.shared_data().get_resource::<Mesh>(id) {
+                            if let Some(m) = self.meshes.get_mut(id) {
+                                m.matrix = mesh.get().matrix();
+                                m.flags = *mesh.get().flags();
+                            }
+                        }
+                    }
+                }
+                ResourceEvent::Destroyed(id) => {
+                    self.meshes.remove(id);
+                }
+                _ => {}
+            });
+    }
+
     pub fn update(&mut self) {
         inox_profiler::scoped_profile!("Info::update");
+
+        self.update_events();
 
         if let Some(data) = self.ui_page.get_mut().data_mut::<Data>() {
             data.fps = data.context.global_timer().fps();
@@ -149,9 +240,10 @@ impl Info {
             }
             match data.meshlet_debug {
                 MeshletDebug::Sphere => {
-                    Self::show_meshlets_sphere(data);
+                    Self::show_meshlets_sphere(data, &self.meshes);
                 }
-                MeshletDebug::BoundingBox => Self::show_meshlets_bounding_box(data),
+                MeshletDebug::BoundingBox => Self::show_meshlets_bounding_box(data, &self.meshes),
+                MeshletDebug::ConeAxis => Self::show_meshlets_cone_axis(data, &self.meshes),
                 _ => {}
             }
         }
@@ -172,69 +264,55 @@ impl Info {
             });
     }
 
-    fn show_meshlets_sphere(data: &mut Data) {
-        let renderer = data.params.renderer.read().unwrap();
-        let render_context = renderer.render_context().read().unwrap();
-
-        let mesh_flags: u32 = (MeshFlags::Visible | MeshFlags::Opaque).into();
-        render_context
-            .render_buffers
-            .meshes
-            .for_each_entry(|_i, mesh| {
-                if mesh.mesh_flags == mesh_flags {
-                    let matrix = mesh.transform();
-                    let meshlets = &render_context.render_buffers.meshlets.data()[mesh
-                        .meshlets_offset
-                        as usize
-                        ..(mesh.meshlets_offset + mesh.meshlets_count) as usize];
-                    let meshlets_bhv = render_context.render_buffers.meshlets_aabb.data();
-                    meshlets.iter().for_each(|meshlet| {
-                        let bhv = &meshlets_bhv[meshlet.bb_index as usize];
-                        let max: Vector3 = bhv.max.into();
-                        let min: Vector3 = bhv.min.into();
-                        let radius = (max - min) * 0.5;
-                        let center = min + radius;
-                        let p = matrix.transform(center);
-                        let r = radius.mul(matrix.scale()).length();
-                        data.context.message_hub().send_event(DrawEvent::Circle(
-                            p,
-                            r,
-                            [1.0, 1.0, 0.0, 1.0].into(),
-                            true,
-                        ));
-                    });
-                }
-            });
+    fn show_meshlets_sphere(data: &mut Data, meshes: &HashBuffer<MeshId, MeshInfo, 0>) {
+        meshes.for_each_entry(|_id, mesh_info| {
+            if mesh_info.flags.contains(MeshFlags::Visible) {
+                mesh_info.meshlets.iter().for_each(|meshlet_info| {
+                    let radius = ((meshlet_info.max - meshlet_info.min) * 0.5)
+                        .mul(mesh_info.matrix.scale())
+                        .length();
+                    data.context.message_hub().send_event(DrawEvent::Circle(
+                        mesh_info.matrix.transform(meshlet_info.center),
+                        radius,
+                        [1.0, 1.0, 0.0, 1.0].into(),
+                        true,
+                    ));
+                });
+            }
+        });
     }
 
-    fn show_meshlets_bounding_box(data: &mut Data) {
-        let renderer = data.params.renderer.read().unwrap();
-        let render_context = renderer.render_context().read().unwrap();
+    fn show_meshlets_bounding_box(data: &mut Data, meshes: &HashBuffer<MeshId, MeshInfo, 0>) {
+        meshes.for_each_entry(|_id, mesh_info| {
+            if mesh_info.flags.contains(MeshFlags::Visible) {
+                mesh_info.meshlets.iter().for_each(|meshlet_info| {
+                    data.context
+                        .message_hub()
+                        .send_event(DrawEvent::BoundingBox(
+                            mesh_info.matrix.transform(meshlet_info.min),
+                            mesh_info.matrix.transform(meshlet_info.max),
+                            [1.0, 1.0, 0.0, 1.0].into(),
+                        ));
+                });
+            }
+        });
+    }
 
-        let mesh_flags: u32 = (MeshFlags::Visible | MeshFlags::Opaque).into();
-        render_context
-            .render_buffers
-            .meshes
-            .for_each_entry(|_i, mesh| {
-                if mesh.mesh_flags == mesh_flags {
-                    let matrix = mesh.transform();
-                    let meshlets = &render_context.render_buffers.meshlets.data()[mesh
-                        .meshlets_offset
-                        as usize
-                        ..(mesh.meshlets_offset + mesh.meshlets_count) as usize];
-                    let meshlets_bhv = render_context.render_buffers.meshlets_aabb.data();
-                    meshlets.iter().for_each(|meshlet| {
-                        let bhv = &meshlets_bhv[meshlet.bb_index as usize];
-                        data.context
-                            .message_hub()
-                            .send_event(DrawEvent::BoundingBox(
-                                matrix.transform(bhv.min.into()),
-                                matrix.transform(bhv.max.into()),
-                                [1.0, 1.0, 0.0, 1.0].into(),
-                            ));
-                    });
-                }
-            });
+    fn show_meshlets_cone_axis(data: &mut Data, meshes: &HashBuffer<MeshId, MeshInfo, 0>) {
+        meshes.for_each_entry(|_id, mesh_info| {
+            if mesh_info.flags.contains(MeshFlags::Visible) {
+                let (t, r, _s) = mesh_info.matrix.get_translation_rotation_scale();
+                let rot = Matrix4::from_translation_rotation_scale(t, r, Vector3::default_one());
+                mesh_info.meshlets.iter().for_each(|meshlet_info| {
+                    let pos = mesh_info.matrix.transform(meshlet_info.center);
+                    data.context.message_hub().send_event(DrawEvent::Line(
+                        pos,
+                        pos + rot.transform(meshlet_info.axis.normalize()),
+                        [1.0, 1.0, 0.0, 1.0].into(),
+                    ));
+                });
+            }
+        });
     }
 
     fn show_frustum(data: &Data, frustum: &Frustum) {
@@ -370,6 +448,13 @@ impl Info {
                                             "Bounding Box",
                                         )
                                         .changed();
+                                        is_changed |= ui
+                                            .selectable_value(
+                                                &mut data.meshlet_debug,
+                                                MeshletDebug::ConeAxis,
+                                                "Cone Axis",
+                                            )
+                                            .changed();
                                     is_changed
                                 });
                             if let Some(is_changed) = combo_box.inner {
@@ -389,7 +474,7 @@ impl Info {
                                                     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
                                                 );
                                         }
-                                        MeshletDebug::Color => {
+                                        MeshletDebug::Color | MeshletDebug::ConeAxis => {
                                             render_context
                                                 .constant_data
                                                 .remove_flag(
