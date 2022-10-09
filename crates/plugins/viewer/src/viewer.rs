@@ -19,7 +19,7 @@ use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
 const ADD_WIREFRAME_PASS: bool = true;
 const ADD_UI_PASS: bool = true;
-const USE_GBUFFER: bool = false;
+const USE_ALL_PASSES: bool = false;
 const USE_3DVIEW: bool = false;
 
 pub struct Viewer {
@@ -152,18 +152,18 @@ impl Plugin for Viewer {
 
 impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
-        let use_gbuffer = USE_GBUFFER || !has_primitive_index_support();
-
-        Self::create_gbuffer_pass(context, renderer, width, height, use_gbuffer);
-        Self::create_pbr_pass(context, renderer, use_gbuffer);
-
-        Self::create_culling_pass(context, renderer, !use_gbuffer);
-        Self::create_visibility_buffer_pass(context, renderer, width, height, !use_gbuffer);
-        Self::create_compute_pbr_pass(context, renderer, width, height, !use_gbuffer);
-        Self::create_blit_pass(context, renderer, !use_gbuffer);
+        if USE_ALL_PASSES || !has_primitive_index_support() {
+            Self::create_gbuffer_pass(context, renderer, width, height, true);
+            Self::create_pbr_pass(context, renderer, true);
+        }
+        if USE_ALL_PASSES || has_primitive_index_support() {
+            Self::create_culling_pass(context, renderer, true);
+            Self::create_visibility_buffer_pass(context, renderer, width, height, true);
+            Self::create_compute_pbr_pass(context, renderer, width, height, true);
+            Self::create_blit_pass(context, renderer, true);
+        }
 
         Self::create_wireframe_pass(context, renderer, ADD_WIREFRAME_PASS);
-
         Self::create_ui_pass(context, renderer, width, height, ADD_UI_PASS);
     }
     fn create_gbuffer_pass(
