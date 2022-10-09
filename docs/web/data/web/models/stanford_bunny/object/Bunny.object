@@ -1,0 +1,1 @@
+{"transform":{"x":{"x":0.05,"y":0.0,"z":0.0,"w":0.0},"y":{"x":0.0,"y":0.05,"z":0.0,"w":0.0},"z":{"x":0.0,"y":0.0,"z":0.05,"w":0.0},"w":{"x":0.0,"y":0.0,"z":0.0,"w":1.0}},"components":["models/stanford_bunny/mesh/Bunny_Primitive_0.mesh"],"children":[]}
