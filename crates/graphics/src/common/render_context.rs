@@ -26,6 +26,7 @@ impl BindingDataBuffer {
     }
     pub fn bind_buffer<T>(
         &self,
+        label: Option<&str>,
         data: &mut T,
         usage: wgpu::BufferUsages,
         render_core_context: &RenderCoreContext,
@@ -38,7 +39,7 @@ impl BindingDataBuffer {
             .entry(data.id())
             .or_insert_with(GpuBuffer::default);
         if data.is_dirty() {
-            buffer.bind(data.id(), data, usage, render_core_context)
+            buffer.bind(data.id(), label, data, usage, render_core_context)
         } else {
             (false, generate_id_from_address(buffer))
         }

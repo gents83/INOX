@@ -172,6 +172,7 @@ impl Pass for CullingPass {
                     &render_context.core,
                     &render_context.binding_data_buffer,
                     &mut render_context.constant_data,
+                    Some("ConstantData"),
                     BindingInfo {
                         group_index: 0,
                         binding_index: 0,
@@ -183,6 +184,7 @@ impl Pass for CullingPass {
                     &render_context.core,
                     &render_context.binding_data_buffer,
                     &mut self.culling_data,
+                    Some("CullingData"),
                     BindingInfo {
                         group_index: 0,
                         binding_index: 1,
@@ -194,6 +196,7 @@ impl Pass for CullingPass {
                     &render_context.core,
                     &render_context.binding_data_buffer,
                     &mut render_context.render_buffers.meshlets,
+                    Some("Meshlets"),
                     BindingInfo {
                         group_index: 0,
                         binding_index: 2,
@@ -205,6 +208,7 @@ impl Pass for CullingPass {
                     &render_context.core,
                     &render_context.binding_data_buffer,
                     &mut render_context.render_buffers.meshes,
+                    Some("Meshes"),
                     BindingInfo {
                         group_index: 0,
                         binding_index: 3,
@@ -216,6 +220,7 @@ impl Pass for CullingPass {
                     &render_context.core,
                     &render_context.binding_data_buffer,
                     &mut render_context.render_buffers.meshlets_aabb,
+                    Some("MeshletsAABB"),
                     BindingInfo {
                         group_index: 0,
                         binding_index: 4,
@@ -227,6 +232,7 @@ impl Pass for CullingPass {
                     &render_context.core,
                     &render_context.binding_data_buffer,
                     &mut commands.counter,
+                    Some("Counter"),
                     BindingInfo {
                         group_index: 1,
                         binding_index: 0,
@@ -240,6 +246,7 @@ impl Pass for CullingPass {
                     &render_context.core,
                     &render_context.binding_data_buffer,
                     &mut commands.commands,
+                    Some("Commands"),
                     BindingInfo {
                         group_index: 1,
                         binding_index: 1,
@@ -253,6 +260,7 @@ impl Pass for CullingPass {
                     &render_context.core,
                     &render_context.binding_data_buffer,
                     &mut self.visible_draw_data,
+                    Some("VisibleDrawData"),
                     BindingInfo {
                         group_index: 1,
                         binding_index: 2,

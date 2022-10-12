@@ -158,6 +158,7 @@ impl Pass for UIPass {
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.constant_data,
+                Some("ConstantData"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 0,
@@ -169,6 +170,7 @@ impl Pass for UIPass {
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut self.custom_data,
+                Some("UICustomData"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,
@@ -180,6 +182,7 @@ impl Pass for UIPass {
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.textures,
+                Some("Textures"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 0,
@@ -208,17 +211,20 @@ impl Pass for UIPass {
                 &render_context.binding_data_buffer,
                 0,
                 &mut self.vertices,
+                Some("UIVertices"),
             )
             .set_vertex_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 1,
                 &mut self.instances,
+                Some("UIInstances"),
             )
             .set_index_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut self.indices,
+                Some("UIIndices"),
             );
         self.binding_data.send_to_gpu(render_context, UI_PASS_NAME);
 

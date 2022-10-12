@@ -77,6 +77,7 @@ impl BindingData {
         binding_data_buffer: &BindingDataBuffer,
         index: usize,
         data: &mut T,
+        label: Option<&str>,
     ) -> &mut Self
     where
         T: AsBinding,
@@ -86,7 +87,7 @@ impl BindingData {
         let usage =
             wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::VERTEX;
         let (is_changed, _buffer_id) =
-            binding_data_buffer.bind_buffer(data, usage, render_core_context);
+            binding_data_buffer.bind_buffer(label, data, usage, render_core_context);
         self.is_data_changed |= is_changed;
 
         if DEBUG_BINDINGS {
@@ -109,6 +110,7 @@ impl BindingData {
         render_core_context: &RenderCoreContext,
         binding_data_buffer: &BindingDataBuffer,
         data: &mut T,
+        label: Option<&str>,
     ) -> &mut Self
     where
         T: AsBinding,
@@ -118,7 +120,7 @@ impl BindingData {
         let usage =
             wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::INDEX;
         let (is_changed, _buffer_id) =
-            binding_data_buffer.bind_buffer(data, usage, render_core_context);
+            binding_data_buffer.bind_buffer(label, data, usage, render_core_context);
         self.is_data_changed |= is_changed;
 
         if DEBUG_BINDINGS {
@@ -144,6 +146,7 @@ impl BindingData {
         render_core_context: &RenderCoreContext,
         binding_data_buffer: &BindingDataBuffer,
         data: &mut T,
+        label: Option<&str>,
         info: BindingInfo,
     ) -> &mut Self
     where
@@ -156,7 +159,7 @@ impl BindingData {
         }
         let usage = wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST;
         let (is_changed, buffer_id) =
-            binding_data_buffer.bind_buffer(data, usage, render_core_context);
+            binding_data_buffer.bind_buffer(label, data, usage, render_core_context);
         self.is_data_changed |= is_changed;
 
         if DEBUG_BINDINGS {
@@ -221,6 +224,7 @@ impl BindingData {
         render_core_context: &RenderCoreContext,
         binding_data_buffer: &BindingDataBuffer,
         data: &mut T,
+        label: Option<&str>,
         info: BindingInfo,
     ) -> &mut Self
     where
@@ -249,7 +253,7 @@ impl BindingData {
             usage |= wgpu::BufferUsages::VERTEX;
         }
         let (is_changed, buffer_id) =
-            binding_data_buffer.bind_buffer(data, usage, render_core_context);
+            binding_data_buffer.bind_buffer(label, data, usage, render_core_context);
         self.is_data_changed |= is_changed;
 
         if DEBUG_BINDINGS {

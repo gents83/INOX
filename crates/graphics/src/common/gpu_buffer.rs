@@ -138,6 +138,7 @@ impl GpuBuffer {
     pub fn bind<T>(
         &mut self,
         id: BufferId,
+        label: Option<&str>,
         data: &mut T,
         usage: wgpu::BufferUsages,
         render_core_context: &RenderCoreContext,
@@ -147,9 +148,12 @@ impl GpuBuffer {
     {
         inox_profiler::scoped_profile!("GpuBuffer::bind({})", &self.name);
 
-        let typename = std::any::type_name::<T>();
-        let label = format!("{}[{}]", typename, id);
-        let is_changed = self.init(render_core_context, data.size(), usage, label.as_str());
+        let name = if let Some(name) = label {
+            name.to_string()
+        } else {
+            format!("{}[{}]", std::any::type_name::<T>(), id)
+        };
+        let is_changed = self.init(render_core_context, data.size(), usage, name.as_str());
         data.fill_buffer(render_core_context, self);
         data.set_dirty(false);
         let buffer_id = generate_id_from_address(self.gpu_buffer().unwrap());

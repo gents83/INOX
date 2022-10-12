@@ -336,6 +336,7 @@ impl RenderBuffers {
                         | wgpu::BufferUsages::COPY_DST
                         | wgpu::BufferUsages::INDIRECT;
                     binding_data_buffer.bind_buffer(
+                        Some("Commands"),
                         &mut entry.commands,
                         usage,
                         render_core_context,
@@ -346,7 +347,12 @@ impl RenderBuffers {
                         | wgpu::BufferUsages::COPY_SRC
                         | wgpu::BufferUsages::COPY_DST
                         | wgpu::BufferUsages::INDIRECT;
-                    binding_data_buffer.bind_buffer(&mut entry.counter, usage, render_core_context);
+                    binding_data_buffer.bind_buffer(
+                        Some("Counter"),
+                        &mut entry.counter,
+                        usage,
+                        render_core_context,
+                    );
                 }
             });
         });

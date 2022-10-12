@@ -70,6 +70,7 @@ impl Pass for GBufferPass {
             &render_context.core,
             &render_context.binding_data_buffer,
             &mut render_context.constant_data,
+            Some("ConstantData"),
             BindingInfo {
                 group_index: 0,
                 binding_index: 0,
@@ -82,6 +83,7 @@ impl Pass for GBufferPass {
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.vertex_positions,
+                Some("VertexPositions"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,
@@ -96,6 +98,7 @@ impl Pass for GBufferPass {
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.vertex_colors,
+                Some("VertexColors"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,
@@ -110,6 +113,7 @@ impl Pass for GBufferPass {
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.vertex_normals,
+                Some("VertexNormals"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 3,
@@ -124,6 +128,7 @@ impl Pass for GBufferPass {
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.vertex_uvs,
+                Some("VertexUVs"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 4,
@@ -138,6 +143,7 @@ impl Pass for GBufferPass {
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.meshes,
+                Some("Meshes"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 0,
@@ -152,6 +158,7 @@ impl Pass for GBufferPass {
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.materials,
+                Some("Materials"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 1,
@@ -166,6 +173,7 @@ impl Pass for GBufferPass {
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.textures,
+                Some("Textures"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 2,
@@ -180,6 +188,7 @@ impl Pass for GBufferPass {
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.meshlets,
+                Some("Meshlets"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 3,
@@ -194,6 +203,7 @@ impl Pass for GBufferPass {
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.meshes_aabb,
+                Some("MeshesAABB"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 4,
@@ -225,11 +235,13 @@ impl Pass for GBufferPass {
                 &render_context.binding_data_buffer,
                 0,
                 &mut render_context.render_buffers.vertices,
+                Some("Vertices"),
             )
             .set_index_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.indices,
+                Some("Indices"),
             );
         self.binding_data
             .send_to_gpu(render_context, GBUFFER_PASS_NAME);
