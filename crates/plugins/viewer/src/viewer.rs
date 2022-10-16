@@ -41,9 +41,10 @@ impl Plugin for Viewer {
                 context.message_hub(),
             )
         };
-        let renderer = Renderer::new(window.handle(), context, false);
-
-        Self::create_render_passes(context, &renderer, DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        let context_rc = context.clone();
+        let renderer = Renderer::new(window.handle(), context, |renderer| {
+            Self::create_render_passes(&context_rc, renderer, DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        });
 
         Viewer {
             window: Some(window),
@@ -151,7 +152,7 @@ impl Plugin for Viewer {
 }
 
 impl Viewer {
-    fn create_render_passes(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
+    fn create_render_passes(context: &ContextRc, renderer: &mut Renderer, width: u32, height: u32) {
         if USE_ALL_PASSES || !has_primitive_index_support() {
             Self::create_gbuffer_pass(context, renderer, width, height, true);
             Self::create_pbr_pass(context, renderer, true);
@@ -168,12 +169,12 @@ impl Viewer {
     }
     fn create_gbuffer_pass(
         context: &ContextRc,
-        renderer: &RendererRw,
+        renderer: &mut Renderer,
         width: u32,
         height: u32,
         is_enabled: bool,
     ) {
-        let gbuffer_pass = GBufferPass::create(context);
+        let gbuffer_pass = GBufferPass::create(context, &renderer.render_context());
 
         gbuffer_pass
             .render_pass()
@@ -227,12 +228,12 @@ impl Viewer {
                 read_back: false,
             });
 
-        renderer.write().unwrap().add_pass(gbuffer_pass, is_enabled);
+        renderer.add_pass(gbuffer_pass, is_enabled);
     }
-    fn create_pbr_pass(context: &ContextRc, renderer: &RendererRw, is_enabled: bool) {
-        let mut pbr_pass = PBRPass::create(context);
+    fn create_pbr_pass(context: &ContextRc, renderer: &mut Renderer, is_enabled: bool) {
+        let mut pbr_pass = PBRPass::create(context, &renderer.render_context());
 
-        if let Some(gbuffer_pass) = renderer.read().unwrap().pass::<GBufferPass>() {
+        if let Some(gbuffer_pass) = renderer.pass::<GBufferPass>() {
             pbr_pass.set_gbuffers_textures(
                 gbuffer_pass
                     .render_pass()
@@ -243,16 +244,16 @@ impl Viewer {
             pbr_pass
                 .set_depth_texture(gbuffer_pass.render_pass().get().depth_texture_id().unwrap());
         }
-        renderer.write().unwrap().add_pass(pbr_pass, is_enabled);
+        renderer.add_pass(pbr_pass, is_enabled);
     }
     fn create_visibility_buffer_pass(
         context: &ContextRc,
-        renderer: &RendererRw,
+        renderer: &mut Renderer,
         width: u32,
         height: u32,
         is_enabled: bool,
     ) {
-        let visibility_pass = VisibilityBufferPass::create(context);
+        let visibility_pass = VisibilityBufferPass::create(context, &renderer.render_context());
         visibility_pass
             .render_pass()
             .get_mut()
@@ -268,55 +269,46 @@ impl Viewer {
                 format: TextureFormat::Depth32Float,
                 read_back: false,
             });
-        renderer
-            .write()
-            .unwrap()
-            .add_pass(visibility_pass, is_enabled);
+        renderer.add_pass(visibility_pass, is_enabled);
     }
     fn create_compute_pbr_pass(
         context: &ContextRc,
-        renderer: &RendererRw,
+        renderer: &mut Renderer,
         width: u32,
         height: u32,
         is_enabled: bool,
     ) {
-        let mut compute_pbr_pass = ComputePbrPass::create(context);
+        let mut compute_pbr_pass = ComputePbrPass::create(context, &renderer.render_context());
         compute_pbr_pass.add_render_target_with_resolution(width, height);
-        if let Some(visibility_pass) = renderer.read().unwrap().pass::<VisibilityBufferPass>() {
+        if let Some(visibility_pass) = renderer.pass::<VisibilityBufferPass>() {
             let pass = visibility_pass.render_pass().get();
             pass.render_textures_id().iter().for_each(|&id| {
                 compute_pbr_pass.add_texture(id);
             });
         }
-        renderer
-            .write()
-            .unwrap()
-            .add_pass(compute_pbr_pass, is_enabled);
+        renderer.add_pass(compute_pbr_pass, is_enabled);
     }
-    fn create_blit_pass(context: &ContextRc, renderer: &RendererRw, is_enabled: bool) {
-        let mut blit_pass = BlitPass::create(context);
-        if let Some(pbr_pass) = renderer.read().unwrap().pass::<ComputePbrPass>() {
+    fn create_blit_pass(context: &ContextRc, renderer: &mut Renderer, is_enabled: bool) {
+        let mut blit_pass = BlitPass::create(context, &renderer.render_context());
+        if let Some(pbr_pass) = renderer.pass::<ComputePbrPass>() {
             blit_pass.set_source(pbr_pass.render_target_id());
         }
-        renderer.write().unwrap().add_pass(blit_pass, is_enabled);
+        renderer.add_pass(blit_pass, is_enabled);
     }
-    fn create_wireframe_pass(context: &ContextRc, renderer: &RendererRw, is_enabled: bool) {
-        let wireframe_pass = WireframePass::create(context);
-        renderer
-            .write()
-            .unwrap()
-            .add_pass(wireframe_pass, is_enabled);
+    fn create_wireframe_pass(context: &ContextRc, renderer: &mut Renderer, is_enabled: bool) {
+        let wireframe_pass = WireframePass::create(context, &renderer.render_context());
+        renderer.add_pass(wireframe_pass, is_enabled);
     }
     fn create_ui_pass(
         context: &ContextRc,
-        renderer: &RendererRw,
+        renderer: &mut Renderer,
         width: u32,
         height: u32,
         is_enabled: bool,
     ) {
-        let ui_pass = UIPass::create(context);
+        let ui_pass = UIPass::create(context, &renderer.render_context());
         if USE_3DVIEW {
-            if let Some(blit_pass) = renderer.read().unwrap().pass::<BlitPass>() {
+            if let Some(blit_pass) = renderer.pass::<BlitPass>() {
                 blit_pass
                     .render_pass()
                     .get_mut()
@@ -331,10 +323,10 @@ impl Viewer {
             let mut ui_pass = ui_pass.render_pass().get_mut();
             ui_pass.set_load_color_operation(LoadOperation::Load);
         }
-        renderer.write().unwrap().add_pass(ui_pass, is_enabled);
+        renderer.add_pass(ui_pass, is_enabled);
     }
-    fn create_culling_pass(context: &ContextRc, renderer: &RendererRw, is_enabled: bool) {
-        let culling_pass = CullingPass::create(context);
-        renderer.write().unwrap().add_pass(culling_pass, is_enabled);
+    fn create_culling_pass(context: &ContextRc, renderer: &mut Renderer, is_enabled: bool) {
+        let culling_pass = CullingPass::create(context, &renderer.render_context());
+        renderer.add_pass(culling_pass, is_enabled);
     }
 }

@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, DrawCommandType, DrawVertex, MeshFlags, Pass,
-    RenderContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
+    BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, DrawVertex,
+    IndicesBuffer, MeshFlags, MeshesAABBsBuffer, MeshesBuffer, MeshletsBuffer, Pass, RenderContext,
+    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
+    VertexPositionsBuffer, VerticesBuffer, TextureView,
 };
 
 use inox_core::ContextRc;
@@ -15,6 +17,13 @@ pub const VISIBILITY_BUFFER_PASS_NAME: &str = "VisibilityBufferPass";
 pub struct VisibilityBufferPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
+    constant_data: ConstantDataRw,
+    meshes: MeshesBuffer,
+    meshes_aabb: MeshesAABBsBuffer,
+    meshlets: MeshletsBuffer,
+    vertices: VerticesBuffer,
+    indices: IndicesBuffer,
+    vertex_positions: VertexPositionsBuffer,
 }
 unsafe impl Send for VisibilityBufferPass {}
 unsafe impl Sync for VisibilityBufferPass {}
@@ -35,7 +44,7 @@ impl Pass for VisibilityBufferPass {
     fn draw_command_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
-    fn create(context: &ContextRc) -> Self
+    fn create(context: &ContextRc, render_context: &RenderContext) -> Self
     where
         Self: Sized,
     {
@@ -58,19 +67,24 @@ impl Pass for VisibilityBufferPass {
                 &data,
                 None,
             ),
-            binding_data: BindingData::default(),
+            constant_data: render_context.constant_data.clone(),
+            meshes: render_context.render_buffers.meshes.clone(),
+            meshes_aabb: render_context.render_buffers.meshes_aabb.clone(),
+            meshlets: render_context.render_buffers.meshlets.clone(),
+            vertices: render_context.render_buffers.vertices.clone(),
+            indices: render_context.render_buffers.indices.clone(),
+            vertex_positions: render_context.render_buffers.vertex_positions.clone(),
+            binding_data: BindingData::new(render_context),
         }
     }
-    fn init(&mut self, render_context: &mut RenderContext) {
+    fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("visibility_buffer_pass::init");
 
         let mut pass = self.render_pass.get_mut();
 
         self.binding_data
             .add_uniform_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.constant_data,
+                &mut *self.constant_data.write().unwrap(),
                 Some("ConstantData"),
                 BindingInfo {
                     group_index: 0,
@@ -80,9 +94,7 @@ impl Pass for VisibilityBufferPass {
                 },
             )
             .add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.vertex_positions,
+                &mut *self.vertex_positions.write().unwrap(),
                 Some("VertexPositions"),
                 BindingInfo {
                     group_index: 0,
@@ -93,9 +105,7 @@ impl Pass for VisibilityBufferPass {
                 },
             )
             .add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.meshes,
+                &mut *self.meshes.write().unwrap(),
                 Some("Meshes"),
                 BindingInfo {
                     group_index: 0,
@@ -106,9 +116,7 @@ impl Pass for VisibilityBufferPass {
                 },
             )
             .add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.meshlets,
+                &mut *self.meshlets.write().unwrap(),
                 Some("Meshlets"),
                 BindingInfo {
                     group_index: 0,
@@ -119,9 +127,7 @@ impl Pass for VisibilityBufferPass {
                 },
             )
             .add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.meshes_aabb,
+                &mut *self.meshes_aabb.write().unwrap(),
                 Some("MeshesAABB"),
                 BindingInfo {
                     group_index: 0,
@@ -131,21 +137,9 @@ impl Pass for VisibilityBufferPass {
                     ..Default::default()
                 },
             )
-            .set_vertex_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                0,
-                &mut render_context.render_buffers.vertices,
-                Some("Vertices"),
-            )
-            .set_index_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.indices,
-                Some("Indices"),
-            );
-        self.binding_data
-            .send_to_gpu(render_context, VISIBILITY_BUFFER_PASS_NAME);
+            .set_vertex_buffer(0, &mut *self.vertices.write().unwrap(), Some("Vertices"))
+            .set_index_buffer(&mut *self.indices.write().unwrap(), Some("Indices"))
+            .send_to_gpu(VISIBILITY_BUFFER_PASS_NAME);
 
         let vertex_layout = DrawVertex::descriptor(0);
         pass.init(
@@ -155,23 +149,30 @@ impl Pass for VisibilityBufferPass {
             None,
         );
     }
-    fn update(&self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
+    fn update(
+        &self,
+        render_context: &RenderContext,
+        surface_view: &TextureView,
+        command_buffer: &mut CommandBuffer,
+    ) {
         inox_profiler::scoped_profile!("visibility_buffer_pass::update");
 
         let pass = self.render_pass.get();
-        let buffers = render_context.buffers();
         let pipeline = pass.pipeline().get();
         if !pipeline.is_initialized() {
             return;
         }
+        let buffers = render_context.buffers();
+        let render_targets = render_context.texture_handler.render_targets();
 
-        let mut render_pass = pass.begin(
-            render_context,
-            &self.binding_data,
-            &buffers,
-            &pipeline,
+        let render_pass_begin_data = RenderPassBeginData {
+            render_core_context: &render_context.core,
+            buffers: &buffers,
+            render_targets: render_targets.as_slice(),
+            surface_view,
             command_buffer,
-        );
+        };
+        let mut render_pass = pass.begin(&self.binding_data, &pipeline, render_pass_begin_data);
         {
             inox_profiler::gpu_scoped_profile!(
                 &mut render_pass,

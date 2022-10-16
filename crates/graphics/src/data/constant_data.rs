@@ -1,4 +1,7 @@
-use std::mem::size_of;
+use std::{
+    mem::size_of,
+    sync::{Arc, RwLock},
+};
 
 use inox_math::{matrix4_to_array, Mat4Ops, Matrix4, Vector2};
 
@@ -26,6 +29,8 @@ pub struct ConstantData {
     is_dirty: bool,
     data: Data,
 }
+
+pub type ConstantDataRw = Arc<RwLock<ConstantData>>;
 
 impl AsBinding for ConstantData {
     fn is_dirty(&self) -> bool {

@@ -1,9 +1,10 @@
 use std::path::PathBuf;
 
 use crate::{
-    declare_as_binding_vector, AsBinding, BindingData, BindingInfo, CommandBuffer, ComputePass,
-    ComputePassData, DrawCommandType, GpuBuffer, MeshFlags, Pass, RenderContext, RenderCoreContext,
-    ShaderStage,
+    declare_as_binding_vector, AsBinding, BindingData, BindingInfo, CommandBuffer, CommandsBuffer,
+    ComputePass, ComputePassData, ConstantDataRw, DrawCommandType, GpuBuffer, MeshFlags,
+    MeshesBuffer, MeshletsAABBsBuffer, MeshletsBuffer, Pass, RenderContext, RenderCoreContext,
+    ShaderStage, TextureView,
 };
 
 use inox_commands::CommandParser;
@@ -71,6 +72,11 @@ pub struct CullingPass {
     compute_pass: Resource<ComputePass>,
     compact_pass: Resource<ComputePass>,
     binding_data: BindingData,
+    constant_data: ConstantDataRw,
+    commands: CommandsBuffer,
+    meshes: MeshesBuffer,
+    meshlets: MeshletsBuffer,
+    meshlets_aabb: MeshletsAABBsBuffer,
     culling_data: CullingData,
     visible_draw_data: VecVisibleDrawData,
     listener: Listener,
@@ -95,7 +101,7 @@ impl Pass for CullingPass {
     fn draw_command_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
-    fn create(context: &ContextRc) -> Self
+    fn create(context: &ContextRc, render_context: &RenderContext) -> Self
     where
         Self: Sized,
     {
@@ -126,24 +132,29 @@ impl Pass for CullingPass {
                 &compact_data,
                 None,
             ),
-            binding_data: BindingData::default(),
+            constant_data: render_context.constant_data.clone(),
+            commands: render_context.render_buffers.commands.clone(),
+            meshes: render_context.render_buffers.meshes.clone(),
+            meshlets: render_context.render_buffers.meshlets.clone(),
+            meshlets_aabb: render_context.render_buffers.meshlets_aabb.clone(),
+            binding_data: BindingData::new(render_context),
             culling_data: CullingData::default(),
             visible_draw_data: VecVisibleDrawData::default(),
             listener,
             update_camera: true,
         }
     }
-    fn init(&mut self, render_context: &mut RenderContext) {
+    fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("pbr_pass::init");
 
         self.process_messages();
 
-        if render_context.render_buffers.meshlets.is_empty() {
+        if self.meshlets.read().unwrap().is_empty() {
             return;
         }
 
         if self.update_camera {
-            let view = render_context.constant_data.view();
+            let view = self.constant_data.read().unwrap().view();
             if self.culling_data.view != view {
                 self.culling_data.view = view;
                 self.culling_data.set_dirty(true);
@@ -153,14 +164,14 @@ impl Pass for CullingPass {
         let mesh_flags = self.mesh_flags();
         let draw_command_type = self.draw_command_type();
 
-        if let Some(commands) = render_context.render_buffers.commands.get_mut(&mesh_flags) {
+        if let Some(commands) = self.commands.write().unwrap().get_mut(&mesh_flags) {
             let commands = commands.map.get_mut(&draw_command_type).unwrap();
             if commands.commands.is_empty() {
                 return;
             }
             commands.counter.count = 0;
 
-            let num_meshlets = render_context.render_buffers.meshlets.item_count();
+            let num_meshlets = self.meshlets.read().unwrap().item_count();
             let count = ((num_meshlets as u32 + NUM_COMMANDS_PER_GROUP - 1)
                 / NUM_COMMANDS_PER_GROUP) as usize;
             if self.visible_draw_data.data.len() < count {
@@ -169,9 +180,7 @@ impl Pass for CullingPass {
 
             self.binding_data
                 .add_uniform_buffer(
-                    &render_context.core,
-                    &render_context.binding_data_buffer,
-                    &mut render_context.constant_data,
+                    &mut *self.constant_data.write().unwrap(),
                     Some("ConstantData"),
                     BindingInfo {
                         group_index: 0,
@@ -181,8 +190,6 @@ impl Pass for CullingPass {
                     },
                 )
                 .add_uniform_buffer(
-                    &render_context.core,
-                    &render_context.binding_data_buffer,
                     &mut self.culling_data,
                     Some("CullingData"),
                     BindingInfo {
@@ -193,9 +200,7 @@ impl Pass for CullingPass {
                     },
                 )
                 .add_storage_buffer(
-                    &render_context.core,
-                    &render_context.binding_data_buffer,
-                    &mut render_context.render_buffers.meshlets,
+                    &mut *self.meshlets.write().unwrap(),
                     Some("Meshlets"),
                     BindingInfo {
                         group_index: 0,
@@ -205,9 +210,7 @@ impl Pass for CullingPass {
                     },
                 )
                 .add_storage_buffer(
-                    &render_context.core,
-                    &render_context.binding_data_buffer,
-                    &mut render_context.render_buffers.meshes,
+                    &mut *self.meshes.write().unwrap(),
                     Some("Meshes"),
                     BindingInfo {
                         group_index: 0,
@@ -217,9 +220,7 @@ impl Pass for CullingPass {
                     },
                 )
                 .add_storage_buffer(
-                    &render_context.core,
-                    &render_context.binding_data_buffer,
-                    &mut render_context.render_buffers.meshlets_aabb,
+                    &mut *self.meshlets_aabb.write().unwrap(),
                     Some("MeshletsAABB"),
                     BindingInfo {
                         group_index: 0,
@@ -229,8 +230,6 @@ impl Pass for CullingPass {
                     },
                 )
                 .add_storage_buffer(
-                    &render_context.core,
-                    &render_context.binding_data_buffer,
                     &mut commands.counter,
                     Some("Counter"),
                     BindingInfo {
@@ -243,8 +242,6 @@ impl Pass for CullingPass {
                     },
                 )
                 .add_storage_buffer(
-                    &render_context.core,
-                    &render_context.binding_data_buffer,
                     &mut commands.commands,
                     Some("Commands"),
                     BindingInfo {
@@ -257,8 +254,6 @@ impl Pass for CullingPass {
                     },
                 )
                 .add_storage_buffer(
-                    &render_context.core,
-                    &render_context.binding_data_buffer,
                     &mut self.visible_draw_data,
                     Some("VisibleDrawData"),
                     BindingInfo {
@@ -270,7 +265,7 @@ impl Pass for CullingPass {
                         ..Default::default()
                     },
                 )
-                .send_to_gpu(render_context, CULLING_PASS_NAME);
+                .send_to_gpu(CULLING_PASS_NAME);
 
             let mut pass = self.compute_pass.get_mut();
             pass.init(render_context, &self.binding_data);
@@ -280,15 +275,20 @@ impl Pass for CullingPass {
         }
     }
 
-    fn update(&self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
-        let num_meshlets = render_context.render_buffers.meshlets.item_count();
+    fn update(
+        &self,
+        render_context: &RenderContext,
+        _surface_view: &TextureView,
+        command_buffer: &mut CommandBuffer,
+    ) {
+        let num_meshlets = self.meshlets.read().unwrap().item_count();
         if num_meshlets == 0 {
             return;
         }
 
         let mesh_flags = self.mesh_flags();
 
-        if let Some(commands) = render_context.render_buffers.commands.get_mut(&mesh_flags) {
+        if let Some(commands) = self.commands.write().unwrap().get_mut(&mesh_flags) {
             let commands = commands.map.get(&self.draw_command_type()).unwrap();
             if commands.commands.is_empty() {
                 return;

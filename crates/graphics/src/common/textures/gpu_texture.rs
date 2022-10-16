@@ -6,17 +6,30 @@ use crate::{TextureFormat, TextureId};
 
 use super::area::Area;
 
-pub struct Texture {
+pub struct TextureView {
+    view: wgpu::TextureView,
+}
+
+impl TextureView {
+    pub fn new(view: wgpu::TextureView) -> Self {
+        Self { view }
+    }
+    pub fn as_wgpu(&self) -> &wgpu::TextureView {
+        &self.view
+    }
+}
+
+pub struct GpuTexture {
     id: TextureId,
     texture: wgpu::Texture,
-    view: wgpu::TextureView,
+    view: TextureView,
     width: u32,
     height: u32,
     layers_count: u32,
     format: TextureFormat,
 }
 
-impl Texture {
+impl GpuTexture {
     pub fn create(
         device: &wgpu::Device,
         id: TextureId,
@@ -44,14 +57,14 @@ impl Texture {
         Self {
             id,
             texture,
-            view,
+            view: TextureView::new(view),
             width,
             height,
             layers_count,
             format,
         }
     }
-    pub fn view(&self) -> &wgpu::TextureView {
+    pub fn view(&self) -> &TextureView {
         &self.view
     }
     pub fn format(&self) -> &TextureFormat {

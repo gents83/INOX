@@ -50,15 +50,10 @@ impl System for RenderingSystem {
             "Render Draw",
             JobPriority::High,
             move || {
-                {
-                    let renderer = renderer.read().unwrap();
-                    renderer.update_passes();
-                    renderer.present();
-                }
-                {
-                    let mut renderer = renderer.write().unwrap();
-                    renderer.change_state(RendererState::Submitted);
-                }
+                let mut renderer = renderer.write().unwrap();
+                renderer.update_passes();
+                renderer.present();
+                renderer.change_state(RendererState::Submitted);
             },
         );
         true

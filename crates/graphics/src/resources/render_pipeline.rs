@@ -172,7 +172,8 @@ impl RenderPipeline {
             }
         }
         let is_same_format = if render_formats.is_empty() {
-            !self.formats.is_empty() && self.formats[0] == context.core.config.format.into()
+            !self.formats.is_empty()
+                && self.formats[0] == context.core.config.read().unwrap().format.into()
         } else {
             let count = self
                 .formats
@@ -186,7 +187,7 @@ impl RenderPipeline {
             return true;
         }
         let pipeline_render_formats = if render_formats.is_empty() {
-            vec![context.core.config.format]
+            vec![context.core.config.read().unwrap().format]
         } else {
             render_formats
                 .iter()

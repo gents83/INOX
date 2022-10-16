@@ -7,13 +7,21 @@ use inox_resources::{
 };
 
 use crate::{
-    platform::is_indirect_mode_enabled, AsBinding, BindingData, BufferId, CommandBuffer,
-    DrawCommandType, GpuBuffer, LoadOperation, RenderContext, RenderMode, RenderPassData,
-    RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId, TextureUsage,
-    VertexBufferLayoutBuilder,
+    gpu_texture::GpuTexture, platform::is_indirect_mode_enabled, AsBinding, BindingData, BufferId,
+    CommandBuffer, DrawCommandType, GpuBuffer, LoadOperation, RenderContext, RenderCoreContextRc,
+    RenderMode, RenderPassData, RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId,
+    TextureUsage, TextureView, VertexBufferLayoutBuilder,
 };
 
 pub type RenderPassId = ResourceId;
+
+pub struct RenderPassBeginData<'a> {
+    pub render_core_context: &'a RenderCoreContextRc,
+    pub render_targets: &'a [GpuTexture],
+    pub buffers: &'a HashMap<BufferId, GpuBuffer>,
+    pub surface_view: &'a TextureView,
+    pub command_buffer: &'a mut CommandBuffer,
+}
 
 #[derive(Clone)]
 pub struct RenderPass {
@@ -190,13 +198,28 @@ impl RenderPass {
 
     pub fn init(
         &mut self,
-        render_context: &mut RenderContext,
+        render_context: &RenderContext,
         binding_data: &BindingData,
         vertex_layout: Option<VertexBufferLayoutBuilder>,
         instance_layout: Option<VertexBufferLayoutBuilder>,
     ) {
-        let render_formats = render_context.render_formats(self);
-        let depth_format = render_context.depth_format(self);
+        let render_targets = render_context.texture_handler.render_targets();
+
+        let mut render_formats = Vec::new();
+        let render_textures = self.render_textures_id();
+        render_textures.iter().for_each(|&id| {
+            if let Some(texture) = render_targets.iter().find(|t| t.id() == id) {
+                render_formats.push(texture.format());
+            }
+        });
+
+        let mut depth_format = None;
+        if let Some(texture) = self.depth_texture() {
+            if let Some(texture) = render_targets.iter().find(|t| t.id() == texture.id()) {
+                depth_format = Some(texture.format());
+            }
+        }
+
         if let Some(pipeline) = &self.pipeline {
             pipeline.get_mut().init(
                 render_context,
@@ -230,21 +253,43 @@ impl RenderPass {
 
     pub fn begin<'a>(
         &'a self,
-        render_context: &'a RenderContext,
         binding_data: &'a BindingData,
-        buffers: &'a HashMap<BufferId, GpuBuffer>,
         pipeline: &'a RenderPipeline,
-        command_buffer: &'a mut CommandBuffer,
+        render_pass_begin_data: RenderPassBeginData<'a>,
     ) -> wgpu::RenderPass<'a> {
         inox_profiler::scoped_profile!("render_pass::begin");
         inox_profiler::gpu_scoped_profile!(
-            &mut command_buffer.encoder,
-            &render_context.core.device,
+            &mut render_pass_begin_data.command_buffer.encoder,
+            &render_pass_begin_data.render_core_context.device,
             "render_pass::begin",
         );
 
-        let render_targets = render_context.render_targets(self);
-        let depth_target = render_context.depth_target(self);
+        let mut render_targets_views = Vec::new();
+        let mut depth_target_view = None;
+
+        let render_textures = self.render_textures_id();
+        if render_textures.is_empty() {
+            render_targets_views.push(render_pass_begin_data.surface_view.as_wgpu());
+        } else {
+            render_textures.iter().for_each(|&id| {
+                if let Some(texture) = render_pass_begin_data
+                    .render_targets
+                    .iter()
+                    .find(|t| t.id() == id)
+                {
+                    render_targets_views.push(texture.view().as_wgpu());
+                }
+            });
+        }
+        if let Some(texture) = self.depth_texture() {
+            if let Some(texture) = render_pass_begin_data
+                .render_targets
+                .iter()
+                .find(|t| t.id() == texture.id())
+            {
+                depth_target_view = Some(texture.view().as_wgpu());
+            }
+        }
 
         let color_operations = self.color_operations();
         let depth_write_enabled = pipeline.data().depth_write_enabled;
@@ -252,15 +297,16 @@ impl RenderPass {
         let label = format!("RenderPass {}", self.name);
         let mut render_pass = {
             inox_profiler::gpu_scoped_profile!(
-                &mut command_buffer.encoder,
-                &render_context.core.device,
+                &mut render_pass_begin_data.command_buffer.encoder,
+                &render_pass_begin_data.render_core_context.device,
                 "encoder::begin_render_pass",
             );
-            command_buffer
+            render_pass_begin_data
+                .command_buffer
                 .encoder
                 .begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some(label.as_str()),
-                    color_attachments: render_targets
+                    color_attachments: render_targets_views
                         .iter()
                         .map(|&render_target| {
                             Some(wgpu::RenderPassColorAttachment {
@@ -271,7 +317,7 @@ impl RenderPass {
                         })
                         .collect::<Vec<_>>()
                         .as_slice(),
-                    depth_stencil_attachment: depth_target.map(|depth_view| {
+                    depth_stencil_attachment: depth_target_view.map(|depth_view| {
                         wgpu::RenderPassDepthStencilAttachment {
                             view: depth_view,
                             depth_ops: if depth_write_enabled {
@@ -294,7 +340,7 @@ impl RenderPass {
                     inox_profiler::scoped_profile!("render_pass::bind_groups");
                     inox_profiler::gpu_scoped_profile!(
                         &mut render_pass,
-                        &render_context.core.device,
+                        &render_pass_begin_data.render_core_context.device,
                         "render_pass::bind_groups",
                     );
                     render_pass.set_bind_group(index as _, bind_group, &[]);
@@ -303,7 +349,7 @@ impl RenderPass {
         {
             inox_profiler::gpu_scoped_profile!(
                 &mut render_pass,
-                &render_context.core.device,
+                &render_pass_begin_data.render_core_context.device,
                 "render_pass::set_pipeline",
             );
             render_pass.set_pipeline(pipeline.render_pipeline());
@@ -313,10 +359,10 @@ impl RenderPass {
         for i in 0..num_vertex_buffers {
             inox_profiler::scoped_profile!("render_pass::bind_vertex_buffer");
             let id = binding_data.vertex_buffer(i);
-            if let Some(buffer) = buffers.get(id) {
+            if let Some(buffer) = render_pass_begin_data.buffers.get(id) {
                 inox_profiler::gpu_scoped_profile!(
                     &mut render_pass,
-                    &render_context.core.device,
+                    &render_pass_begin_data.render_core_context.device,
                     "render_pass::set_vertex_buffer",
                 );
                 render_pass.set_vertex_buffer(i as _, buffer.gpu_buffer().unwrap().slice(..));
@@ -324,11 +370,11 @@ impl RenderPass {
         }
 
         if let Some(index_id) = binding_data.index_buffer() {
-            if let Some(buffer) = buffers.get(index_id) {
+            if let Some(buffer) = render_pass_begin_data.buffers.get(index_id) {
                 inox_profiler::scoped_profile!("render_pass::bind_index_buffer");
                 inox_profiler::gpu_scoped_profile!(
                     &mut render_pass,
-                    &render_context.core.device,
+                    &render_pass_begin_data.render_core_context.device,
                     "render_pass::set_index_buffer",
                 );
                 render_pass.set_index_buffer(
@@ -345,10 +391,13 @@ impl RenderPass {
         inox_profiler::scoped_profile!("render_pass::draw_meshlets");
 
         let mesh_flags: u32 = self.pipeline().get().data().mesh_flags.into();
-        let meshlets = render_context.render_buffers.meshlets.data();
+        let meshlets = render_context.render_buffers.meshlets.read().unwrap();
+        let meshlets = meshlets.data();
         render_context
             .render_buffers
             .meshes
+            .read()
+            .unwrap()
             .for_each_entry(|_, mesh| {
                 if mesh.mesh_flags == mesh_flags {
                     inox_profiler::scoped_profile!("render_pass::draw_mesh");
@@ -384,7 +433,13 @@ impl RenderPass {
 
         if is_indirect_mode_enabled() && self.render_mode == RenderMode::Indirect {
             let mesh_flags = self.pipeline().get().data().mesh_flags;
-            if let Some(commands) = render_context.render_buffers.commands.get(&mesh_flags) {
+            if let Some(commands) = render_context
+                .render_buffers
+                .commands
+                .read()
+                .unwrap()
+                .get(&mesh_flags)
+            {
                 if let Some(commands) = commands.map.get(&draw_commands_type) {
                     if !commands.commands.is_empty() {
                         let commands_id = commands.commands.id();
@@ -435,10 +490,13 @@ impl RenderPass {
         inox_profiler::scoped_profile!("render_pass::draw_meshes");
 
         let mesh_flags: u32 = self.pipeline().get().data().mesh_flags.into();
-        let meshlets = render_context.render_buffers.meshlets.data();
+        let meshlets = render_context.render_buffers.meshlets.read().unwrap();
+        let meshlets = meshlets.data();
         render_context
             .render_buffers
             .meshes
+            .read()
+            .unwrap()
             .for_each_entry(|index, mesh| {
                 if mesh.mesh_flags == mesh_flags {
                     let start = mesh.indices_offset;

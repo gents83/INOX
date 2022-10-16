@@ -1,6 +1,6 @@
 use crate::{
     CommandBuffer, ComputePipeline, Material, Pass, RenderContext, RenderContextRw, RenderPass,
-    RenderPipeline, Texture, TextureId, TextureUsage,
+    RenderPipeline, Texture, TextureId, TextureUsage, TextureView,
 };
 use inox_core::ContextRc;
 
@@ -9,7 +9,7 @@ use inox_messenger::MessageHubRc;
 use inox_platform::Handle;
 use inox_resources::{ResourceTrait, SharedData, SharedDataRc};
 
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 pub const DEFAULT_WIDTH: u32 = 1920;
 pub const DEFAULT_HEIGHT: u32 = 1080;
@@ -34,6 +34,9 @@ pub struct Renderer {
     message_hub: MessageHubRc,
     state: RendererState,
     passes: Vec<(Box<dyn Pass>, bool)>,
+    command_buffer: Option<CommandBuffer>,
+    surface_texture: Option<wgpu::SurfaceTexture>,
+    surface_view: Option<TextureView>,
     need_recreate: bool,
     need_commands_rebind: bool,
 }
@@ -49,7 +52,10 @@ impl Drop for Renderer {
 }
 
 impl Renderer {
-    pub fn new(handle: &Handle, context: &ContextRc, _enable_debug: bool) -> RendererRw {
+    pub fn new<F>(handle: &Handle, context: &ContextRc, on_create_func: F) -> RendererRw
+    where
+        F: FnOnce(&mut Renderer),
+    {
         crate::register_resource_types(context.shared_data(), context.message_hub());
 
         let renderer = Arc::new(RwLock::new(Renderer {
@@ -58,6 +64,9 @@ impl Renderer {
             shared_data: context.shared_data().clone(),
             message_hub: context.message_hub().clone(),
             passes: Vec::new(),
+            command_buffer: None,
+            surface_texture: None,
+            surface_view: None,
             need_recreate: false,
             need_commands_rebind: true,
         }));
@@ -66,12 +75,14 @@ impl Renderer {
         wasm_bindgen_futures::spawn_local(RenderContext::create_render_context(
             handle.clone(),
             renderer.clone(),
+            on_create_func,
         ));
 
         #[cfg(all(not(target_arch = "wasm32")))]
         futures::executor::block_on(RenderContext::create_render_context(
             handle.clone(),
             renderer.clone(),
+            on_create_func,
         ));
 
         renderer
@@ -79,8 +90,11 @@ impl Renderer {
     pub fn set_render_context(&mut self, context: RenderContextRw) {
         self.render_context = Some(context);
     }
-    pub fn render_context(&self) -> &RenderContextRw {
-        self.render_context.as_ref().unwrap()
+    pub fn render_context(&self) -> RwLockReadGuard<RenderContext> {
+        self.render_context.as_ref().unwrap().read().unwrap()
+    }
+    fn render_context_mut(&self) -> RwLockWriteGuard<RenderContext> {
+        self.render_context.as_ref().unwrap().write().unwrap()
     }
     pub fn num_passes(&self) -> usize {
         self.passes.len()
@@ -147,10 +161,7 @@ impl Renderer {
 
         self.need_recreate = false;
 
-        {
-            let mut render_context = self.render_context().write().unwrap();
-            render_context.core.configure();
-        }
+        self.render_context().core.configure();
 
         SharedData::for_each_resource_mut(
             &self.shared_data,
@@ -173,10 +184,7 @@ impl Renderer {
     }
 
     pub fn set_surface_size(&mut self, width: u32, height: u32) {
-        {
-            let mut render_context = self.render_context().write().unwrap();
-            render_context.core.set_surface_size(width, height);
-        }
+        self.render_context().core.set_surface_size(width, height);
         self.recreate();
     }
 
@@ -228,23 +236,21 @@ impl Renderer {
         }
     }
 
-    pub fn obtain_surface_texture(&self) -> bool {
+    pub fn obtain_surface_texture(&mut self) -> bool {
         if self.need_recreate {
             return false;
         }
         let surface_texture = {
             inox_profiler::scoped_profile!("wgpu::get_current_texture");
 
-            let render_context = self.render_context().read().unwrap();
-            render_context.core.surface.get_current_texture()
+            self.render_context().core.surface.get_current_texture()
         };
-        if let Ok(output) = surface_texture {
-            let screen_view = output
+        if let Ok(screen_texture) = surface_texture {
+            let screen_view = screen_texture
                 .texture
                 .create_view(&wgpu::TextureViewDescriptor::default());
-            let mut render_context = self.render_context().write().unwrap();
-            render_context.surface_view = Some(screen_view);
-            render_context.surface_texture = Some(output);
+            self.surface_view = Some(TextureView::new(screen_view));
+            self.surface_texture = Some(screen_texture);
             true
         } else {
             inox_log::debug_log!("Unable to retrieve surface texture");
@@ -273,37 +279,31 @@ impl Renderer {
                 pass.init(render_context);
             }
         });
-        render_context.command_buffer = Some(command_buffer);
+        self.command_buffer = Some(command_buffer);
     }
 
-    pub fn update_passes(&self) {
+    pub fn update_passes(&mut self) {
         inox_profiler::scoped_profile!("renderer::update_passes");
-
-        let mut render_context = self.render_context().write().unwrap();
-        let render_context: &mut RenderContext = &mut render_context;
-        if let Some(mut command_buffer) = render_context.command_buffer.take() {
-            self.passes.iter().for_each(|(pass, is_enabled)| {
-                if *is_enabled && pass.is_active(render_context) {
-                    pass.update(render_context, &mut command_buffer);
+        if let Some(surface_view) = &self.surface_view {
+            if let Some(mut command_buffer) = self.command_buffer.take() {
+                let render_context: &mut RenderContext = &mut self.render_context_mut();
+                self.passes.iter().for_each(|(pass, is_enabled)| {
+                    if *is_enabled && pass.is_active(render_context) {
+                        pass.update(render_context, surface_view, &mut command_buffer);
+                    }
+                });
+                {
+                    inox_profiler::gpu_profiler_pre_submit!(&mut command_buffer.encoder);
+                    render_context.core.submit(command_buffer);
                 }
-            });
-            {
-                inox_profiler::gpu_profiler_pre_submit!(&mut command_buffer.encoder);
-                render_context.core.submit(command_buffer);
             }
         }
     }
 
-    pub fn present(&self) {
+    pub fn present(&mut self) {
         inox_profiler::scoped_profile!("renderer::present");
-
-        let surface_texture = {
-            let mut render_context = self.render_context().write().unwrap();
-            render_context.surface_view = None;
-            render_context.surface_texture.take()
-        };
-
-        if let Some(surface_texture) = surface_texture {
+        self.surface_view = None;
+        if let Some(surface_texture) = self.surface_texture.take() {
             surface_texture.present();
             inox_profiler::gpu_profiler_post_present!();
         }
