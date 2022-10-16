@@ -8,45 +8,12 @@ use inox_platform::Handle;
 use inox_resources::Resource;
 
 use crate::{
-    generate_id_from_address,
     platform::{platform_limits, required_gpu_features},
-    AsBinding, BufferId, ConstantData, ConstantDataRw, DrawCommandType, GpuBuffer, MeshFlags,
-    RenderBuffers, Renderer, RendererRw, Texture, TextureHandler, TextureHandlerRc,
-    CONSTANT_DATA_FLAGS_SUPPORT_SRGB, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    BindingDataBuffer, BindingDataBufferRc, BufferId, ConstantData, ConstantDataRw,
+    DrawCommandType, GpuBuffer, MeshFlags, RenderBuffers, Renderer, RendererRw, Texture,
+    TextureHandler, TextureHandlerRc, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, DEFAULT_HEIGHT,
+    DEFAULT_WIDTH,
 };
-
-#[derive(Default)]
-pub struct BindingDataBuffer {
-    pub buffers: RwLock<HashMap<BufferId, GpuBuffer>>,
-}
-
-pub type BindingDataBufferRc = Arc<BindingDataBuffer>;
-
-impl BindingDataBuffer {
-    pub fn has_buffer(&self, uid: &BufferId) -> bool {
-        self.buffers.read().unwrap().contains_key(uid)
-    }
-    pub fn bind_buffer<T>(
-        &self,
-        label: Option<&str>,
-        data: &mut T,
-        usage: wgpu::BufferUsages,
-        render_core_context: &RenderCoreContext,
-    ) -> (bool, BufferId)
-    where
-        T: AsBinding,
-    {
-        let mut bind_data_buffer = self.buffers.write().unwrap();
-        let buffer = bind_data_buffer
-            .entry(data.id())
-            .or_insert_with(GpuBuffer::default);
-        if data.is_dirty() {
-            buffer.bind(data.id(), label, data, usage, render_core_context)
-        } else {
-            (false, generate_id_from_address(buffer))
-        }
-    }
-}
 
 pub struct CommandBuffer {
     pub encoder: wgpu::CommandEncoder,

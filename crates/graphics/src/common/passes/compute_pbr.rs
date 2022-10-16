@@ -4,9 +4,9 @@ use crate::{
     AsBinding, BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
     ConstantDataRw, DrawCommandType, GpuBuffer, IndicesBuffer, LightsBuffer, MaterialsBuffer,
     MeshFlags, MeshesAABBsBuffer, MeshesBuffer, MeshletsBuffer, Pass, RenderContext,
-    RenderCoreContext, ShaderStage, Texture, TextureFormat, TextureId, TextureUsage,
+    RenderCoreContext, ShaderStage, Texture, TextureFormat, TextureId, TextureUsage, TextureView,
     TexturesBuffer, VertexColorsBuffer, VertexNormalsBuffer, VertexPositionsBuffer,
-    VertexUVsBuffer, VerticesBuffer, DEFAULT_HEIGHT, DEFAULT_WIDTH, TextureView,
+    VertexUVsBuffer, VerticesBuffer, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 use inox_core::ContextRc;
@@ -80,7 +80,7 @@ impl Pass for ComputePbrPass {
     fn mesh_flags(&self) -> MeshFlags {
         MeshFlags::None
     }
-    fn draw_command_type(&self) -> DrawCommandType {
+    fn draw_commands_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
     fn create(context: &ContextRc, render_context: &RenderContext) -> Self
@@ -113,7 +113,7 @@ impl Pass for ComputePbrPass {
             vertex_colors: render_context.render_buffers.vertex_colors.clone(),
             vertex_normals: render_context.render_buffers.vertex_normals.clone(),
             vertex_uvs: render_context.render_buffers.vertex_uvs.clone(),
-            binding_data: BindingData::new(render_context),
+            binding_data: BindingData::new(render_context, COMPUTE_PBR_PASS_NAME),
             visibility_buffer_id: INVALID_UID,
             data: ComputePbrPassData {
                 dimensions: [DEFAULT_WIDTH, DEFAULT_HEIGHT],
@@ -316,15 +316,14 @@ impl Pass for ComputePbrPass {
                     read_only: false,
                     ..Default::default()
                 },
-            )
-            .send_to_gpu(COMPUTE_PBR_PASS_NAME);
+            );
 
         let mut pass = self.compute_pass.get_mut();
-        pass.init(render_context, &self.binding_data);
+        pass.init(render_context, &mut self.binding_data);
     }
 
     fn update(
-        &self,
+        &mut self,
         render_context: &RenderContext,
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
@@ -351,7 +350,7 @@ impl Pass for ComputePbrPass {
             * ((self.data.dimensions[1] + max_cluster_size - 1) / max_cluster_size)
             / y_pixels_managed_in_shader;
 
-        let mut compute_pass = pass.begin(render_context, &self.binding_data, command_buffer);
+        let mut compute_pass = pass.begin(render_context, &mut self.binding_data, command_buffer);
         {
             inox_profiler::gpu_scoped_profile!(
                 &mut compute_pass,

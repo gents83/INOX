@@ -199,7 +199,7 @@ impl RenderPass {
     pub fn init(
         &mut self,
         render_context: &RenderContext,
-        binding_data: &BindingData,
+        binding_data: &mut BindingData,
         vertex_layout: Option<VertexBufferLayoutBuilder>,
         instance_layout: Option<VertexBufferLayoutBuilder>,
     ) {
@@ -221,6 +221,8 @@ impl RenderPass {
         }
 
         if let Some(pipeline) = &self.pipeline {
+            binding_data.set_bind_group_layout();
+
             pipeline.get_mut().init(
                 render_context,
                 render_formats,
@@ -253,7 +255,7 @@ impl RenderPass {
 
     pub fn begin<'a>(
         &'a self,
-        binding_data: &'a BindingData,
+        binding_data: &'a mut BindingData,
         pipeline: &'a RenderPipeline,
         render_pass_begin_data: RenderPassBeginData<'a>,
     ) -> wgpu::RenderPass<'a> {
@@ -332,6 +334,8 @@ impl RenderPass {
                 })
         };
         {
+            binding_data.set_bind_groups();
+
             binding_data
                 .bind_groups()
                 .iter()

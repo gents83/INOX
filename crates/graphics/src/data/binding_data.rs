@@ -1,7 +1,8 @@
 use std::num::NonZeroU32;
 
 use crate::{
-    platform::required_gpu_features, AsBinding, BufferId, RenderContext, ShaderStage, TextureId, MAX_TEXTURE_ATLAS_COUNT, RenderCoreContextRc, TextureHandlerRc, BindingDataBufferRc,
+    platform::required_gpu_features, AsBinding, BindingDataBufferRc, BufferId, RenderContext,
+    RenderCoreContextRc, ShaderStage, TextureHandlerRc, TextureId, MAX_TEXTURE_ATLAS_COUNT,
 };
 
 const DEBUG_BINDINGS: bool = false;
@@ -36,7 +37,7 @@ impl Default for BindingInfo {
 
 #[derive(Clone)]
 enum BindingType {
-    Buffer(usize, BufferId, BufferId),
+    Buffer(usize, BufferId),
     DefaultSampler(usize),
     Texture(usize, TextureId),
     TextureArray(usize, Box<[TextureId; MAX_TEXTURE_ATLAS_COUNT as usize]>),
@@ -52,12 +53,13 @@ pub struct BindingData {
     bind_group_layout_entries: Vec<Vec<wgpu::BindGroupLayoutEntry>>,
     vertex_buffers: Vec<BufferId>,
     index_buffer: Option<BufferId>,
+    pass_name: String,
     is_layout_changed: bool,
     is_data_changed: bool,
 }
 
 impl BindingData {
-    pub fn new(render_context: &RenderContext) -> Self {
+    pub fn new(render_context: &RenderContext, pass_name: &str) -> Self {
         Self {
             binding_data_buffer: render_context.binding_data_buffer.clone(),
             render_core_context: render_context.core.clone(),
@@ -70,6 +72,7 @@ impl BindingData {
             index_buffer: None,
             is_layout_changed: false,
             is_data_changed: false,
+            pass_name: pass_name.to_string(),
         }
     }
     pub fn bind_groups(&self) -> &[wgpu::BindGroup] {
@@ -100,15 +103,12 @@ impl BindingData {
 
         let usage =
             wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::VERTEX;
-        let (is_changed, _buffer_id) =
-            self.binding_data_buffer.bind_buffer(label, data, usage, &self.render_core_context);
+        let is_changed =
+            self.binding_data_buffer
+                .bind_buffer(label, data, usage, &self.render_core_context);
 
         if DEBUG_BINDINGS {
-            inox_log::debug_log!(
-                "Set VertexBuffer[{}] - Changed {:?}",
-                index,
-                is_changed
-            );
+            inox_log::debug_log!("Set VertexBuffer[{}] - Changed {:?}", index, is_changed);
         }
 
         if index <= self.vertex_buffers.len() {
@@ -118,11 +118,7 @@ impl BindingData {
 
         self
     }
-    pub fn set_index_buffer<T>(
-        &mut self,
-        data: &mut T,
-        label: Option<&str>,
-    ) -> &mut Self
+    pub fn set_index_buffer<T>(&mut self, data: &mut T, label: Option<&str>) -> &mut Self
     where
         T: AsBinding,
     {
@@ -130,8 +126,9 @@ impl BindingData {
 
         let usage =
             wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::INDEX;
-        let (is_changed, _buffer_id) =
-            self.binding_data_buffer.bind_buffer(label, data, usage, &self.render_core_context);
+        let is_changed =
+            self.binding_data_buffer
+                .bind_buffer(label, data, usage, &self.render_core_context);
 
         if DEBUG_BINDINGS {
             inox_log::debug_log!("Set IndexBuffer - Changed {:?}", is_changed);
@@ -166,8 +163,9 @@ impl BindingData {
             return self;
         }
         let usage = wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST;
-        let (is_changed, buffer_id) =
-            self.binding_data_buffer.bind_buffer(label, data, usage, &self.render_core_context);
+        let is_changed =
+            self.binding_data_buffer
+                .bind_buffer(label, data, usage, &self.render_core_context);
         self.is_data_changed |= is_changed;
 
         if DEBUG_BINDINGS {
@@ -175,20 +173,15 @@ impl BindingData {
                 "Add UniformBuffer[{}][{}] with {:?} - Changed {:?}",
                 info.group_index,
                 info.binding_index,
-                buffer_id,
+                data.id(),
                 is_changed
             );
         }
-        self.bind_uniform_buffer(data.id(), &buffer_id, info);
+        self.bind_uniform_buffer(data.id(), info);
         self
     }
 
-    fn bind_uniform_buffer(
-        &mut self,
-        data_id: BufferId,
-        buffer_id: &BufferId,
-        info: BindingInfo,
-    ) -> &mut Self {
+    fn bind_uniform_buffer(&mut self, data_id: BufferId, info: BindingInfo) -> &mut Self {
         inox_profiler::scoped_profile!("binding_data::bind_uniform_buffer");
 
         self.create_group_and_binding_index(info.group_index);
@@ -209,18 +202,14 @@ impl BindingData {
         }
 
         if info.binding_index >= self.binding_types[info.group_index].len() {
-            self.binding_types[info.group_index].push(BindingType::Buffer(
-                info.binding_index,
-                data_id,
-                *buffer_id,
-            ));
+            self.binding_types[info.group_index]
+                .push(BindingType::Buffer(info.binding_index, data_id));
             self.is_data_changed = true;
-        } else if let BindingType::Buffer(_, old_data_id, old_buffer_id) =
+        } else if let BindingType::Buffer(_, old_data_id) =
             &mut self.binding_types[info.group_index][info.binding_index]
         {
-            if *old_buffer_id != *buffer_id || *old_data_id != data_id {
+            if *old_data_id != data_id {
                 *old_data_id = data_id;
-                *old_buffer_id = *buffer_id;
                 self.is_data_changed = true;
             }
         }
@@ -258,8 +247,9 @@ impl BindingData {
         if info.is_vertex {
             usage |= wgpu::BufferUsages::VERTEX;
         }
-        let (is_changed, buffer_id) =
-            self.binding_data_buffer.bind_buffer(label, data, usage, &self.render_core_context);
+        let is_changed =
+            self.binding_data_buffer
+                .bind_buffer(label, data, usage, &self.render_core_context);
         self.is_data_changed |= is_changed;
 
         if DEBUG_BINDINGS {
@@ -267,21 +257,16 @@ impl BindingData {
                 "Add StorageBuffer[{}][{}] with {:?} - Changed {:?}",
                 info.group_index,
                 info.binding_index,
-                buffer_id,
+                data.id(),
                 is_changed
             );
         }
-        self.bind_storage_buffer(data.id(), &buffer_id, info);
+        self.bind_storage_buffer(data.id(), info);
 
         self
     }
 
-    fn bind_storage_buffer(
-        &mut self,
-        data_id: BufferId,
-        buffer_id: &BufferId,
-        info: BindingInfo,
-    ) -> &mut Self {
+    fn bind_storage_buffer(&mut self, data_id: BufferId, info: BindingInfo) -> &mut Self {
         inox_profiler::scoped_profile!("binding_data::bind_storage_buffer");
 
         self.create_group_and_binding_index(info.group_index);
@@ -304,18 +289,14 @@ impl BindingData {
         }
 
         if info.binding_index >= self.binding_types[info.group_index].len() {
-            self.binding_types[info.group_index].push(BindingType::Buffer(
-                info.binding_index,
-                data_id,
-                *buffer_id,
-            ));
+            self.binding_types[info.group_index]
+                .push(BindingType::Buffer(info.binding_index, data_id));
             self.is_data_changed = true;
-        } else if let BindingType::Buffer(_, old_data_id, old_buffer_id) =
+        } else if let BindingType::Buffer(_, old_data_id) =
             &mut self.binding_types[info.group_index][info.binding_index]
         {
-            if *old_buffer_id != *buffer_id || *old_data_id != data_id {
+            if *old_data_id != data_id {
                 *old_data_id = data_id;
-                *old_buffer_id = *buffer_id;
                 self.is_data_changed = true;
             }
         }
@@ -344,10 +325,7 @@ impl BindingData {
         self
     }
 
-    pub fn add_material_textures(
-        &mut self,
-        info: BindingInfo,
-    ) -> &mut Self {
+    pub fn add_material_textures(&mut self, info: BindingInfo) -> &mut Self {
         inox_profiler::scoped_profile!("binding_data::add_material_textures");
 
         self.create_group_and_binding_index(info.group_index);
@@ -356,7 +334,7 @@ impl BindingData {
         {
             let texture_atlas = self.texture_handler.textures_atlas();
             let num_textures = texture_atlas.len();
-    
+
             for i in 0..MAX_TEXTURE_ATLAS_COUNT as usize {
                 if i < num_textures {
                     textures[i] = *texture_atlas[i].texture_id();
@@ -435,11 +413,7 @@ impl BindingData {
         self
     }
 
-    pub fn add_texture(
-        &mut self,
-        texture_id: &TextureId,
-        info: BindingInfo,
-    ) -> &mut Self {
+    pub fn add_texture(&mut self, texture_id: &TextureId, info: BindingInfo) -> &mut Self {
         inox_profiler::scoped_profile!("binding_data::add_texture");
 
         self.create_group_and_binding_index(info.group_index);
@@ -492,7 +466,7 @@ impl BindingData {
                 if id != texture_id {
                     self.binding_types[info.group_index][info.binding_index] =
                         BindingType::Texture(info.binding_index, *texture_id);
-                        self.is_data_changed = true;
+                    self.is_data_changed = true;
                 }
             }
         }
@@ -508,25 +482,26 @@ impl BindingData {
         self
     }
 
-    pub fn send_to_gpu(&mut self, pass_name: &str) {
-        inox_profiler::scoped_profile!("binding_data::send_to_gpu");
+    pub fn set_bind_group_layout(&mut self) {
+        inox_profiler::scoped_profile!("binding_data::bind_group_layout");
 
         if DEBUG_BINDINGS {
-            inox_log::debug_log!("Sending to gpu BindingData of {}", pass_name);
+            inox_log::debug_log!("BindGroupLauout of {}", self.pass_name);
         }
 
-        if self.is_data_changed || self.is_layout_changed {
+        if self.is_layout_changed {
             self.bind_group_layout.clear();
             self.bind_group_layout_entries.iter().enumerate().for_each(
                 |(index, bind_group_layout_entry)| {
                     inox_profiler::scoped_profile!(
                         "binding_data::create_{}_bind_group_layout_{}",
-                        pass_name,
+                        self.pass_name,
                         index
                     );
-                    let label = format!("{} bind group layout {}", pass_name, index);
+                    let label = format!("{} bind group layout {}", self.pass_name, index);
 
-                    let data_bind_group_layout = self.render_core_context
+                    let data_bind_group_layout = self
+                        .render_core_context
                         .device
                         .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                             entries: bind_group_layout_entry.as_slice(),
@@ -537,6 +512,27 @@ impl BindingData {
             );
             self.is_layout_changed = false;
         }
+    }
+
+    pub fn set_bind_groups(&mut self) {
+        inox_profiler::scoped_profile!("binding_data::bind_groups");
+
+        if DEBUG_BINDINGS {
+            inox_log::debug_log!("BindGroups of {}", self.pass_name);
+        }
+
+        if !self.is_data_changed {
+            self.binding_types
+                .iter()
+                .enumerate()
+                .for_each(|(_, binding_type_array)| {
+                    binding_type_array.iter().for_each(|binding_type| {
+                        if let BindingType::Buffer(_, buffer_id) = binding_type {
+                            self.is_data_changed |= self.binding_data_buffer.is_changed(buffer_id);
+                        }
+                    });
+                });
+        }
 
         if self.is_data_changed {
             let render_targets = self.texture_handler.render_targets();
@@ -546,18 +542,21 @@ impl BindingData {
                 .iter()
                 .enumerate()
                 .for_each(|(group_index, binding_type_array)| {
-                    let label = format!("{} bind group {}", pass_name, group_index);
-    
+                    let label = format!("{} bind group {}", self.pass_name, group_index);
+
                     let mut textures_view = Vec::new();
                     binding_type_array.iter().for_each(|binding_type| {
                         if let BindingType::TextureArray(_, textures) = binding_type {
                             textures.iter().for_each(|id| {
-                                if let Some(texture) = texture_atlas.iter().find(|t| t.texture_id() == id) {
+                                if let Some(texture) =
+                                    texture_atlas.iter().find(|t| t.texture_id() == id)
+                                {
                                     textures_view.push(texture.texture_view().as_wgpu());
                                 }
-                                if let Some(texture) = render_targets.iter().find(|t| t.id() == id) {
+                                if let Some(texture) = render_targets.iter().find(|t| t.id() == id)
+                                {
                                     textures_view.push(texture.view().as_wgpu());
-                                }                                
+                                }
                             });
                         }
                     });
@@ -566,39 +565,39 @@ impl BindingData {
                     binding_type_array
                         .iter()
                         .for_each(|binding_type| match binding_type {
-                            BindingType::Buffer(binding_index, data_id, buffer_id) => {
+                            BindingType::Buffer(binding_index, data_id) => {
                                 if DEBUG_BINDINGS {
                                     inox_log::debug_log!(
-                                        "Binding Buffer[{}][{}] = {:?} with {:?}",
+                                        "Binding Buffer[{}][{}] = {:?}",
                                         group_index,
                                         binding_index,
-                                        data_id,
-                                        buffer_id
+                                        data_id
                                     );
                                 }
                                 if let Some(buffer) = bind_data_buffer.get(data_id) {
                                     if buffer.gpu_buffer().is_some() && buffer.size() != 0 {
                                         let entry = wgpu::BindGroupEntry {
                                             binding: *binding_index as _,
-                                            resource: buffer.gpu_buffer().unwrap().as_entire_binding(),
+                                            resource: buffer
+                                                .gpu_buffer()
+                                                .unwrap()
+                                                .as_entire_binding(),
                                         };
                                         bind_group.push(entry);
                                     } else if DEBUG_BINDINGS {
                                         inox_log::debug_log!(
-                                            "Binding Buffer[{}][{}] = {:?} with {:?} but buffer is empty",
+                                            "Binding Buffer[{}][{}] = {:?} but buffer is empty",
                                             group_index,
                                             binding_index,
-                                            data_id,
-                                            buffer_id
+                                            data_id
                                         );
                                     }
                                 } else if DEBUG_BINDINGS {
                                     inox_log::debug_log!(
-                                        "Binding Buffer[{}][{}] = {:?} with {:?} but buffer is not found",
+                                        "Binding Buffer[{}][{}] = {:?} but buffer is not found",
                                         group_index,
                                         binding_index,
-                                        data_id,
-                                        buffer_id
+                                        data_id
                                     );
                                 }
                             }
@@ -626,12 +625,13 @@ impl BindingData {
                                         id
                                     );
                                 }
-                                if let Some(texture) =
-                                    render_targets.iter().find(|t| t.id() == id)
+                                if let Some(texture) = render_targets.iter().find(|t| t.id() == id)
                                 {
                                     bind_group.push(wgpu::BindGroupEntry {
                                         binding: *binding_index as _,
-                                        resource: wgpu::BindingResource::TextureView(texture.view().as_wgpu()),
+                                        resource: wgpu::BindingResource::TextureView(
+                                            texture.view().as_wgpu(),
+                                        ),
                                     });
                                 }
                             }
@@ -665,22 +665,21 @@ impl BindingData {
                                 }
                             }
                         });
-                        {
-                            inox_profiler::scoped_profile!(
-                                "binding_data::create_{}_bind_group_{}",
-                                pass_name,
-                                group_index
-                            );
-                            let data_bind_group =
-                                self.render_core_context
-                                    .device
-                                    .create_bind_group(&wgpu::BindGroupDescriptor {
-                                        layout: &self.bind_group_layout[group_index],
-                                        entries: bind_group.as_slice(),
-                                        label: Some(label.as_str()),
-                                    });
-                            self.bind_group.push(data_bind_group);
-                        }
+                    {
+                        inox_profiler::scoped_profile!(
+                            "binding_data::create_{}_bind_group_{}",
+                            self.pass_name,
+                            group_index
+                        );
+                        let data_bind_group = self.render_core_context.device.create_bind_group(
+                            &wgpu::BindGroupDescriptor {
+                                layout: &self.bind_group_layout[group_index],
+                                entries: bind_group.as_slice(),
+                                label: Some(label.as_str()),
+                            },
+                        );
+                        self.bind_group.push(data_bind_group);
+                    }
                 });
             self.is_data_changed = false;
         }

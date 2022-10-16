@@ -9,14 +9,14 @@ pub trait Pass: Downcast + Send + Sync + 'static {
     where
         Self: Sized;
     fn is_active(&self, render_context: &RenderContext) -> bool;
-    fn draw_command_type(&self) -> DrawCommandType;
+    fn draw_commands_type(&self) -> DrawCommandType;
     fn mesh_flags(&self) -> MeshFlags;
     fn create(context: &ContextRc, render_context: &RenderContext) -> Self
     where
         Self: Sized;
     fn init(&mut self, render_context: &RenderContext);
     fn update(
-        &self,
+        &mut self,
         render_context: &RenderContext,
         surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,

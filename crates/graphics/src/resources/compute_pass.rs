@@ -82,8 +82,9 @@ impl ComputePass {
         self
     }
 
-    pub fn init(&mut self, render_context: &RenderContext, binding_data: &BindingData) {
+    pub fn init(&mut self, render_context: &RenderContext, binding_data: &mut BindingData) {
         let mut is_initialized = false;
+        binding_data.set_bind_group_layout();
         self.pipelines.iter().for_each(|pipeline| {
             is_initialized |= pipeline.get_mut().init(render_context, binding_data);
         });
@@ -93,7 +94,7 @@ impl ComputePass {
     pub fn begin<'a>(
         &'a self,
         render_context: &RenderContext,
-        binding_data: &'a BindingData,
+        binding_data: &'a mut BindingData,
         command_buffer: &'a mut CommandBuffer,
     ) -> wgpu::ComputePass<'a> {
         let label = format!("ComputePass {}", self.name);
@@ -109,6 +110,8 @@ impl ComputePass {
                     label: Some(label.as_str()),
                 })
         };
+
+        binding_data.set_bind_groups();
 
         binding_data
             .bind_groups()

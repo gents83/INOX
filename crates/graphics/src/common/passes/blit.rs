@@ -34,7 +34,7 @@ impl Pass for BlitPass {
     fn mesh_flags(&self) -> MeshFlags {
         MeshFlags::None
     }
-    fn draw_command_type(&self) -> DrawCommandType {
+    fn draw_commands_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
     fn create(context: &ContextRc, render_context: &RenderContext) -> Self
@@ -60,7 +60,7 @@ impl Pass for BlitPass {
                 &data,
                 None,
             ),
-            binding_data: BindingData::new(render_context),
+            binding_data: BindingData::new(render_context, BLIT_PASS_NAME),
             source_texture_id: INVALID_UID,
         }
     }
@@ -73,22 +73,20 @@ impl Pass for BlitPass {
 
         let mut pass = self.render_pass.get_mut();
 
-        self.binding_data
-            .add_texture(
-                &self.source_texture_id,
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 0,
-                    stage: ShaderStage::Fragment,
-                    ..Default::default()
-                },
-            )
-            .send_to_gpu(BLIT_PASS_NAME);
+        self.binding_data.add_texture(
+            &self.source_texture_id,
+            BindingInfo {
+                group_index: 0,
+                binding_index: 0,
+                stage: ShaderStage::Fragment,
+                ..Default::default()
+            },
+        );
 
-        pass.init(render_context, &self.binding_data, None, None);
+        pass.init(render_context, &mut self.binding_data, None, None);
     }
     fn update(
-        &self,
+        &mut self,
         render_context: &RenderContext,
         surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
@@ -114,7 +112,7 @@ impl Pass for BlitPass {
             surface_view,
             command_buffer,
         };
-        let mut render_pass = pass.begin(&self.binding_data, &pipeline, render_pass_begin_data);
+        let mut render_pass = pass.begin(&mut self.binding_data, &pipeline, render_pass_begin_data);
         {
             inox_profiler::gpu_scoped_profile!(
                 &mut render_pass,

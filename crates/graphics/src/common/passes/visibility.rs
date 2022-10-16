@@ -4,7 +4,7 @@ use crate::{
     BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, DrawVertex,
     IndicesBuffer, MeshFlags, MeshesAABBsBuffer, MeshesBuffer, MeshletsBuffer, Pass, RenderContext,
     RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
-    VertexPositionsBuffer, VerticesBuffer, TextureView,
+    TextureView, VertexPositionsBuffer, VerticesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -36,12 +36,12 @@ impl Pass for VisibilityBufferPass {
         VISIBILITY_BUFFER_PASS_NAME
     }
     fn is_active(&self, render_context: &RenderContext) -> bool {
-        render_context.has_commands(&self.draw_command_type(), &self.mesh_flags())
+        render_context.has_commands(&self.draw_commands_type(), &self.mesh_flags())
     }
     fn mesh_flags(&self) -> MeshFlags {
         MeshFlags::Visible | MeshFlags::Opaque
     }
-    fn draw_command_type(&self) -> DrawCommandType {
+    fn draw_commands_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
     fn create(context: &ContextRc, render_context: &RenderContext) -> Self
@@ -74,7 +74,7 @@ impl Pass for VisibilityBufferPass {
             vertices: render_context.render_buffers.vertices.clone(),
             indices: render_context.render_buffers.indices.clone(),
             vertex_positions: render_context.render_buffers.vertex_positions.clone(),
-            binding_data: BindingData::new(render_context),
+            binding_data: BindingData::new(render_context, VISIBILITY_BUFFER_PASS_NAME),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -138,19 +138,18 @@ impl Pass for VisibilityBufferPass {
                 },
             )
             .set_vertex_buffer(0, &mut *self.vertices.write().unwrap(), Some("Vertices"))
-            .set_index_buffer(&mut *self.indices.write().unwrap(), Some("Indices"))
-            .send_to_gpu(VISIBILITY_BUFFER_PASS_NAME);
+            .set_index_buffer(&mut *self.indices.write().unwrap(), Some("Indices"));
 
         let vertex_layout = DrawVertex::descriptor(0);
         pass.init(
             render_context,
-            &self.binding_data,
+            &mut self.binding_data,
             Some(vertex_layout),
             None,
         );
     }
     fn update(
-        &self,
+        &mut self,
         render_context: &RenderContext,
         surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
@@ -164,6 +163,7 @@ impl Pass for VisibilityBufferPass {
         }
         let buffers = render_context.buffers();
         let render_targets = render_context.texture_handler.render_targets();
+        let draw_commands_type = self.draw_commands_type();
 
         let render_pass_begin_data = RenderPassBeginData {
             render_core_context: &render_context.core,
@@ -172,19 +172,14 @@ impl Pass for VisibilityBufferPass {
             surface_view,
             command_buffer,
         };
-        let mut render_pass = pass.begin(&self.binding_data, &pipeline, render_pass_begin_data);
+        let mut render_pass = pass.begin(&mut self.binding_data, &pipeline, render_pass_begin_data);
         {
             inox_profiler::gpu_scoped_profile!(
                 &mut render_pass,
                 &render_context.core.device,
                 "visibility_pass",
             );
-            pass.indirect_indexed_draw(
-                render_context,
-                &buffers,
-                self.draw_command_type(),
-                render_pass,
-            );
+            pass.indirect_indexed_draw(render_context, &buffers, draw_commands_type, render_pass);
         }
     }
 }

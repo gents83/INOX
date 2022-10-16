@@ -106,7 +106,7 @@ impl Pass for UIPass {
     fn mesh_flags(&self) -> MeshFlags {
         MeshFlags::Visible | MeshFlags::Custom
     }
-    fn draw_command_type(&self) -> DrawCommandType {
+    fn draw_commands_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
     fn create(context: &ContextRc, render_context: &RenderContext) -> Self
@@ -132,7 +132,7 @@ impl Pass for UIPass {
             ),
             constant_data: render_context.constant_data.clone(),
             textures: render_context.render_buffers.textures.clone(),
-            binding_data: BindingData::new(render_context),
+            binding_data: BindingData::new(render_context, UI_PASS_NAME),
             custom_data: UIPassData {
                 ui_scale: 2.,
                 is_dirty: true,
@@ -204,20 +204,19 @@ impl Pass for UIPass {
             })
             .set_vertex_buffer(0, &mut self.vertices, Some("UIVertices"))
             .set_vertex_buffer(1, &mut self.instances, Some("UIInstances"))
-            .set_index_buffer(&mut self.indices, Some("UIIndices"))
-            .send_to_gpu(UI_PASS_NAME);
+            .set_index_buffer(&mut self.indices, Some("UIIndices"));
 
         let vertex_layout = UIVertex::descriptor(0);
         let instance_layout = UIInstance::descriptor(vertex_layout.location());
         pass.init(
             render_context,
-            &self.binding_data,
+            &mut self.binding_data,
             Some(vertex_layout),
             Some(instance_layout),
         );
     }
     fn update(
-        &self,
+        &mut self,
         render_context: &RenderContext,
         surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
@@ -247,7 +246,7 @@ impl Pass for UIPass {
             surface_view,
             command_buffer,
         };
-        let mut render_pass = pass.begin(&self.binding_data, &pipeline, render_pass_begin_data);
+        let mut render_pass = pass.begin(&mut self.binding_data, &pipeline, render_pass_begin_data);
         {
             inox_profiler::gpu_scoped_profile!(
                 &mut render_pass,

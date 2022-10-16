@@ -9,7 +9,7 @@ use inox_messenger::MessageHubRc;
 use inox_platform::Handle;
 use inox_resources::{ResourceTrait, SharedData, SharedDataRc};
 
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 pub const DEFAULT_WIDTH: u32 = 1920;
 pub const DEFAULT_HEIGHT: u32 = 1080;
@@ -92,9 +92,6 @@ impl Renderer {
     }
     pub fn render_context(&self) -> RwLockReadGuard<RenderContext> {
         self.render_context.as_ref().unwrap().read().unwrap()
-    }
-    fn render_context_mut(&self) -> RwLockWriteGuard<RenderContext> {
-        self.render_context.as_ref().unwrap().write().unwrap()
     }
     pub fn num_passes(&self) -> usize {
         self.passes.len()
@@ -286,12 +283,13 @@ impl Renderer {
         inox_profiler::scoped_profile!("renderer::update_passes");
         if let Some(surface_view) = &self.surface_view {
             if let Some(mut command_buffer) = self.command_buffer.take() {
-                let render_context: &mut RenderContext = &mut self.render_context_mut();
-                self.passes.iter().for_each(|(pass, is_enabled)| {
-                    if *is_enabled && pass.is_active(render_context) {
-                        pass.update(render_context, surface_view, &mut command_buffer);
+                let render_context = self.render_context.as_ref().unwrap().read().unwrap();
+                self.passes.iter_mut().for_each(|(pass, is_enabled)| {
+                    if *is_enabled && pass.is_active(&render_context) {
+                        pass.update(&render_context, surface_view, &mut command_buffer);
                     }
                 });
+                render_context.binding_data_buffer.reset_buffers_changed();
                 {
                     inox_profiler::gpu_profiler_pre_submit!(&mut command_buffer.encoder);
                     render_context.core.submit(command_buffer);

@@ -4,7 +4,7 @@ use crate::{
     BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, LightsBuffer,
     MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderPass,
     RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation, TextureId,
-    TexturesBuffer, TextureView,
+    TextureView, TexturesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -37,12 +37,12 @@ impl Pass for PBRPass {
         PBR_PASS_NAME
     }
     fn is_active(&self, render_context: &RenderContext) -> bool {
-        render_context.has_commands(&self.draw_command_type(), &self.mesh_flags())
+        render_context.has_commands(&self.draw_commands_type(), &self.mesh_flags())
     }
     fn mesh_flags(&self) -> MeshFlags {
         MeshFlags::Visible | MeshFlags::Opaque
     }
-    fn draw_command_type(&self) -> DrawCommandType {
+    fn draw_commands_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
     fn create(context: &ContextRc, render_context: &RenderContext) -> Self
@@ -74,7 +74,7 @@ impl Pass for PBRPass {
             lights: render_context.render_buffers.lights.clone(),
             meshes: render_context.render_buffers.meshes.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
-            binding_data: BindingData::new(render_context),
+            binding_data: BindingData::new(render_context, PBR_PASS_NAME),
             gbuffer_textures: Vec::new(),
             depth_texture: INVALID_UID,
         }
@@ -193,13 +193,12 @@ impl Pass for PBRPass {
                 binding_index: 1,
                 stage: ShaderStage::Fragment,
                 ..Default::default()
-            })
-            .send_to_gpu(PBR_PASS_NAME);
+            });
 
-        pass.init(render_context, &self.binding_data, None, None);
+        pass.init(render_context, &mut self.binding_data, None, None);
     }
     fn update(
-        &self,
+        &mut self,
         render_context: &RenderContext,
         surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
@@ -231,7 +230,7 @@ impl Pass for PBRPass {
             surface_view,
             command_buffer,
         };
-        let mut render_pass = pass.begin(&self.binding_data, &pipeline, render_pass_begin_data);
+        let mut render_pass = pass.begin(&mut self.binding_data, &pipeline, render_pass_begin_data);
         {
             inox_profiler::gpu_scoped_profile!(
                 &mut render_pass,

@@ -93,12 +93,12 @@ impl Pass for CullingPass {
         CULLING_PASS_NAME
     }
     fn is_active(&self, render_context: &RenderContext) -> bool {
-        render_context.has_commands(&self.draw_command_type(), &self.mesh_flags())
+        render_context.has_commands(&self.draw_commands_type(), &self.mesh_flags())
     }
     fn mesh_flags(&self) -> MeshFlags {
         MeshFlags::Visible | MeshFlags::Opaque
     }
-    fn draw_command_type(&self) -> DrawCommandType {
+    fn draw_commands_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
     fn create(context: &ContextRc, render_context: &RenderContext) -> Self
@@ -137,7 +137,7 @@ impl Pass for CullingPass {
             meshes: render_context.render_buffers.meshes.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
             meshlets_aabb: render_context.render_buffers.meshlets_aabb.clone(),
-            binding_data: BindingData::new(render_context),
+            binding_data: BindingData::new(render_context, CULLING_PASS_NAME),
             culling_data: CullingData::default(),
             visible_draw_data: VecVisibleDrawData::default(),
             listener,
@@ -162,7 +162,7 @@ impl Pass for CullingPass {
         }
 
         let mesh_flags = self.mesh_flags();
-        let draw_command_type = self.draw_command_type();
+        let draw_command_type = self.draw_commands_type();
 
         if let Some(commands) = self.commands.write().unwrap().get_mut(&mesh_flags) {
             let commands = commands.map.get_mut(&draw_command_type).unwrap();
@@ -264,19 +264,18 @@ impl Pass for CullingPass {
                         is_indirect: true,
                         ..Default::default()
                     },
-                )
-                .send_to_gpu(CULLING_PASS_NAME);
+                );
 
             let mut pass = self.compute_pass.get_mut();
-            pass.init(render_context, &self.binding_data);
+            pass.init(render_context, &mut self.binding_data);
 
             let mut pass = self.compact_pass.get_mut();
-            pass.init(render_context, &self.binding_data);
+            pass.init(render_context, &mut self.binding_data);
         }
     }
 
     fn update(
-        &self,
+        &mut self,
         render_context: &RenderContext,
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
@@ -289,14 +288,15 @@ impl Pass for CullingPass {
         let mesh_flags = self.mesh_flags();
 
         if let Some(commands) = self.commands.write().unwrap().get_mut(&mesh_flags) {
-            let commands = commands.map.get(&self.draw_command_type()).unwrap();
+            let commands = commands.map.get(&self.draw_commands_type()).unwrap();
             if commands.commands.is_empty() {
                 return;
             }
             let count = (num_meshlets as u32 + NUM_COMMANDS_PER_GROUP - 1) / NUM_COMMANDS_PER_GROUP;
 
             let pass = self.compute_pass.get();
-            let mut compute_pass = pass.begin(render_context, &self.binding_data, command_buffer);
+            let mut compute_pass =
+                pass.begin(render_context, &mut self.binding_data, command_buffer);
             {
                 inox_profiler::gpu_scoped_profile!(
                     &mut compute_pass,
@@ -307,7 +307,8 @@ impl Pass for CullingPass {
             }
 
             let pass = self.compact_pass.get();
-            let mut compact_pass = pass.begin(render_context, &self.binding_data, command_buffer);
+            let mut compact_pass =
+                pass.begin(render_context, &mut self.binding_data, command_buffer);
             {
                 inox_profiler::gpu_scoped_profile!(
                     &mut compact_pass,
