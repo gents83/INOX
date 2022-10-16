@@ -42,11 +42,30 @@ impl Gfx {
             {
                 let renderer = self.renderer.read().unwrap();
                 let render_context = renderer.render_context();
-                let render_context = render_context.read().unwrap();
-                data.vertices_count = render_context.render_buffers.vertices.item_count();
-                data.indices_count = render_context.render_buffers.indices.item_count();
-                data.meshes_count = render_context.render_buffers.meshes.item_count();
-                data.meshlets_count = render_context.render_buffers.meshlets.item_count();
+                data.vertices_count = render_context
+                    .render_buffers
+                    .vertices
+                    .read()
+                    .unwrap()
+                    .item_count();
+                data.indices_count = render_context
+                    .render_buffers
+                    .indices
+                    .read()
+                    .unwrap()
+                    .item_count();
+                data.meshes_count = render_context
+                    .render_buffers
+                    .meshes
+                    .read()
+                    .unwrap()
+                    .item_count();
+                data.meshlets_count = render_context
+                    .render_buffers
+                    .meshlets
+                    .read()
+                    .unwrap()
+                    .item_count();
             }
 
             if data.passes.is_empty() {

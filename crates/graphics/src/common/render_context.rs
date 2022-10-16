@@ -8,43 +8,12 @@ use inox_platform::Handle;
 use inox_resources::Resource;
 
 use crate::{
-    generate_id_from_address,
     platform::{platform_limits, required_gpu_features},
-    AsBinding, BufferId, ConstantData, DrawCommandType, GpuBuffer, MeshFlags, RenderBuffers,
-    RenderPass, RendererRw, Texture, TextureFormat, TextureHandler,
-    CONSTANT_DATA_FLAGS_SUPPORT_SRGB, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    BindingDataBuffer, BindingDataBufferRc, BufferId, ConstantData, ConstantDataRw,
+    DrawCommandType, GpuBuffer, MeshFlags, RenderBuffers, Renderer, RendererRw, Texture,
+    TextureHandler, TextureHandlerRc, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, DEFAULT_HEIGHT,
+    DEFAULT_WIDTH,
 };
-
-#[derive(Default)]
-pub struct BindingDataBuffer {
-    pub buffers: RwLock<HashMap<BufferId, GpuBuffer>>,
-}
-
-impl BindingDataBuffer {
-    pub fn has_buffer(&self, uid: &BufferId) -> bool {
-        self.buffers.read().unwrap().contains_key(uid)
-    }
-    pub fn bind_buffer<T>(
-        &self,
-        label: Option<&str>,
-        data: &mut T,
-        usage: wgpu::BufferUsages,
-        render_core_context: &RenderCoreContext,
-    ) -> (bool, BufferId)
-    where
-        T: AsBinding,
-    {
-        let mut bind_data_buffer = self.buffers.write().unwrap();
-        let buffer = bind_data_buffer
-            .entry(data.id())
-            .or_insert_with(GpuBuffer::default);
-        if data.is_dirty() {
-            buffer.bind(data.id(), label, data, usage, render_core_context)
-        } else {
-            (false, generate_id_from_address(buffer))
-        }
-    }
-}
 
 pub struct CommandBuffer {
     pub encoder: wgpu::CommandEncoder,
@@ -53,11 +22,13 @@ pub struct CommandBuffer {
 pub struct RenderCoreContext {
     pub instance: wgpu::Instance,
     pub surface: wgpu::Surface,
-    pub config: wgpu::SurfaceConfiguration,
     pub adapter: wgpu::Adapter,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
+    pub config: RwLock<wgpu::SurfaceConfiguration>,
 }
+
+pub type RenderCoreContextRc = Arc<RenderCoreContext>;
 
 impl RenderCoreContext {
     pub fn new_command_buffer(&self) -> CommandBuffer {
@@ -75,33 +46,33 @@ impl RenderCoreContext {
         let command_buffer = command_buffer.encoder.finish();
         self.queue.submit(std::iter::once(command_buffer));
     }
-    pub fn set_surface_size(&mut self, width: u32, height: u32) {
-        self.config.width = width;
-        self.config.height = height;
+    pub fn set_surface_size(&self, width: u32, height: u32) {
+        self.config.write().unwrap().width = width;
+        self.config.write().unwrap().height = height;
         inox_log::debug_log!("Surface size: {}x{}", width, height);
     }
-    pub fn configure(&mut self) {
+    pub fn configure(&self) {
         inox_profiler::scoped_profile!("render_context::configure");
-        self.surface.configure(&self.device, &self.config);
+        self.surface
+            .configure(&self.device, &self.config.read().unwrap());
     }
 }
 
 pub struct RenderContext {
-    pub core: RenderCoreContext,
-    pub frame_commands: Option<wgpu::CommandEncoder>,
-    pub surface_texture: Option<wgpu::SurfaceTexture>,
-    pub surface_view: Option<wgpu::TextureView>,
-    pub command_buffer: Option<CommandBuffer>,
-    pub constant_data: ConstantData,
-    pub texture_handler: TextureHandler,
-    pub binding_data_buffer: BindingDataBuffer,
+    pub core: RenderCoreContextRc,
+    pub texture_handler: TextureHandlerRc,
+    pub binding_data_buffer: BindingDataBufferRc,
     pub render_buffers: RenderBuffers,
+    pub constant_data: ConstantDataRw,
 }
 
 pub type RenderContextRw = Arc<RwLock<RenderContext>>;
 
 impl RenderContext {
-    pub async fn create_render_context(handle: Handle, renderer: RendererRw) {
+    pub async fn create_render_context<F>(handle: Handle, renderer: RendererRw, on_create_func: F)
+    where
+        F: FnOnce(&mut Renderer),
+    {
         inox_profiler::scoped_profile!("render_context::create_render_context");
 
         let (instance, surface, adapter, device, queue) = {
@@ -181,36 +152,42 @@ impl RenderContext {
         let render_core_context = RenderCoreContext {
             instance,
             surface,
-            config,
             adapter,
             device,
             queue,
+            config: RwLock::new(config),
         };
 
         renderer
             .write()
             .unwrap()
             .set_render_context(Arc::new(RwLock::new(RenderContext {
-                texture_handler: TextureHandler::create(&render_core_context.device),
-                core: render_core_context,
-                frame_commands: None,
-                surface_texture: None,
-                surface_view: None,
-                command_buffer: None,
-                constant_data: ConstantData::default(),
-                binding_data_buffer: BindingDataBuffer::default(),
+                texture_handler: Arc::new(TextureHandler::create(&render_core_context.device)),
+                core: Arc::new(render_core_context),
+                constant_data: Arc::new(RwLock::new(ConstantData::default())),
+                binding_data_buffer: Arc::new(BindingDataBuffer::default()),
                 render_buffers: RenderBuffers::default(),
             })));
+
+        let mut renderer = renderer.write().unwrap();
+        on_create_func(&mut renderer);
     }
 
-    pub fn update_constant_data(&mut self, view: Matrix4, proj: Matrix4, screen_size: Vector2) {
+    pub fn update_constant_data(&self, view: Matrix4, proj: Matrix4, screen_size: Vector2) {
         inox_profiler::scoped_profile!("render_context::update_constant_data");
-        self.constant_data.update(view, proj, screen_size);
-        if self.core.config.format.describe().srgb {
+        self.constant_data
+            .write()
+            .unwrap()
+            .update(view, proj, screen_size);
+        if self.core.config.read().unwrap().format.describe().srgb {
             self.constant_data
+                .write()
+                .unwrap()
                 .add_flag(CONSTANT_DATA_FLAGS_SUPPORT_SRGB);
         } else {
             self.constant_data
+                .write()
+                .unwrap()
                 .remove_flag(CONSTANT_DATA_FLAGS_SUPPORT_SRGB);
         }
     }
@@ -219,6 +196,8 @@ impl RenderContext {
         let mesh_flags: u32 = flags.into();
         self.render_buffers
             .meshes
+            .read()
+            .unwrap()
             .data()
             .iter()
             .any(|m| m.mesh_flags == mesh_flags)
@@ -229,7 +208,7 @@ impl RenderContext {
         draw_command_type: &DrawCommandType,
         mesh_flags: &MeshFlags,
     ) -> bool {
-        if let Some(commands) = self.render_buffers.commands.get(mesh_flags) {
+        if let Some(commands) = self.render_buffers.commands.read().unwrap().get(mesh_flags) {
             if let Some(entry) = commands.map.get(draw_command_type) {
                 return !entry.commands.is_empty();
             }
@@ -238,7 +217,8 @@ impl RenderContext {
     }
 
     pub fn resolution(&self) -> (u32, u32) {
-        (self.core.config.width, self.core.config.height)
+        let config = self.core.config.read().unwrap();
+        (config.width, config.height)
     }
 
     pub fn buffers(&self) -> RwLockReadGuard<HashMap<BufferId, GpuBuffer>> {
@@ -247,53 +227,6 @@ impl RenderContext {
 
     pub fn buffers_mut(&mut self) -> RwLockWriteGuard<HashMap<BufferId, GpuBuffer>> {
         self.binding_data_buffer.buffers.write().unwrap()
-    }
-
-    pub fn render_targets<'a>(&'a self, render_pass: &'a RenderPass) -> Vec<&'a wgpu::TextureView> {
-        let mut render_targets = Vec::new();
-        let render_textures = render_pass.render_textures_id();
-        if render_textures.is_empty() {
-            debug_assert!(self.surface_view.is_some());
-            render_targets.push(self.surface_view.as_ref().unwrap());
-        } else {
-            render_textures.iter().for_each(|&id| {
-                if let Some(texture_view) = self.texture_handler.texture_view(id) {
-                    render_targets.push(texture_view);
-                }
-            });
-        }
-        render_targets
-    }
-
-    pub fn depth_target<'a>(
-        &'a self,
-        render_pass: &'a RenderPass,
-    ) -> Option<&'a wgpu::TextureView> {
-        if let Some(texture) = render_pass.depth_texture() {
-            if let Some(texture_view) = self.texture_handler.texture_view(texture.id()) {
-                return Some(texture_view);
-            }
-        }
-        None
-    }
-
-    pub fn render_formats(&self, render_pass: &RenderPass) -> Vec<&TextureFormat> {
-        let mut render_formats = Vec::new();
-        let render_textures = render_pass.render_textures_id();
-        render_textures.iter().for_each(|&id| {
-            if let Some(format) = self.texture_handler.texture_format(id) {
-                render_formats.push(format);
-            }
-        });
-        render_formats
-    }
-
-    pub fn depth_format(&self, render_pass: &RenderPass) -> Option<&TextureFormat> {
-        if let Some(texture) = render_pass.depth_texture() {
-            self.texture_handler.texture_format(texture.id())
-        } else {
-            None
-        }
     }
 
     pub fn add_image(

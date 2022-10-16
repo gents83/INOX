@@ -2,7 +2,7 @@ use std::sync::atomic::AtomicBool;
 
 use inox_resources::to_slice;
 
-use crate::{generate_id_from_address, AsBinding, BufferId, RenderCoreContext};
+use crate::{AsBinding, RenderCoreContext};
 
 pub struct GpuBuffer {
     gpu_buffer: Option<wgpu::Buffer>,
@@ -137,27 +137,25 @@ impl GpuBuffer {
 
     pub fn bind<T>(
         &mut self,
-        id: BufferId,
         label: Option<&str>,
         data: &mut T,
         usage: wgpu::BufferUsages,
         render_core_context: &RenderCoreContext,
-    ) -> (bool, BufferId)
+    ) -> bool
     where
         T: AsBinding,
     {
         inox_profiler::scoped_profile!("GpuBuffer::bind({})", &self.name);
-
         let name = if let Some(name) = label {
             name.to_string()
         } else {
+            let id = data.id();
             format!("{}[{}]", std::any::type_name::<T>(), id)
         };
         let is_changed = self.init(render_core_context, data.size(), usage, name.as_str());
         data.fill_buffer(render_core_context, self);
         data.set_dirty(false);
-        let buffer_id = generate_id_from_address(self.gpu_buffer().unwrap());
-        (is_changed, buffer_id)
+        is_changed
     }
     pub fn read_from_gpu(&self, render_core_context: &RenderCoreContext) -> Option<Vec<u8>> {
         if self.size == 0 {

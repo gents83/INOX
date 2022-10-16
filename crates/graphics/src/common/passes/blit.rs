@@ -2,7 +2,8 @@ use std::path::PathBuf;
 
 use crate::{
     BindingData, BindingInfo, CommandBuffer, DrawCommandType, MeshFlags, Pass, RenderContext,
-    RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation, TextureId,
+    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
+    TextureId, TextureView,
 };
 
 use inox_core::ContextRc;
@@ -33,10 +34,10 @@ impl Pass for BlitPass {
     fn mesh_flags(&self) -> MeshFlags {
         MeshFlags::None
     }
-    fn draw_command_type(&self) -> DrawCommandType {
+    fn draw_commands_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
-    fn create(context: &ContextRc) -> Self
+    fn create(context: &ContextRc, render_context: &RenderContext) -> Self
     where
         Self: Sized,
     {
@@ -59,21 +60,20 @@ impl Pass for BlitPass {
                 &data,
                 None,
             ),
-            binding_data: BindingData::default(),
+            binding_data: BindingData::new(render_context, BLIT_PASS_NAME),
             source_texture_id: INVALID_UID,
         }
     }
-    fn init(&mut self, render_context: &mut RenderContext) {
+    fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("blit_pass::init");
 
-        if self.source_texture_id.is_nil() || render_context.render_buffers.textures.is_empty() {
+        if self.source_texture_id.is_nil() {
             return;
         }
 
         let mut pass = self.render_pass.get_mut();
 
         self.binding_data.add_texture(
-            &render_context.texture_handler,
             &self.source_texture_id,
             BindingInfo {
                 group_index: 0,
@@ -82,12 +82,15 @@ impl Pass for BlitPass {
                 ..Default::default()
             },
         );
-        self.binding_data
-            .send_to_gpu(render_context, BLIT_PASS_NAME);
 
-        pass.init(render_context, &self.binding_data, None, None);
+        pass.init(render_context, &mut self.binding_data, None, None);
     }
-    fn update(&self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
+    fn update(
+        &mut self,
+        render_context: &RenderContext,
+        surface_view: &TextureView,
+        command_buffer: &mut CommandBuffer,
+    ) {
         inox_profiler::scoped_profile!("blit_pass::update");
 
         if self.source_texture_id.is_nil() {
@@ -95,18 +98,21 @@ impl Pass for BlitPass {
         }
 
         let pass = self.render_pass.get();
-        let buffers = render_context.buffers();
         let pipeline = pass.pipeline().get();
         if !pipeline.is_initialized() {
             return;
         }
-        let mut render_pass = pass.begin(
-            render_context,
-            &self.binding_data,
-            &buffers,
-            &pipeline,
+        let buffers = render_context.buffers();
+        let render_targets = render_context.texture_handler.render_targets();
+
+        let render_pass_begin_data = RenderPassBeginData {
+            render_core_context: &render_context.core,
+            buffers: &buffers,
+            render_targets: render_targets.as_slice(),
+            surface_view,
             command_buffer,
-        );
+        };
+        let mut render_pass = pass.begin(&mut self.binding_data, &pipeline, render_pass_begin_data);
         {
             inox_profiler::gpu_scoped_profile!(
                 &mut render_pass,

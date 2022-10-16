@@ -1,18 +1,18 @@
 use inox_log::debug_log;
 use inox_uid::generate_random_uid;
 
-use crate::{TextureFormat, TextureId, TextureInfo};
+use crate::{TextureFormat, TextureId, TextureInfo, TextureView};
 
 use super::{
     area::{Area, AreaAllocator, DEFAULT_AREA_SIZE},
-    texture::Texture,
+    gpu_texture::GpuTexture,
 };
 
 pub const DEFAULT_LAYER_COUNT: u32 = 8u32;
 pub const MAX_TEXTURE_ATLAS_COUNT: u32 = 8u32;
 
 pub struct TextureAtlas {
-    texture: Texture,
+    texture: GpuTexture,
     allocators: Vec<AreaAllocator>,
 }
 
@@ -22,7 +22,7 @@ impl TextureAtlas {
         for _i in 0..DEFAULT_LAYER_COUNT {
             allocators.push(AreaAllocator::new(DEFAULT_AREA_SIZE, DEFAULT_AREA_SIZE));
         }
-        let texture = Texture::create(
+        let texture = GpuTexture::create(
             device,
             generate_random_uid(),
             DEFAULT_AREA_SIZE,
@@ -44,7 +44,7 @@ impl TextureAtlas {
     pub fn texture_id(&self) -> &TextureId {
         self.texture.id()
     }
-    pub fn texture_view(&self) -> &wgpu::TextureView {
+    pub fn texture_view(&self) -> &TextureView {
         self.texture.view()
     }
     pub fn texture_format(&self) -> &TextureFormat {

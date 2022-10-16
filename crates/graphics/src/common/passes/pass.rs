@@ -1,6 +1,6 @@
 use inox_core::ContextRc;
 
-use crate::{CommandBuffer, DrawCommandType, MeshFlags, RenderContext};
+use crate::{CommandBuffer, DrawCommandType, MeshFlags, RenderContext, TextureView};
 use downcast_rs::{impl_downcast, Downcast};
 
 pub trait Pass: Downcast + Send + Sync + 'static {
@@ -9,12 +9,17 @@ pub trait Pass: Downcast + Send + Sync + 'static {
     where
         Self: Sized;
     fn is_active(&self, render_context: &RenderContext) -> bool;
-    fn draw_command_type(&self) -> DrawCommandType;
+    fn draw_commands_type(&self) -> DrawCommandType;
     fn mesh_flags(&self) -> MeshFlags;
-    fn create(context: &ContextRc) -> Self
+    fn create(context: &ContextRc, render_context: &RenderContext) -> Self
     where
         Self: Sized;
-    fn init(&mut self, render_context: &mut RenderContext);
-    fn update(&self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer);
+    fn init(&mut self, render_context: &RenderContext);
+    fn update(
+        &mut self,
+        render_context: &RenderContext,
+        surface_view: &TextureView,
+        command_buffer: &mut CommandBuffer,
+    );
 }
 impl_downcast!(Pass);

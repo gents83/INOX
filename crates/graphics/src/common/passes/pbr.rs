@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, DrawCommandType, MeshFlags, Pass, RenderContext,
-    RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation, TextureId,
+    BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, LightsBuffer,
+    MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderPass,
+    RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation, TextureId,
+    TextureView, TexturesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -15,6 +17,12 @@ pub const PBR_PASS_NAME: &str = "PBRPass";
 pub struct PBRPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
+    constant_data: ConstantDataRw,
+    textures: TexturesBuffer,
+    materials: MaterialsBuffer,
+    lights: LightsBuffer,
+    meshes: MeshesBuffer,
+    meshlets: MeshletsBuffer,
     gbuffer_textures: Vec<TextureId>,
     depth_texture: TextureId,
 }
@@ -29,15 +37,15 @@ impl Pass for PBRPass {
         PBR_PASS_NAME
     }
     fn is_active(&self, render_context: &RenderContext) -> bool {
-        render_context.has_commands(&self.draw_command_type(), &self.mesh_flags())
+        render_context.has_commands(&self.draw_commands_type(), &self.mesh_flags())
     }
     fn mesh_flags(&self) -> MeshFlags {
         MeshFlags::Visible | MeshFlags::Opaque
     }
-    fn draw_command_type(&self) -> DrawCommandType {
+    fn draw_commands_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
-    fn create(context: &ContextRc) -> Self
+    fn create(context: &ContextRc, render_context: &RenderContext) -> Self
     where
         Self: Sized,
     {
@@ -60,21 +68,27 @@ impl Pass for PBRPass {
                 &data,
                 None,
             ),
-            binding_data: BindingData::default(),
+            constant_data: render_context.constant_data.clone(),
+            textures: render_context.render_buffers.textures.clone(),
+            materials: render_context.render_buffers.materials.clone(),
+            lights: render_context.render_buffers.lights.clone(),
+            meshes: render_context.render_buffers.meshes.clone(),
+            meshlets: render_context.render_buffers.meshlets.clone(),
+            binding_data: BindingData::new(render_context, PBR_PASS_NAME),
             gbuffer_textures: Vec::new(),
             depth_texture: INVALID_UID,
         }
     }
-    fn init(&mut self, render_context: &mut RenderContext) {
+    fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("pbr_pass::init");
 
         if self.gbuffer_textures.iter().any(|t| t.is_nil())
             || self.gbuffer_textures.is_empty()
             || self.depth_texture.is_nil()
-            || render_context.render_buffers.textures.is_empty()
-            || render_context.render_buffers.meshes.is_empty()
-            || render_context.render_buffers.meshlets.is_empty()
-            || render_context.render_buffers.lights.is_empty()
+            || self.textures.read().unwrap().is_empty()
+            || self.meshes.read().unwrap().is_empty()
+            || self.meshlets.read().unwrap().is_empty()
+            || self.lights.read().unwrap().is_empty()
         {
             return;
         }
@@ -83,9 +97,7 @@ impl Pass for PBRPass {
 
         self.binding_data
             .add_uniform_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.constant_data,
+                &mut *self.constant_data.write().unwrap(),
                 Some("ConstantData"),
                 BindingInfo {
                     group_index: 0,
@@ -95,9 +107,7 @@ impl Pass for PBRPass {
                 },
             )
             .add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.meshes,
+                &mut *self.meshes.write().unwrap(),
                 Some("Meshes"),
                 BindingInfo {
                     group_index: 0,
@@ -107,9 +117,7 @@ impl Pass for PBRPass {
                 },
             )
             .add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.meshlets,
+                &mut *self.meshlets.write().unwrap(),
                 Some("Meshlets"),
                 BindingInfo {
                     group_index: 0,
@@ -119,9 +127,7 @@ impl Pass for PBRPass {
                 },
             )
             .add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.materials,
+                &mut *self.materials.write().unwrap(),
                 Some("Materials"),
                 BindingInfo {
                     group_index: 0,
@@ -131,9 +137,7 @@ impl Pass for PBRPass {
                 },
             )
             .add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.textures,
+                &mut *self.textures.write().unwrap(),
                 Some("Textures"),
                 BindingInfo {
                     group_index: 0,
@@ -143,9 +147,7 @@ impl Pass for PBRPass {
                 },
             )
             .add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.lights,
+                &mut *self.lights.write().unwrap(),
                 Some("Lights"),
                 BindingInfo {
                     group_index: 0,
@@ -160,7 +162,6 @@ impl Pass for PBRPass {
             .enumerate()
             .for_each(|(i, id)| {
                 self.binding_data.add_texture(
-                    &render_context.texture_handler,
                     id,
                     BindingInfo {
                         group_index: 1,
@@ -171,7 +172,6 @@ impl Pass for PBRPass {
                 );
             });
         self.binding_data.add_texture(
-            &render_context.texture_handler,
             &self.depth_texture,
             BindingInfo {
                 group_index: 1,
@@ -188,46 +188,49 @@ impl Pass for PBRPass {
                 stage: ShaderStage::Fragment,
                 ..Default::default()
             })
-            .add_material_textures(
-                &render_context.texture_handler,
-                BindingInfo {
-                    group_index: 2,
-                    binding_index: 1,
-                    stage: ShaderStage::Fragment,
-                    ..Default::default()
-                },
-            );
-        self.binding_data.send_to_gpu(render_context, PBR_PASS_NAME);
+            .add_material_textures(BindingInfo {
+                group_index: 2,
+                binding_index: 1,
+                stage: ShaderStage::Fragment,
+                ..Default::default()
+            });
 
-        pass.init(render_context, &self.binding_data, None, None);
+        pass.init(render_context, &mut self.binding_data, None, None);
     }
-    fn update(&self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
+    fn update(
+        &mut self,
+        render_context: &RenderContext,
+        surface_view: &TextureView,
+        command_buffer: &mut CommandBuffer,
+    ) {
         inox_profiler::scoped_profile!("pbr_pass::update");
 
         if self.gbuffer_textures.iter().any(|t| t.is_nil())
             || self.gbuffer_textures.is_empty()
             || self.depth_texture.is_nil()
-            || render_context.render_buffers.textures.is_empty()
-            || render_context.render_buffers.meshes.is_empty()
-            || render_context.render_buffers.meshlets.is_empty()
+            || self.textures.read().unwrap().is_empty()
+            || self.meshes.read().unwrap().is_empty()
+            || self.meshlets.read().unwrap().is_empty()
         {
             return;
         }
 
         let pass = self.render_pass.get();
-        let buffers = render_context.buffers();
         let pipeline = pass.pipeline().get();
         if !pipeline.is_initialized() {
             return;
         }
+        let buffers = render_context.buffers();
+        let render_targets = render_context.texture_handler.render_targets();
 
-        let mut render_pass = pass.begin(
-            render_context,
-            &self.binding_data,
-            &buffers,
-            &pipeline,
+        let render_pass_begin_data = RenderPassBeginData {
+            render_core_context: &render_context.core,
+            buffers: &buffers,
+            render_targets: render_targets.as_slice(),
+            surface_view,
             command_buffer,
-        );
+        };
+        let mut render_pass = pass.begin(&mut self.binding_data, &pipeline, render_pass_begin_data);
         {
             inox_profiler::gpu_scoped_profile!(
                 &mut render_pass,

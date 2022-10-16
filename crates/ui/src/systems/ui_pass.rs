@@ -2,9 +2,10 @@ use std::path::PathBuf;
 
 use inox_core::ContextRc;
 use inox_graphics::{
-    declare_as_binding_vector, AsBinding, BindingData, BindingInfo, CommandBuffer, DrawCommandType,
-    GpuBuffer, MeshFlags, Pass, RenderContext, RenderCoreContext, RenderPass, RenderPassData,
-    RenderTarget, ShaderStage, StoreOperation, VertexBufferLayoutBuilder, VertexFormat,
+    declare_as_binding_vector, AsBinding, BindingData, BindingInfo, CommandBuffer, ConstantDataRw,
+    DrawCommandType, GpuBuffer, MeshFlags, Pass, RenderContext, RenderCoreContext, RenderPass,
+    RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation, TextureView,
+    TexturesBuffer, VertexBufferLayoutBuilder, VertexFormat,
 };
 use inox_messenger::Listener;
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
@@ -81,6 +82,8 @@ declare_as_binding_vector!(VecUIInstance, UIInstance);
 pub struct UIPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
+    constant_data: ConstantDataRw,
+    textures: TexturesBuffer,
     custom_data: UIPassData,
     vertices: VecUIVertex,
     indices: VecUIIndex,
@@ -103,10 +106,10 @@ impl Pass for UIPass {
     fn mesh_flags(&self) -> MeshFlags {
         MeshFlags::Visible | MeshFlags::Custom
     }
-    fn draw_command_type(&self) -> DrawCommandType {
+    fn draw_commands_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
-    fn create(context: &ContextRc) -> Self
+    fn create(context: &ContextRc, render_context: &RenderContext) -> Self
     where
         Self: Sized,
     {
@@ -127,7 +130,9 @@ impl Pass for UIPass {
                 &data,
                 None,
             ),
-            binding_data: BindingData::default(),
+            constant_data: render_context.constant_data.clone(),
+            textures: render_context.render_buffers.textures.clone(),
+            binding_data: BindingData::new(render_context, UI_PASS_NAME),
             custom_data: UIPassData {
                 ui_scale: 2.,
                 is_dirty: true,
@@ -138,7 +143,7 @@ impl Pass for UIPass {
             listener,
         }
     }
-    fn init(&mut self, render_context: &mut RenderContext) {
+    fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("ui_pass::init");
 
         self.process_messages();
@@ -146,7 +151,7 @@ impl Pass for UIPass {
         if self.instances.data.is_empty()
             || self.vertices.data.is_empty()
             || self.indices.data.is_empty()
-            || render_context.render_buffers.textures.is_empty()
+            || self.textures.read().unwrap().is_empty()
         {
             return;
         }
@@ -155,9 +160,7 @@ impl Pass for UIPass {
 
         self.binding_data
             .add_uniform_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.constant_data,
+                &mut *self.constant_data.write().unwrap(),
                 Some("ConstantData"),
                 BindingInfo {
                     group_index: 0,
@@ -167,8 +170,6 @@ impl Pass for UIPass {
                 },
             )
             .add_uniform_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
                 &mut self.custom_data,
                 Some("UICustomData"),
                 BindingInfo {
@@ -179,9 +180,7 @@ impl Pass for UIPass {
                 },
             )
             .add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.textures,
+                &mut *self.textures.write().unwrap(),
                 Some("Textures"),
                 BindingInfo {
                     group_index: 1,
@@ -197,72 +196,57 @@ impl Pass for UIPass {
                 stage: ShaderStage::Fragment,
                 ..Default::default()
             })
-            .add_material_textures(
-                &render_context.texture_handler,
-                BindingInfo {
-                    group_index: 2,
-                    binding_index: 1,
-                    stage: ShaderStage::Fragment,
-                    ..Default::default()
-                },
-            )
-            .set_vertex_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                0,
-                &mut self.vertices,
-                Some("UIVertices"),
-            )
-            .set_vertex_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                1,
-                &mut self.instances,
-                Some("UIInstances"),
-            )
-            .set_index_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut self.indices,
-                Some("UIIndices"),
-            );
-        self.binding_data.send_to_gpu(render_context, UI_PASS_NAME);
+            .add_material_textures(BindingInfo {
+                group_index: 2,
+                binding_index: 1,
+                stage: ShaderStage::Fragment,
+                ..Default::default()
+            })
+            .set_vertex_buffer(0, &mut self.vertices, Some("UIVertices"))
+            .set_vertex_buffer(1, &mut self.instances, Some("UIInstances"))
+            .set_index_buffer(&mut self.indices, Some("UIIndices"));
 
         let vertex_layout = UIVertex::descriptor(0);
         let instance_layout = UIInstance::descriptor(vertex_layout.location());
         pass.init(
             render_context,
-            &self.binding_data,
+            &mut self.binding_data,
             Some(vertex_layout),
             Some(instance_layout),
         );
     }
-    fn update(&self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
+    fn update(
+        &mut self,
+        render_context: &RenderContext,
+        surface_view: &TextureView,
+        command_buffer: &mut CommandBuffer,
+    ) {
         inox_profiler::scoped_profile!("ui_pass::update");
 
         let pass = self.render_pass.get();
-        let buffers = render_context.buffers();
         let pipeline = pass.pipeline().get();
         if !pipeline.is_initialized() {
             return;
         }
+        let buffers = render_context.buffers();
+        let render_targets = render_context.texture_handler.render_targets();
 
         if self.instances.data.is_empty()
             || self.vertices.data.is_empty()
             || self.indices.data.is_empty()
-            || render_context.render_buffers.textures.is_empty()
+            || self.textures.read().unwrap().is_empty()
         {
             return;
         }
 
-        let mut render_pass = pass.begin(
-            render_context,
-            &self.binding_data,
-            &buffers,
-            &pipeline,
+        let render_pass_begin_data = RenderPassBeginData {
+            render_core_context: &render_context.core,
+            buffers: &buffers,
+            render_targets: render_targets.as_slice(),
+            surface_view,
             command_buffer,
-        );
-
+        };
+        let mut render_pass = pass.begin(&mut self.binding_data, &pipeline, render_pass_begin_data);
         {
             inox_profiler::gpu_scoped_profile!(
                 &mut render_pass,

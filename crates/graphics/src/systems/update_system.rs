@@ -103,20 +103,20 @@ impl UpdateSystem {
                 }
                 ResourceEvent::Destroyed(id) => {
                     let renderer = self.renderer.read().unwrap();
-                    let mut render_context = renderer.render_context().write().unwrap();
+                    let render_context = renderer.render_context();
                     render_context.render_buffers.remove_texture(id);
                 }
             })
             .process_messages(|e: &DataTypeResourceEvent<Light>| {
                 let DataTypeResourceEvent::Loaded(id, light_data) = e;
                 let renderer = self.renderer.read().unwrap();
-                let mut render_context = renderer.render_context().write().unwrap();
+                let render_context = renderer.render_context();
                 render_context.render_buffers.update_light(id, light_data);
             })
             .process_messages(|e: &ResourceEvent<Light>| match e {
                 ResourceEvent::Created(l) => {
                     let renderer = self.renderer.read().unwrap();
-                    let mut render_context = renderer.render_context().write().unwrap();
+                    let render_context = renderer.render_context();
                     render_context
                         .render_buffers
                         .add_light(l.id(), &mut l.get_mut());
@@ -124,7 +124,8 @@ impl UpdateSystem {
                 ResourceEvent::Changed(id) => {
                     if let Some(light) = self.shared_data.get_resource::<Light>(id) {
                         let renderer = self.renderer.read().unwrap();
-                        let mut render_context = renderer.render_context().write().unwrap();
+
+                        let render_context = renderer.render_context();
                         render_context
                             .render_buffers
                             .update_light(id, light.get().data());
@@ -132,14 +133,14 @@ impl UpdateSystem {
                 }
                 ResourceEvent::Destroyed(id) => {
                     let renderer = self.renderer.read().unwrap();
-                    let mut render_context = renderer.render_context().write().unwrap();
+                    let render_context = renderer.render_context();
                     render_context.render_buffers.remove_light(id);
                 }
             })
             .process_messages(|e: &ResourceEvent<Material>| match e {
                 ResourceEvent::Created(m) => {
                     let renderer = self.renderer.read().unwrap();
-                    let mut render_context = renderer.render_context().write().unwrap();
+                    let render_context = renderer.render_context();
                     render_context
                         .render_buffers
                         .add_material(m.id(), &mut m.get_mut());
@@ -147,7 +148,7 @@ impl UpdateSystem {
                 ResourceEvent::Changed(id) => {
                     if let Some(m) = self.shared_data.get_resource::<Material>(id) {
                         let renderer = self.renderer.read().unwrap();
-                        let mut render_context = renderer.render_context().write().unwrap();
+                        let render_context = renderer.render_context();
                         render_context
                             .render_buffers
                             .add_material(m.id(), &mut m.get_mut());
@@ -155,14 +156,14 @@ impl UpdateSystem {
                 }
                 ResourceEvent::Destroyed(id) => {
                     let renderer = self.renderer.read().unwrap();
-                    let mut render_context = renderer.render_context().write().unwrap();
+                    let render_context = renderer.render_context();
                     render_context.render_buffers.remove_material(id);
                 }
             })
             .process_messages(|e: &DataTypeResourceEvent<Material>| {
                 let DataTypeResourceEvent::Loaded(id, material_data) = e;
                 let renderer = self.renderer.read().unwrap();
-                let mut render_context = renderer.render_context().write().unwrap();
+                let render_context = renderer.render_context();
                 render_context
                     .render_buffers
                     .update_material(id, material_data);
@@ -170,14 +171,14 @@ impl UpdateSystem {
             .process_messages(|e: &DataTypeResourceEvent<Mesh>| {
                 let DataTypeResourceEvent::Loaded(id, mesh_data) = e;
                 let renderer = self.renderer.read().unwrap();
-                let mut render_context = renderer.render_context().write().unwrap();
+                let render_context = renderer.render_context();
                 render_context.render_buffers.add_mesh(id, mesh_data);
             })
             .process_messages(|e: &ResourceEvent<Mesh>| match e {
                 ResourceEvent::Changed(id) => {
                     if let Some(mesh) = self.shared_data.get_resource::<Mesh>(id) {
                         let renderer = self.renderer.read().unwrap();
-                        let mut render_context = renderer.render_context().write().unwrap();
+                        let render_context = renderer.render_context();
                         render_context
                             .render_buffers
                             .change_mesh(id, &mut mesh.get_mut());
@@ -185,7 +186,7 @@ impl UpdateSystem {
                 }
                 ResourceEvent::Destroyed(id) => {
                     let renderer = self.renderer.read().unwrap();
-                    let mut render_context = renderer.render_context().write().unwrap();
+                    let render_context = renderer.render_context();
                     render_context.render_buffers.remove_mesh(id);
                 }
                 _ => {}
@@ -242,8 +243,8 @@ impl System for UpdateSystem {
         }
 
         {
-            if self.resolution_changed || !self.renderer.read().unwrap().obtain_surface_texture() {
-                let mut renderer = self.renderer.write().unwrap();
+            let mut renderer = self.renderer.write().unwrap();
+            if self.resolution_changed || !renderer.obtain_surface_texture() {
                 renderer.set_surface_size(self.width as f32 as _, self.height as f32 as _);
 
                 self.resolution_changed = false;
@@ -258,7 +259,7 @@ impl System for UpdateSystem {
 
         let mut command_buffer = {
             let renderer = self.renderer.read().unwrap();
-            let render_context = renderer.render_context().read().unwrap();
+            let render_context = renderer.render_context();
             render_context.core.new_command_buffer()
         };
 
@@ -269,7 +270,7 @@ impl System for UpdateSystem {
             {
                 let screen_size = Vector2::new(self.width as _, self.height as _);
 
-                let mut render_context = renderer.render_context().write().unwrap();
+                let render_context = renderer.render_context();
                 render_context.update_constant_data(
                     self.view.get().view(),
                     self.view.get().proj(),

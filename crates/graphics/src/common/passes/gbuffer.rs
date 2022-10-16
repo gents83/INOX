@@ -1,8 +1,11 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, DrawCommandType, DrawVertex, MeshFlags, Pass,
-    RenderContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
+    BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, DrawVertex,
+    IndicesBuffer, MaterialsBuffer, MeshFlags, MeshesAABBsBuffer, MeshesBuffer, MeshletsBuffer,
+    Pass, RenderContext, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
+    ShaderStage, StoreOperation, TextureView, TexturesBuffer, VertexColorsBuffer,
+    VertexNormalsBuffer, VertexPositionsBuffer, VertexUVsBuffer, VerticesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -15,6 +18,18 @@ pub const GBUFFER_PASS_NAME: &str = "GBufferPass";
 pub struct GBufferPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
+    constant_data: ConstantDataRw,
+    textures: TexturesBuffer,
+    materials: MaterialsBuffer,
+    meshes: MeshesBuffer,
+    meshes_aabb: MeshesAABBsBuffer,
+    meshlets: MeshletsBuffer,
+    vertices: VerticesBuffer,
+    indices: IndicesBuffer,
+    vertex_positions: VertexPositionsBuffer,
+    vertex_colors: VertexColorsBuffer,
+    vertex_normals: VertexNormalsBuffer,
+    vertex_uvs: VertexUVsBuffer,
 }
 unsafe impl Send for GBufferPass {}
 unsafe impl Sync for GBufferPass {}
@@ -27,15 +42,15 @@ impl Pass for GBufferPass {
         GBUFFER_PASS_NAME
     }
     fn is_active(&self, render_context: &RenderContext) -> bool {
-        render_context.has_commands(&self.draw_command_type(), &self.mesh_flags())
+        render_context.has_commands(&self.draw_commands_type(), &self.mesh_flags())
     }
     fn mesh_flags(&self) -> MeshFlags {
         MeshFlags::Visible | MeshFlags::Opaque
     }
-    fn draw_command_type(&self) -> DrawCommandType {
+    fn draw_commands_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
-    fn create(context: &ContextRc) -> Self
+    fn create(context: &ContextRc, render_context: &RenderContext) -> Self
     where
         Self: Sized,
     {
@@ -58,231 +73,194 @@ impl Pass for GBufferPass {
                 &data,
                 None,
             ),
-            binding_data: BindingData::default(),
+            constant_data: render_context.constant_data.clone(),
+            textures: render_context.render_buffers.textures.clone(),
+            materials: render_context.render_buffers.materials.clone(),
+            meshes: render_context.render_buffers.meshes.clone(),
+            meshes_aabb: render_context.render_buffers.meshes_aabb.clone(),
+            meshlets: render_context.render_buffers.meshlets.clone(),
+            vertices: render_context.render_buffers.vertices.clone(),
+            indices: render_context.render_buffers.indices.clone(),
+            vertex_positions: render_context.render_buffers.vertex_positions.clone(),
+            vertex_colors: render_context.render_buffers.vertex_colors.clone(),
+            vertex_normals: render_context.render_buffers.vertex_normals.clone(),
+            vertex_uvs: render_context.render_buffers.vertex_uvs.clone(),
+            binding_data: BindingData::new(render_context, GBUFFER_PASS_NAME),
         }
     }
-    fn init(&mut self, render_context: &mut RenderContext) {
+    fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("gbuffer_pass::init");
 
         let mut pass = self.render_pass.get_mut();
 
-        self.binding_data.add_uniform_buffer(
-            &render_context.core,
-            &render_context.binding_data_buffer,
-            &mut render_context.constant_data,
-            Some("ConstantData"),
-            BindingInfo {
-                group_index: 0,
-                binding_index: 0,
-                stage: ShaderStage::VertexAndFragment,
-                ..Default::default()
-            },
-        );
-        if !render_context.render_buffers.vertex_positions.is_empty() {
-            self.binding_data.add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.vertex_positions,
+        if self.textures.read().unwrap().is_empty()
+            || self.meshes.read().unwrap().is_empty()
+            || self.meshlets.read().unwrap().is_empty()
+            || self.materials.read().unwrap().is_empty()
+            || self.vertex_positions.read().unwrap().is_empty()
+            || self.vertex_normals.read().unwrap().is_empty()
+            || self.vertex_colors.read().unwrap().is_empty()
+            || self.vertex_uvs.read().unwrap().is_empty()
+        {
+            return;
+        }
+
+        self.binding_data
+            .add_uniform_buffer(
+                &mut *self.constant_data.write().unwrap(),
+                Some("ConstantData"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 0,
+                    stage: ShaderStage::VertexAndFragment,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.vertex_positions.write().unwrap(),
                 Some("VertexPositions"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,
                     stage: ShaderStage::Vertex,
-
                     ..Default::default()
                 },
-            );
-        }
-        if !render_context.render_buffers.vertex_colors.is_empty() {
-            self.binding_data.add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.vertex_colors,
+            )
+            .add_storage_buffer(
+                &mut *self.vertex_colors.write().unwrap(),
                 Some("VertexColors"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,
                     stage: ShaderStage::Vertex,
-
                     ..Default::default()
                 },
-            );
-        }
-        if !render_context.render_buffers.vertex_normals.is_empty() {
-            self.binding_data.add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.vertex_normals,
+            )
+            .add_storage_buffer(
+                &mut *self.vertex_normals.write().unwrap(),
                 Some("VertexNormals"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 3,
                     stage: ShaderStage::Vertex,
-
                     ..Default::default()
                 },
-            );
-        }
-        if !render_context.render_buffers.vertex_uvs.is_empty() {
-            self.binding_data.add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.vertex_uvs,
+            )
+            .add_storage_buffer(
+                &mut *self.vertex_uvs.write().unwrap(),
                 Some("VertexUVs"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 4,
                     stage: ShaderStage::Vertex,
-
                     ..Default::default()
                 },
-            );
-        }
-        if !render_context.render_buffers.meshes.is_empty() {
-            self.binding_data.add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.meshes,
+            )
+            .add_storage_buffer(
+                &mut *self.meshes.write().unwrap(),
                 Some("Meshes"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 0,
                     stage: ShaderStage::VertexAndFragment,
-
                     ..Default::default()
                 },
-            );
-        }
-        if !render_context.render_buffers.materials.is_empty() {
-            self.binding_data.add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.materials,
+            )
+            .add_storage_buffer(
+                &mut *self.materials.write().unwrap(),
                 Some("Materials"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 1,
                     stage: ShaderStage::Fragment,
-
                     ..Default::default()
                 },
-            );
-        }
-        if !render_context.render_buffers.textures.is_empty() {
-            self.binding_data.add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.textures,
+            )
+            .add_storage_buffer(
+                &mut *self.textures.write().unwrap(),
                 Some("Textures"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 2,
                     stage: ShaderStage::Fragment,
-
                     ..Default::default()
                 },
-            );
-        }
-        if !render_context.render_buffers.meshlets.is_empty() {
-            self.binding_data.add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.meshlets,
+            )
+            .add_storage_buffer(
+                &mut *self.meshlets.write().unwrap(),
                 Some("Meshlets"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 3,
                     stage: ShaderStage::Vertex,
-
                     ..Default::default()
                 },
-            );
-        }
-        if !render_context.render_buffers.meshes_aabb.is_empty() {
-            self.binding_data.add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.meshes_aabb,
+            )
+            .add_storage_buffer(
+                &mut *self.meshes_aabb.write().unwrap(),
                 Some("MeshesAABB"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 4,
                     stage: ShaderStage::Vertex,
-
                     ..Default::default()
                 },
-            );
-        }
-
-        self.binding_data
+            )
             .add_default_sampler(BindingInfo {
                 group_index: 2,
                 binding_index: 0,
                 stage: ShaderStage::Fragment,
                 ..Default::default()
             })
-            .add_material_textures(
-                &render_context.texture_handler,
-                BindingInfo {
-                    group_index: 2,
-                    binding_index: 1,
-                    stage: ShaderStage::Fragment,
-                    ..Default::default()
-                },
-            )
-            .set_vertex_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                0,
-                &mut render_context.render_buffers.vertices,
-                Some("Vertices"),
-            )
-            .set_index_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.indices,
-                Some("Indices"),
-            );
-        self.binding_data
-            .send_to_gpu(render_context, GBUFFER_PASS_NAME);
+            .add_material_textures(BindingInfo {
+                group_index: 2,
+                binding_index: 1,
+                stage: ShaderStage::Fragment,
+                ..Default::default()
+            })
+            .set_vertex_buffer(0, &mut *self.vertices.write().unwrap(), Some("Vertices"))
+            .set_index_buffer(&mut *self.indices.write().unwrap(), Some("Indices"));
 
         let vertex_layout = DrawVertex::descriptor(0);
         pass.init(
             render_context,
-            &self.binding_data,
+            &mut self.binding_data,
             Some(vertex_layout),
             None,
         );
     }
-    fn update(&self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
+    fn update(
+        &mut self,
+        render_context: &RenderContext,
+        surface_view: &TextureView,
+        command_buffer: &mut CommandBuffer,
+    ) {
         inox_profiler::scoped_profile!("gbuffer_pass::update");
 
         let pass = self.render_pass.get();
-        let buffers = render_context.buffers();
         let pipeline = pass.pipeline().get();
         if !pipeline.is_initialized() {
             return;
         }
+        let buffers = render_context.buffers();
+        let render_targets = render_context.texture_handler.render_targets();
+        let draw_commands_type = self.draw_commands_type();
 
-        let mut render_pass = pass.begin(
-            render_context,
-            &self.binding_data,
-            &buffers,
-            &pipeline,
+        let render_pass_begin_data = RenderPassBeginData {
+            render_core_context: &render_context.core,
+            buffers: &buffers,
+            render_targets: render_targets.as_slice(),
+            surface_view,
             command_buffer,
-        );
+        };
+        let mut render_pass = pass.begin(&mut self.binding_data, &pipeline, render_pass_begin_data);
         {
             inox_profiler::gpu_scoped_profile!(
                 &mut render_pass,
                 &render_context.core.device,
                 "gbuffer_pass",
             );
-            pass.indirect_indexed_draw(
-                render_context,
-                &buffers,
-                self.draw_command_type(),
-                render_pass,
-            );
+            pass.indirect_indexed_draw(render_context, &buffers, draw_commands_type, render_pass);
         }
     }
 }

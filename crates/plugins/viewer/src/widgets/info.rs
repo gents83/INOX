@@ -461,11 +461,13 @@ impl Info {
                                 if is_changed {
 
                                     let renderer = data.params.renderer.read().unwrap();
-                                    let mut render_context = renderer.render_context().write().unwrap();
+                                    let render_context = renderer.render_context();
                                     match &data.meshlet_debug {
                                         MeshletDebug::None => {
                                             render_context
                                                 .constant_data
+                                                .write()
+                                                .unwrap()
                                                 .remove_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS)
                                                 .remove_flag(
                                                     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE,
@@ -477,6 +479,8 @@ impl Info {
                                         MeshletDebug::Color | MeshletDebug::ConeAxis => {
                                             render_context
                                                 .constant_data
+                                                .write()
+                                                .unwrap()
                                                 .remove_flag(
                                                     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE,
                                                 )
@@ -488,6 +492,8 @@ impl Info {
                                         MeshletDebug::Sphere => {
                                             render_context
                                                 .constant_data
+                                                .write()
+                                                .unwrap()
                                                 .remove_flag(
                                                     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
                                                 )
@@ -497,6 +503,8 @@ impl Info {
                                         MeshletDebug::BoundingBox => {
                                             render_context
                                                 .constant_data
+                                                .write()
+                                                .unwrap()
                                                 .remove_flag(
                                                     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE,
                                                 )

@@ -1,16 +1,20 @@
+use std::sync::{Arc, RwLock, RwLockReadGuard};
+
 use inox_log::debug_log;
 
 use crate::{TextureFormat, TextureId, TextureInfo, TextureUsage};
 
-use super::{texture::Texture, texture_atlas::TextureAtlas};
+use super::{gpu_texture::GpuTexture, texture_atlas::TextureAtlas};
 
 pub struct TextureHandler {
-    texture_atlas: Vec<TextureAtlas>,
-    render_targets: Vec<Texture>,
+    texture_atlas: RwLock<Vec<TextureAtlas>>,
+    render_targets: RwLock<Vec<GpuTexture>>,
     default_sampler: wgpu::Sampler,
     unfiltered_sampler: wgpu::Sampler,
     depth_sampler: wgpu::Sampler,
 }
+
+pub type TextureHandlerRc = Arc<TextureHandler>;
 
 impl TextureHandler {
     pub fn create(device: &wgpu::Device) -> Self {
@@ -43,8 +47,8 @@ impl TextureHandler {
             ..Default::default()
         });
         Self {
-            texture_atlas: Vec::new(),
-            render_targets: Vec::new(),
+            texture_atlas: RwLock::new(Vec::new()),
+            render_targets: RwLock::new(Vec::new()),
             default_sampler,
             unfiltered_sampler,
             depth_sampler,
@@ -60,28 +64,19 @@ impl TextureHandler {
         &self.depth_sampler
     }
 
-    pub fn textures_atlas(&self) -> &[TextureAtlas] {
-        self.texture_atlas.as_slice()
+    pub fn textures_atlas(&self) -> RwLockReadGuard<Vec<TextureAtlas>> {
+        self.texture_atlas.read().unwrap()
     }
-    pub fn render_targets(&self) -> &[Texture] {
-        self.render_targets.as_slice()
-    }
-
-    pub fn get_texture_atlas(&self, id: &TextureId) -> Option<&TextureAtlas> {
-        if let Some(index) = self.texture_atlas.iter().position(|t| t.texture_id() == id) {
-            return Some(&self.texture_atlas[index]);
-        }
-        None
-    }
-    pub fn render_target(&self, id: &TextureId) -> Option<&Texture> {
-        if let Some(index) = self.render_targets.iter().position(|t| t.id() == id) {
-            return Some(&self.render_targets[index]);
-        }
-        None
+    pub fn render_targets(&self) -> RwLockReadGuard<Vec<GpuTexture>> {
+        self.render_targets.read().unwrap()
     }
 
-    pub fn remove(&mut self, id: &TextureId) {
-        self.texture_atlas.retain_mut(|atlas| {
+    pub fn texture_atlas_id(&self, index: usize) -> TextureId {
+        *self.texture_atlas.read().unwrap()[index].texture_id()
+    }
+
+    pub fn remove(&self, id: &TextureId) {
+        self.texture_atlas.write().unwrap().retain_mut(|atlas| {
             if atlas.remove(id) {
                 atlas.destroy();
                 debug_log!(
@@ -91,7 +86,7 @@ impl TextureHandler {
             }
             !atlas.is_empty()
         });
-        self.render_targets.retain_mut(|t| {
+        self.render_targets.write().unwrap().retain_mut(|t| {
             if t.id() == id {
                 t.release();
                 debug_log!("Removing render target with format {:?}", t.format());
@@ -102,14 +97,14 @@ impl TextureHandler {
     }
 
     pub fn add_render_target(
-        &mut self,
+        &self,
         device: &wgpu::Device,
         id: &TextureId,
         dimensions: (u32, u32),
         format: TextureFormat,
         usage: TextureUsage,
     ) -> usize {
-        let texture = Texture::create(
+        let texture = GpuTexture::create(
             device,
             *id,
             dimensions.0,
@@ -124,12 +119,12 @@ impl TextureHandler {
             dimensions.1,
             format
         );
-        self.render_targets.push(texture);
-        self.render_targets.len() - 1
+        self.render_targets.write().unwrap().push(texture);
+        self.render_targets.read().unwrap().len() - 1
     }
 
     pub fn add_image_to_texture_atlas(
-        &mut self,
+        &self,
         device: &wgpu::Device,
         encoder: &mut wgpu::CommandEncoder,
         id: &TextureId,
@@ -137,7 +132,9 @@ impl TextureHandler {
         format: TextureFormat,
         image_data: &[u8],
     ) -> TextureInfo {
-        for (texture_index, texture_atlas) in self.texture_atlas.iter_mut().enumerate() {
+        for (texture_index, texture_atlas) in
+            self.texture_atlas.write().unwrap().iter_mut().enumerate()
+        {
             if texture_atlas.texture_format() == &format {
                 if let Some(texture_data) = texture_atlas.allocate(
                     device,
@@ -152,43 +149,18 @@ impl TextureHandler {
             }
         }
         self.texture_atlas
+            .write()
+            .unwrap()
             .push(TextureAtlas::create_default(device, format));
         inox_log::debug_log!("Adding new texture atlas with format {:?}", format);
         self.add_image_to_texture_atlas(device, encoder, id, dimensions, format, image_data)
     }
 
     pub fn texture_info(&self, id: &TextureId) -> Option<TextureInfo> {
-        for (texture_index, texture_atlas) in self.texture_atlas.iter().enumerate() {
+        for (texture_index, texture_atlas) in self.texture_atlas.read().unwrap().iter().enumerate()
+        {
             if let Some(texture_data) = texture_atlas.texture_info(texture_index as _, id) {
                 return Some(texture_data);
-            }
-        }
-        None
-    }
-
-    pub fn texture_view(&self, id: &TextureId) -> Option<&wgpu::TextureView> {
-        for t in self.render_targets.iter() {
-            if t.id() == id {
-                return Some(t.view());
-            }
-        }
-        for texture_atlas in self.texture_atlas.iter() {
-            if texture_atlas.texture_id() == id || texture_atlas.get_area(id).is_some() {
-                return Some(texture_atlas.texture_view());
-            }
-        }
-        None
-    }
-
-    pub fn texture_format(&self, id: &TextureId) -> Option<&TextureFormat> {
-        for t in self.render_targets.iter() {
-            if t.id() == id {
-                return Some(t.format());
-            }
-        }
-        for texture_atlas in self.texture_atlas.iter() {
-            if texture_atlas.get_area(id).is_some() {
-                return Some(texture_atlas.texture_format());
             }
         }
         None
