@@ -23,8 +23,8 @@ use inox_graphics::{
 };
 use inox_log::debug_log;
 use inox_math::{
-    decode_unorm, pack_4_f32_to_unorm, quantize_half, quantize_unorm, Mat4Ops, Matrix4, NewAngle,
-    Parser, Radians, VecBase, Vector2, Vector3, Vector4, Vector4h,
+    decode_unorm, pack_4_f32_to_snorm, pack_4_f32_to_unorm, quantize_half, quantize_unorm, Mat4Ops,
+    Matrix4, NewAngle, Parser, Radians, VecBase, Vector2, Vector3, Vector4, Vector4h,
 };
 
 use inox_nodes::LogicData;
@@ -469,7 +469,7 @@ impl GltfCompiler {
         let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
         let max_vertices = 64;
         let max_triangles = 124;
-        let cone_weight = 0.95;
+        let cone_weight = 0.7;
         let meshlets = meshopt::build_meshlets(
             indices.as_slice(),
             vertex_data_adapter.as_ref().unwrap(),
@@ -498,8 +498,14 @@ impl GltfCompiler {
                     indices_offset: indices_offset as _,
                     aabb_max: max,
                     aabb_min: min,
-                    cone_axis: bounds.cone_axis.into(),
-                    cone_cutoff: bounds.cone_cutoff,
+                    cone_axis_cutoff: pack_4_f32_to_snorm(Vector4::new(
+                        bounds.cone_axis[0],
+                        bounds.cone_axis[1],
+                        bounds.cone_axis[2],
+                        bounds.cone_cutoff,
+                    )),
+                    cone_center: bounds.center.into(),
+                    radius: bounds.radius,
                 });
                 vertices_offset += m.vertices.len();
                 indices_offset += m.triangles.len();

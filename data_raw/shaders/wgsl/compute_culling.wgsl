@@ -31,7 +31,7 @@ fn is_sphere_inside_frustum(center: vec3<f32>, radius: f32, frustum: array<vec4<
     var visible: bool = true;    
     var f = frustum;
     for(var i = 0; i < 4; i = i + 1) {  
-        visible = visible && (dot(f[i].xyz, center) + f[i].w + radius >= 0.);
+        visible = visible && !(dot(f[i].xyz, center) + f[i].w + radius <= 0.);
     }   
     return visible;
 }
@@ -51,15 +51,15 @@ fn is_box_inside_frustum(min: vec3<f32>, max: vec3<f32>, frustum: array<vec4<f32
     var f = frustum;
     for(var i = 0; !visible && i < 4; i = i + 1) {  
         for(var p = 0; !visible && p < 8; p = p + 1) {        
-            visible = visible || (dot(f[i].xyz, points[p]) + f[i].w > 0.);
+            visible = visible || !(dot(f[i].xyz, points[p]) + f[i].w <= 0.);
         }
     }   
     return visible;
 }
 
-fn is_cone_visible(center: vec3<f32>, radius: f32, cone_axis: vec3<f32>, cone_cutoff: f32) -> bool {
+fn is_cone_visible(center: vec3<f32>, cone_axis: vec3<f32>, cone_cutoff: f32, radius: f32) -> bool {
     let direction = center - culling_data.view[3].xyz;
-    return dot(normalize(direction), cone_axis) < cone_cutoff;
+    return !(dot(direction, cone_axis) >= (cone_cutoff * length(direction) + radius));
 }
 
 
@@ -81,11 +81,11 @@ fn main(
     let mesh = &meshes.data[mesh_id];
     let bb_id = (*meshlet).aabb_index;
     let bb = &meshlets_bb.data[bb_id];
-
-    let radius = abs((*bb).max-(*bb).min) * 0.5;
-    let center_bb = (*bb).min + radius;
-    let center = transform_vector(center_bb, (*mesh).position, (*mesh).orientation, (*mesh).scale);
-    let radius = length(radius * (*mesh).scale);
+    let max = transform_vector((*bb).max, (*mesh).position, (*mesh).orientation, (*mesh).scale);
+    let min = transform_vector((*bb).min, (*mesh).position, (*mesh).orientation, (*mesh).scale);
+    let d = (max-min) * 0.5;
+    let center = min + d;
+    let radius = length(d);
 
     let mvp = constant_data.proj * culling_data.view;
     let row0 = matrix_row(mvp, 0u);
@@ -98,22 +98,24 @@ fn main(
     frustum[2] = normalize_plane(row3 + row1);
     frustum[3] = normalize_plane(row3 - row1);
 
-    var is_visible = true;
-    //is_sphere_inside_frustum(center, radius, frustum);
-    //if !is_visible {
-    //    return;
-    //}
-    //let max = transform_vector((*bb).max, (*mesh).position, (*mesh).orientation, (*mesh).scale);
-    //let min = transform_vector((*bb).min, (*mesh).position, (*mesh).orientation, (*mesh).scale);
-    //is_visible = is_visible && is_box_inside_frustum(min, max, frustum); 
-    //if !is_visible {
-    //    return;
-    //}
+    let command = &commands.data[meshlet_id - 1u];
+    (*command).vertex_count = 0u;
+    (*command).instance_count = 0u;
+    (*command).base_index = 0u;
+    (*command).vertex_offset = 0;
+    (*command).base_instance = 0u;
+
+    if !is_sphere_inside_frustum(center, radius, frustum) {
+        return;
+    }
     
-    let cone_axis = rotate_vector((*meshlet).cone_axis_cutoff.xyz, (*mesh).orientation);
-    is_visible = is_visible && is_cone_visible(center, radius, cone_axis, (*meshlet).cone_axis_cutoff.w);
-    
-    if (is_visible)
+    if !is_box_inside_frustum(min, max, frustum) {
+        return;
+    }
+
+    let cone_axis_cutoff = unpack_snorm_to_4_f32((*meshlet).cone_axis_cutoff);
+    let cone_axis = rotate_vector(cone_axis_cutoff.xyz, (*mesh).orientation);    
+    if (is_cone_visible((*meshlet).center, cone_axis, cone_axis_cutoff.w, (*meshlet).radius))
     {
         atomicAdd(&count, 1u);
         let draw_group_index = workgroup_id.x;

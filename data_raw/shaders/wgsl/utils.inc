@@ -44,12 +44,20 @@ fn pack_4_f32_to_unorm(value: vec4<f32>) -> u32 {
     let a = quantize_unorm(value.w, 8u);
     return (r | g | b | a);
 }
+fn unpack_snorm_to_4_f32(color: i32) -> vec4<f32> {
+    return vec4<f32>(
+        f32((color >> 24u) & 255) / 255.,
+        f32((color >> 16u) & 255) / 255.,
+        f32((color >> 8u) & 255) / 255.,
+        f32(color & 255) / 255.,
+    );
+}
 fn unpack_unorm_to_4_f32(color: u32) -> vec4<f32> {
     return vec4<f32>(
-        f32((color >> 24u) & 255u),
-        f32((color >> 16u) & 255u),
-        f32((color >> 8u) & 255u),
-        f32(color & 255u),
+        f32((color >> 24u) & 255u) / 255.,
+        f32((color >> 16u) & 255u) / 255.,
+        f32((color >> 8u) & 255u) / 255.,
+        f32(color & 255u) / 255.,
     );
 }
 

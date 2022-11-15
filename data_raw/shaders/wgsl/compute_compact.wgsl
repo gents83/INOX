@@ -49,7 +49,7 @@ fn main(
     let bits = atomicLoad(&visible_draw_data[draw_group_index]);
     let shift = 1u << local_invocation_id.x;
     let is_visible = bits & shift;
-    if (is_visible > 0u) {
+    if (is_visible != 0u) {
         let mask = 0xFFFFFFFFu << local_invocation_id.x;
         let result = bits & mask;
         let group_count = countOneBits(result);
@@ -61,10 +61,11 @@ fn main(
         }
         let index = previous_count + group_count;
 
-        let command = &commands.data[index];
-        (*command).vertex_count = (*meshlet).indices_count;
+        let command = &commands.data[index - 1u];
+        let index_offset = (*meshlet).indices_offset_count >> 16u;
+        (*command).vertex_count = index_offset;
         (*command).instance_count = 1u;
-        (*command).base_index = (*mesh).indices_offset + (*meshlet).indices_offset;
+        (*command).base_index = (*mesh).indices_offset + index_offset;
         (*command).vertex_offset = i32((*mesh).vertex_offset);
         (*command).base_instance = meshlet_id;
     }

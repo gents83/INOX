@@ -101,7 +101,8 @@ fn main(
                 screen_pixel = screen_pixel / vec2<f32>(f32(pbr_data.width), f32(pbr_data.height));
                 screen_pixel.y = 1. - screen_pixel.y;
                 
-                let index_offset = (*mesh).indices_offset + (*meshlet).indices_offset + 3u * primitive_id;
+                let index_offset = (*meshlet).indices_offset_count >> 16u;
+                let index_offset = (*mesh).indices_offset + index_offset + 3u * primitive_id;
                 let i1 = indices.data[index_offset];
                 let i2 = indices.data[index_offset + 1u];
                 let i3 = indices.data[index_offset + 2u];
@@ -133,9 +134,9 @@ fn main(
                 let barycentrics = compute_barycentrics(p1.xy, p2.xy, p3.xy, screen_pixel.xy);
                 let deriv = compute_partial_derivatives(p1.xy, p2.xy, p3.xy);
 
-                let c1 = unpack_unorm_to_4_f32(u32(colors.data[(*v1).position_and_color_offset])) / 255.;
-                let c2 = unpack_unorm_to_4_f32(u32(colors.data[(*v2).position_and_color_offset])) / 255.;
-                let c3 = unpack_unorm_to_4_f32(u32(colors.data[(*v3).position_and_color_offset])) / 255.;
+                let c1 = unpack_unorm_to_4_f32(u32(colors.data[(*v1).position_and_color_offset]));
+                let c2 = unpack_unorm_to_4_f32(u32(colors.data[(*v2).position_and_color_offset]));
+                let c3 = unpack_unorm_to_4_f32(u32(colors.data[(*v3).position_and_color_offset]));
 
                 let vertex_color = barycentrics.x * c1 + barycentrics.y * c2 + barycentrics.z * c3;        
                 let alpha = compute_alpha(material_id, vertex_color.a);

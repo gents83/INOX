@@ -74,14 +74,11 @@ impl RenderBuffers {
                 let meshlet = DrawMeshlet {
                     mesh_index,
                     bb_index: i as _,
-                    indices_offset: meshlet_data.indices_offset,
-                    indices_count: meshlet_data.indices_count,
-                    cone_axis_cutoff: [
-                        meshlet_data.cone_axis.x,
-                        meshlet_data.cone_axis.y,
-                        meshlet_data.cone_axis.z,
-                        meshlet_data.cone_cutoff,
-                    ],
+                    indices_offset_count: (meshlet_data.indices_offset as u32) << 16
+                        | meshlet_data.indices_count,
+                    radius: meshlet_data.radius,
+                    center: meshlet_data.cone_center.into(),
+                    cone_axis_cutoff: meshlet_data.cone_axis_cutoff,
                 };
                 meshlets[i] = meshlet;
                 bhvs[i].min = meshlet_data.aabb_min.into();

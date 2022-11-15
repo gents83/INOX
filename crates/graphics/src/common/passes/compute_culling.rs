@@ -174,9 +174,7 @@ impl Pass for CullingPass {
             let num_meshlets = self.meshlets.read().unwrap().item_count();
             let count = ((num_meshlets as u32 + NUM_COMMANDS_PER_GROUP - 1)
                 / NUM_COMMANDS_PER_GROUP) as usize;
-            if self.visible_draw_data.data.len() < count {
-                self.visible_draw_data.set(vec![0u32; count]);
-            }
+            self.visible_draw_data.set(vec![0u32; count]);
 
             self.binding_data
                 .add_uniform_buffer(

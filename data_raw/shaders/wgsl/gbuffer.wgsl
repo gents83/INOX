@@ -66,7 +66,7 @@ fn vs_main(
     
     let p = (*aabb).min + decode_as_vec3(positions.data[v_in.position_and_color_offset]) * aabb_size;
     let world_position = vec4<f32>(transform_vector(p, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.0);
-    let color = unpack_unorm_to_4_f32(colors.data[v_in.position_and_color_offset]) / 255.;
+    let color = unpack_unorm_to_4_f32(colors.data[v_in.position_and_color_offset]);
     
     var vertex_out: VertexOutput;
     vertex_out.clip_position = mvp * world_position;

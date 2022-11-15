@@ -41,10 +41,20 @@ pub fn pack_4_f32_to_unorm(value: Vector4) -> u32 {
 #[inline]
 pub fn unpack_unorm_to_4_f32(value: u32) -> Vector4 {
     Vector4::new(
-        (((value >> 24) / 255) & 255) as f32,
-        (((value >> 16) / 255) & 255) as f32,
-        (((value >> 8) / 255) & 255) as f32,
-        ((value / 255) & 255) as f32,
+        ((value >> 24) & 255) as f32 / 255.,
+        ((value >> 16) & 255) as f32 / 255.,
+        ((value >> 8) & 255) as f32 / 255.,
+        (value & 255) as f32 / 255.,
+    )
+}
+
+#[inline]
+pub fn unpack_snorm_to_4_f32(value: i32) -> Vector4 {
+    Vector4::new(
+        ((value >> 24) & 255) as f32 / 255.,
+        ((value >> 16) & 255) as f32 / 255.,
+        ((value >> 8) & 255) as f32 / 255.,
+        (value & 255) as f32 / 255.,
     )
 }
 
