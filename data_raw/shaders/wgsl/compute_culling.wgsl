@@ -59,7 +59,7 @@ fn is_box_inside_frustum(min: vec3<f32>, max: vec3<f32>, frustum: array<vec4<f32
 
 fn is_cone_visible(center: vec3<f32>, cone_axis: vec3<f32>, cone_cutoff: f32, radius: f32) -> bool {
     let direction = center - culling_data.view[3].xyz;
-    return !(dot(direction, cone_axis) >= (cone_cutoff * length(direction) + radius));
+    return dot(normalize(direction), cone_axis) < (cone_cutoff * length(direction) + radius);
 }
 
 
