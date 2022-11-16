@@ -66,12 +66,11 @@ impl Window {
             let canvas = document.get_element_by_id("canvas").unwrap();
             let canvas: web_sys::HtmlCanvasElement =
                 canvas.dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
-            let device_pixel_ratio = window.device_pixel_ratio();
             let rect = canvas.get_bounding_client_rect();
             let width = canvas.width() as f32;
             let height = canvas.height() as f32;
-            let x = (event.offset_x() as f32 * (width / rect.width() as f32));
-            let y = (event.offset_y() as f32 * (height / rect.height() as f32));
+            let x = event.offset_x() as f32 * (width / rect.width() as f32);
+            let y = event.offset_y() as f32 * (height / rect.height() as f32);
             let button = match event.button() {
                 0 => MouseButton::None,
                 1 => MouseButton::Left,

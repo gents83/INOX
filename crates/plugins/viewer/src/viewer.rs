@@ -42,7 +42,7 @@ impl Plugin for Viewer {
             )
         };
         let context_rc = context.clone();
-        let renderer = Renderer::new(window.handle(), context, |renderer| {
+        let renderer = Renderer::new(window.handle(), context, move |renderer| {
             Self::create_render_passes(&context_rc, renderer, DEFAULT_WIDTH, DEFAULT_HEIGHT);
         });
 

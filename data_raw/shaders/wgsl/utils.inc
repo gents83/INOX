@@ -61,17 +61,6 @@ fn unpack_unorm_to_4_f32(color: u32) -> vec4<f32> {
     );
 }
 
-fn hash(index: u32) -> u32 {
-    var v = index;
-    v = (v + 0x7ed55d16u) + (v << 12u);
-    v = (v ^ 0xc761c23cu) ^ (v >> 19u);
-    v = (v + 0x165667b1u) + (v << 5u);
-    v = (v + 0xd3a2646cu) ^ (v << 9u);
-    v = (v + 0xfd7046c5u) + (v << 3u);
-    v = (v ^ 0xb55a4f09u) ^ (v >> 16u);
-    return v;
-}
-
 // 0-1 from 0-255
 fn linear_from_srgb(srgb: vec3<f32>) -> vec3<f32> {
     let cutoff = srgb < vec3<f32>(10.31475);
@@ -123,4 +112,15 @@ fn rotate_vector(v: vec3<f32>, orientation: vec4<f32>) -> vec3<f32> {
 }
 fn transform_vector(v: vec3<f32>, position: vec3<f32>, orientation: vec4<f32>, scale: vec3<f32>) -> vec3<f32> {
     return rotate_vector(v, orientation) * scale + position;
+}
+
+// A single iteration of Bob Jenkins' One-At-A-Time hashing algorithm.
+fn hash( x: u32 ) -> u32 {
+    var v = x;
+    v += ( v << 10u );
+    v ^= ( v >>  6u );
+    v += ( v <<  3u );
+    v ^= ( v >> 11u );
+    v += ( v << 15u );
+    return v;
 }

@@ -54,7 +54,7 @@ impl Drop for Renderer {
 impl Renderer {
     pub fn new<F>(handle: &Handle, context: &ContextRc, on_create_func: F) -> RendererRw
     where
-        F: FnOnce(&mut Renderer),
+        F: FnOnce(&mut Renderer) + 'static,
     {
         crate::register_resource_types(context.shared_data(), context.message_hub());
 

@@ -469,7 +469,7 @@ impl GltfCompiler {
         let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
         let max_vertices = 64;
         let max_triangles = 124;
-        let cone_weight = 0.7;
+        let cone_weight = 0.95;
         let meshlets = meshopt::build_meshlets(
             indices.as_slice(),
             vertex_data_adapter.as_ref().unwrap(),
