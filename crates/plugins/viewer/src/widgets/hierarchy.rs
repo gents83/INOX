@@ -72,12 +72,7 @@ impl Hierarchy {
                                     let _ = &data;
                                     data.scene.get().objects().iter().for_each(|object| {
                                         let _ = &data;
-                                        Self::object_hierarchy(
-                                            ui,
-                                            object,
-                                            &data.selected_object,
-                                            &data.message_hub,
-                                        );
+                                        Self::object_hierarchy(ui, object, &data.selected_object);
                                     });
                                 })
                             })
@@ -90,12 +85,7 @@ impl Hierarchy {
         })
     }
 
-    fn object_hierarchy(
-        ui: &mut Ui,
-        object: &Resource<Object>,
-        selected_id: &ObjectId,
-        message_hub: &MessageHubRc,
-    ) {
+    fn object_hierarchy(ui: &mut Ui, object: &Resource<Object>, selected_id: &ObjectId) {
         inox_profiler::scoped_profile!("object_hierarchy");
 
         let mut object_name = format!("Object [{:?}]", object.id().as_simple().to_string());
@@ -121,7 +111,7 @@ impl Hierarchy {
                 })
                 .body(|ui| {
                     object.get().children().iter().for_each(|child| {
-                        Self::object_hierarchy(ui, child, selected_id, message_hub);
+                        Self::object_hierarchy(ui, child, selected_id);
                     });
                 });
             /*

@@ -98,7 +98,7 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
             from_source_to_temp.replace(source_ext.as_str(), destination_ext.as_str());
 
         Command::new(self.glsl_compiler.to_str().unwrap())
-            .args(&[
+            .args([
                 "--target-env=vulkan",
                 path.to_str().unwrap(),
                 "-o",
@@ -130,7 +130,7 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
         if need_to_binarize(path, new_path.as_path()) {
             debug_log!("Serializing {:?}", path);
             if let Ok(mut command) = Command::new(self.glsl_validator.to_str().unwrap())
-                .args(&[
+                .args([
                     "-Os",
                     "--quiet",
                     "-w",
@@ -187,7 +187,7 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
             let mut data = Vec::new();
             file.read_to_end(&mut data).unwrap();
             let shader_code = String::from_utf8(data).unwrap();
-            let preprocessed_code = self.preprocess_code(path, shader_code);
+            let preprocessed_code = Self::preprocess_code(path, shader_code);
 
             let result = naga::front::wgsl::parse_str(&preprocessed_code);
             match result {
@@ -268,7 +268,7 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
         }
     }
 
-    fn preprocess_code(&self, path: &Path, code: String) -> String {
+    fn preprocess_code(path: &Path, code: String) -> String {
         let available_defs = shader_preprocessor_defs::<PLATFORM_TYPE>();
         let mut string = String::new();
         let ifdef_regex = Regex::new(r"^\s*#\s*ifdef\s*([\w|\d|_]+)").unwrap();
@@ -294,7 +294,7 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
                         let import_path = PathBuf::from(path.parent().unwrap()).join(import_path);
                         let import_path = import_path.canonicalize().unwrap();
                         let shader_code = std::fs::read_to_string(import_path).unwrap();
-                        let import_code = self.preprocess_code(path, shader_code);
+                        let import_code = Self::preprocess_code(path, shader_code);
                         string.push_str(&import_code);
                         continue;
                     }
