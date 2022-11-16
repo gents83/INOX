@@ -62,10 +62,11 @@ fn main(
         let index = previous_count + group_count;
 
         let command = &commands.data[index - 1u];
-        let index_offset = (*meshlet).indices_offset_count >> 16u;
-        (*command).vertex_count = index_offset;
+        let meshlet_index_offset = (*meshlet).indices_offset_count >> 16u;
+        let meshlet_index_count = (*meshlet).indices_offset_count & 0x0000FFFFu;
+        (*command).vertex_count = meshlet_index_count;
         (*command).instance_count = 1u;
-        (*command).base_index = (*mesh).indices_offset + index_offset;
+        (*command).base_index = (*mesh).indices_offset + meshlet_index_offset;
         (*command).vertex_offset = i32((*mesh).vertex_offset);
         (*command).base_instance = meshlet_id;
     }

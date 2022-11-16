@@ -23,8 +23,8 @@ use inox_graphics::{
 };
 use inox_log::debug_log;
 use inox_math::{
-    decode_unorm, pack_4_f32_to_snorm, pack_4_f32_to_unorm, quantize_half, quantize_unorm, Mat4Ops,
-    Matrix4, NewAngle, Parser, Radians, VecBase, Vector2, Vector3, Vector4, Vector4h,
+    decode_unorm, pack_4_f32_to_unorm, quantize_half, quantize_unorm, Mat4Ops, Matrix4, NewAngle,
+    Parser, Radians, VecBase, Vector2, Vector3, Vector4, Vector4h,
 };
 
 use inox_nodes::LogicData;
@@ -498,12 +498,10 @@ impl GltfCompiler {
                     indices_offset: indices_offset as _,
                     aabb_max: max,
                     aabb_min: min,
-                    cone_axis_cutoff: pack_4_f32_to_snorm(Vector4::new(
-                        bounds.cone_axis[0],
-                        bounds.cone_axis[1],
-                        bounds.cone_axis[2],
-                        bounds.cone_cutoff,
-                    )),
+                    cone_axis_cutoff: ((bounds.cone_axis_s8[0] as i32) << 24)
+                        | ((bounds.cone_axis_s8[1] as i32) << 16)
+                        | ((bounds.cone_axis_s8[2] as i32) << 8)
+                        | bounds.cone_cutoff_s8 as i32,
                     cone_center: bounds.center.into(),
                     radius: bounds.radius,
                 });
