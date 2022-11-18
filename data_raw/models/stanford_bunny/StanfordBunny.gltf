@@ -97,11 +97,22 @@
         },
         {
             "mesh" : 0,
-            "name" : "Bunny",
+            "name" : "bun_zipper",
+            "rotation" : [
+                0.7071068286895752,
+                0,
+                0,
+                0.7071068286895752
+            ],
             "scale" : [
-                0.05000000074505806,
-                0.05000000074505806,
-                0.05000000074505806
+                30,
+                30,
+                30
+            ],
+            "translation" : [
+                0,
+                -1,
+                0
             ]
         }
     ],
@@ -117,158 +128,70 @@
             "type" : "perspective"
         }
     ],
-    "materials" : [
-        {
-            "alphaMode" : "BLEND",
-            "doubleSided" : true,
-            "emissiveFactor" : [
-                1,
-                1,
-                1
-            ],
-            "emissiveTexture" : {
-                "index" : 0
-            },
-            "name" : "DefaultMaterial",
-            "normalTexture" : {
-                "index" : 1
-            },
-            "occlusionTexture" : {
-                "index" : 2
-            },
-            "pbrMetallicRoughness" : {
-                "baseColorTexture" : {
-                    "index" : 3
-                },
-                "metallicRoughnessTexture" : {
-                    "index" : 2
-                }
-            }
-        }
-    ],
     "meshes" : [
         {
-            "name" : "defaultMaterial",
+            "name" : "bun_zipper",
             "primitives" : [
                 {
                     "attributes" : {
                         "POSITION" : 0,
-                        "NORMAL" : 1,
-                        "TEXCOORD_0" : 2
+                        "NORMAL" : 1
                     },
-                    "indices" : 3,
-                    "material" : 0
+                    "indices" : 2
                 }
             ]
-        }
-    ],
-    "textures" : [
-        {
-            "sampler" : 0,
-            "source" : 0
-        },
-        {
-            "sampler" : 0,
-            "source" : 1
-        },
-        {
-            "sampler" : 0,
-            "source" : 2
-        },
-        {
-            "sampler" : 0,
-            "source" : 3
-        }
-    ],
-    "images" : [
-        {
-            "mimeType" : "image/jpeg",
-            "name" : "DefaultMaterial_emissive",
-            "uri" : "DefaultMaterial_emissive.jpg"
-        },
-        {
-            "mimeType" : "image/png",
-            "name" : "DefaultMaterial_normal",
-            "uri" : "DefaultMaterial_normal.png"
-        },
-        {
-            "mimeType" : "image/png",
-            "name" : "DefaultMaterial_metallicRoughness",
-            "uri" : "DefaultMaterial_metallicRoughness.png"
-        },
-        {
-            "mimeType" : "image/png",
-            "name" : "DefaultMaterial_baseColor",
-            "uri" : "DefaultMaterial_baseColor.png"
         }
     ],
     "accessors" : [
         {
             "bufferView" : 0,
             "componentType" : 5126,
-            "count" : 3161,
+            "count" : 208353,
             "max" : [
-                49.769630432128906,
-                99.38265228271484,
-                37.92158126831055
+                0.06100910156965256,
+                0.05879969894886017,
+                -0.03298740088939667
             ],
             "min" : [
-                -49.58277893066406,
-                0.03353099897503853,
-                -37.78636932373047
+                -0.09468989819288254,
+                -0.061873599886894226,
+                -0.1873210072517395
             ],
             "type" : "VEC3"
         },
         {
             "bufferView" : 1,
             "componentType" : 5126,
-            "count" : 3161,
+            "count" : 208353,
             "type" : "VEC3"
         },
         {
             "bufferView" : 2,
-            "componentType" : 5126,
-            "count" : 3161,
-            "type" : "VEC2"
-        },
-        {
-            "bufferView" : 3,
-            "componentType" : 5123,
-            "count" : 17088,
+            "componentType" : 5125,
+            "count" : 208353,
             "type" : "SCALAR"
         }
     ],
     "bufferViews" : [
         {
             "buffer" : 0,
-            "byteLength" : 37932,
+            "byteLength" : 2500236,
             "byteOffset" : 0
         },
         {
             "buffer" : 0,
-            "byteLength" : 37932,
-            "byteOffset" : 37932
+            "byteLength" : 2500236,
+            "byteOffset" : 2500236
         },
         {
             "buffer" : 0,
-            "byteLength" : 25288,
-            "byteOffset" : 75864
-        },
-        {
-            "buffer" : 0,
-            "byteLength" : 34176,
-            "byteOffset" : 101152
-        }
-    ],
-    "samplers" : [
-        {
-            "magFilter" : 9729,
-            "minFilter" : 9987
+            "byteLength" : 833412,
+            "byteOffset" : 5000472
         }
     ],
     "buffers" : [
         {
-            "byteLength" : 135328,
+            "byteLength" : 5833884,
             "uri" : "StanfordBunny.bin"
         }
     ]
