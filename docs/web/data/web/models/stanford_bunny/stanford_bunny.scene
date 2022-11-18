@@ -1,1 +1,1 @@
-{"objects":["models/stanford_bunny/object/Light.object","models/stanford_bunny/object/Camera.object","models/stanford_bunny/object/Bunny.object"],"cameras":[],"lights":[]}
+{"objects":["models/stanford_bunny/object/Light.object","models/stanford_bunny/object/Camera.object","models/stanford_bunny/object/bun_zipper.object"],"cameras":[],"lights":[]}
