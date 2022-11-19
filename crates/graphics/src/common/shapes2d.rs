@@ -37,7 +37,6 @@ pub fn create_quad_with_texture(rect: Vector4, z: f32, tex_coords: Vector4) -> M
     mesh_data.indices = [0, 2, 1, 3, 2, 0].to_vec();
 
     let meshlet = MeshletData {
-        vertices_count: mesh_data.vertex_count() as _,
         indices_count: mesh_data.index_count() as _,
         ..Default::default()
     };
@@ -53,7 +52,6 @@ pub fn create_colored_quad(rect: Vector4, z: f32, color: Vector4) -> MeshData {
     mesh_data.indices = [0, 2, 1, 3, 2, 0].to_vec();
 
     let meshlet = MeshletData {
-        vertices_count: mesh_data.vertex_count() as _,
         indices_count: mesh_data.index_count() as _,
         ..Default::default()
     };
@@ -85,7 +83,6 @@ pub fn create_triangle_up() -> MeshData {
     mesh_data.indices = [0, 2, 1].to_vec();
 
     let meshlet = MeshletData {
-        vertices_count: mesh_data.vertex_count() as _,
         indices_count: mesh_data.index_count() as _,
         ..Default::default()
     };
@@ -117,7 +114,6 @@ pub fn create_triangle_down() -> MeshData {
     mesh_data.indices = [0, 2, 1].to_vec();
 
     let meshlet = MeshletData {
-        vertices_count: mesh_data.vertex_count() as _,
         indices_count: mesh_data.index_count() as _,
         ..Default::default()
     };
@@ -233,7 +229,6 @@ pub fn create_rounded_rect(
     mesh_data.indices.push(0u32);
 
     let meshlet = MeshletData {
-        vertices_count: mesh_data.vertex_count() as _,
         indices_count: mesh_data.index_count() as _,
         ..Default::default()
     };

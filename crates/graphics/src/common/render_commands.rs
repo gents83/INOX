@@ -94,9 +94,9 @@ impl RenderCommands {
                     let total_indices =
                         mesh.indices_offset + meshlet_index_offset + meshlet_index_count;
                     debug_assert!(
-                        total_indices % 3 == 0,
+                        meshlet_index_count % 3 == 0,
                         "indices count {} is not divisible by 3",
-                        total_indices
+                        meshlet_index_count
                     );
                     let mut i = mesh.indices_offset + meshlet_index_offset;
                     let mut triangle_index = 0;

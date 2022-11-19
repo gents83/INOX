@@ -342,7 +342,12 @@ impl GltfCompiler {
         }
     }
 
-    fn compute_meshlets(&self, vertices: &[GltfVertex], indices: &[u32]) -> Vec<MeshletData> {
+    fn compute_meshlets(
+        &self,
+        vertices: &[GltfVertex],
+        indices: &mut Vec<u32>,
+    ) -> Vec<MeshletData> {
+        let mut new_meshlets = Vec::new();
         let vertices_bytes = to_slice(vertices);
         let vertex_stride = size_of::<GltfVertex>();
         let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
@@ -356,10 +361,8 @@ impl GltfCompiler {
             max_triangles,
             cone_weight,
         );
-        let mut new_meshlets = Vec::new();
         if !meshlets.meshlets.is_empty() {
-            let mut vertices_offset = 0;
-            let mut indices_offset = 0;
+            let mut new_indices = Vec::new();
             for m in meshlets.iter() {
                 let bounds =
                     meshopt::compute_meshlet_bounds(m, vertex_data_adapter.as_ref().unwrap());
@@ -369,11 +372,18 @@ impl GltfCompiler {
                     min = min.min(vertices[*i as usize].position);
                     max = max.max(vertices[*i as usize].position);
                 });
+                debug_assert!(
+                    m.triangles.len() % 3 == 0,
+                    "meshlet indices count {} is not divisible by 3",
+                    m.triangles.len()
+                );
+                let index_offset = new_indices.len();
+                m.triangles.iter().for_each(|v_i| {
+                    new_indices.push(m.vertices[*v_i as usize]);
+                });
                 new_meshlets.push(MeshletData {
-                    vertices_count: m.vertices.len() as _,
-                    vertices_offset: vertices_offset as _,
+                    indices_offset: index_offset as _,
                     indices_count: m.triangles.len() as _,
-                    indices_offset: indices_offset as _,
                     aabb_max: max,
                     aabb_min: min,
                     cone_axis_cutoff: ((bounds.cone_axis_s8[0] as i32) << 24)
@@ -383,12 +393,16 @@ impl GltfCompiler {
                     cone_center: bounds.center.into(),
                     radius: bounds.radius,
                 });
-                vertices_offset += m.vertices.len();
-                indices_offset += m.triangles.len();
             }
+            debug_assert!(
+                new_indices.len() % 3 == 0,
+                "new indices count {} is not divisible by 3",
+                new_indices.len()
+            );
+            *indices = new_indices;
         } else {
             let meshlet = MeshletData {
-                vertices_count: vertices.len() as _,
+                indices_offset: 0,
                 indices_count: indices.len() as _,
                 ..Default::default()
             };
@@ -421,8 +435,6 @@ impl GltfCompiler {
         });
         let size = mesh_data.aabb_max - mesh_data.aabb_min;
 
-        let mut vertex_index = 0;
-        let mut uv_index = 0;
         vertices.iter().enumerate().for_each(|(i, vertex)| {
             let mut v = vertex.position - mesh_data.aabb_min;
             v.x /= size.x;
@@ -433,7 +445,10 @@ impl GltfCompiler {
             let vz = quantize_unorm(v.z, 10);
             let position = vx << 20 | vy << 10 | vz;
             mesh_data.positions.push(position);
-            mesh_data.vertices[i].position_and_color_offset = vertex_index;
+            mesh_data.vertices[i].position_and_color_offset = (mesh_data.positions.len() - 1) as _;
+
+            let color = pack_4_f32_to_unorm(vertex.color);
+            mesh_data.colors.push(color);
 
             let n = vertex.normal;
             let nx = quantize_unorm(n.x, 10);
@@ -441,28 +456,22 @@ impl GltfCompiler {
             let nz = quantize_unorm(n.z, 10);
             let normal = nx << 20 | ny << 10 | nz;
             mesh_data.normals.push(normal);
-            mesh_data.vertices[i].normal_offset = vertex_index as _;
-
-            let color = pack_4_f32_to_unorm(vertex.color);
-            mesh_data.colors.push(color);
+            mesh_data.vertices[i].normal_offset = (mesh_data.normals.len() - 1) as _;
 
             let mut uvs = Vec::new();
             vertex.texture_coords.iter().enumerate().for_each(|(j, t)| {
                 let u = quantize_half(t.x) as u32;
                 let v = (quantize_half(t.y) as u32) << 16;
                 uvs.push(u | v);
-                mesh_data.vertices[i].uv_offset[j] = uv_index;
-                uv_index += 1;
+                mesh_data.vertices[i].uv_offset[j] = (mesh_data.uvs.len() + uvs.len() - 1) as _;
             });
-            mesh_data.uvs = uvs;
-
-            vertex_index += 1;
+            mesh_data.uvs.extend(uvs.iter());
         });
 
         mesh_data.indices = indices;
 
-        let meshlets = self.compute_meshlets(vertices.as_slice(), mesh_data.indices.as_slice());
-        mesh_data.meshlets = meshlets;
+        mesh_data.meshlets = self.compute_meshlets(vertices.as_slice(), &mut mesh_data.indices);
+
         mesh_data.material = material_path.to_path_buf();
 
         self.create_file(
