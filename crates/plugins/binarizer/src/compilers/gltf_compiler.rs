@@ -372,12 +372,12 @@ impl GltfCompiler {
                     min = min.min(vertices[*i as usize].position);
                     max = max.max(vertices[*i as usize].position);
                 });
+                let index_offset = new_indices.len();
                 debug_assert!(
                     m.triangles.len() % 3 == 0,
                     "meshlet indices count {} is not divisible by 3",
                     m.triangles.len()
                 );
-                let index_offset = new_indices.len();
                 m.triangles.iter().for_each(|v_i| {
                     new_indices.push(m.vertices[*v_i as usize]);
                 });

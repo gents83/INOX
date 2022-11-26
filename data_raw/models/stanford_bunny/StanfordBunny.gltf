@@ -20,7 +20,7 @@
                     ],
                     "intensity" : 1000,
                     "type" : "point",
-                    "name" : "Light"
+                    "name" : "Light.001"
                 }
             ]
         }
@@ -30,9 +30,9 @@
         {
             "name" : "Scene",
             "nodes" : [
-                1,
-                3,
-                4
+                2,
+                5,
+                6
             ]
         }
     ],
@@ -43,7 +43,7 @@
                     "light" : 0
                 }
             },
-            "name" : "Light_Orientation",
+            "name" : "Light_Orientation_Orientation",
             "rotation" : [
                 -0.7071067690849304,
                 0,
@@ -55,7 +55,13 @@
             "children" : [
                 0
             ],
-            "name" : "Light",
+            "name" : "Light_Orientation"
+        },
+        {
+            "children" : [
+                1
+            ],
+            "name" : "Light.001",
             "rotation" : [
                 0.16907575726509094,
                 0.7558803558349609,
@@ -70,7 +76,7 @@
         },
         {
             "camera" : 0,
-            "name" : "Camera_Orientation",
+            "name" : "Camera_Orientation_Orientation",
             "rotation" : [
                 -0.7071067690849304,
                 0,
@@ -80,9 +86,15 @@
         },
         {
             "children" : [
-                2
+                3
             ],
-            "name" : "Camera",
+            "name" : "Camera_Orientation"
+        },
+        {
+            "children" : [
+                4
+            ],
+            "name" : "Camera.001",
             "rotation" : [
                 0.483536034822464,
                 0.33687159419059753,
@@ -118,10 +130,10 @@
     ],
     "cameras" : [
         {
-            "name" : "Camera",
+            "name" : "Camera.001",
             "perspective" : {
                 "aspectRatio" : 1.7777777777777777,
-                "yfov" : 0.39959652046304894,
+                "yfov" : 0.39959651231765747,
                 "zfar" : 100,
                 "znear" : 0.10000000149011612
             },
