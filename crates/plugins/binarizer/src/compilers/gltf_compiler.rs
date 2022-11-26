@@ -401,9 +401,17 @@ impl GltfCompiler {
             );
             *indices = new_indices;
         } else {
+            let mut min = Vector3::new(f32::MAX, f32::MAX, f32::MAX);
+            let mut max = Vector3::new(-f32::MAX, -f32::MAX, -f32::MAX);
+            vertices.iter().for_each(|v| {
+                min = min.min(v.position);
+                max = max.max(v.position);
+            });
             let meshlet = MeshletData {
                 indices_offset: 0,
                 indices_count: indices.len() as _,
+                aabb_max: max,
+                aabb_min: min,
                 ..Default::default()
             };
             new_meshlets.push(meshlet);

@@ -101,8 +101,7 @@ fn main(
                 screen_pixel = screen_pixel / vec2<f32>(f32(pbr_data.width), f32(pbr_data.height));
                 screen_pixel.y = 1. - screen_pixel.y;
                 
-                let meshlet_index_offset = (*meshlet).indices_offset_count >> 16u;
-                let index_offset = (*mesh).indices_offset + meshlet_index_offset + 3u * primitive_id;
+                let index_offset = (*mesh).indices_offset + (*meshlet).indices_offset + 3u * primitive_id;
                 let i1 = indices.data[index_offset];
                 let i2 = indices.data[index_offset + 1u];
                 let i3 = indices.data[index_offset + 2u];

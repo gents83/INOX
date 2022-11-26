@@ -77,8 +77,8 @@ struct Mesh {
 struct Meshlet {
     @location(5) mesh_index: u32,
     @location(6) aabb_index: u32,
-    @location(7) indices_offset_count: u32,
-    @location(8) radius: f32,
+    @location(7) indices_offset: u32,
+    @location(8) indices_count: u32,
     @location(9) center: vec3<f32>,
     @location(10) cone_axis_cutoff: i32,
 };

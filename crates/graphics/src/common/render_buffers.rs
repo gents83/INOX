@@ -74,9 +74,8 @@ impl RenderBuffers {
                 let meshlet = DrawMeshlet {
                     mesh_index,
                     bb_index: i as _,
-                    indices_offset_count: (meshlet_data.indices_offset as u32) << 16
-                        | meshlet_data.indices_count,
-                    radius: meshlet_data.radius,
+                    indices_offset: meshlet_data.indices_offset as _,
+                    indices_count: meshlet_data.indices_count,
                     center: meshlet_data.cone_center.into(),
                     cone_axis_cutoff: meshlet_data.cone_axis_cutoff,
                 };
@@ -212,7 +211,6 @@ impl RenderBuffers {
         if mesh_data.vertex_count() == 0 {
             return;
         }
-
         let mesh_index = self
             .meshes
             .write()

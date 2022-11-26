@@ -71,12 +71,10 @@ impl RenderCommands {
                     mesh.meshlets_offset..mesh.meshlets_offset + mesh.meshlets_count
                 {
                     let meshlet = &meshlets[meshlet_index as usize];
-                    let meshlet_index_offset = meshlet.indices_offset_count >> 16;
-                    let meshlet_index_count = meshlet.indices_offset_count & 0x0000FFFF;
                     let command = DrawIndexedCommand {
-                        vertex_count: meshlet_index_count as _,
+                        vertex_count: meshlet.indices_count as _,
                         instance_count: 1,
-                        base_index: (mesh.indices_offset + meshlet_index_offset) as _,
+                        base_index: (mesh.indices_offset + meshlet.indices_offset) as _,
                         vertex_offset: mesh.vertex_offset as _,
                         base_instance: meshlet_index as _,
                     };
@@ -89,16 +87,14 @@ impl RenderCommands {
                 {
                     let meshlet = &meshlets[meshlet_index as usize];
 
-                    let meshlet_index_offset = meshlet.indices_offset_count >> 16;
-                    let meshlet_index_count = meshlet.indices_offset_count & 0x0000FFFF;
                     let total_indices =
-                        mesh.indices_offset + meshlet_index_offset + meshlet_index_count;
+                        mesh.indices_offset + meshlet.indices_offset + meshlet.indices_count;
                     debug_assert!(
-                        meshlet_index_count % 3 == 0,
+                        meshlet.indices_count % 3 == 0,
                         "indices count {} is not divisible by 3",
-                        meshlet_index_count
+                        meshlet.indices_count
                     );
-                    let mut i = mesh.indices_offset + meshlet_index_offset;
+                    let mut i = mesh.indices_offset + meshlet.indices_offset;
                     let mut triangle_index = 0;
                     while i < total_indices {
                         let command = DrawIndexedCommand {

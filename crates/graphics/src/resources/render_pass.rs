@@ -413,12 +413,11 @@ impl RenderPass {
                             "render_pass::draw_indexed",
                         );
                         let meshlet = &meshlets[i as usize];
-                        let meshlet_index_offset = meshlet.indices_offset_count >> 16;
-                        let meshlet_index_count = meshlet.indices_offset_count & 0x0000FFFF;
                         render_pass.draw_indexed(
-                            (mesh.indices_offset + meshlet_index_offset) as _
-                                ..(mesh.indices_offset + meshlet_index_offset + meshlet_index_count)
-                                    as _,
+                            (mesh.indices_offset + meshlet.indices_offset) as _
+                                ..(mesh.indices_offset
+                                    + meshlet.indices_offset
+                                    + meshlet.indices_count) as _,
                             mesh.vertex_offset as _,
                             i as _..(i as u32 + 1),
                         );
@@ -508,8 +507,7 @@ impl RenderPass {
                     let mut end = start;
                     for i in mesh.meshlets_offset..mesh.meshlets_offset + mesh.meshlets_count {
                         let meshlet = &meshlets[i as usize];
-                        let meshlet_index_count = meshlet.indices_offset_count & 0x0000FFFF;
-                        end += meshlet_index_count;
+                        end += meshlet.indices_count;
                     }
                     inox_profiler::gpu_scoped_profile!(
                         &mut render_pass,
