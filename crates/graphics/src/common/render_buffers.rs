@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use inox_math::Mat4Ops;
+use inox_math::{quantize_snorm, InnerSpace, Mat4Ops};
 use inox_resources::{to_slice, Buffer, HashBuffer};
 
 use crate::{
@@ -71,13 +71,20 @@ impl RenderBuffers {
             .iter()
             .enumerate()
             .for_each(|(i, meshlet_data)| {
+                let cone_axis = meshlet_data.cone_axis.normalize();
+                let cone_axis_cutoff = [
+                    quantize_snorm(cone_axis.x, 8) as i8,
+                    quantize_snorm(cone_axis.y, 8) as i8,
+                    quantize_snorm(cone_axis.z, 8) as i8,
+                    quantize_snorm(meshlet_data.cone_angle, 8) as i8,
+                ];
                 let meshlet = DrawMeshlet {
                     mesh_index,
                     bb_index: i as _,
                     indices_offset: meshlet_data.indices_offset as _,
                     indices_count: meshlet_data.indices_count,
                     center: meshlet_data.cone_center.into(),
-                    cone_axis_cutoff: meshlet_data.cone_axis_cutoff,
+                    cone_axis_cutoff,
                 };
                 meshlets[i] = meshlet;
                 bhvs[i].min = meshlet_data.aabb_min.into();

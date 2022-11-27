@@ -5,8 +5,8 @@ use inox_graphics::{
     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE,
 };
 use inox_math::{
-    compute_frustum, unpack_snorm_to_4_f32, Degrees, Frustum, InnerSpace, Mat4Ops, MatBase,
-    Matrix4, NewAngle, VecBase, VecBaseFloat, Vector3,
+    compute_frustum, Degrees, Frustum, InnerSpace, Mat4Ops, MatBase, Matrix4, NewAngle, VecBase,
+    VecBaseFloat, Vector3,
 };
 use inox_messenger::Listener;
 use inox_resources::{DataTypeResourceEvent, HashBuffer, Resource, ResourceEvent};
@@ -150,12 +150,11 @@ impl Info {
                 let DataTypeResourceEvent::Loaded(id, mesh_data) = e;
                 let mut meshlets = Vec::new();
                 mesh_data.meshlets.iter().for_each(|meshlet| {
-                    let cone_axis_cutoff = unpack_snorm_to_4_f32(meshlet.cone_axis_cutoff);
                     meshlets.push(MeshletInfo {
                         min: meshlet.aabb_min,
                         max: meshlet.aabb_max,
                         center: meshlet.cone_center,
-                        axis: cone_axis_cutoff.xyz(),
+                        axis: meshlet.cone_axis,
                     });
                 });
                 self.meshes.insert(

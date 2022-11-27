@@ -113,7 +113,7 @@ fn main(
         return;
     }
 
-    let cone_axis_cutoff = unpack_snorm_to_4_f32((*meshlet).cone_axis_cutoff);
+    let cone_axis_cutoff = unpack4x8snorm((*meshlet).cone_axis_cutoff);
     let cone_axis = rotate_vector(cone_axis_cutoff.xyz, (*mesh).orientation);    
     if (is_cone_visible((*meshlet).center, cone_axis, cone_axis_cutoff.w, radius))
     {

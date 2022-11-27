@@ -80,7 +80,7 @@ struct Meshlet {
     @location(7) indices_offset: u32,
     @location(8) indices_count: u32,
     @location(9) center: vec3<f32>,
-    @location(10) cone_axis_cutoff: i32,
+    @location(10) cone_axis_cutoff: u32,
 };
 
 struct AABB {

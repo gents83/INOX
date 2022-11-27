@@ -16,14 +16,14 @@ pub fn normalize_f32_in_0_1(v: f32, min: f32, max: f32) -> f32 {
 
 //input: [-1..1] float; output: [-127..127] integer
 #[inline]
-pub fn pack_4_f32_to_snorm(value: Vector4) -> i32 {
+pub fn pack_4_f32_to_snorm(value: Vector4) -> u32 {
     let v = [
         quantize_snorm(value.x, 8),
         quantize_snorm(value.y, 8),
         quantize_snorm(value.z, 8),
         quantize_snorm(value.w, 8),
     ];
-    ((v[0] as i32) << 24) | ((v[1] as i32) << 16) | ((v[2] as i32) << 8) | v[3] as i32
+    ((v[0] as u32) << 24) | ((v[1] as u32) << 16) | ((v[2] as u32) << 8) | v[3] as u32
 }
 
 //input: [0..1] float; output: [0..255] integer
@@ -40,22 +40,20 @@ pub fn pack_4_f32_to_unorm(value: Vector4) -> u32 {
 
 #[inline]
 pub fn unpack_unorm_to_4_f32(value: u32) -> Vector4 {
-    Vector4::new(
-        ((value >> 24) & 255) as f32 / 255.,
-        ((value >> 16) & 255) as f32 / 255.,
-        ((value >> 8) & 255) as f32 / 255.,
-        (value & 255) as f32 / 255.,
-    )
+    let r = decode_unorm((value >> 24) & 255, 8);
+    let g = decode_unorm((value >> 16) & 255, 8);
+    let b = decode_unorm((value >> 8) & 255, 8);
+    let a = decode_unorm(value & 255, 8);
+    Vector4::new(r, g, b, a)
 }
 
 #[inline]
-pub fn unpack_snorm_to_4_f32(value: i32) -> Vector4 {
-    Vector4::new(
-        ((value >> 24) & 255) as f32 / 255.,
-        ((value >> 16) & 255) as f32 / 255.,
-        ((value >> 8) & 255) as f32 / 255.,
-        (value & 255) as f32 / 255.,
-    )
+pub fn unpack_snorm_to_4_f32(value: u32) -> Vector4 {
+    let r = decode_snorm((value >> 24) & 255, 8);
+    let g = decode_snorm((value >> 16) & 255, 8);
+    let b = decode_snorm((value >> 8) & 255, 8);
+    let a = decode_snorm(value & 255, 8);
+    Vector4::new(r, g, b, a)
 }
 
 // Quantize a f32 in [0..1] range into an N-bit fixed point unorm value
@@ -84,16 +82,24 @@ pub fn decode_unorm(i: u32, n: u32) -> f32 {
 // Assumes reconstruction function (q / (2^(N-1)-1)), which is the case for fixed-function normalized fixed point conversion (except early OpenGL versions)
 // Maximum reconstruction error: 1/2^N
 #[inline]
-pub fn quantize_snorm(mut v: f32, n: u32) -> i32 {
-    let scale = (1 << (n - 1)) as f32;
-    v = if v >= -1. { v } else { -1. };
-    v = if v <= 1. { v } else { 1. };
-    (v * scale) as _
+pub fn quantize_snorm(v: f32, n: u32) -> u32 {
+    let c = (1 << (n - 1)) - 1;
+    let scale = c as f32;
+    if v < 0. {
+        return ((-v * scale) as u32 & c) | (1 << (n - 1));
+    }
+    (v * scale) as u32 & c
 }
 #[inline]
-pub fn decode_snorm(i: i32, n: u32) -> f32 {
-    let scale = (1 << (n - 1)) as f32;
-    i as f32 / scale
+pub fn decode_snorm(i: u32, n: u32) -> f32 {
+    let s = i >> (n - 1);
+    let c = (1 << (n - 1)) - 1;
+    let scale = c as f32;
+    if s != 0 {
+        let r = (i & c) as f32 / scale;
+        return -r;
+    }
+    (i & c) as f32 / scale
 }
 
 // Quantize a f32 into half-precision floating point value (16 bit)

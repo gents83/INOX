@@ -14,8 +14,8 @@ pub struct MeshletData {
     pub aabb_max: Vector3,
     pub indices_count: u32,
     pub cone_center: Vector3,
-    pub cone_axis_cutoff: i32,
-    pub radius: f32,
+    pub cone_axis: Vector3,
+    pub cone_angle: f32,
 }
 
 impl Default for MeshletData {
@@ -24,10 +24,10 @@ impl Default for MeshletData {
             aabb_min: Vector3::new(f32::MAX, f32::MAX, f32::MAX),
             aabb_max: Vector3::new(-f32::MAX, -f32::MAX, -f32::MAX),
             cone_center: Vector3::default_zero(),
-            cone_axis_cutoff: 0,
+            cone_axis: Vector3::default_zero(),
+            cone_angle: 0.,
             indices_offset: 0,
             indices_count: 0,
-            radius: 0.,
         }
     }
 }

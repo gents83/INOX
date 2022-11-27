@@ -386,12 +386,9 @@ impl GltfCompiler {
                     indices_count: m.triangles.len() as _,
                     aabb_max: max,
                     aabb_min: min,
-                    cone_axis_cutoff: ((bounds.cone_axis_s8[0] as i32) << 24)
-                        | ((bounds.cone_axis_s8[1] as i32) << 16)
-                        | ((bounds.cone_axis_s8[2] as i32) << 8)
-                        | bounds.cone_cutoff_s8 as i32,
+                    cone_axis: bounds.cone_axis.into(),
+                    cone_angle: bounds.cone_cutoff,
                     cone_center: bounds.center.into(),
-                    radius: bounds.radius,
                 });
             }
             debug_assert!(

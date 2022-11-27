@@ -85,7 +85,7 @@ pub struct DrawMeshlet {
     pub indices_offset: u32,
     pub indices_count: u32,
     pub center: [f32; 3],
-    pub cone_axis_cutoff: i32,
+    pub cone_axis_cutoff: [i8; 4],
 }
 
 impl DrawMeshlet {
@@ -97,7 +97,7 @@ impl DrawMeshlet {
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
         layout_builder.add_attribute::<[f32; 3]>(VertexFormat::Float32x3.into());
-        layout_builder.add_attribute::<i32>(VertexFormat::Sint32.into());
+        layout_builder.add_attribute::<[i8; 4]>(VertexFormat::Sint8x4.into());
         layout_builder
     }
 }
