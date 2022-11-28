@@ -450,7 +450,7 @@ impl ViewerSystem {
                                 let d = c.transform().direction();
                                 rotation_angle.x *= d.dot_product([0., 0., -1.].into()).signum();
                                 let m = Matrix4::from_euler_angles(rotation_angle);
-                                let v = m.rotate_point(d);
+                                let v = m.rotate_vector(d);
                                 c.look_toward(v);
                             }
                         });
