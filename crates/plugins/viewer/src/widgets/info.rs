@@ -5,7 +5,7 @@ use inox_graphics::{
     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE,
 };
 use inox_math::{
-    compute_frustum, Degrees, Frustum, InnerSpace, Mat4Ops, MatBase, Matrix4, NewAngle, VecBase,
+    compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle, Quat, VecBase,
     VecBaseFloat, Vector3,
 };
 use inox_messenger::Listener;
@@ -272,7 +272,7 @@ impl Info {
                         .mul(mesh_info.matrix.scale())
                         .length();
                     data.context.message_hub().send_event(DrawEvent::Circle(
-                        mesh_info.matrix.transform(meshlet_info.center),
+                        mesh_info.matrix.rotate_point(meshlet_info.center),
                         radius,
                         [1.0, 1.0, 0.0, 1.0].into(),
                         true,
@@ -289,8 +289,8 @@ impl Info {
                     data.context
                         .message_hub()
                         .send_event(DrawEvent::BoundingBox(
-                            mesh_info.matrix.transform(meshlet_info.min),
-                            mesh_info.matrix.transform(meshlet_info.max),
+                            mesh_info.matrix.rotate_point(meshlet_info.min),
+                            mesh_info.matrix.rotate_point(meshlet_info.max),
                             [1.0, 1.0, 0.0, 1.0].into(),
                         ));
                 });
@@ -301,13 +301,14 @@ impl Info {
     fn show_meshlets_cone_axis(data: &mut Data, meshes: &HashBuffer<MeshId, MeshInfo, 0>) {
         meshes.for_each_entry(|_id, mesh_info| {
             if mesh_info.flags.contains(MeshFlags::Visible) {
-                let (t, r, _s) = mesh_info.matrix.get_translation_rotation_scale();
-                let rot = Matrix4::from_translation_rotation_scale(t, r, Vector3::default_one());
                 mesh_info.meshlets.iter().for_each(|meshlet_info| {
-                    let pos = mesh_info.matrix.transform(meshlet_info.center);
+                    let pos = mesh_info.matrix.rotate_point(meshlet_info.center);
                     data.context.message_hub().send_event(DrawEvent::Line(
                         pos,
-                        pos + rot.transform(meshlet_info.axis.normalize()),
+                        pos + mesh_info
+                            .matrix
+                            .orientation()
+                            .transform_vector(meshlet_info.axis),
                         [1.0, 1.0, 0.0, 1.0].into(),
                     ));
                 });

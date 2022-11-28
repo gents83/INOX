@@ -53,7 +53,8 @@ pub trait Mat4Ops {
     fn forward(&self) -> Vector3;
     fn up(&self) -> Vector3;
     fn right(&self) -> Vector3;
-    fn transform(&self, vec: Vector3) -> Vector3;
+    fn rotate_point(&self, vec: Vector3) -> Vector3;
+    fn rotate_vector(&self, vec: Vector3) -> Vector3;
 }
 
 macro_rules! implement_matrix4_operations {
@@ -150,9 +151,14 @@ macro_rules! implement_matrix4_operations {
             }
 
             #[inline]
-            fn transform(&self, vec: Vector3) -> Vector3 {
+            fn rotate_point(&self, vec: Vector3) -> Vector3 {
                 let point = self.transform_point([vec.x, vec.y, vec.z].into());
                 [point.x, point.y, point.z].into()
+            }
+
+            #[inline]
+            fn rotate_vector(&self, vec: Vector3) -> Vector3 {
+                self.transform_vector(vec)
             }
 
             fn look_at(&mut self, target: Vector3) {
@@ -160,7 +166,7 @@ macro_rules! implement_matrix4_operations {
                 let forward = (target - p).normalized();
                 let mut up = Vector3::unit_y();
                 if forward.dot(up) >= 1. - f32::EPSILON && forward.dot(up) <= 1. + f32::EPSILON {
-                    up = Matrix4::from_angle_x(Degrees::new(90.)).transform(forward);
+                    up = Matrix4::from_angle_x(Degrees::new(90.)).transform_vector(forward);
                 };
                 let right = forward.cross(up).normalized();
                 up = right.cross(forward).normalize();

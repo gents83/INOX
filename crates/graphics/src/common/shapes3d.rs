@@ -294,8 +294,8 @@ pub fn create_arrow(position: Vector3, direction: Vector3, color: Vector4) -> Me
 
     let mut matrix = Matrix4::default_identity();
     matrix.look_towards(direction);
-    shape_mesh_data.aabb_min = position + matrix.transform(shape_mesh_data.aabb_min);
-    shape_mesh_data.aabb_max = position + matrix.transform(shape_mesh_data.aabb_max);
+    shape_mesh_data.aabb_min = position + matrix.rotate_point(shape_mesh_data.aabb_min);
+    shape_mesh_data.aabb_max = position + matrix.rotate_point(shape_mesh_data.aabb_max);
     shape_mesh_data
 }
 
@@ -406,8 +406,8 @@ pub fn create_hammer(position: Vector3, direction: Vector3, color: Vector4) -> M
 
     let mut matrix = Matrix4::default_identity();
     matrix.look_towards(direction);
-    shape_mesh_data.aabb_min = position + matrix.transform(shape_mesh_data.aabb_min);
-    shape_mesh_data.aabb_max = position + matrix.transform(shape_mesh_data.aabb_max);
+    shape_mesh_data.aabb_min = position + matrix.rotate_point(shape_mesh_data.aabb_min);
+    shape_mesh_data.aabb_max = position + matrix.rotate_point(shape_mesh_data.aabb_max);
     shape_mesh_data
 }
 
@@ -477,7 +477,7 @@ pub fn create_torus(
 
     let mut matrix = Matrix4::default_identity();
     matrix.look_towards(direction);
-    mesh_data.aabb_min = position + matrix.transform(mesh_data.aabb_min);
-    mesh_data.aabb_max = position + matrix.transform(mesh_data.aabb_max);
+    mesh_data.aabb_min = position + matrix.rotate_point(mesh_data.aabb_min);
+    mesh_data.aabb_max = position + matrix.rotate_point(mesh_data.aabb_max);
     mesh_data
 }

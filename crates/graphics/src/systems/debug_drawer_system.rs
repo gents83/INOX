@@ -253,8 +253,8 @@ impl DebugDrawerSystem {
                             let mut matrix = Matrix4::from_translation(position);
                             matrix.look_at(camera_pos);
                             matrix.add_translation(-position);
-                            mesh_data.aabb_min = matrix.transform(mesh_data.aabb_min);
-                            mesh_data.aabb_max = matrix.transform(mesh_data.aabb_max);
+                            mesh_data.aabb_min = matrix.rotate_point(mesh_data.aabb_min);
+                            mesh_data.aabb_max = matrix.rotate_point(mesh_data.aabb_max);
                         }
                         wireframe_mesh_data.append_mesh_data(mesh_data, false);
                     } else {
@@ -263,8 +263,8 @@ impl DebugDrawerSystem {
                             let mut matrix = Matrix4::from_translation(position);
                             matrix.look_at(camera_pos);
                             matrix.add_translation(-position);
-                            mesh_data.aabb_min = matrix.transform(mesh_data.aabb_min);
-                            mesh_data.aabb_max = matrix.transform(mesh_data.aabb_max);
+                            mesh_data.aabb_min = matrix.rotate_point(mesh_data.aabb_min);
+                            mesh_data.aabb_max = matrix.rotate_point(mesh_data.aabb_max);
                         }
                         opaque_mesh_data.append_mesh_data(mesh_data, false);
                     }

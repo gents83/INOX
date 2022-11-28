@@ -369,8 +369,9 @@ impl GltfCompiler {
                 let mut min = Vector3::new(f32::MAX, f32::MAX, f32::MAX);
                 let mut max = Vector3::new(-f32::MAX, -f32::MAX, -f32::MAX);
                 m.vertices.iter().for_each(|i| {
-                    min = min.min(vertices[*i as usize].position);
-                    max = max.max(vertices[*i as usize].position);
+                    let v = &vertices[*i as usize];
+                    min = min.min(v.position);
+                    max = max.max(v.position);
                 });
                 let index_offset = new_indices.len();
                 debug_assert!(
