@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use crate::{
     BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, DrawVertex,
     IndicesBuffer, MaterialsBuffer, MeshFlags, MeshesAABBsBuffer, MeshesBuffer, MeshletsBuffer,
-    Pass, RenderContext, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
-    ShaderStage, StoreOperation, TextureView, TexturesBuffer, VertexColorsBuffer,
+    OutputRenderPass, Pass, RenderContext, RenderPass, RenderPassBeginData, RenderPassData,
+    RenderTarget, ShaderStage, StoreOperation, TextureView, TexturesBuffer, VertexColorsBuffer,
     VertexNormalsBuffer, VertexPositionsBuffer, VertexUVsBuffer, VerticesBuffer,
 };
 
@@ -265,8 +265,8 @@ impl Pass for GBufferPass {
     }
 }
 
-impl GBufferPass {
-    pub fn render_pass(&self) -> &Resource<RenderPass> {
+impl OutputRenderPass for GBufferPass {
+    fn render_pass(&self) -> &Resource<RenderPass> {
         &self.render_pass
     }
 }

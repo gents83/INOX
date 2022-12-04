@@ -2,9 +2,9 @@ use std::path::PathBuf;
 
 use crate::{
     BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, LightsBuffer,
-    MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderPass,
-    RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation, TextureId,
-    TextureView, TexturesBuffer,
+    MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer, OutputRenderPass, Pass,
+    RenderContext, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage,
+    StoreOperation, TextureId, TextureView, TexturesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -242,10 +242,13 @@ impl Pass for PBRPass {
     }
 }
 
-impl PBRPass {
-    pub fn render_pass(&self) -> &Resource<RenderPass> {
+impl OutputRenderPass for PBRPass {
+    fn render_pass(&self) -> &Resource<RenderPass> {
         &self.render_pass
     }
+}
+
+impl PBRPass {
     pub fn set_gbuffers_textures(&mut self, textures: &[&TextureId]) -> &mut Self {
         self.gbuffer_textures = textures.iter().map(|&id| *id).collect();
         self

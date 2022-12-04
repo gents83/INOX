@@ -1,6 +1,9 @@
 use inox_core::ContextRc;
+use inox_resources::Resource;
 
-use crate::{CommandBuffer, DrawCommandType, MeshFlags, RenderContext, TextureView};
+use crate::{
+    CommandBuffer, DrawCommandType, MeshFlags, RenderContext, RenderPass, TextureId, TextureView,
+};
 use downcast_rs::{impl_downcast, Downcast};
 
 pub trait Pass: Downcast + Send + Sync + 'static {
@@ -22,4 +25,12 @@ pub trait Pass: Downcast + Send + Sync + 'static {
         command_buffer: &mut CommandBuffer,
     );
 }
+
+pub trait OutputRenderPass: Pass {
+    fn render_pass(&self) -> &Resource<RenderPass>;
+}
+pub trait OutputPass: Pass {
+    fn render_targets_id(&self) -> Vec<TextureId>;
+}
 impl_downcast!(Pass);
+impl_downcast!(OutputPass);

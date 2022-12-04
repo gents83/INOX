@@ -2,9 +2,9 @@ use std::path::PathBuf;
 
 use crate::{
     BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, DrawVertex,
-    IndicesBuffer, MeshFlags, MeshesAABBsBuffer, MeshesBuffer, MeshletsBuffer, Pass, RenderContext,
-    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
-    TextureView, VertexPositionsBuffer, VerticesBuffer,
+    IndicesBuffer, MeshFlags, MeshesAABBsBuffer, MeshesBuffer, MeshletsBuffer, OutputRenderPass,
+    Pass, RenderContext, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
+    ShaderStage, StoreOperation, TextureView, VertexPositionsBuffer, VerticesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -184,8 +184,8 @@ impl Pass for VisibilityBufferPass {
     }
 }
 
-impl VisibilityBufferPass {
-    pub fn render_pass(&self) -> &Resource<RenderPass> {
+impl OutputRenderPass for VisibilityBufferPass {
+    fn render_pass(&self) -> &Resource<RenderPass> {
         &self.render_pass
     }
 }

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::{
     AsBinding, BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
     ConstantDataRw, DrawCommandType, GpuBuffer, IndicesBuffer, LightsBuffer, MaterialsBuffer,
-    MeshFlags, MeshesAABBsBuffer, MeshesBuffer, MeshletsBuffer, Pass, RenderContext,
+    MeshFlags, MeshesAABBsBuffer, MeshesBuffer, MeshletsBuffer, OutputPass, Pass, RenderContext,
     RenderCoreContext, ShaderStage, Texture, TextureFormat, TextureId, TextureUsage, TextureView,
     TexturesBuffer, VertexColorsBuffer, VertexNormalsBuffer, VertexPositionsBuffer,
     VertexUVsBuffer, VerticesBuffer, DEFAULT_HEIGHT, DEFAULT_WIDTH,
@@ -362,6 +362,12 @@ impl Pass for ComputePbrPass {
     }
 }
 
+impl OutputPass for ComputePbrPass {
+    fn render_targets_id(&self) -> Vec<TextureId> {
+        [*self.render_target.as_ref().unwrap().id()].to_vec()
+    }
+}
+
 impl ComputePbrPass {
     pub fn add_texture(&mut self, texture_id: &TextureId) -> &mut Self {
         self.visibility_buffer_id = *texture_id;
@@ -383,8 +389,5 @@ impl ComputePbrPass {
         self.data.dimensions = [width, height];
         self.data.set_dirty(true);
         self
-    }
-    pub fn render_target_id(&self) -> &TextureId {
-        self.render_target.as_ref().unwrap().id()
     }
 }

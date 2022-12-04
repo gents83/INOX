@@ -5,9 +5,10 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 use inox_graphics::{
     platform::has_primitive_index_support, rendering_system::RenderingSystem,
     update_system::UpdateSystem, BlitPass, ComputePbrPass, CullingPass, DebugDrawerSystem,
-    GBufferPass, LoadOperation, PBRPass, Pass, RenderPass, RenderTarget, Renderer, RendererRw,
-    TextureFormat, VisibilityBufferPass, WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH,
-    GBUFFER_PASS_NAME, WIREFRAME_PASS_NAME,
+    GBufferPass, LoadOperation, OutputPass, OutputRenderPass, PBRPass, Pass,
+    RayTracingVisibilityPass, RenderPass, RenderTarget, Renderer, RendererRw, TextureFormat,
+    VisibilityBufferPass, WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH, GBUFFER_PASS_NAME,
+    WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -19,6 +20,7 @@ use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
 const ADD_WIREFRAME_PASS: bool = true;
 const ADD_UI_PASS: bool = true;
+const USE_RAYTRACING: bool = false;
 const USE_ALL_PASSES: bool = false;
 const USE_3DVIEW: bool = false;
 
@@ -153,17 +155,21 @@ impl Plugin for Viewer {
 
 impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &mut Renderer, width: u32, height: u32) {
-        if USE_ALL_PASSES || !has_primitive_index_support() {
-            Self::create_gbuffer_pass(context, renderer, width, height, true);
-            Self::create_pbr_pass(context, renderer, true);
+        if USE_RAYTRACING {
+            Self::create_raytracing_visibility_pass(context, renderer, width, height, true);
+            Self::create_blit_pass::<RayTracingVisibilityPass>(context, renderer, true);
+        } else {
+            if USE_ALL_PASSES || !has_primitive_index_support() {
+                Self::create_gbuffer_pass(context, renderer, width, height, true);
+                Self::create_pbr_pass(context, renderer, true);
+            }
+            if USE_ALL_PASSES || has_primitive_index_support() {
+                Self::create_culling_pass(context, renderer, true);
+                Self::create_visibility_buffer_pass(context, renderer, width, height, true);
+                Self::create_compute_pbr_pass(context, renderer, width, height, true);
+                Self::create_blit_pass::<ComputePbrPass>(context, renderer, true);
+            }
         }
-        if USE_ALL_PASSES || has_primitive_index_support() {
-            Self::create_culling_pass(context, renderer, true);
-            Self::create_visibility_buffer_pass(context, renderer, width, height, true);
-            Self::create_compute_pbr_pass(context, renderer, width, height, true);
-            Self::create_blit_pass(context, renderer, true);
-        }
-
         Self::create_wireframe_pass(context, renderer, ADD_WIREFRAME_PASS);
         Self::create_ui_pass(context, renderer, width, height, ADD_UI_PASS);
     }
@@ -271,6 +277,32 @@ impl Viewer {
             });
         renderer.add_pass(visibility_pass, is_enabled);
     }
+    fn create_raytracing_visibility_pass(
+        context: &ContextRc,
+        renderer: &mut Renderer,
+        width: u32,
+        height: u32,
+        is_enabled: bool,
+    ) {
+        let compute_visibility_pass =
+            RayTracingVisibilityPass::create(context, &renderer.render_context());
+        compute_visibility_pass
+            .render_pass()
+            .get_mut()
+            .add_render_target(RenderTarget::Texture {
+                width,
+                height,
+                format: TextureFormat::Rgba8Unorm,
+                read_back: false,
+            })
+            .add_depth_target(RenderTarget::Texture {
+                width,
+                height,
+                format: TextureFormat::Depth32Float,
+                read_back: false,
+            });
+        renderer.add_pass(compute_visibility_pass, is_enabled);
+    }
     fn create_compute_pbr_pass(
         context: &ContextRc,
         renderer: &mut Renderer,
@@ -288,10 +320,14 @@ impl Viewer {
         }
         renderer.add_pass(compute_pbr_pass, is_enabled);
     }
-    fn create_blit_pass(context: &ContextRc, renderer: &mut Renderer, is_enabled: bool) {
+    fn create_blit_pass<P: OutputPass>(
+        context: &ContextRc,
+        renderer: &mut Renderer,
+        is_enabled: bool,
+    ) {
         let mut blit_pass = BlitPass::create(context, &renderer.render_context());
-        if let Some(pbr_pass) = renderer.pass::<ComputePbrPass>() {
-            blit_pass.set_source(pbr_pass.render_target_id());
+        if let Some(source_pass) = renderer.pass::<P>() {
+            blit_pass.set_source(source_pass.render_targets_id().first().unwrap());
         }
         renderer.add_pass(blit_pass, is_enabled);
     }

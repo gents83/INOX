@@ -145,7 +145,7 @@ impl Pass for CullingPass {
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
-        inox_profiler::scoped_profile!("pbr_pass::init");
+        inox_profiler::scoped_profile!("compute_culling_pass::init");
 
         self.process_messages();
 
