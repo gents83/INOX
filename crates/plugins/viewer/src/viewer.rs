@@ -306,7 +306,7 @@ impl Viewer {
         compute_pbr_pass.add_render_target_with_resolution(width, height);
         if let Some(visibility_pass) = renderer.pass::<P>() {
             visibility_pass.render_targets_id().iter().for_each(|id| {
-                compute_pbr_pass.add_texture(&id);
+                compute_pbr_pass.add_texture(id);
             });
         }
         renderer.add_pass(compute_pbr_pass, is_enabled);

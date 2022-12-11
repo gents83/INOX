@@ -72,10 +72,10 @@ impl Exporter {
 
         // For every Blender scene
         let scenes = data.getattr("scenes")?.call_method("values", (), None)?;
-        let scenes = scenes.cast_as::<PyList>()?;
+        let scenes = scenes.downcast::<PyList>()?;
         for scene in scenes.iter() {
             let objects = scene.getattr("objects")?.call_method("values", (), None)?;
-            let objects = objects.cast_as::<PyList>()?;
+            let objects = objects.downcast::<PyList>()?;
             for object in objects.iter() {
                 self.process_object_properties(py, &object.to_object(py), export_dir)?;
             }
