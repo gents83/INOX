@@ -1,4 +1,5 @@
 [workspace]
+resolver = "2"
 members = [
     "app",
     "bitmask",
@@ -25,4 +26,5 @@ members = [
     "uid",
 ]
 
-resolver = "2"
+[workspace.package]
+edition = "2021"

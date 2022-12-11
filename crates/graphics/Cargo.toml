@@ -25,10 +25,10 @@ inox_serialize = { path = "../serialize" }
 inox_uid = { path = "../uid" }
 
 [target.'cfg(all(not(target_arch = "wasm32")))'.dependencies]
-wgpu = { path = "../../extern/wgpu/wgpu", features = ["spirv", "glsl"] }
+wgpu = { version = "0.14", path = "../../extern/wgpu/wgpu", features = ["spirv", "glsl", "wgsl"] }
 futures = { version = "0.3", features = ["std", "thread-pool"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wgpu = { path = "../../extern/wgpu/wgpu", default-features = false, features = ["spirv", "glsl"] }
+wgpu = { version = "0.14", path = "../../extern/wgpu/wgpu", features = ["spirv", "glsl", "wgsl"] }
 wasm-bindgen = "0.2.81"
 wasm-bindgen-futures = "0.4.29"
