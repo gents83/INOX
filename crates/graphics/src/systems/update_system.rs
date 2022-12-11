@@ -275,6 +275,7 @@ impl System for UpdateSystem {
                     self.view.get().view(),
                     self.view.get().proj(),
                     screen_size,
+                    self.view.get().fov_in_degrees(),
                 );
             }
 

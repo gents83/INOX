@@ -1,7 +1,9 @@
 use std::path::{Path, PathBuf};
 
 use inox_graphics::{DEFAULT_ASPECT_RATIO, DEFAULT_FAR, DEFAULT_FOV, DEFAULT_NEAR};
-use inox_math::{convert_in_3d, Degrees, Mat4Ops, MatBase, Matrix4, NewAngle, Vector2, Vector3};
+use inox_math::{
+    convert_in_3d, Degrees, Mat4Ops, MatBase, Matrix4, NewAngle, Radians, Vector2, Vector3,
+};
 use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
@@ -132,17 +134,17 @@ impl Camera {
     #[inline]
     pub fn set_projection(
         &mut self,
-        fov: Degrees,
+        fov_in_degrees: Degrees,
         screen_width: f32,
         screen_height: f32,
         near: f32,
         far: f32,
     ) -> &mut Self {
-        let proj = inox_math::perspective(fov, screen_width / screen_height, near, far);
+        let proj = inox_math::perspective(fov_in_degrees, screen_width / screen_height, near, far);
 
         self.proj = /*OPENGL_TO_WGPU_MATRIX * */proj;
 
-        self.fov_in_degrees = fov;
+        self.fov_in_degrees = fov_in_degrees;
         self.aspect_ratio = screen_width / screen_height;
         self.near_plane = near;
         self.far_plane = far;
@@ -229,6 +231,11 @@ impl Camera {
     #[inline]
     pub fn fov_in_degrees(&self) -> Degrees {
         self.fov_in_degrees
+    }
+
+    #[inline]
+    pub fn fov_in_radians(&self) -> Radians {
+        self.fov_in_degrees.into()
     }
 
     #[inline]

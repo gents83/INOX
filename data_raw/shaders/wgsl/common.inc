@@ -36,6 +36,7 @@ struct ConstantData {
     inverse_view_proj: mat4x4<f32>,
     screen_width: f32,
     screen_height: f32,
+    cam_fov: f32,
     flags: u32,
 };
 

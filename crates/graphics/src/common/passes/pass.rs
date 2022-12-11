@@ -26,11 +26,25 @@ pub trait Pass: Downcast + Send + Sync + 'static {
     );
 }
 
-pub trait OutputRenderPass: Pass {
-    fn render_pass(&self) -> &Resource<RenderPass>;
-}
 pub trait OutputPass: Pass {
     fn render_targets_id(&self) -> Vec<TextureId>;
 }
+pub trait OutputRenderPass: OutputPass {
+    fn render_pass(&self) -> &Resource<RenderPass>;
+}
+impl<T> OutputPass for T
+where
+    T: OutputRenderPass,
+{
+    fn render_targets_id(&self) -> Vec<TextureId> {
+        self.render_pass()
+            .get()
+            .render_textures_id()
+            .iter()
+            .map(|&id| *id)
+            .collect()
+    }
+}
 impl_downcast!(Pass);
 impl_downcast!(OutputPass);
+impl_downcast!(OutputRenderPass);

@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
-use inox_math::{Matrix4, Vector2};
+use inox_math::{Degrees, Matrix4, Vector2};
 use inox_platform::Handle;
 use inox_resources::Resource;
 
@@ -78,7 +78,7 @@ impl RenderContext {
         let (instance, surface, adapter, device, queue) = {
             let backend = wgpu::Backends::all();
             let instance = wgpu::Instance::new(backend);
-            let surface = unsafe { instance.create_surface(&handle) };
+            let surface = unsafe { instance.create_surface(&handle).unwrap() };
 
             let adapter = wgpu::util::initialize_adapter_from_env_or_default(
                 &instance,
@@ -103,7 +103,7 @@ impl RenderContext {
             } else {
                 let vulkan_backend = wgpu::Backends::VULKAN;
                 let vulkan_instance = wgpu::Instance::new(vulkan_backend);
-                let vulkan_surface = unsafe { vulkan_instance.create_surface(&handle) };
+                let vulkan_surface = unsafe { vulkan_instance.create_surface(&handle).unwrap() };
 
                 let vulkan_adapter = wgpu::util::initialize_adapter_from_env_or_default(
                     &vulkan_instance,
@@ -137,11 +137,15 @@ impl RenderContext {
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: *surface.get_supported_formats(&adapter).first().unwrap(),
+            format: *surface.get_capabilities(&adapter).formats.first().unwrap(),
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
             present_mode: wgpu::PresentMode::AutoNoVsync,
-            alpha_mode: *surface.get_supported_alpha_modes(&adapter).first().unwrap(),
+            alpha_mode: *surface
+                .get_capabilities(&adapter)
+                .alpha_modes
+                .first()
+                .unwrap(),
         };
 
         //debug_log!("Surface format: {:?}", config.format);
@@ -173,12 +177,18 @@ impl RenderContext {
         on_create_func(&mut renderer);
     }
 
-    pub fn update_constant_data(&self, view: Matrix4, proj: Matrix4, screen_size: Vector2) {
+    pub fn update_constant_data(
+        &self,
+        view: Matrix4,
+        proj: Matrix4,
+        screen_size: Vector2,
+        fov_in_degrees: Degrees,
+    ) {
         inox_profiler::scoped_profile!("render_context::update_constant_data");
         self.constant_data
             .write()
             .unwrap()
-            .update(view, proj, screen_size);
+            .update(view, proj, screen_size, fov_in_degrees);
         if self.core.config.read().unwrap().format.describe().srgb {
             self.constant_data
                 .write()

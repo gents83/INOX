@@ -71,7 +71,7 @@
                 "-plugin inox_common_script",
                 "-plugin inox_viewer",
                 "-load_file",
-                "models/stanford_bunny/stanford_bunny.scene"
+                "models/craftman/craftman.scene"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,

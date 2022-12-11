@@ -22,6 +22,7 @@ fn compute_barycentrics(a: vec2<f32>, b: vec2<f32>, c: vec2<f32>, p: vec2<f32>) 
 
     return vec3 (u,v,w);
 }
+
 // Engel's barycentric coord partial derivs function. Follows equation from [Schied][Dachsbacher]
 // Computes the partial derivatives of point's barycentric coordinates from the projected screen space vertices
 fn compute_partial_derivatives(v0: vec2<f32>, v1: vec2<f32>, v2: vec2<f32>) -> Derivatives

@@ -158,6 +158,10 @@ impl Viewer {
         if USE_RAYTRACING {
             Self::create_raytracing_visibility_pass(context, renderer, width, height, true);
             Self::create_blit_pass::<RayTracingVisibilityPass>(context, renderer, true);
+            //Self::create_compute_pbr_pass::<RayTracingVisibilityPass>(
+            //    context, renderer, width, height, true,
+            //);
+            //Self::create_blit_pass::<ComputePbrPass>(context, renderer, true);
         } else {
             if USE_ALL_PASSES || !has_primitive_index_support() {
                 Self::create_gbuffer_pass(context, renderer, width, height, true);
@@ -166,7 +170,9 @@ impl Viewer {
             if USE_ALL_PASSES || has_primitive_index_support() {
                 Self::create_culling_pass(context, renderer, true);
                 Self::create_visibility_buffer_pass(context, renderer, width, height, true);
-                Self::create_compute_pbr_pass(context, renderer, width, height, true);
+                Self::create_compute_pbr_pass::<VisibilityBufferPass>(
+                    context, renderer, width, height, true,
+                );
                 Self::create_blit_pass::<ComputePbrPass>(context, renderer, true);
             }
         }
@@ -284,26 +290,12 @@ impl Viewer {
         height: u32,
         is_enabled: bool,
     ) {
-        let compute_visibility_pass =
+        let mut compute_visibility_pass =
             RayTracingVisibilityPass::create(context, &renderer.render_context());
-        compute_visibility_pass
-            .render_pass()
-            .get_mut()
-            .add_render_target(RenderTarget::Texture {
-                width,
-                height,
-                format: TextureFormat::Rgba8Unorm,
-                read_back: false,
-            })
-            .add_depth_target(RenderTarget::Texture {
-                width,
-                height,
-                format: TextureFormat::Depth32Float,
-                read_back: false,
-            });
+        compute_visibility_pass.add_render_target_with_resolution(width / 2, height / 2);
         renderer.add_pass(compute_visibility_pass, is_enabled);
     }
-    fn create_compute_pbr_pass(
+    fn create_compute_pbr_pass<P: OutputPass>(
         context: &ContextRc,
         renderer: &mut Renderer,
         width: u32,
@@ -312,10 +304,9 @@ impl Viewer {
     ) {
         let mut compute_pbr_pass = ComputePbrPass::create(context, &renderer.render_context());
         compute_pbr_pass.add_render_target_with_resolution(width, height);
-        if let Some(visibility_pass) = renderer.pass::<VisibilityBufferPass>() {
-            let pass = visibility_pass.render_pass().get();
-            pass.render_textures_id().iter().for_each(|&id| {
-                compute_pbr_pass.add_texture(id);
+        if let Some(visibility_pass) = renderer.pass::<P>() {
+            visibility_pass.render_targets_id().iter().for_each(|id| {
+                compute_pbr_pass.add_texture(&id);
             });
         }
         renderer.add_pass(compute_pbr_pass, is_enabled);

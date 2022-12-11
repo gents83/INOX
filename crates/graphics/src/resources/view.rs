@@ -1,10 +1,10 @@
-use inox_math::{Degrees, MatBase, Matrix4, NewAngle};
+use inox_math::{Degrees, MatBase, Matrix4, NewAngle, Radians};
 use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, Handle, ResourceId, ResourceTrait, SharedData, SharedDataRc,
 };
 
-use crate::{DEFAULT_FAR, DEFAULT_HEIGHT, DEFAULT_NEAR, DEFAULT_WIDTH};
+use crate::{DEFAULT_FAR, DEFAULT_FOV, DEFAULT_HEIGHT, DEFAULT_NEAR, DEFAULT_WIDTH};
 
 pub type ViewId = ResourceId;
 
@@ -13,6 +13,7 @@ pub struct View {
     view_index: u32,
     view: Matrix4,
     proj: Matrix4,
+    fov_in_degrees: Degrees,
 }
 
 impl ResourceTrait for View {
@@ -32,6 +33,7 @@ impl DataTypeResource for View {
             view_index: 0,
             view: Matrix4::default_identity(),
             proj: Matrix4::default_identity(),
+            fov_in_degrees: Degrees::new(DEFAULT_FOV),
         }
     }
 
@@ -44,15 +46,17 @@ impl DataTypeResource for View {
     where
         Self: Sized,
     {
+        let fov_in_degrees = Degrees::new(DEFAULT_FOV);
         Self {
             view_index: *data,
             view: Matrix4::default_identity(),
             proj: inox_math::perspective(
-                Degrees::new(45.),
+                fov_in_degrees,
                 DEFAULT_WIDTH as f32 / DEFAULT_HEIGHT as f32,
                 DEFAULT_NEAR,
                 DEFAULT_FAR,
             ),
+            fov_in_degrees,
         }
     }
 }
@@ -67,10 +71,20 @@ impl View {
     pub fn proj(&self) -> Matrix4 {
         self.proj
     }
+    pub fn fov_in_radians(&self) -> Radians {
+        self.fov_in_degrees.into()
+    }
+    pub fn fov_in_degrees(&self) -> Degrees {
+        self.fov_in_degrees
+    }
     pub fn find_from_view_index(shared_data: &SharedDataRc, view_index: u32) -> Handle<View> {
         SharedData::match_resource(shared_data, |v: &View| v.view_index == view_index)
     }
 
+    pub fn update_fov(&mut self, fov_in_degrees: Degrees) -> &mut Self {
+        self.fov_in_degrees = fov_in_degrees;
+        self
+    }
     pub fn update_view(&mut self, mat: Matrix4) -> &mut Self {
         self.view = mat;
         self
