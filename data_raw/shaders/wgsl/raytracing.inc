@@ -1,15 +1,55 @@
 struct Ray {
     origin: vec3<f32>,
-    min: f32,
     direction: vec3<f32>,
-    max: f32,
 }
 
-struct Intersection {
-    position: vec3<f32>,
-    t: f32,
-    normal: vec3<f32>,
-    visibility_id: u32,
+fn swap_f32(ptr_a: ptr<function, f32>, ptr_b: ptr<function, f32>) {
+    let c = *ptr_a;
+    *ptr_a = *ptr_b;
+    *ptr_b = c;
+}
+
+fn intersect_oobb(r: Ray, min: vec3<f32>, max: vec3<f32>) -> bool 
+{     
+    var tmin = (min.x - r.origin.x) / r.direction.x; 
+    var tmax = (max.x - r.origin.x) / r.direction.x; 
+ 
+    if (tmin > tmax) {
+        swap_f32(&tmin, &tmax); 
+    } 
+ 
+    var tymin = (min.y - r.origin.y) / r.direction.y; 
+    var tymax = (max.y - r.origin.y) / r.direction.y; 
+ 
+    if (tymin > tymax) {
+        swap_f32(&tymin, &tymax); 
+    }  
+    if ((tmin > tymax) || (tymin > tmax)) {
+        return false; 
+    } 
+    if (tymin > tmin) {
+        tmin = tymin; 
+    } 
+    if (tymax < tmax) {
+        tmax = tymax; 
+    }
+ 
+    var tzmin = (min.z - r.origin.z) / r.direction.z; 
+    var tzmax = (max.z - r.origin.z) / r.direction.z; 
+ 
+    if (tzmin > tzmax) {
+        swap_f32(&tzmin, &tzmax);
+    }  
+    if ((tmin > tzmax) || (tzmin > tmax)) {
+        return false; 
+    } 
+    if (tzmin > tmin) {
+        tmin = tzmin; 
+    }  
+    if (tzmax < tmax) {
+        tmax = tzmax; 
+    } 
+    return true; 
 }
 
 
