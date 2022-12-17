@@ -2,7 +2,7 @@ use crate::angle::NewAngle;
 use crate::vector::{VecBaseFloat, Vector3, Vector4};
 use crate::Degrees;
 use crate::{Quat, Quaternion};
-pub use cgmath::{Deg, InnerSpace, Matrix, SquareMatrix, Transform};
+use cgmath::{Deg, InnerSpace, SquareMatrix, Transform};
 
 pub type Matrix3 = cgmath::Matrix3<f32>;
 pub type Matrix4 = cgmath::Matrix4<f32>;

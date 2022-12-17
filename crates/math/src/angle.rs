@@ -1,7 +1,7 @@
-pub use cgmath::{Deg, Rad};
+use cgmath::{Deg, Rad};
 
-pub type Degrees = cgmath::Deg<f32>;
-pub type Radians = cgmath::Rad<f32>;
+pub type Degrees = Deg<f32>;
+pub type Radians = Rad<f32>;
 
 pub trait NewAngle {
     fn new(angle: f32) -> Self;
