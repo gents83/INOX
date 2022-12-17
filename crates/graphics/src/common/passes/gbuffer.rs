@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, DrawVertex,
-    IndicesBuffer, MaterialsBuffer, MeshFlags, MeshesAABBsBuffer, MeshesBuffer, MeshletsBuffer,
+    BHVBuffer, BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
+    DrawVertex, IndicesBuffer, MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer,
     OutputRenderPass, Pass, RenderContext, RenderPass, RenderPassBeginData, RenderPassData,
     RenderTarget, ShaderStage, StoreOperation, TextureView, TexturesBuffer, VertexColorsBuffer,
     VertexNormalsBuffer, VertexPositionsBuffer, VertexUVsBuffer, VerticesBuffer,
@@ -22,7 +22,7 @@ pub struct GBufferPass {
     textures: TexturesBuffer,
     materials: MaterialsBuffer,
     meshes: MeshesBuffer,
-    meshes_aabb: MeshesAABBsBuffer,
+    bhv: BHVBuffer,
     meshlets: MeshletsBuffer,
     vertices: VerticesBuffer,
     indices: IndicesBuffer,
@@ -77,7 +77,7 @@ impl Pass for GBufferPass {
             textures: render_context.render_buffers.textures.clone(),
             materials: render_context.render_buffers.materials.clone(),
             meshes: render_context.render_buffers.meshes.clone(),
-            meshes_aabb: render_context.render_buffers.meshes_aabb.clone(),
+            bhv: render_context.render_buffers.bhvs.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
             vertices: render_context.render_buffers.vertices.clone(),
             indices: render_context.render_buffers.indices.clone(),
@@ -197,8 +197,8 @@ impl Pass for GBufferPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.meshes_aabb.write().unwrap(),
-                Some("MeshesAABB"),
+                &mut *self.bhv.write().unwrap(),
+                Some("BHV"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 4,

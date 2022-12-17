@@ -44,8 +44,9 @@ var<storage, read> textures: Textures;
 @group(1) @binding(3)
 var<storage, read> meshlets: Meshlets;
 @group(1) @binding(4)
-var<storage, read> meshes_aabb: AABBs;
+var<storage, read> bhv: BHV;
 
+#import "matrix_utils.inc"
 #import "texture_utils.inc"
 #import "material_utils.inc"
 
@@ -60,7 +61,7 @@ fn vs_main(
 
     let mesh_id = u32(meshlets.data[meshlet_id].mesh_index);
     let mesh = &meshes.data[mesh_id];
-    let aabb = &meshes_aabb.data[mesh_id];
+    let aabb = &bhv.data[(*mesh).bhv_index];
 
     let aabb_size = abs((*aabb).max - (*aabb).min);
     

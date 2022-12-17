@@ -3,8 +3,8 @@
 
 pub use self::aabb::*;
 pub use self::bhv::*;
-pub use self::sah::*;
+pub use self::partition::*;
 
 pub mod aabb;
 pub mod bhv;
-pub mod sah;
+pub mod partition;

@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
 use crate::{
-    declare_as_binding_vector, AsBinding, BindingData, BindingInfo, CommandBuffer, CommandsBuffer,
-    ComputePass, ComputePassData, ConstantDataRw, DrawCommandType, GpuBuffer, MeshFlags,
-    MeshesBuffer, MeshletsAABBsBuffer, MeshletsBuffer, Pass, RenderContext, RenderCoreContext,
-    ShaderStage, TextureView,
+    declare_as_binding_vector, AsBinding, BHVBuffer, BindingData, BindingInfo, CommandBuffer,
+    CommandsBuffer, ComputePass, ComputePassData, ConstantDataRw, DrawCommandType, GpuBuffer,
+    MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderCoreContext, ShaderStage,
+    TextureView,
 };
 
 use inox_commands::CommandParser;
@@ -76,7 +76,7 @@ pub struct CullingPass {
     commands: CommandsBuffer,
     meshes: MeshesBuffer,
     meshlets: MeshletsBuffer,
-    meshlets_aabb: MeshletsAABBsBuffer,
+    bhv: BHVBuffer,
     culling_data: CullingData,
     visible_draw_data: VecVisibleDrawData,
     listener: Listener,
@@ -136,7 +136,7 @@ impl Pass for CullingPass {
             commands: render_context.render_buffers.commands.clone(),
             meshes: render_context.render_buffers.meshes.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
-            meshlets_aabb: render_context.render_buffers.meshlets_aabb.clone(),
+            bhv: render_context.render_buffers.bhvs.clone(),
             binding_data: BindingData::new(render_context, CULLING_PASS_NAME),
             culling_data: CullingData::default(),
             visible_draw_data: VecVisibleDrawData::default(),
@@ -218,7 +218,7 @@ impl Pass for CullingPass {
                     },
                 )
                 .add_storage_buffer(
-                    &mut *self.meshlets_aabb.write().unwrap(),
+                    &mut *self.bhv.write().unwrap(),
                     Some("MeshletsAABB"),
                     BindingInfo {
                         group_index: 0,

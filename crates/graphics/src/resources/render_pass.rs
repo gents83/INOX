@@ -394,7 +394,7 @@ impl RenderPass {
     pub fn draw_meshlets(&self, render_context: &RenderContext, mut render_pass: wgpu::RenderPass) {
         inox_profiler::scoped_profile!("render_pass::draw_meshlets");
 
-        let mesh_flags: u32 = self.pipeline().get().data().mesh_flags.into();
+        let mesh_flags = self.pipeline().get().data().mesh_flags;
         let meshlets = render_context.render_buffers.meshlets.read().unwrap();
         let meshlets = meshlets.data();
         render_context
@@ -402,25 +402,34 @@ impl RenderPass {
             .meshes
             .read()
             .unwrap()
-            .for_each_entry(|_, mesh| {
-                if mesh.mesh_flags == mesh_flags {
-                    inox_profiler::scoped_profile!("render_pass::draw_mesh");
-                    for i in mesh.meshlets_offset..mesh.meshlets_offset + mesh.meshlets_count {
-                        inox_profiler::scoped_profile!("render_pass::draw_indexed");
-                        inox_profiler::gpu_scoped_profile!(
-                            &mut render_pass,
-                            &render_context.core.device,
-                            "render_pass::draw_indexed",
-                        );
-                        let meshlet = &meshlets[i as usize];
-                        render_pass.draw_indexed(
-                            (mesh.indices_offset + meshlet.indices_offset) as _
-                                ..(mesh.indices_offset
-                                    + meshlet.indices_offset
-                                    + meshlet.indices_count) as _,
-                            mesh.vertex_offset as _,
-                            i as _..(i as u32 + 1),
-                        );
+            .for_each_id(|mesh_id, _, mesh| {
+                if let Some(flags) = render_context
+                    .render_buffers
+                    .meshes_flags
+                    .read()
+                    .unwrap()
+                    .get(mesh_id)
+                {
+                    if flags == &mesh_flags {
+                        inox_profiler::scoped_profile!("render_pass::draw_mesh");
+                        for i in mesh.meshlets_offset..mesh.meshlets_offset + mesh.meshlets_count {
+                            inox_profiler::scoped_profile!("render_pass::draw_indexed");
+                            inox_profiler::gpu_scoped_profile!(
+                                &mut render_pass,
+                                &render_context.core.device,
+                                "render_pass::draw_indexed",
+                            );
+                            let meshlet = &meshlets[i as usize];
+                            render_pass.draw_indexed(
+                                (mesh.indices_offset + meshlet.indices_offset) as _
+                                    ..(mesh.indices_offset
+                                        + meshlet.indices_offset
+                                        + meshlet.indices_count)
+                                        as _,
+                                mesh.vertex_offset as _,
+                                i as _..(i as u32 + 1),
+                            );
+                        }
                     }
                 }
             });
@@ -493,7 +502,7 @@ impl RenderPass {
     pub fn draw_meshes(&self, render_context: &RenderContext, mut render_pass: wgpu::RenderPass) {
         inox_profiler::scoped_profile!("render_pass::draw_meshes");
 
-        let mesh_flags: u32 = self.pipeline().get().data().mesh_flags.into();
+        let mesh_flags = self.pipeline().get().data().mesh_flags;
         let meshlets = render_context.render_buffers.meshlets.read().unwrap();
         let meshlets = meshlets.data();
         render_context
@@ -501,24 +510,32 @@ impl RenderPass {
             .meshes
             .read()
             .unwrap()
-            .for_each_entry(|index, mesh| {
-                if mesh.mesh_flags == mesh_flags {
-                    let start = mesh.indices_offset;
-                    let mut end = start;
-                    for i in mesh.meshlets_offset..mesh.meshlets_offset + mesh.meshlets_count {
-                        let meshlet = &meshlets[i as usize];
-                        end += meshlet.indices_count;
+            .for_each_id(|mesh_id, index, mesh| {
+                if let Some(flags) = render_context
+                    .render_buffers
+                    .meshes_flags
+                    .read()
+                    .unwrap()
+                    .get(mesh_id)
+                {
+                    if flags == &mesh_flags {
+                        let start = mesh.indices_offset;
+                        let mut end = start;
+                        for i in mesh.meshlets_offset..mesh.meshlets_offset + mesh.meshlets_count {
+                            let meshlet = &meshlets[i as usize];
+                            end += meshlet.indices_count;
+                        }
+                        inox_profiler::gpu_scoped_profile!(
+                            &mut render_pass,
+                            &render_context.core.device,
+                            "render_pass::draw_indexed",
+                        );
+                        render_pass.draw_indexed(
+                            start..end as _,
+                            mesh.vertex_offset as _,
+                            index as _..(index as u32 + 1),
+                        );
                     }
-                    inox_profiler::gpu_scoped_profile!(
-                        &mut render_pass,
-                        &render_context.core.device,
-                        "render_pass::draw_indexed",
-                    );
-                    render_pass.draw_indexed(
-                        start..end as _,
-                        mesh.vertex_offset as _,
-                        index as _..(index as u32 + 1),
-                    );
                 }
             });
     }

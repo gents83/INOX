@@ -202,17 +202,6 @@ impl RenderContext {
         }
     }
 
-    pub fn has_meshes(&self, flags: MeshFlags) -> bool {
-        let mesh_flags: u32 = flags.into();
-        self.render_buffers
-            .meshes
-            .read()
-            .unwrap()
-            .data()
-            .iter()
-            .any(|m| m.mesh_flags == mesh_flags)
-    }
-
     pub fn has_commands(
         &self,
         draw_command_type: &DrawCommandType,

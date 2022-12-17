@@ -16,7 +16,7 @@ var<storage, read> meshlets: Meshlets;
 @group(0) @binding(3)
 var<storage, read> meshes: Meshes;
 @group(0) @binding(4)
-var<storage, read> meshlets_bb: AABBs;
+var<storage, read> bhv: BHV;
 
 @group(1) @binding(0)
 var<storage, read_write> count: atomic<u32>;
@@ -24,6 +24,8 @@ var<storage, read_write> count: atomic<u32>;
 var<storage, read_write> commands: DrawIndexedCommands;
 @group(1) @binding(2)
 var<storage, read_write> visible_draw_data: array<atomic<u32>>;
+
+#import "matrix_utils.inc"
 
 
 //ScreenSpace Frustum Culling
@@ -79,8 +81,8 @@ fn main(
     let meshlet = &meshlets.data[meshlet_id];
     let mesh_id = (*meshlet).mesh_index;
     let mesh = &meshes.data[mesh_id];
-    let bb_id = (*meshlet).aabb_index;
-    let bb = &meshlets_bb.data[bb_id];
+    let bb_id = (*meshlet).bhv_index;
+    let bb = &bhv.data[bb_id];
     let max = transform_vector((*bb).max, (*mesh).position, (*mesh).orientation, (*mesh).scale);
     let min = transform_vector((*bb).min, (*mesh).position, (*mesh).orientation, (*mesh).scale);
     let d = (max-min) * 0.5;

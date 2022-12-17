@@ -17,6 +17,7 @@ use inox_serialize::{
 pub type MeshId = ResourceId;
 
 #[bitmask]
+#[repr(u32)]
 pub enum MeshFlags {
     None = 0,
     Visible = 1,

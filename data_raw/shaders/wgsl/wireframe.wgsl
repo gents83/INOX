@@ -20,14 +20,16 @@ var<storage, read> colors: Colors;
 @group(0) @binding(3)
 var<storage, read> meshes: Meshes;
 @group(0) @binding(4)
-var<storage, read> meshes_aabb: AABBs;
+var<storage, read> bhv: BHV;
+
+#import "matrix_utils.inc"
 
 @vertex
 fn vs_main(
     v_in: Vertex,
 ) -> VertexOutput {
     let mesh = &meshes.data[v_in.mesh_index];
-    let aabb = &meshes_aabb.data[v_in.mesh_index];
+    let aabb = &bhv.data[(*mesh).bhv_index];
     
     let aabb_size = abs((*aabb).max - (*aabb).min);
     let position = (*aabb).min + decode_as_vec3(positions.data[v_in.position_and_color_offset]) * aabb_size;

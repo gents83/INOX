@@ -23,9 +23,7 @@ var<storage, read> meshes: Meshes;
 @group(0) @binding(5)
 var<storage, read> meshlets: Meshlets;
 @group(0) @binding(6)
-var<storage, read> meshes_aabb: AABBs;
-@group(0) @binding(7)
-var<storage, read> meshlets_aabb: AABBs;
+var<storage, read> bhv: BHV;
 
 @group(1) @binding(0)
 var render_target: texture_storage_2d<rgba8unorm, read_write>;
@@ -57,7 +55,7 @@ fn main(
     let mesh_count = 10u;//arrayLength(&meshes.data);    
     for (var mesh_id = 0u; mesh_id < mesh_count; mesh_id++) {
         let mesh = &meshes.data[mesh_id];
-        let mesh_aabb = &meshes_aabb.data[mesh_id];        
+        let mesh_aabb = &bhv.data[(*mesh).bhv_index];        
         let mesh_oobb_min = vec4<f32>(transform_vector((*mesh_aabb).min, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.);
         let mesh_oobb_max = vec4<f32>(transform_vector((*mesh_aabb).max, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.);
         let mesh_intersection = intersect_oobb(ray, mesh_oobb_min.xyz, mesh_oobb_max.xyz);
@@ -67,7 +65,7 @@ fn main(
             for (var meshlet_index = 0u; meshlet_index < (*mesh).meshlets_count; meshlet_index++) {
                 let meshlet_id = (*mesh).meshlets_offset + meshlet_index;
                 let meshlet = &meshlets.data[meshlet_id];
-                let meshlet_aabb = &meshlets_aabb.data[(*meshlet).aabb_index];          
+                let meshlet_aabb = &bhv.data[(*meshlet).bhv_index];          
                 let meshlet_oobb_min = vec4<f32>(transform_vector((*meshlet_aabb).min, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.);
                 let meshlet_oobb_max = vec4<f32>(transform_vector((*meshlet_aabb).max, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.);
                 let meshlet_intersection = intersect_oobb(ray, meshlet_oobb_min.xyz, meshlet_oobb_max.xyz);

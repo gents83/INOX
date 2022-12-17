@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData, ConstantDataRw,
-    DrawCommandType, IndicesBuffer, MeshFlags, MeshesAABBsBuffer, MeshesBuffer,
-    MeshletsAABBsBuffer, MeshletsBuffer, OutputPass, Pass, RenderContext, ShaderStage, Texture,
-    TextureFormat, TextureId, TextureUsage, TextureView, VertexPositionsBuffer, VerticesBuffer,
+    BHVBuffer, BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
+    ConstantDataRw, DrawCommandType, IndicesBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer,
+    OutputPass, Pass, RenderContext, ShaderStage, Texture, TextureFormat, TextureId, TextureUsage,
+    TextureView, VertexPositionsBuffer, VerticesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -22,8 +22,7 @@ pub struct RayTracingVisibilityPass {
     constant_data: ConstantDataRw,
     meshes: MeshesBuffer,
     meshlets: MeshletsBuffer,
-    meshes_aabb: MeshesAABBsBuffer,
-    meshlets_aabb: MeshletsAABBsBuffer,
+    bhv: BHVBuffer,
     vertices: VerticesBuffer,
     indices: IndicesBuffer,
     vertex_positions: VertexPositionsBuffer,
@@ -69,8 +68,7 @@ impl Pass for RayTracingVisibilityPass {
             constant_data: render_context.constant_data.clone(),
             meshes: render_context.render_buffers.meshes.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
-            meshes_aabb: render_context.render_buffers.meshes_aabb.clone(),
-            meshlets_aabb: render_context.render_buffers.meshlets_aabb.clone(),
+            bhv: render_context.render_buffers.bhvs.clone(),
             vertices: render_context.render_buffers.vertices.clone(),
             indices: render_context.render_buffers.indices.clone(),
             vertex_positions: render_context.render_buffers.vertex_positions.clone(),
@@ -149,21 +147,11 @@ impl Pass for RayTracingVisibilityPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.meshes_aabb.write().unwrap(),
-                Some("MeshesAABB"),
+                &mut *self.bhv.write().unwrap(),
+                Some("BHV"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 6,
-                    stage: ShaderStage::Compute,
-                    ..Default::default()
-                },
-            )
-            .add_storage_buffer(
-                &mut *self.meshlets_aabb.write().unwrap(),
-                Some("MeshletsAABB"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 7,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },

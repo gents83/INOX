@@ -4,11 +4,12 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+use inox_bhv::{BHVTree, AABB};
 use inox_math::{quantize_snorm, InnerSpace, Mat4Ops};
 use inox_resources::{to_slice, Buffer, HashBuffer};
 
 use crate::{
-    AsBinding, BindingDataBuffer, DrawBoundingBox, DrawMaterial, DrawMesh, DrawMeshlet, DrawVertex,
+    AsBinding, BindingDataBuffer, DrawBHVNode, DrawMaterial, DrawMesh, DrawMeshlet, DrawVertex,
     Light, LightData, LightId, Material, MaterialAlphaMode, MaterialData, MaterialId, Mesh,
     MeshData, MeshFlags, MeshId, RenderCommandsPerType, RenderCoreContext, TextureId, TextureInfo,
     TextureType, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS,
@@ -19,9 +20,9 @@ pub type LightsBuffer = Arc<RwLock<HashBuffer<LightId, LightData, 0>>>;
 pub type MaterialsBuffer = Arc<RwLock<HashBuffer<MaterialId, DrawMaterial, 0>>>;
 pub type CommandsBuffer = Arc<RwLock<HashMap<MeshFlags, RenderCommandsPerType>>>;
 pub type MeshesBuffer = Arc<RwLock<HashBuffer<MeshId, DrawMesh, 0>>>;
-pub type MeshesAABBsBuffer = Arc<RwLock<HashBuffer<MeshId, DrawBoundingBox, 0>>>;
+pub type MeshesFlagsBuffer = Arc<RwLock<HashBuffer<MeshId, MeshFlags, 0>>>;
 pub type MeshletsBuffer = Arc<RwLock<Buffer<DrawMeshlet>>>; //MeshId <-> [DrawMeshlet]
-pub type MeshletsAABBsBuffer = Arc<RwLock<Buffer<DrawBoundingBox>>>; //MeshId <-> [DrawBoundingBox]
+pub type BHVBuffer = Arc<RwLock<Buffer<DrawBHVNode>>>;
 pub type VerticesBuffer = Arc<RwLock<Buffer<DrawVertex>>>; //MeshId <-> [DrawVertex]
 pub type IndicesBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32]
 pub type VertexPositionsBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32] (10 x, 10 y, 10 z, 2 null)
@@ -37,9 +38,9 @@ pub struct RenderBuffers {
     pub materials: MaterialsBuffer,
     pub commands: CommandsBuffer,
     pub meshes: MeshesBuffer,
-    pub meshes_aabb: MeshesAABBsBuffer,
+    pub meshes_flags: MeshesFlagsBuffer,
+    pub bhvs: BHVBuffer,
     pub meshlets: MeshletsBuffer,
-    pub meshlets_aabb: MeshletsAABBsBuffer,
     pub vertices: VerticesBuffer,
     pub indices: IndicesBuffer,
     pub vertex_positions: VertexPositionsBuffer,
@@ -54,18 +55,13 @@ impl RenderBuffers {
         mesh_data: &MeshData,
         mesh_id: &MeshId,
         mesh_index: u32,
-    ) -> Range<usize> {
+    ) -> (usize, usize) {
         inox_profiler::scoped_profile!("render_buffers::extract_meshlets");
 
         let mut meshlets = Vec::new();
         meshlets.resize(mesh_data.meshlets.len(), DrawMeshlet::default());
-        let mut bhvs = Vec::new();
-        bhvs.resize_with(mesh_data.meshlets.len(), || DrawBoundingBox {
-            min: mesh_data.aabb_min.into(),
-            max: mesh_data.aabb_max.into(),
-            parent_or_count: INVALID_INDEX,
-            children_start: INVALID_INDEX,
-        });
+        let mut meshlets_aabbs = Vec::new();
+        meshlets_aabbs.resize_with(mesh_data.meshlets.len(), AABB::empty);
         mesh_data
             .meshlets
             .iter()
@@ -87,32 +83,33 @@ impl RenderBuffers {
                     cone_axis_cutoff,
                 };
                 meshlets[i] = meshlet;
-                bhvs[i].min = meshlet_data.aabb_min.into();
-                bhvs[i].max = meshlet_data.aabb_max.into();
+                meshlets_aabbs[i]
+                    .set_min(meshlet_data.aabb_min)
+                    .set_max(meshlet_data.aabb_max);
             });
-        let bhv_range = self
-            .meshlets_aabb
-            .write()
-            .unwrap()
-            .allocate(mesh_id, bhvs.as_slice())
-            .1;
-        meshlets.iter_mut().enumerate().for_each(|(i, meshlet)| {
-            meshlet.bb_index = (bhv_range.start + i) as _;
-        });
         if meshlets.is_empty() {
             inox_log::debug_log!("No meshlet data for mesh {:?}", mesh_id);
         }
-        let mesh_bhv_index = self.add_mesh_bhv(mesh_id, mesh_data, &bhv_range);
-        self.meshlets_aabb.write().unwrap().data_mut()[bhv_range]
-            .iter_mut()
-            .for_each(|bhv| {
-                bhv.parent_or_count = mesh_bhv_index as _;
-            });
-        self.meshlets
+        let mesh_bhv_range = self.add_mesh_bhv(mesh_id, &meshlets_aabbs);
+        let bhvs = self.bhvs.read().unwrap();
+        let bhvs = bhvs.data();
+        meshlets.iter_mut().enumerate().for_each(|(i, meshlet)| {
+            bhvs[mesh_bhv_range.start..mesh_bhv_range.end + 1]
+                .iter()
+                .enumerate()
+                .for_each(|(bb_index, node)| {
+                    if node.is_equal(&meshlets_aabbs[i]) {
+                        meshlet.bb_index = (mesh_bhv_range.start + bb_index) as u32;
+                    }
+                })
+        });
+        let meshlet_range = self
+            .meshlets
             .write()
             .unwrap()
             .allocate(mesh_id, meshlets.as_slice())
-            .1
+            .1;
+        (mesh_bhv_range.start, meshlet_range.start)
     }
     fn add_vertex_data(
         &self,
@@ -196,21 +193,11 @@ impl RenderBuffers {
             .start;
         (vertex_offset as _, indices_offset as _)
     }
-    fn add_mesh_bhv(
-        &self,
-        mesh_id: &MeshId,
-        mesh_data: &MeshData,
-        children_range: &Range<usize>,
-    ) -> usize {
+    fn add_mesh_bhv(&self, mesh_id: &MeshId, children_aabbs: &[AABB]) -> Range<usize> {
         inox_profiler::scoped_profile!("render_buffers::add_mesh_bhv");
 
-        let bhv = DrawBoundingBox {
-            min: mesh_data.aabb_min.into(),
-            max: mesh_data.aabb_max.into(),
-            children_start: children_range.start as _,
-            parent_or_count: mesh_data.meshlets.len() as _,
-        };
-        self.meshes_aabb.write().unwrap().insert(mesh_id, bhv)
+        let bhv = BHVTree::new(children_aabbs);
+        self.bhvs.write().unwrap().allocate(mesh_id, bhv.nodes()).1
     }
     pub fn add_mesh(&self, mesh_id: &MeshId, mesh_data: &MeshData) {
         inox_profiler::scoped_profile!("render_buffers::add_mesh");
@@ -226,13 +213,15 @@ impl RenderBuffers {
 
         let (vertex_offset, indices_offset) =
             self.add_vertex_data(mesh_id, mesh_data, mesh_index as _);
-        let range = self.extract_meshlets(mesh_data, mesh_id, mesh_index as _);
+        let (bhv_index, meshlet_offset) =
+            self.extract_meshlets(mesh_data, mesh_id, mesh_index as _);
 
         let mut meshes = self.meshes.write().unwrap();
         let mesh = meshes.get_mut(mesh_id).unwrap();
         mesh.vertex_offset = vertex_offset;
         mesh.indices_offset = indices_offset;
-        mesh.meshlets_offset = range.start as _;
+        mesh.bhv_index = bhv_index as _;
+        mesh.meshlets_offset = meshlet_offset as _;
         mesh.meshlets_count = mesh_data.meshlets.len() as _;
     }
     pub fn change_mesh(&self, mesh_id: &MeshId, mesh: &mut Mesh) {
@@ -262,21 +251,32 @@ impl RenderBuffers {
             m.position = matrix.translation().into();
             m.orientation = matrix.orientation().into();
             m.scale = matrix.scale().into();
-            m.mesh_flags = (*mesh_flags).into();
             meshes.set_dirty(true);
+
+            let mut meshes_flags = self.meshes_flags.write().unwrap();
+            let mut is_changed = false;
+            if let Some(flags) = meshes_flags.get_mut(mesh_id) {
+                if flags != mesh.flags() {
+                    is_changed |= true;
+                    *flags = *mesh.flags();
+                }
+            }
+            meshes_flags.set_dirty(is_changed);
         }
     }
     pub fn remove_mesh(&self, mesh_id: &MeshId) {
         inox_profiler::scoped_profile!("render_buffers::remove_mesh");
 
-        if let Some(mesh) = self.meshes.write().unwrap().remove(mesh_id) {
-            let mesh_flags: MeshFlags = mesh.mesh_flags.into();
-            if let Some(entry) = self.commands.write().unwrap().get_mut(&mesh_flags) {
-                entry.remove_commands(mesh_id);
-            }
+        if self.meshes.write().unwrap().remove(mesh_id).is_some() {
+            self.commands
+                .write()
+                .unwrap()
+                .iter_mut()
+                .for_each(|(_, entry)| {
+                    entry.remove_commands(mesh_id);
+                });
             self.meshlets.write().unwrap().remove(mesh_id);
-            self.meshes_aabb.write().unwrap().remove(mesh_id);
-            self.meshlets_aabb.write().unwrap().remove(mesh_id);
+            self.bhvs.write().unwrap().remove(mesh_id);
             self.vertices.write().unwrap().remove(mesh_id);
             self.indices.write().unwrap().remove(mesh_id);
             self.vertex_positions.write().unwrap().remove(mesh_id);

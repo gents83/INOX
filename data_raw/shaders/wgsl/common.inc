@@ -67,7 +67,7 @@ struct Mesh {
     vertex_offset: u32,
     indices_offset: u32,
     material_index: i32,
-    mesh_flags: u32,
+    bhv_index: u32,
     position: vec3<f32>,
     meshlets_offset: u32,
     scale: vec3<f32>,
@@ -77,14 +77,14 @@ struct Mesh {
 
 struct Meshlet {
     @location(5) mesh_index: u32,
-    @location(6) aabb_index: u32,
+    @location(6) bhv_index: u32,
     @location(7) indices_offset: u32,
     @location(8) indices_count: u32,
     @location(9) center: vec3<f32>,
     @location(10) cone_axis_cutoff: u32,
 };
 
-struct AABB {
+struct BHVNode {
     min: vec3<f32>,
     child_start: i32,
     max: vec3<f32>,
@@ -185,7 +185,7 @@ struct UVs {
     data: array<u32>,
 };
 
-struct AABBs {
-    data: array<AABB>,
+struct BHV {
+    data: array<BHVNode>,
 };
 

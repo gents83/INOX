@@ -38,7 +38,7 @@ var<storage, read> textures: Textures;
 @group(1) @binding(4)
 var<storage, read> lights: Lights;
 @group(1) @binding(5)
-var<storage, read> meshes_aabb: AABBs;
+var<storage, read> bhv: BHV;
 
 @group(3) @binding(0)
 var visibility_buffer_texture: texture_2d<f32>;
@@ -47,6 +47,7 @@ var render_target: texture_storage_2d<rgba8unorm, read_write>;
 
 
 
+#import "matrix_utils.inc"
 #import "texture_utils.inc"
 #import "material_utils.inc"
 #import "geom_utils.inc"
@@ -109,7 +110,7 @@ fn main(
         let v2 = &vertices.data[vertex_offset + i2];
         let v3 = &vertices.data[vertex_offset + i3];
 
-        let aabb = &meshes_aabb.data[mesh_id];
+        let aabb = &bhv.data[(*mesh).bhv_index];
         let aabb_size = abs((*aabb).max - (*aabb).min);
 
         let vp1 = (*aabb).min + decode_as_vec3(positions.data[(*v1).position_and_color_offset]) * aabb_size;

@@ -43,7 +43,7 @@ pub struct DrawMesh {
     pub vertex_offset: u32,
     pub indices_offset: u32,
     pub material_index: i32,
-    pub mesh_flags: u32,
+    pub bhv_index: u32,
     pub position: [f32; 3],
     pub meshlets_offset: u32,
     pub scale: [f32; 3],
@@ -57,7 +57,7 @@ impl Default for DrawMesh {
             vertex_offset: 0,
             indices_offset: 0,
             material_index: INVALID_INDEX,
-            mesh_flags: 0,
+            bhv_index: 0,
             position: [0.; 3],
             meshlets_offset: 0,
             scale: [1.; 3],
@@ -102,14 +102,7 @@ impl DrawMeshlet {
     }
 }
 
-#[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
-#[serde(crate = "inox_serialize")]
-pub struct DrawBoundingBox {
-    pub min: [f32; 3],
-    pub children_start: i32, // bhv node index or none when leaf
-    pub max: [f32; 3],
-    pub parent_or_count: i32, // parent_index or count of children or none
-}
+pub type DrawBHVNode = inox_bhv::BHVNode;
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
 #[serde(crate = "inox_serialize")]

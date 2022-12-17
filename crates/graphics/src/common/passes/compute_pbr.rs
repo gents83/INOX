@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 
 use crate::{
-    AsBinding, BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
+    AsBinding, BHVBuffer, BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
     ConstantDataRw, DrawCommandType, GpuBuffer, IndicesBuffer, LightsBuffer, MaterialsBuffer,
-    MeshFlags, MeshesAABBsBuffer, MeshesBuffer, MeshletsBuffer, OutputPass, Pass, RenderContext,
-    RenderCoreContext, ShaderStage, Texture, TextureFormat, TextureId, TextureUsage, TextureView,
-    TexturesBuffer, VertexColorsBuffer, VertexNormalsBuffer, VertexPositionsBuffer,
-    VertexUVsBuffer, VerticesBuffer, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    MeshFlags, MeshesBuffer, MeshletsBuffer, OutputPass, Pass, RenderContext, RenderCoreContext,
+    ShaderStage, Texture, TextureFormat, TextureId, TextureUsage, TextureView, TexturesBuffer,
+    VertexColorsBuffer, VertexNormalsBuffer, VertexPositionsBuffer, VertexUVsBuffer,
+    VerticesBuffer, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 use inox_core::ContextRc;
@@ -52,7 +52,7 @@ pub struct ComputePbrPass {
     lights: LightsBuffer,
     materials: MaterialsBuffer,
     meshes: MeshesBuffer,
-    meshes_aabb: MeshesAABBsBuffer,
+    bhv: BHVBuffer,
     meshlets: MeshletsBuffer,
     vertices: VerticesBuffer,
     indices: IndicesBuffer,
@@ -105,7 +105,7 @@ impl Pass for ComputePbrPass {
             lights: render_context.render_buffers.lights.clone(),
             materials: render_context.render_buffers.materials.clone(),
             meshes: render_context.render_buffers.meshes.clone(),
-            meshes_aabb: render_context.render_buffers.meshes_aabb.clone(),
+            bhv: render_context.render_buffers.bhvs.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
             vertices: render_context.render_buffers.vertices.clone(),
             indices: render_context.render_buffers.indices.clone(),
@@ -276,8 +276,8 @@ impl Pass for ComputePbrPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.meshes_aabb.write().unwrap(),
-                Some("MeshesAABB"),
+                &mut *self.bhv.write().unwrap(),
+                Some("BHV"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 5,

@@ -19,7 +19,9 @@ var<storage, read> meshes: Meshes;
 @group(0) @binding(3)
 var<storage, read> meshlets: Meshlets;
 @group(0) @binding(4)
-var<storage, read> meshes_aabb: AABBs;
+var<storage, read> bhv: BHV;
+
+#import "matrix_utils.inc"
 
 @vertex
 fn vs_main(
@@ -30,7 +32,7 @@ fn vs_main(
     let meshlet = &meshlets.data[meshlet_id];
     let mesh_id = (*meshlet).mesh_index;
     let mesh = &meshes.data[mesh_id];
-    let aabb = &meshes_aabb.data[mesh_id];
+    let aabb = &bhv.data[(*mesh).bhv_index];
 
     let mvp = constant_data.proj * constant_data.view;
     

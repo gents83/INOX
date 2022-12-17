@@ -1,11 +1,10 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, DrawVertex,
-    IndicesBuffer, LoadOperation, MeshFlags, MeshesAABBsBuffer, MeshesBuffer, OutputRenderPass,
-    Pass, RenderContext, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
-    ShaderStage, StoreOperation, TextureView, VertexColorsBuffer, VertexPositionsBuffer,
-    VerticesBuffer,
+    BHVBuffer, BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
+    DrawVertex, IndicesBuffer, LoadOperation, MeshFlags, MeshesBuffer, OutputRenderPass, Pass,
+    RenderContext, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage,
+    StoreOperation, TextureView, VertexColorsBuffer, VertexPositionsBuffer, VerticesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -20,7 +19,7 @@ pub struct WireframePass {
     binding_data: BindingData,
     constant_data: ConstantDataRw,
     meshes: MeshesBuffer,
-    meshes_aabb: MeshesAABBsBuffer,
+    bhv: BHVBuffer,
     vertices: VerticesBuffer,
     indices: IndicesBuffer,
     vertex_positions: VertexPositionsBuffer,
@@ -72,7 +71,7 @@ impl Pass for WireframePass {
             ),
             constant_data: render_context.constant_data.clone(),
             meshes: render_context.render_buffers.meshes.clone(),
-            meshes_aabb: render_context.render_buffers.meshes_aabb.clone(),
+            bhv: render_context.render_buffers.bhvs.clone(),
             vertices: render_context.render_buffers.vertices.clone(),
             indices: render_context.render_buffers.indices.clone(),
             vertex_positions: render_context.render_buffers.vertex_positions.clone(),
@@ -130,8 +129,8 @@ impl Pass for WireframePass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.meshes_aabb.write().unwrap(),
-                Some("MeshesAABB"),
+                &mut *self.bhv.write().unwrap(),
+                Some("BHV"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 4,

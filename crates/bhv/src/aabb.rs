@@ -21,6 +21,9 @@ impl AABB {
             min: [f32::INFINITY, f32::INFINITY, f32::INFINITY].into(),
         }
     }
+    pub fn create(min: Vector3, max: Vector3) -> Self {
+        Self { max, min }
+    }
     pub fn compute_aabb(list: &[AABB]) -> Self {
         let mut total = Self::empty();
         list.iter().for_each(|aabb| {
@@ -36,6 +39,14 @@ impl AABB {
     }
     pub fn center(&self) -> Vector3 {
         self.min + self.size() * 0.5
+    }
+    pub fn set_min(&mut self, min: Vector3) -> &mut Self {
+        self.min = min;
+        self
+    }
+    pub fn set_max(&mut self, max: Vector3) -> &mut Self {
+        self.max = max;
+        self
     }
     pub fn min(&self) -> Vector3 {
         self.min
