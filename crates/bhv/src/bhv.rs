@@ -61,9 +61,6 @@ impl BHVTree {
         &self.nodes
     }
     fn add(&mut self, parent_aabb: &AABB, parent_index: usize, list: &[AABB]) {
-        if parent_index > 1000 || parent_index == 99 {
-            println!("eccolo");
-        }
         let (left_group, right_group) = Partition::compute(parent_aabb, list);
 
         let left_aabb = AABB::compute_aabb(&left_group);
