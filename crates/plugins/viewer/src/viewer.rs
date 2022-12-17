@@ -20,7 +20,7 @@ use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
 const ADD_WIREFRAME_PASS: bool = true;
 const ADD_UI_PASS: bool = true;
-const USE_RAYTRACING: bool = true;
+const USE_RAYTRACING: bool = false;
 const USE_ALL_PASSES: bool = false;
 const USE_3DVIEW: bool = false;
 

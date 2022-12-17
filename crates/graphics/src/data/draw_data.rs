@@ -102,7 +102,14 @@ impl DrawMeshlet {
     }
 }
 
-pub type DrawBHVNode = inox_bhv::BHVNode;
+#[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
+#[serde(crate = "inox_serialize")]
+pub struct DrawBHVNode {
+    pub min: [f32; 3],
+    pub next: i32,
+    pub max: [f32; 3],
+    pub parent: i32,
+}
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
 #[serde(crate = "inox_serialize")]

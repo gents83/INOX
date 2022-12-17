@@ -1,11 +1,13 @@
 use inox_math::{VecBase, Vector3};
 
 pub const AXIS_COUNT: usize = 3;
+pub(crate) const INVALID_INDEX: i32 = -1;
 
 #[derive(Clone, Copy)]
 pub struct AABB {
     min: Vector3,
     max: Vector3,
+    index: i32,
 }
 
 impl Default for AABB {
@@ -19,10 +21,11 @@ impl AABB {
         Self {
             max: [f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY].into(),
             min: [f32::INFINITY, f32::INFINITY, f32::INFINITY].into(),
+            index: INVALID_INDEX,
         }
     }
-    pub fn create(min: Vector3, max: Vector3) -> Self {
-        Self { max, min }
+    pub fn create(min: Vector3, max: Vector3, index: i32) -> Self {
+        Self { max, min, index }
     }
     pub fn compute_aabb(list: &[AABB]) -> Self {
         let mut total = Self::empty();
@@ -37,8 +40,15 @@ impl AABB {
     pub fn max_axis(&self, axis_index: usize) -> f32 {
         self.max[axis_index]
     }
+    pub fn index(&self) -> i32 {
+        self.index
+    }
     pub fn center(&self) -> Vector3 {
         self.min + self.size() * 0.5
+    }
+    pub fn set_index(&mut self, index: u32) -> &mut Self {
+        self.index = index as _;
+        self
     }
     pub fn set_min(&mut self, min: Vector3) -> &mut Self {
         self.min = min;

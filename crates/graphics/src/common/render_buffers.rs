@@ -84,24 +84,58 @@ impl RenderBuffers {
                 };
                 meshlets[i] = meshlet;
                 meshlets_aabbs[i]
+                    .set_index(i as _)
                     .set_min(meshlet_data.aabb_min)
                     .set_max(meshlet_data.aabb_max);
             });
         if meshlets.is_empty() {
             inox_log::debug_log!("No meshlet data for mesh {:?}", mesh_id);
         }
-        let mesh_bhv_range = self.add_mesh_bhv(mesh_id, &meshlets_aabbs);
-        let bhvs = self.bhvs.read().unwrap();
-        let bhvs = bhvs.data();
+
+        //BHV linearization
+        let bhv = BHVTree::new(&meshlets_aabbs);
+        let mut linearized_bhv = Vec::new();
+        let bhv_nodes = bhv.nodes();
+        let nodes_count = bhv_nodes.len();
+        let mut current_index = 0;
+        while current_index < nodes_count {
+            let parent_index = bhv_nodes[current_index].parent();
+            let is_leaf = bhv_nodes[current_index].is_leaf();
+            let mut linearized_node = DrawBHVNode {
+                min: bhv_nodes[current_index].min().into(),
+                max: bhv_nodes[current_index].max().into(),
+                parent: parent_index,
+                next: bhv_nodes[current_index].left() as _,
+            };
+            if is_leaf {
+                linearized_node.parent = bhv_nodes[current_index].aabb_index();
+                linearized_node.next = if parent_index >= 0
+                    && bhv_nodes[parent_index as usize].left() == current_index as u32
+                {
+                    bhv_nodes[parent_index as usize].right() as _
+                } else {
+                    INVALID_INDEX
+                };
+            }
+            if current_index == 0 {
+                linearized_node.parent = mesh_index as _;
+            }
+            linearized_bhv.push(linearized_node);
+            current_index += 1;
+        }
+
+        let mesh_bhv_range = self
+            .bhvs
+            .write()
+            .unwrap()
+            .allocate(mesh_id, &linearized_bhv)
+            .1;
         meshlets.iter_mut().enumerate().for_each(|(i, meshlet)| {
-            bhvs[mesh_bhv_range.start..mesh_bhv_range.end + 1]
-                .iter()
-                .enumerate()
-                .for_each(|(bb_index, node)| {
-                    if node.is_equal(&meshlets_aabbs[i]) {
-                        meshlet.bb_index = (mesh_bhv_range.start + bb_index) as u32;
-                    }
-                })
+            bhv.nodes().iter().enumerate().for_each(|(bb_index, node)| {
+                if node.is_equal(&meshlets_aabbs[i]) {
+                    meshlet.bb_index = (mesh_bhv_range.start + bb_index) as u32;
+                }
+            });
         });
         let meshlet_range = self
             .meshlets
@@ -192,12 +226,6 @@ impl RenderBuffers {
             .1
             .start;
         (vertex_offset as _, indices_offset as _)
-    }
-    fn add_mesh_bhv(&self, mesh_id: &MeshId, children_aabbs: &[AABB]) -> Range<usize> {
-        inox_profiler::scoped_profile!("render_buffers::add_mesh_bhv");
-
-        let bhv = BHVTree::new(children_aabbs);
-        self.bhvs.write().unwrap().allocate(mesh_id, bhv.nodes()).1
     }
     pub fn add_mesh(&self, mesh_id: &MeshId, mesh_data: &MeshData) {
         inox_profiler::scoped_profile!("render_buffers::add_mesh");

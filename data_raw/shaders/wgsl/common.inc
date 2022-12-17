@@ -86,9 +86,9 @@ struct Meshlet {
 
 struct BHVNode {
     min: vec3<f32>,
-    child_start: i32,
+    next: i32,
     max: vec3<f32>,
-    parent_or_count: i32,
+    parent: i32, //-1 or mesh_index or meshlet_index
 };
 
 

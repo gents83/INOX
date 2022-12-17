@@ -65,7 +65,7 @@ fn main(
     let pixel = vec3<i32>(i32(global_invocation_id.x), i32(global_invocation_id.y), i32(pbr_data.visibility_buffer_index));
     if (pixel.x >= i32(pbr_data.width) || pixel.y >= i32(pbr_data.height))
     {
-        continue;
+        return;
     }
     
     var color = vec4<f32>(0., 0., 0., 0.);
@@ -73,7 +73,7 @@ fn main(
     let visibility_id = pack4x8unorm(visibility_output);
     if ((visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
         textureStore(render_target, pixel.xy, color);
-        continue;
+        return;
     }
 
     let meshlet_id = (visibility_id >> 8u) - 1u; 
@@ -140,7 +140,7 @@ fn main(
         let alpha = compute_alpha(material_id, vertex_color.a);
         if alpha <= 0. {
             textureStore(render_target, pixel.xy, color);
-            continue;
+            return;
         }        
 
         let uv0_1 = unpack2x16float(uvs.data[(*v1).uvs_offset[0]]);

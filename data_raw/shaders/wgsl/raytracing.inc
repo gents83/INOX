@@ -2,6 +2,7 @@ let MAX_FLOAT: f32 = 3.402823466e+38;
 let HIT_EPSILON: f32 = 0.0001;
 let NEG_HIT_EPSILON: f32 = -0.0001;
 let ONE_PLUS_HIT_EPSILON: f32 = 1.0001;
+let INVALID_NODE: i32 = -1;
 
 struct Ray {
     origin: vec3<f32>,

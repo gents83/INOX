@@ -31,6 +31,7 @@ var render_target: texture_storage_2d<rgba8unorm, read_write>;
 #import "matrix_utils.inc"
 #import "raytracing.inc"
 
+
 @compute
 @workgroup_size(16, 16, 1)
 fn main(
@@ -48,31 +49,45 @@ fn main(
     }    
     // Create a ray with the current fragment as the origin.
     let ray = compute_ray(pixel, dimensions);
-                    
-    var nearest = MAX_FLOAT;
+    var nearest = MAX_FLOAT;  
     var visibility_id = 0u;
 
-    let mesh_count = 10u;//arrayLength(&meshes.data);    
+    let mesh_count = arrayLength(&meshes.data);    
     for (var mesh_id = 0u; mesh_id < mesh_count; mesh_id++) {
-        let mesh = &meshes.data[mesh_id];
-        let mesh_aabb = &bhv.data[(*mesh).bhv_index];        
-        let mesh_oobb_min = vec4<f32>(transform_vector((*mesh_aabb).min, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.);
-        let mesh_oobb_max = vec4<f32>(transform_vector((*mesh_aabb).max, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.);
-        let mesh_intersection = intersect_oobb(ray, mesh_oobb_min.xyz, mesh_oobb_max.xyz);
-        if (mesh_intersection < MAX_FLOAT && mesh_intersection < nearest)
-        {            
-            let mesh_aabb_size = abs((*mesh_aabb).max - (*mesh_aabb).min);
-            for (var meshlet_index = 0u; meshlet_index < (*mesh).meshlets_count; meshlet_index++) {
-                let meshlet_id = (*mesh).meshlets_offset + meshlet_index;
-                let meshlet = &meshlets.data[meshlet_id];
-                let meshlet_aabb = &bhv.data[(*meshlet).bhv_index];          
-                let meshlet_oobb_min = vec4<f32>(transform_vector((*meshlet_aabb).min, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.);
-                let meshlet_oobb_max = vec4<f32>(transform_vector((*meshlet_aabb).max, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.);
-                let meshlet_intersection = intersect_oobb(ray, meshlet_oobb_min.xyz, meshlet_oobb_max.xyz);
-                if (meshlet_intersection < MAX_FLOAT && meshlet_intersection < nearest)
+        let mesh = &meshes.data[mesh_id];        
+        let starting_bhv_index = i32((*mesh).bhv_index);
+        var bhv_index = starting_bhv_index;
+        var first_hit_index = INVALID_NODE;
+
+        while (bhv_index != INVALID_NODE)
+        {
+            let node = &bhv.data[u32(bhv_index)];    
+            let oobb_min = vec4<f32>(transform_vector((*node).min, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.);
+            let oobb_max = vec4<f32>(transform_vector((*node).max, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.);
+            let intersection = intersect_oobb(ray, oobb_min.xyz, oobb_max.xyz);
+            if (intersection >= MAX_FLOAT) { 
+                //it's a left node - try with the right branch
+                if (((bhv_index - starting_bhv_index) % 2) > 0) {
+                    bhv_index = bhv_index + 1;
+                } else if (first_hit_index != INVALID_NODE) {
+                    bhv_index = first_hit_index + 1;
+                    first_hit_index = INVALID_NODE;
+                } else {
+                    bhv_index = INVALID_NODE;
+                }
+            }   
+            else {
+                if ( (*node).parent != INVALID_NODE && intersection < nearest)
                 {
-                    let triangle_count = ((*meshlet).indices_count - (*meshlet).indices_offset) / 3u;            
-                    for (var primitive_id = 0u; primitive_id < triangle_count; primitive_id++) {
+                    //if node it's a leaf - it's a meshlet index - check triangles
+                    let meshlet_id = (*mesh).meshlets_offset + u32((*node).parent);
+                    let meshlet = &meshlets.data[meshlet_id];
+                    visibility_id = (meshlet_id + 1u) << 8u;
+                    nearest = intersection;
+                    /*
+                    let triangle_count = ((*meshlet).indices_count - (*meshlet).indices_offset) / 3u; 
+                    for (var primitive_id = 0u; primitive_id < triangle_count; primitive_id++) 
+                    {
                         let index_offset = (*mesh).indices_offset + (*meshlet).indices_offset + primitive_id * 3u;
                         let i1 = indices.data[index_offset];
                         let i2 = indices.data[index_offset + 1u];
@@ -81,6 +96,9 @@ fn main(
                         let v1 = &vertices.data[(*mesh).vertex_offset + i1];
                         let v2 = &vertices.data[(*mesh).vertex_offset + i2];
                         let v3 = &vertices.data[(*mesh).vertex_offset + i3];
+                        
+                        let mesh_aabb = &bhv.data[(*mesh).bhv_index];
+                        let mesh_aabb_size = abs((*mesh_aabb).max - (*mesh_aabb).min);
                         
                         let vp1 = (*mesh_aabb).min + decode_as_vec3(positions.data[(*v1).position_and_color_offset]) * mesh_aabb_size;
                         let vp2 = (*mesh_aabb).min + decode_as_vec3(positions.data[(*v2).position_and_color_offset]) * mesh_aabb_size;
@@ -91,20 +109,20 @@ fn main(
                         var p3 = vec4<f32>(transform_vector(vp3, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.);
 
                         let hit_distance = intersect_triangle(ray, p1.xyz, p2.xyz, p3.xyz);
-                        if (hit_distance < MAX_FLOAT && hit_distance < nearest) {
+                        if (hit_distance < nearest) {
                             visibility_id = 0xFFFFFFFFu;//((meshlet_id + 1u) << 8u) + primitive_id;
                             nearest = hit_distance;
                         }
-                        //Intersection found
-                        //if (intersection.t >= 0. && intersection.t < nearest.t) {
-                        //    nearest.visibility_id = ((meshlet_id + 1u) << 8u) + primitive_id;
-                        //    nearest.t = intersection.t;
-                        //}
                     }
+                    */
                 }
+                if (first_hit_index == INVALID_NODE) {
+                    first_hit_index = (*node).next;
+                    nearest = intersection;
+                }
+                bhv_index = (*node).next;
             }
         }
     }    
-
     textureStore(render_target, vec2<i32>(pixel), unpack4x8unorm(visibility_id));
 }
