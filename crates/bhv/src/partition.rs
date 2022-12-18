@@ -28,8 +28,24 @@ impl Partition {
                 Partition::compute_cdh(container, list)
             }
         };
-        let (left_group, right_group) = Self::compute_sah(&partition, splice_size);
-        (left_group, right_group)
+        if Self::validate_partition(&partition) {
+            let (left_group, right_group) = Self::compute_sah(&partition, splice_size);
+            (left_group, right_group)
+        } else {
+            //simple sorting from left to right and splitting in half then
+            let mut list = list.to_vec();
+            list.sort_by(|a, b| a.min().x.partial_cmp(&b.min().x).unwrap());
+            let mut left_group = Vec::new();
+            let mut right_group = Vec::new();
+            list.iter().enumerate().for_each(|(i, aabb)| {
+                if i < list.len() / 2 {
+                    left_group.push(*aabb);
+                } else {
+                    right_group.push(*aabb);
+                }
+            });
+            (left_group, right_group)
+        }
     }
     fn validate_partition(partition: &[[Partition; SPLIT_COUNT]; AXIS_COUNT]) -> bool {
         let mut is_valid = true;
@@ -83,17 +99,7 @@ impl Partition {
             max = max.max(aabb.center());
         });
         let splice_size = (max - min) / (SPLIT_COUNT as f32);
-        if splice_size == [0., 0., 9.6490].into() {
-            println!("eccolo");
-        }
         let partition = Self::create_partition(list, splice_size, min);
-        if !Self::validate_partition(&partition) {
-            println!("Invalid partition");
-        }
-        debug_assert!(
-            Self::validate_partition(&partition),
-            "Unable to find a good partition - should never happen"
-        );
         (partition, splice_size)
     }
     //container space heuristic
