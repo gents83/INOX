@@ -170,7 +170,7 @@ impl DebugDrawerSystem {
                     inox_profiler::scoped_profile!("DrawEvent::Line");
 
                     let mesh_data = create_line(start, end, color);
-                    wireframe_mesh_data.append_mesh_data(mesh_data, false);
+                    wireframe_mesh_data.append_mesh_data(mesh_data, true);
                 }
                 DrawEvent::BoundingBox(min, max, color) => {
                     inox_profiler::scoped_profile!("DrawEvent::BoundingBox");
@@ -216,11 +216,11 @@ impl DebugDrawerSystem {
                     if is_wireframe {
                         let mesh_data =
                             create_colored_quad([min.x, min.y, max.x, max.y].into(), z, color);
-                        wireframe_mesh_data.append_mesh_data(mesh_data, false);
+                        wireframe_mesh_data.append_mesh_data(mesh_data, true);
                     } else {
                         let mesh_data =
                             create_colored_quad([min.x, min.y, max.x, max.y].into(), z, color);
-                        opaque_mesh_data.append_mesh_data(mesh_data, false);
+                        opaque_mesh_data.append_mesh_data(mesh_data, true);
                     }
                 }
                 DrawEvent::Arrow(position, direction, color, is_wireframe) => {
@@ -228,9 +228,9 @@ impl DebugDrawerSystem {
 
                     let mesh_data = create_arrow(position, direction, color);
                     if is_wireframe {
-                        wireframe_mesh_data.append_mesh_data(mesh_data, false);
+                        wireframe_mesh_data.append_mesh_data(mesh_data, true);
                     } else {
-                        opaque_mesh_data.append_mesh_data(mesh_data, false);
+                        opaque_mesh_data.append_mesh_data(mesh_data, true);
                     }
                 }
                 DrawEvent::Sphere(position, radius, color, is_wireframe) => {
@@ -238,10 +238,10 @@ impl DebugDrawerSystem {
 
                     if is_wireframe {
                         let mesh_data = create_sphere(position, radius, 16, 8, color);
-                        wireframe_mesh_data.append_mesh_data(mesh_data, false);
+                        wireframe_mesh_data.append_mesh_data(mesh_data, true);
                     } else {
                         let mesh_data = create_sphere(position, radius, 16, 8, color);
-                        opaque_mesh_data.append_mesh_data(mesh_data, false);
+                        opaque_mesh_data.append_mesh_data(mesh_data, true);
                     }
                 }
                 DrawEvent::Circle(position, radius, color, is_wireframe) => {
@@ -256,7 +256,7 @@ impl DebugDrawerSystem {
                             mesh_data.aabb_min = matrix.rotate_point(mesh_data.aabb_min);
                             mesh_data.aabb_max = matrix.rotate_point(mesh_data.aabb_max);
                         }
-                        wireframe_mesh_data.append_mesh_data(mesh_data, false);
+                        wireframe_mesh_data.append_mesh_data(mesh_data, true);
                     } else {
                         let mut mesh_data = create_circle(position, radius, 16, color);
                         if let Some(camera_pos) = camera_pos {
@@ -266,7 +266,7 @@ impl DebugDrawerSystem {
                             mesh_data.aabb_min = matrix.rotate_point(mesh_data.aabb_min);
                             mesh_data.aabb_max = matrix.rotate_point(mesh_data.aabb_max);
                         }
-                        opaque_mesh_data.append_mesh_data(mesh_data, false);
+                        opaque_mesh_data.append_mesh_data(mesh_data, true);
                     }
                 }
             });

@@ -83,7 +83,13 @@ impl Partition {
             max = max.max(aabb.center());
         });
         let splice_size = (max - min) / (SPLIT_COUNT as f32);
+        if splice_size == [0., 0., 9.6490].into() {
+            println!("eccolo");
+        }
         let partition = Self::create_partition(list, splice_size, min);
+        if !Self::validate_partition(&partition) {
+            println!("Invalid partition");
+        }
         debug_assert!(
             Self::validate_partition(&partition),
             "Unable to find a good partition - should never happen"
