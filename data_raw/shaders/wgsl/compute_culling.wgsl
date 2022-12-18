@@ -5,6 +5,10 @@
 
 struct CullingData {
     view: mat4x4<f32>,
+    mesh_flags: u32,
+    _padding1: u32,
+    _padding2: u32,
+    _padding3: u32,
 };
 
 @group(0) @binding(0)
@@ -17,6 +21,8 @@ var<storage, read> meshlets: Meshlets;
 var<storage, read> meshes: Meshes;
 @group(0) @binding(4)
 var<storage, read> bhv: BHV;
+@group(0) @binding(5)
+var<storage, read> meshes_flags: MeshFlags;
 
 @group(1) @binding(0)
 var<storage, read_write> count: atomic<u32>;
@@ -78,10 +84,22 @@ fn main(
     if (meshlet_id >= total) {
         return;
     }
+    let command = &commands.data[meshlet_id];
+    (*command).vertex_count = 0u;
+    (*command).instance_count = 0u;
+    (*command).base_index = 0u;
+    (*command).vertex_offset = 0;
+    (*command).base_instance = 0u;
+
     let meshlet = &meshlets.data[meshlet_id];
     let mesh_id = (*meshlet).mesh_index;
+    
+    if (meshes_flags.data[mesh_id] != culling_data.mesh_flags) {
+        return;        
+    }
+
     let mesh = &meshes.data[mesh_id];
-    let bb_id = (*meshlet).bhv_index;
+    let bb_id = (*mesh).bhv_index + (*meshlet).bhv_index;
     let bb = &bhv.data[bb_id];
     let max = transform_vector((*bb).max, (*mesh).position, (*mesh).orientation, (*mesh).scale);
     let min = transform_vector((*bb).min, (*mesh).position, (*mesh).orientation, (*mesh).scale);
@@ -100,12 +118,6 @@ fn main(
     frustum[2] = normalize_plane(row3 + row1);
     frustum[3] = normalize_plane(row3 - row1);
 
-    let command = &commands.data[meshlet_id - 1u];
-    (*command).vertex_count = 0u;
-    (*command).instance_count = 0u;
-    (*command).base_index = 0u;
-    (*command).vertex_offset = 0;
-    (*command).base_instance = 0u;
 
     if !is_sphere_inside_frustum(center, radius, frustum) {
         return;

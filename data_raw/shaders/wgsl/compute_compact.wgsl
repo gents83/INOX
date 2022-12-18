@@ -5,6 +5,10 @@
 
 struct CullingData {
     view: mat4x4<f32>,
+    mesh_flags: u32,
+    _padding1: u32,
+    _padding2: u32,
+    _padding3: u32,
 };
 
 @group(0) @binding(0)
@@ -16,7 +20,9 @@ var<storage, read> meshlets: Meshlets;
 @group(0) @binding(3)
 var<storage, read> meshes: Meshes;
 @group(0) @binding(4)
-var<storage, read> meshlets_bb: AABBs;
+var<storage, read> bhv: BHV;
+@group(0) @binding(5)
+var<storage, read> meshes_flags: MeshFlags;
 
 @group(1) @binding(0)
 var<storage, read_write> count: atomic<u32>;
@@ -59,9 +65,9 @@ fn main(
             let b = atomicLoad(&visible_draw_data[i]);
             previous_count = previous_count + countOneBits(b);
         }
-        let index = previous_count + group_count;
+        let index = previous_count + group_count - 1u;
 
-        let command = &commands.data[index - 1u];
+        let command = &commands.data[index];
         (*command).vertex_count = (*meshlet).indices_count;
         (*command).instance_count = 1u;
         (*command).base_index = (*mesh).indices_offset + (*meshlet).indices_offset;

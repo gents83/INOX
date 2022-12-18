@@ -189,3 +189,7 @@ struct BHV {
     data: array<BHVNode>,
 };
 
+struct MeshFlags {
+    data: array<u32>,
+};
+

@@ -268,28 +268,31 @@ impl RenderBuffers {
                     }
                 }
             }
-            let mesh_flags = mesh.flags();
-            {
-                let mut commands = self.commands.write().unwrap();
-                let entry = commands.entry(*mesh_flags).or_default();
-                entry.add_commands(mesh_id, m, &self.meshlets.read().unwrap());
-            }
 
             let matrix = mesh.matrix();
             m.position = matrix.translation().into();
             m.orientation = matrix.orientation().into();
             m.scale = matrix.scale().into();
-            meshes.set_dirty(true);
 
-            let mut meshes_flags = self.meshes_flags.write().unwrap();
-            let mut is_changed = false;
-            if let Some(flags) = meshes_flags.get_mut(mesh_id) {
-                if flags != mesh.flags() {
-                    is_changed |= true;
-                    *flags = *mesh.flags();
+            let mesh_flags = mesh.flags();
+            {
+                let mut commands = self.commands.write().unwrap();
+                let mut meshes_flags = self.meshes_flags.write().unwrap();
+                if let Some(flags) = meshes_flags.get_mut(mesh_id) {
+                    let entry = commands.entry(*flags).or_default();
+                    entry.remove_commands(mesh_id);
+
+                    *flags = *mesh_flags;
+                } else {
+                    meshes_flags.insert(mesh_id, *mesh_flags);
                 }
+                meshes_flags.set_dirty(true);
+
+                let entry = commands.entry(*mesh_flags).or_default();
+                entry.add_commands(mesh_id, m, &self.meshlets.read().unwrap());
             }
-            meshes_flags.set_dirty(is_changed);
+
+            meshes.set_dirty(true);
         }
     }
     pub fn remove_mesh(&self, mesh_id: &MeshId) {

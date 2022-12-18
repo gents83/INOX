@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use crate::{
     declare_as_binding_vector, AsBinding, BHVBuffer, BindingData, BindingInfo, CommandBuffer,
     CommandsBuffer, ComputePass, ComputePassData, ConstantDataRw, DrawCommandType, GpuBuffer,
-    MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderCoreContext, ShaderStage,
-    TextureView,
+    MeshFlags, MeshesBuffer, MeshesFlagsBuffer, MeshletsBuffer, Pass, RenderContext,
+    RenderCoreContext, ShaderStage, TextureView,
 };
 
 use inox_commands::CommandParser;
@@ -49,6 +49,8 @@ impl CullingEvent {
 struct CullingData {
     is_dirty: bool,
     view: [[f32; 4]; 4],
+    mesh_flags: u32,
+    _padding: [u32; 3],
 }
 
 impl AsBinding for CullingData {
@@ -59,10 +61,14 @@ impl AsBinding for CullingData {
         self.is_dirty = is_dirty;
     }
     fn size(&self) -> u64 {
-        std::mem::size_of_val(&self.view) as _
+        std::mem::size_of_val(&self.view) as u64
+            + std::mem::size_of_val(&self.mesh_flags) as u64
+            + std::mem::size_of_val(&self._padding) as u64
     }
     fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut GpuBuffer) {
         buffer.add_to_gpu_buffer(render_core_context, &[self.view]);
+        buffer.add_to_gpu_buffer(render_core_context, &[self.mesh_flags]);
+        buffer.add_to_gpu_buffer(render_core_context, &[self._padding]);
     }
 }
 
@@ -75,6 +81,7 @@ pub struct CullingPass {
     constant_data: ConstantDataRw,
     commands: CommandsBuffer,
     meshes: MeshesBuffer,
+    meshes_flags: MeshesFlagsBuffer,
     meshlets: MeshletsBuffer,
     bhv: BHVBuffer,
     culling_data: CullingData,
@@ -135,6 +142,7 @@ impl Pass for CullingPass {
             constant_data: render_context.constant_data.clone(),
             commands: render_context.render_buffers.commands.clone(),
             meshes: render_context.render_buffers.meshes.clone(),
+            meshes_flags: render_context.render_buffers.meshes_flags.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
             bhv: render_context.render_buffers.bhvs.clone(),
             binding_data: BindingData::new(render_context, CULLING_PASS_NAME),
@@ -152,6 +160,13 @@ impl Pass for CullingPass {
         if self.meshlets.read().unwrap().is_empty() {
             return;
         }
+        let mesh_flags = self.mesh_flags();
+
+        let flags: u32 = mesh_flags.into();
+        if self.culling_data.mesh_flags != flags {
+            self.culling_data.mesh_flags = flags;
+            self.culling_data.set_dirty(true);
+        }
 
         if self.update_camera {
             let view = self.constant_data.read().unwrap().view();
@@ -161,7 +176,6 @@ impl Pass for CullingPass {
             }
         }
 
-        let mesh_flags = self.mesh_flags();
         let draw_command_type = self.draw_commands_type();
 
         if let Some(commands) = self.commands.write().unwrap().get_mut(&mesh_flags) {
@@ -219,10 +233,20 @@ impl Pass for CullingPass {
                 )
                 .add_storage_buffer(
                     &mut *self.bhv.write().unwrap(),
-                    Some("MeshletsAABB"),
+                    Some("BHVs"),
                     BindingInfo {
                         group_index: 0,
                         binding_index: 4,
+                        stage: ShaderStage::Compute,
+                        ..Default::default()
+                    },
+                )
+                .add_storage_buffer(
+                    &mut *self.meshes_flags.write().unwrap(),
+                    Some("MeshesFlags"),
+                    BindingInfo {
+                        group_index: 0,
+                        binding_index: 5,
                         stage: ShaderStage::Compute,
                         ..Default::default()
                     },

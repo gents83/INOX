@@ -33,15 +33,13 @@ fn vs_main(
     let mesh_id = (*meshlet).mesh_index;
     let mesh = &meshes.data[mesh_id];
     let aabb = &bhv.data[(*mesh).bhv_index];
-
-    let mvp = constant_data.proj * constant_data.view;
     
-    let aabb_size = abs((*aabb).max - (*aabb).min);
+    let aabb_size = (*aabb).max - (*aabb).min;
     let p = (*aabb).min + decode_as_vec3(positions.data[v_in.position_and_color_offset]) * aabb_size;
     let world_position = vec4<f32>(transform_vector(p, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.0);
 
     var vertex_out: VertexOutput;
-    vertex_out.clip_position = mvp * world_position;
+    vertex_out.clip_position = constant_data.proj * constant_data.view * world_position;
     vertex_out.id = meshlet_id + 1u;    
 
     return vertex_out;

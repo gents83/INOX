@@ -20,6 +20,7 @@ use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
 const ADD_WIREFRAME_PASS: bool = true;
 const ADD_UI_PASS: bool = true;
+const ADD_CULLING_PASS: bool = true;
 const USE_RAYTRACING: bool = false;
 const USE_ALL_PASSES: bool = false;
 const USE_3DVIEW: bool = false;
@@ -168,7 +169,7 @@ impl Viewer {
                 Self::create_pbr_pass(context, renderer, true);
             }
             if USE_ALL_PASSES || has_primitive_index_support() {
-                Self::create_culling_pass(context, renderer, true);
+                Self::create_culling_pass(context, renderer, ADD_CULLING_PASS);
                 Self::create_visibility_buffer_pass(context, renderer, width, height, true);
                 Self::create_compute_pbr_pass::<VisibilityBufferPass>(
                     context, renderer, width, height, true,

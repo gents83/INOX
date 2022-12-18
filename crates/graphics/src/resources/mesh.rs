@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use crate::{Material, MeshData};
 
 use inox_bitmask::bitmask;
-use inox_math::{MatBase, Matrix4};
+use inox_math::{MatBase, Matrix4, VecBase, Vector3};
 use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, DataTypeResourceEvent, Handle, Resource, ResourceEvent, ResourceId,
@@ -44,6 +44,8 @@ pub struct Mesh {
     matrix: Matrix4,
     material: Handle<Material>,
     flags: MeshFlags,
+    min: Vector3,
+    max: Vector3,
 }
 
 impl ResourceTrait for Mesh {
@@ -91,6 +93,8 @@ impl DataTypeResource for Mesh {
             matrix: Matrix4::default_identity(),
             material: None,
             flags: MeshFlags::Visible | MeshFlags::Opaque,
+            min: Vector3::default_zero(),
+            max: Vector3::default_zero(),
         }
     }
 
@@ -112,6 +116,8 @@ impl DataTypeResource for Mesh {
         };
         let mut mesh = Mesh::new(id, shared_data, message_hub);
         mesh.material = material;
+        mesh.min = data.aabb_min;
+        mesh.max = data.aabb_max;
         mesh
     }
 }
@@ -138,6 +144,12 @@ impl Mesh {
             self.mark_as_dirty();
         }
         self
+    }
+    pub fn min(&self) -> &Vector3 {
+        &self.min
+    }
+    pub fn max(&self) -> &Vector3 {
+        &self.max
     }
     pub fn material(&self) -> &Handle<Material> {
         &self.material

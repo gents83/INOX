@@ -38,6 +38,8 @@ pub fn create_quad_with_texture(rect: Vector4, z: f32, tex_coords: Vector4) -> M
 
     let meshlet = MeshletData {
         indices_count: mesh_data.index_count() as _,
+        aabb_min: mesh_data.aabb_min(),
+        aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
     mesh_data.meshlets.push(meshlet);
@@ -53,6 +55,8 @@ pub fn create_colored_quad(rect: Vector4, z: f32, color: Vector4) -> MeshData {
 
     let meshlet = MeshletData {
         indices_count: mesh_data.index_count() as _,
+        aabb_min: mesh_data.aabb_min(),
+        aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
     mesh_data.meshlets.push(meshlet);
@@ -84,6 +88,8 @@ pub fn create_triangle_up() -> MeshData {
 
     let meshlet = MeshletData {
         indices_count: mesh_data.index_count() as _,
+        aabb_min: mesh_data.aabb_min(),
+        aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
     mesh_data.meshlets.push(meshlet);
@@ -115,6 +121,8 @@ pub fn create_triangle_down() -> MeshData {
 
     let meshlet = MeshletData {
         indices_count: mesh_data.index_count() as _,
+        aabb_min: mesh_data.aabb_min(),
+        aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
     mesh_data.meshlets.push(meshlet);
@@ -230,6 +238,8 @@ pub fn create_rounded_rect(
 
     let meshlet = MeshletData {
         indices_count: mesh_data.index_count() as _,
+        aabb_min: mesh_data.aabb_min(),
+        aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
     mesh_data.meshlets.push(meshlet);

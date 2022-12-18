@@ -31,13 +31,12 @@ fn vs_main(
     let mesh = &meshes.data[v_in.mesh_index];
     let aabb = &bhv.data[(*mesh).bhv_index];
     
-    let aabb_size = abs((*aabb).max - (*aabb).min);
+    let aabb_size = (*aabb).max - (*aabb).min;
     let position = (*aabb).min + decode_as_vec3(positions.data[v_in.position_and_color_offset]) * aabb_size;
+    let world_pos = vec4<f32>(transform_vector(position, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.0);
 
-    let mvp = constant_data.proj * constant_data.view;
     var vertex_out: VertexOutput;
-    vertex_out.clip_position = mvp * vec4<f32>(transform_vector(position, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.0);
-
+    vertex_out.clip_position = constant_data.proj * constant_data.view * world_pos;
     vertex_out.color = unpack_unorm_to_4_f32(colors.data[v_in.position_and_color_offset]);
 
     return vertex_out;

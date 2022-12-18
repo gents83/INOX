@@ -65,6 +65,8 @@ pub fn create_cube_from_min_max(min: Vector3, max: Vector3, color: Vector4) -> M
     .to_vec();
     let meshlet = MeshletData {
         indices_count: mesh_data.index_count() as _,
+        aabb_min: mesh_data.aabb_min(),
+        aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
     mesh_data.meshlets.push(meshlet);
@@ -211,6 +213,8 @@ pub fn create_cylinder(
 
     let meshlet = MeshletData {
         indices_count: mesh_data.index_count() as _,
+        aabb_min: mesh_data.aabb_min(),
+        aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
     mesh_data.meshlets.push(meshlet);
@@ -271,6 +275,8 @@ pub fn create_sphere(
     }
     let meshlet = MeshletData {
         indices_count: mesh_data.index_count() as _,
+        aabb_min: mesh_data.aabb_min(),
+        aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
     mesh_data.meshlets.push(meshlet);
@@ -309,6 +315,8 @@ pub fn create_line(start: Vector3, end: Vector3, color: Vector4) -> MeshData {
 
     let meshlet = MeshletData {
         indices_count: mesh_data.index_count() as _,
+        aabb_min: mesh_data.aabb_min(),
+        aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
     mesh_data.meshlets.push(meshlet);
@@ -379,6 +387,8 @@ pub fn create_circle(position: Vector3, radius: f32, num_slices: u32, color: Vec
 
     let meshlet = MeshletData {
         indices_count: mesh_data.index_count() as _,
+        aabb_min: mesh_data.aabb_min(),
+        aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
     mesh_data.meshlets.push(meshlet);
@@ -471,6 +481,8 @@ pub fn create_torus(
 
     let meshlet = MeshletData {
         indices_count: mesh_data.index_count() as _,
+        aabb_min: mesh_data.aabb_min(),
+        aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
     mesh_data.meshlets.push(meshlet);

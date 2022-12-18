@@ -249,6 +249,8 @@ impl MeshData {
             let meshlet = MeshletData {
                 indices_offset: index_offset as _,
                 indices_count: mesh_data.index_count() as _,
+                aabb_min: mesh_data.aabb_min(),
+                aabb_max: mesh_data.aabb_max(),
                 ..Default::default()
             };
             self.meshlets.push(meshlet);

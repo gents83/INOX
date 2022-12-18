@@ -112,9 +112,9 @@ impl RenderCommands {
             }
             _ => {}
         }
-        self.commands.allocate(mesh_id, commands.as_slice());
+        let is_changed = self.commands.allocate(mesh_id, commands.as_slice()).0;
         let count = self.commands.item_count() as _;
-        if self.counter.count != count {
+        if is_changed || self.counter.count != count {
             self.counter.count = count;
             self.counter.set_dirty(true);
         }
