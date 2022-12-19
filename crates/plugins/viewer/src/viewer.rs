@@ -4,11 +4,10 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
     platform::has_primitive_index_support, rendering_system::RenderingSystem,
-    update_system::UpdateSystem, BlitPass, ComputePbrPass, CullingPass, DebugDrawerSystem,
-    GBufferPass, LoadOperation, OutputPass, OutputRenderPass, PBRPass, Pass,
-    RayTracingVisibilityPass, RenderPass, RenderTarget, Renderer, RendererRw, TextureFormat,
-    VisibilityBufferPass, WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH, GBUFFER_PASS_NAME,
-    WIREFRAME_PASS_NAME,
+    update_system::UpdateSystem, BlitPass, ComputePbrPass, CullingPass, GBufferPass, LoadOperation,
+    OutputPass, OutputRenderPass, PBRPass, Pass, RayTracingVisibilityPass, RenderPass,
+    RenderTarget, Renderer, RendererRw, TextureFormat, VisibilityBufferPass, WireframePass,
+    DEFAULT_HEIGHT, DEFAULT_WIDTH, GBUFFER_PASS_NAME, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -95,18 +94,11 @@ impl Plugin for Viewer {
         if let Some(ui_system) = ui_system.take() {
             context.add_system(inox_core::Phases::Update, ui_system, None);
         }
-        if ADD_WIREFRAME_PASS {
-            let debug_drawer_system = DebugDrawerSystem::new(context);
-            context.add_system(inox_core::Phases::Update, debug_drawer_system, None);
-        }
         context.add_system(inox_core::Phases::Update, viewer_system, None);
     }
 
     fn unprepare(&mut self, context: &ContextRc) {
         context.remove_system(inox_core::Phases::Update, &ViewerSystem::system_id());
-        if ADD_WIREFRAME_PASS {
-            context.remove_system(inox_core::Phases::Update, &DebugDrawerSystem::system_id());
-        }
         if ADD_UI_PASS {
             context.remove_system(inox_core::Phases::Update, &UISystem::system_id());
         }

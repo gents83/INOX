@@ -143,14 +143,6 @@ macro_rules! declare_as_binding_vector {
             is_dirty: bool,
         }
 
-        impl $VecType {
-            fn set(&mut self, data: Vec<$Type>) -> &mut Self {
-                self.data = data;
-                self.set_dirty(true);
-                self
-            }
-        }
-
         impl Default for $VecType {
             fn default() -> Self {
                 Self {
@@ -160,7 +152,7 @@ macro_rules! declare_as_binding_vector {
             }
         }
 
-        impl AsBinding for $VecType {
+        impl $crate::AsBinding for $VecType {
             fn is_dirty(&self) -> bool {
                 self.is_dirty
             }
@@ -179,6 +171,17 @@ macro_rules! declare_as_binding_vector {
                 buffer: &mut $crate::GpuBuffer,
             ) {
                 buffer.add_to_gpu_buffer(render_core_context, self.data.as_slice());
+            }
+        }
+
+        #[allow(dead_code)]
+        impl $VecType {
+            pub fn set(&mut self, data: Vec<$Type>) -> &mut Self {
+                use $crate::AsBinding;
+
+                self.data = data;
+                self.set_dirty(true);
+                self
             }
         }
     };

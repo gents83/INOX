@@ -192,7 +192,7 @@ impl ViewerSystem {
             object.get_mut().set_position([-20., 0., 0.].into());
             object
         };
-        let wireframe_object = {
+        let flat_object = {
             let object_id = generate_random_uid();
             let object = self.context.shared_data().add_resource(
                 self.context.message_hub(),
@@ -205,7 +205,7 @@ impl ViewerSystem {
             );
             let mesh_id = generate_random_uid();
 
-            let wireframe_mesh = self.context.shared_data().add_resource(
+            let flat_mesh = self.context.shared_data().add_resource(
                 self.context.message_hub(),
                 mesh_id,
                 Mesh::new(
@@ -214,32 +214,32 @@ impl ViewerSystem {
                     self.context.message_hub(),
                 ),
             );
-            let wireframe_material = Material::new_resource(
+            let flat_material = Material::new_resource(
                 self.context.shared_data(),
                 self.context.message_hub(),
                 generate_random_uid(),
                 &MaterialData::default(),
                 None,
             );
-            wireframe_mesh
+            flat_mesh
                 .get_mut()
-                .set_material(wireframe_material)
-                .set_flags(MeshFlags::Visible | MeshFlags::Wireframe);
+                .set_material(flat_material)
+                .set_flags(MeshFlags::Visible | MeshFlags::Opaque);
 
             let mut mesh_data = MeshData::default();
             let quad = create_quad([-10., -10., 10., 10.].into(), 0.);
             mesh_data.append_mesh_data(quad, false);
             mesh_data.set_vertex_color([1.0, 1.0, 0.0, 1.0].into());
 
-            //println!("Wireframe Mesh {:?}", mesh.id());
+            //println!("Flat Mesh {:?}", mesh.id());
 
-            wireframe_mesh.get_mut().set_mesh_data(mesh_data);
-            object.get_mut().add_component(wireframe_mesh);
+            flat_mesh.get_mut().set_mesh_data(mesh_data);
+            object.get_mut().add_component(flat_mesh);
             object.get_mut().set_position([20., 0., 0.].into());
             object
         };
         self.scene.get_mut().add_object(default_object);
-        self.scene.get_mut().add_object(wireframe_object);
+        self.scene.get_mut().add_object(flat_object);
 
         let camera_id = generate_random_uid();
         let camera_object = self.context.shared_data().add_resource::<Object>(
