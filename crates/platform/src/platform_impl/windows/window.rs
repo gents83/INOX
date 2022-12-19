@@ -69,7 +69,7 @@ impl Window {
 
             SetProcessDpiAwareness(PROCESS_DPI_AWARENESS::PROCESS_PER_MONITOR_DPI_AWARE);
             let (dpi_x, _dpi_y) = Self::compute_dpi();
-            *scale_factor = dpi_x as f32 / DEFAULT_DPI as f32;
+            *scale_factor = dpi_x as f32 / DEFAULT_DPI;
 
             // More info: https://msdn.microsoft.com/en-us/library/windows/desktop/ms632680(v=vs.85).aspx
             // Create a window based on registered class

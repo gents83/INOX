@@ -110,7 +110,7 @@ impl SerializableRegistry {
         let mut rwlock = self.type_map.write().unwrap();
         let registry = rwlock
             .entry(TypeId::of::<T>())
-            .or_insert_with(|| Box::new(Registry::<T>::default()));
+            .or_insert_with(|| Box::<Registry<T>>::default());
         let registry = registry.as_any_mut().downcast_mut::<Registry<T>>().unwrap();
 
         registry.register_type(name, func);
@@ -122,7 +122,7 @@ impl SerializableRegistry {
         let mut rwlock = self.type_map.write().unwrap();
         let registry = rwlock
             .entry(TypeId::of::<T>())
-            .or_insert_with(|| Box::new(Registry::<T>::default()));
+            .or_insert_with(|| Box::<Registry<T>>::default());
         let registry = registry.as_any_mut().downcast_mut::<Registry<T>>().unwrap();
 
         if registry.unregister_type(name) {

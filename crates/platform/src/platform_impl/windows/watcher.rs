@@ -33,7 +33,7 @@ struct WatchHandles {
 }
 struct WatchRequest {
     event_fn: Arc<Mutex<dyn EventFn>>,
-    buffer: [u8; BUFFER_SIZE as usize],
+    buffer: [u8; BUFFER_SIZE],
     handle: HANDLE,
     data: FolderData,
 }
@@ -250,7 +250,7 @@ fn process_folder(folder: &FolderData, event_fn: Arc<Mutex<dyn EventFn>>, handle
     let mut request = Box::new(WatchRequest {
         event_fn,
         handle,
-        buffer: [0u8; BUFFER_SIZE as usize],
+        buffer: [0u8; BUFFER_SIZE],
         data: folder.clone(),
     });
 
