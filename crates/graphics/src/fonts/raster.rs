@@ -42,7 +42,7 @@ impl<'a> Raster<'a> {
             let x1i = x1ceil as isize;
             if x1i <= x0i + 1 {
                 let xmf = 0.5 * (x + xnext) - x0floor;
-                let linestart_x0i = linestart as isize + x0i as isize;
+                let linestart_x0i = linestart + x0i;
                 if linestart_x0i < 0 {
                     continue; // oob index
                 }
@@ -54,7 +54,7 @@ impl<'a> Raster<'a> {
                 let a0 = 0.5 * s * (1.0 - x0f) * (1.0 - x0f);
                 let x1f = x1 - x1ceil + 1.0;
                 let am = 0.5 * s * x1f * x1f;
-                let linestart_x0i = linestart as isize + x0i as isize;
+                let linestart_x0i = linestart + x0i;
                 if linestart_x0i < 0 {
                     continue; // oob index
                 }

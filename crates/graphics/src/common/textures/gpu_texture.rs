@@ -139,7 +139,7 @@ impl GpuTexture {
                 origin: wgpu::Origin3d {
                     x: area.x,
                     y: area.y,
-                    z: layer_index as u32,
+                    z: layer_index,
                 },
                 aspect: wgpu::TextureAspect::default(),
             },

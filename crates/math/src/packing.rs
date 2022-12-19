@@ -23,7 +23,7 @@ pub fn pack_4_f32_to_snorm(value: Vector4) -> u32 {
         quantize_snorm(value.z, 8),
         quantize_snorm(value.w, 8),
     ];
-    ((v[0] as u32) << 24) | ((v[1] as u32) << 16) | ((v[2] as u32) << 8) | v[3] as u32
+    (v[0] << 24) | (v[1] << 16) | (v[2] << 8) | v[3]
 }
 
 //input: [0..1] float; output: [0..255] integer
@@ -35,7 +35,7 @@ pub fn pack_4_f32_to_unorm(value: Vector4) -> u32 {
         quantize_unorm(value.z, 8),
         quantize_unorm(value.w, 8),
     ];
-    ((v[0] as u32) << 24) | ((v[1] as u32) << 16) | ((v[2] as u32) << 8) | v[3] as u32
+    (v[0] << 24) | (v[1] << 16) | (v[2] << 8) | v[3]
 }
 
 #[inline]

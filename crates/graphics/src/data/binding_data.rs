@@ -85,9 +85,9 @@ impl BindingData {
         inox_profiler::scoped_profile!("binding_data::create_group_and_binding_index");
         if group_index >= self.bind_group_layout_entries.len() {
             self.bind_group_layout_entries
-                .resize(group_index as usize + 1, Default::default());
+                .resize(group_index + 1, Default::default());
             self.binding_types
-                .resize(group_index as usize + 1, Default::default());
+                .resize(group_index + 1, Default::default());
         }
     }
     pub fn set_vertex_buffer<T>(

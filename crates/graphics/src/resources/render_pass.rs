@@ -427,7 +427,7 @@ impl RenderPass {
                                         + meshlet.indices_count)
                                         as _,
                                 mesh.vertex_offset as _,
-                                i as _..(i as u32 + 1),
+                                i as _..(i + 1),
                             );
                         }
                     }

@@ -86,8 +86,8 @@ impl Glyph {
 
     pub fn create(id: u16, face: &Face, max_metrics: &Metrics) -> Self {
         let metrics = Glyph::compute_metrics(id, face);
-        let scale_x = DEFAULT_FONT_GLYPH_SIZE as f32 / max_metrics.width as f32;
-        let scale_y = DEFAULT_FONT_GLYPH_SIZE as f32 / max_metrics.height as f32;
+        let scale_x = DEFAULT_FONT_GLYPH_SIZE as f32 / max_metrics.width;
+        let scale_y = DEFAULT_FONT_GLYPH_SIZE as f32 / max_metrics.height;
 
         let mut data = vec![0.0; (max_metrics.width * max_metrics.height) as _];
         let draw_offset = Vector2::new(max_metrics.horizontal_offset, max_metrics.vertical_offset);

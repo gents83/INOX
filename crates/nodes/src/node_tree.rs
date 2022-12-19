@@ -27,7 +27,7 @@ impl NodeTree {
         T: NodeTrait + Default + Serialize + 'static,
     {
         if self.find_node(name).is_none() {
-            let mut node = Box::new(T::default());
+            let mut node = Box::<T>::default();
             node.set_name(name);
             self.nodes.push(node);
         }

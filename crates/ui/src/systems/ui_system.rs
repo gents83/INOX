@@ -156,12 +156,14 @@ impl UISystem {
             })
             .process_messages(|event: &KeyEvent| {
                 let just_pressed = event.state == InputState::JustPressed;
-                let pressed = just_pressed || event.state == InputState::Pressed;
+                let is_repeat = event.state == InputState::Pressed;
+                let pressed = just_pressed || is_repeat;
 
                 if let Some(key) = convert_key(event.code) {
                     self.ui_input.events.push(Event::Key {
                         key,
                         pressed,
+                        repeat: is_repeat,
                         modifiers: self.ui_input_modifiers,
                     });
                 }

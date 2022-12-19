@@ -147,9 +147,8 @@ impl FontData {
             let _offset = (cell_size as f32 * (g.metrics.width / self.metrics.horizontal_offset)
                 - cell_size as f32)
                 * 0.5;
-            let x_pos: i32 = (starting_x as i32 - _offset as i32)
-                .max(0)
-                .min(size as i32 - cell_size as i32);
+            let x_pos: i32 =
+                (starting_x as i32 - _offset as i32).clamp(0, size as i32 - cell_size as i32);
 
             g.render(|x, y, alpha| {
                 let v = (alpha * 255.0).round() as u8;

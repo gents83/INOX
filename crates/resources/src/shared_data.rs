@@ -94,10 +94,10 @@ impl SharedData {
         );
         message_hub.register_type::<ResourceEvent<T>>();
         //debug_log("Registering resource type: {:?}", type_name::<T>(),);
-        self.storage.write().unwrap().insert(
-            typeid,
-            Arc::new(RwLock::new(Box::new(Storage::<T>::default()))),
-        );
+        self.storage
+            .write()
+            .unwrap()
+            .insert(typeid, Arc::new(RwLock::new(Box::<Storage<T>>::default())));
         self.event_handlers.write().unwrap().insert(
             typeid,
             Box::new(ResourceEventHandler::<T>::new(message_hub)),
