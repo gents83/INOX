@@ -77,43 +77,43 @@ fn main(
                 }
             }   
             else {
-                if ( (*node).parent != INVALID_NODE && intersection < nearest)
-                {
-                    //if node it's a leaf - it's a meshlet index - check triangles
-                    var meshlet_id = (*mesh).meshlets_offset;
-                    if ((*mesh).meshlets_count > 1u) {
-                        meshlet_id += u32((*node).parent);
-                    } 
-                    let meshlet = &meshlets.data[meshlet_id];
-
-                    let triangle_count = ((*meshlet).indices_count - (*meshlet).indices_offset) / 3u; 
-                    for (var primitive_id = 0u; primitive_id < triangle_count; primitive_id++) 
-                    {
-                        let index_offset = (*mesh).indices_offset + (*meshlet).indices_offset + primitive_id * 3u;
-                        let i1 = indices.data[index_offset];
-                        let i2 = indices.data[index_offset + 1u];
-                        let i3 = indices.data[index_offset + 2u];
-
-                        let v1 = &vertices.data[(*mesh).vertex_offset + i1];
-                        let v2 = &vertices.data[(*mesh).vertex_offset + i2];
-                        let v3 = &vertices.data[(*mesh).vertex_offset + i3];
-                        
-                        let oobb_size = oobb_max.xyz - oobb_min.xyz;
-                        
-                        let p1 = oobb_min.xyz + decode_as_vec3(positions.data[(*v1).position_and_color_offset]) * oobb_size;
-                        let p2 = oobb_min.xyz + decode_as_vec3(positions.data[(*v2).position_and_color_offset]) * oobb_size;
-                        let p3 = oobb_min.xyz + decode_as_vec3(positions.data[(*v3).position_and_color_offset]) * oobb_size;
-
-                        let hit_distance = ray_triangle_intersection_point_distance(ray, p1.xyz, p2.xyz, p3.xyz);
-                        if (hit_distance < nearest) {
-                            visibility_id = ((meshlet_id + 1u) << 8u) + primitive_id;
-                            nearest = hit_distance;
-                        }
-                    }
-                }
+                visibility_id = 0xFFFFFFFFu;
+                //if ( (*node).reference != INVALID_NODE && intersection < nearest)
+                //{
+                //    //if node it's a leaf - it's a meshlet index - check triangles
+                //    var meshlet_id = (*mesh).meshlets_offset;
+                //    if ((*mesh).meshlets_count > 1u) {
+                //        meshlet_id += u32((*node).reference);
+                //    } 
+                //    let meshlet = &meshlets.data[meshlet_id];
+//
+                //    let triangle_count = ((*meshlet).indices_count - (*meshlet).indices_offset) / 3u; 
+                //    for (var primitive_id = 0u; primitive_id < triangle_count; primitive_id++) 
+                //    {
+                //        let index_offset = (*mesh).indices_offset + (*meshlet).indices_offset + primitive_id * 3u;
+                //        let i1 = indices.data[index_offset];
+                //        let i2 = indices.data[index_offset + 1u];
+                //        let i3 = indices.data[index_offset + 2u];
+//
+                //        let v1 = &vertices.data[(*mesh).vertex_offset + i1];
+                //        let v2 = &vertices.data[(*mesh).vertex_offset + i2];
+                //        let v3 = &vertices.data[(*mesh).vertex_offset + i3];
+                //        
+                //        let oobb_size = oobb_max.xyz - oobb_min.xyz;
+                //        
+                //        let p1 = oobb_min.xyz + decode_as_vec3(positions.data[(*v1).position_and_color_offset]) * oobb_size;
+                //        let p2 = oobb_min.xyz + decode_as_vec3(positions.data[(*v2).position_and_color_offset]) * oobb_size;
+                //        let p3 = oobb_min.xyz + decode_as_vec3(positions.data[(*v3).position_and_color_offset]) * oobb_size;
+//
+                //        let hit_distance = ray_triangle_intersection_point_distance(ray, p1.xyz, p2.xyz, p3.xyz);
+                //        if (hit_distance < nearest) {
+                //            visibility_id = ((meshlet_id + 1u) << 8u) + primitive_id;
+                //            nearest = hit_distance;
+                //        }
+                //    }
+                //}
                 if (first_hit_index == INVALID_NODE) {
                     first_hit_index = (*node).next;
-                    nearest = intersection;
                 }
                 bhv_index = (*node).next;
             }

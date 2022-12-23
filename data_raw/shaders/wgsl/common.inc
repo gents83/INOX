@@ -75,20 +75,23 @@ struct Mesh {
     orientation: vec4<f32>,
 };
 
+struct ConeCulling {
+    center: vec3<f32>,
+    cone_axis_cutoff: u32,
+};
+
 struct Meshlet {
     @location(5) mesh_index: u32,
     @location(6) bhv_index: u32,
     @location(7) indices_offset: u32,
     @location(8) indices_count: u32,
-    @location(9) center: vec3<f32>,
-    @location(10) cone_axis_cutoff: u32,
 };
 
 struct BHVNode {
     min: vec3<f32>,
     next: i32,
     max: vec3<f32>,
-    parent: i32, //-1 or mesh_index or meshlet_index
+    reference: i32, //-1 or mesh_index or meshlet_index
 };
 
 
@@ -183,6 +186,10 @@ struct Tangents {
 
 struct UVs {
     data: array<u32>,
+};
+
+struct MeshletsCulling {
+    data: array<ConeCulling>,
 };
 
 struct BHV {

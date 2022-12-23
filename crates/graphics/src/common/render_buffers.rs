@@ -9,10 +9,10 @@ use inox_math::{quantize_snorm, InnerSpace, Mat4Ops};
 use inox_resources::{to_slice, Buffer, HashBuffer};
 
 use crate::{
-    AsBinding, BindingDataBuffer, DrawBHVNode, DrawMaterial, DrawMesh, DrawMeshlet, DrawVertex,
-    Light, LightData, LightId, Material, MaterialAlphaMode, MaterialData, MaterialId, Mesh,
-    MeshData, MeshFlags, MeshId, RenderCommandsPerType, RenderCoreContext, TextureId, TextureInfo,
-    TextureType, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS,
+    AsBinding, BindingDataBuffer, ConeCulling, DrawBHVNode, DrawMaterial, DrawMesh, DrawMeshlet,
+    DrawVertex, Light, LightData, LightId, Material, MaterialAlphaMode, MaterialData, MaterialId,
+    Mesh, MeshData, MeshFlags, MeshId, RenderCommandsPerType, RenderCoreContext, TextureId,
+    TextureInfo, TextureType, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS,
 };
 
 pub type TexturesBuffer = Arc<RwLock<HashBuffer<TextureId, TextureInfo, 0>>>;
@@ -22,6 +22,7 @@ pub type CommandsBuffer = Arc<RwLock<HashMap<MeshFlags, RenderCommandsPerType>>>
 pub type MeshesBuffer = Arc<RwLock<HashBuffer<MeshId, DrawMesh, 0>>>;
 pub type MeshesFlagsBuffer = Arc<RwLock<HashBuffer<MeshId, MeshFlags, 0>>>;
 pub type MeshletsBuffer = Arc<RwLock<Buffer<DrawMeshlet>>>; //MeshId <-> [DrawMeshlet]
+pub type MeshletsCullingBuffer = Arc<RwLock<Buffer<ConeCulling>>>; //MeshId <-> [DrawMeshlet]
 pub type BHVBuffer = Arc<RwLock<Buffer<DrawBHVNode>>>;
 pub type VerticesBuffer = Arc<RwLock<Buffer<DrawVertex>>>; //MeshId <-> [DrawVertex]
 pub type IndicesBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32]
@@ -39,8 +40,9 @@ pub struct RenderBuffers {
     pub commands: CommandsBuffer,
     pub meshes: MeshesBuffer,
     pub meshes_flags: MeshesFlagsBuffer,
-    pub bhvs: BHVBuffer,
     pub meshlets: MeshletsBuffer,
+    pub meshlets_culling: MeshletsCullingBuffer,
+    pub meshes_bhvs: BHVBuffer,
     pub vertices: VerticesBuffer,
     pub indices: IndicesBuffer,
     pub vertex_positions: VertexPositionsBuffer,
@@ -59,7 +61,9 @@ impl RenderBuffers {
         inox_profiler::scoped_profile!("render_buffers::extract_meshlets");
 
         let mut meshlets = Vec::new();
+        let mut meshlets_cones = Vec::new();
         meshlets.resize(mesh_data.meshlets.len(), DrawMeshlet::default());
+        meshlets_cones.resize(mesh_data.meshlets.len(), ConeCulling::default());
         let mut meshlets_aabbs = Vec::new();
         meshlets_aabbs.resize_with(mesh_data.meshlets.len(), AABB::empty);
         mesh_data
@@ -67,6 +71,13 @@ impl RenderBuffers {
             .iter()
             .enumerate()
             .for_each(|(i, meshlet_data)| {
+                let meshlet = DrawMeshlet {
+                    mesh_index,
+                    bb_index: i as _,
+                    indices_offset: meshlet_data.indices_offset as _,
+                    indices_count: meshlet_data.indices_count,
+                };
+                meshlets[i] = meshlet;
                 let cone_axis = meshlet_data.cone_axis.normalize();
                 let cone_axis_cutoff = [
                     quantize_snorm(cone_axis.x, 8) as i8,
@@ -74,15 +85,10 @@ impl RenderBuffers {
                     quantize_snorm(cone_axis.z, 8) as i8,
                     quantize_snorm(meshlet_data.cone_angle, 8) as i8,
                 ];
-                let meshlet = DrawMeshlet {
-                    mesh_index,
-                    bb_index: i as _,
-                    indices_offset: meshlet_data.indices_offset as _,
-                    indices_count: meshlet_data.indices_count,
+                meshlets_cones[i] = ConeCulling {
                     center: meshlet_data.cone_center.into(),
                     cone_axis_cutoff,
                 };
-                meshlets[i] = meshlet;
                 meshlets_aabbs[i]
                     .set_index(i as _)
                     .set_min(meshlet_data.aabb_min)
@@ -104,11 +110,11 @@ impl RenderBuffers {
             let mut linearized_node = DrawBHVNode {
                 min: bhv_nodes[current_index].min().into(),
                 max: bhv_nodes[current_index].max().into(),
-                parent: parent_index,
+                reference: parent_index,
                 next: bhv_nodes[current_index].left() as _,
             };
             if is_leaf {
-                linearized_node.parent = bhv_nodes[current_index].aabb_index();
+                linearized_node.reference = bhv_nodes[current_index].aabb_index();
                 linearized_node.next = if parent_index >= 0
                     && bhv_nodes[parent_index as usize].left() == current_index as u32
                 {
@@ -118,14 +124,14 @@ impl RenderBuffers {
                 };
             }
             if current_index == 0 {
-                linearized_node.parent = mesh_index as _;
+                linearized_node.reference = mesh_index as _;
             }
             linearized_bhv.push(linearized_node);
             current_index += 1;
         }
 
         let mesh_bhv_range = self
-            .bhvs
+            .meshes_bhvs
             .write()
             .unwrap()
             .allocate(mesh_id, &linearized_bhv)
@@ -137,6 +143,10 @@ impl RenderBuffers {
                 }
             });
         });
+        self.meshlets_culling
+            .write()
+            .unwrap()
+            .allocate(mesh_id, meshlets_cones.as_slice());
         let meshlet_range = self
             .meshlets
             .write()
@@ -307,7 +317,8 @@ impl RenderBuffers {
                     entry.remove_commands(mesh_id);
                 });
             self.meshlets.write().unwrap().remove(mesh_id);
-            self.bhvs.write().unwrap().remove(mesh_id);
+            self.meshlets_culling.write().unwrap().remove(mesh_id);
+            self.meshes_bhvs.write().unwrap().remove(mesh_id);
             self.vertices.write().unwrap().remove(mesh_id);
             self.indices.write().unwrap().remove(mesh_id);
             self.vertex_positions.write().unwrap().remove(mesh_id);

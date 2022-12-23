@@ -18,10 +18,12 @@ var<uniform> culling_data: CullingData;
 @group(0) @binding(2)
 var<storage, read> meshlets: Meshlets;
 @group(0) @binding(3)
-var<storage, read> meshes: Meshes;
+var<storage, read> meshlets_culling: MeshletsCulling;
 @group(0) @binding(4)
-var<storage, read> bhv: BHV;
+var<storage, read> meshes: Meshes;
 @group(0) @binding(5)
+var<storage, read> bhv: BHV;
+@group(0) @binding(6)
 var<storage, read> meshes_flags: MeshFlags;
 
 @group(1) @binding(0)

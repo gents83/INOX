@@ -79,13 +79,18 @@ impl DrawMesh {
 
 #[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
 #[serde(crate = "inox_serialize")]
+pub struct ConeCulling {
+    pub center: [f32; 3],
+    pub cone_axis_cutoff: [i8; 4],
+}
+
+#[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
+#[serde(crate = "inox_serialize")]
 pub struct DrawMeshlet {
     pub mesh_index: u32,
     pub bb_index: u32,
     pub indices_offset: u32,
     pub indices_count: u32,
-    pub center: [f32; 3],
-    pub cone_axis_cutoff: [i8; 4],
 }
 
 impl DrawMeshlet {
@@ -96,8 +101,6 @@ impl DrawMeshlet {
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
-        layout_builder.add_attribute::<[f32; 3]>(VertexFormat::Float32x3.into());
-        layout_builder.add_attribute::<[i8; 4]>(VertexFormat::Sint8x4.into());
         layout_builder
     }
 }
@@ -108,7 +111,7 @@ pub struct DrawBHVNode {
     pub min: [f32; 3],
     pub next: i32,
     pub max: [f32; 3],
-    pub parent: i32,
+    pub reference: i32,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]

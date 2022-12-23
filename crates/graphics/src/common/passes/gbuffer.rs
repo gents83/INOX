@@ -77,7 +77,7 @@ impl Pass for GBufferPass {
             textures: render_context.render_buffers.textures.clone(),
             materials: render_context.render_buffers.materials.clone(),
             meshes: render_context.render_buffers.meshes.clone(),
-            bhv: render_context.render_buffers.bhvs.clone(),
+            bhv: render_context.render_buffers.meshes_bhvs.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
             vertices: render_context.render_buffers.vertices.clone(),
             indices: render_context.render_buffers.indices.clone(),

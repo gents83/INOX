@@ -18,10 +18,12 @@ var<uniform> culling_data: CullingData;
 @group(0) @binding(2)
 var<storage, read> meshlets: Meshlets;
 @group(0) @binding(3)
-var<storage, read> meshes: Meshes;
+var<storage, read> meshlets_culling: MeshletsCulling;
 @group(0) @binding(4)
-var<storage, read> bhv: BHV;
+var<storage, read> meshes: Meshes;
 @group(0) @binding(5)
+var<storage, read> bhv: BHV;
+@group(0) @binding(6)
 var<storage, read> meshes_flags: MeshFlags;
 
 @group(1) @binding(0)
@@ -127,9 +129,10 @@ fn main(
         return;
     }
 
-    let cone_axis_cutoff = unpack4x8snorm((*meshlet).cone_axis_cutoff);
+    let cone_culling = &meshlets_culling.data[meshlet_id];
+    let cone_axis_cutoff = unpack4x8snorm((*cone_culling).cone_axis_cutoff);
     let cone_axis = rotate_vector(cone_axis_cutoff.xyz, (*mesh).orientation);    
-    if (is_cone_visible((*meshlet).center, cone_axis, cone_axis_cutoff.w, radius))
+    if (is_cone_visible((*cone_culling).center, cone_axis, cone_axis_cutoff.w, radius))
     {
         atomicAdd(&count, 1u);
         let draw_group_index = workgroup_id.x;

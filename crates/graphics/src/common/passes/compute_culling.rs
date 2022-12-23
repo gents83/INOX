@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use crate::{
     declare_as_binding_vector, AsBinding, BHVBuffer, BindingData, BindingInfo, CommandBuffer,
     CommandsBuffer, ComputePass, ComputePassData, ConstantDataRw, DrawCommandType, GpuBuffer,
-    MeshFlags, MeshesBuffer, MeshesFlagsBuffer, MeshletsBuffer, Pass, RenderContext,
-    RenderCoreContext, ShaderStage, TextureView,
+    MeshFlags, MeshesBuffer, MeshesFlagsBuffer, MeshletsBuffer, MeshletsCullingBuffer, Pass,
+    RenderContext, RenderCoreContext, ShaderStage, TextureView,
 };
 
 use inox_commands::CommandParser;
@@ -83,6 +83,7 @@ pub struct CullingPass {
     meshes: MeshesBuffer,
     meshes_flags: MeshesFlagsBuffer,
     meshlets: MeshletsBuffer,
+    meshlets_culling: MeshletsCullingBuffer,
     bhv: BHVBuffer,
     culling_data: CullingData,
     visible_draw_data: VecVisibleDrawData,
@@ -144,7 +145,8 @@ impl Pass for CullingPass {
             meshes: render_context.render_buffers.meshes.clone(),
             meshes_flags: render_context.render_buffers.meshes_flags.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
-            bhv: render_context.render_buffers.bhvs.clone(),
+            meshlets_culling: render_context.render_buffers.meshlets_culling.clone(),
+            bhv: render_context.render_buffers.meshes_bhvs.clone(),
             binding_data: BindingData::new(render_context, CULLING_PASS_NAME),
             culling_data: CullingData::default(),
             visible_draw_data: VecVisibleDrawData::default(),
@@ -222,11 +224,21 @@ impl Pass for CullingPass {
                     },
                 )
                 .add_storage_buffer(
+                    &mut *self.meshlets_culling.write().unwrap(),
+                    Some("MeshletsCulling"),
+                    BindingInfo {
+                        group_index: 0,
+                        binding_index: 3,
+                        stage: ShaderStage::Compute,
+                        ..Default::default()
+                    },
+                )
+                .add_storage_buffer(
                     &mut *self.meshes.write().unwrap(),
                     Some("Meshes"),
                     BindingInfo {
                         group_index: 0,
-                        binding_index: 3,
+                        binding_index: 4,
                         stage: ShaderStage::Compute,
                         ..Default::default()
                     },
@@ -236,7 +248,7 @@ impl Pass for CullingPass {
                     Some("BHVs"),
                     BindingInfo {
                         group_index: 0,
-                        binding_index: 4,
+                        binding_index: 5,
                         stage: ShaderStage::Compute,
                         ..Default::default()
                     },
@@ -246,7 +258,7 @@ impl Pass for CullingPass {
                     Some("MeshesFlags"),
                     BindingInfo {
                         group_index: 0,
-                        binding_index: 5,
+                        binding_index: 6,
                         stage: ShaderStage::Compute,
                         ..Default::default()
                     },

@@ -68,7 +68,7 @@ impl Pass for RayTracingVisibilityPass {
             constant_data: render_context.constant_data.clone(),
             meshes: render_context.render_buffers.meshes.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
-            bhv: render_context.render_buffers.bhvs.clone(),
+            bhv: render_context.render_buffers.meshes_bhvs.clone(),
             vertices: render_context.render_buffers.vertices.clone(),
             indices: render_context.render_buffers.indices.clone(),
             vertex_positions: render_context.render_buffers.vertex_positions.clone(),
