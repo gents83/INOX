@@ -44,39 +44,27 @@ fn intersect_oobb(r: Ray, oobb_min: vec3<f32>, oobb_max: vec3<f32>) -> f32
     } 
 }
 
+fn ray_triangle_intersection_point(r: Ray, v0: vec3<f32>, v1: vec3<f32>, v2: vec3<f32>) -> vec3<f32>
+{
+    let v1v0 = v1 - v0;
+    let v2v0 = v2 - v0;
+    let rov0 = r.origin - v0;
+    let  n = cross( v1v0, v2v0 );
+    let  q = cross( rov0, r.direction );
+    let d = 1.0/dot( r.direction, n );
+    let u = d*dot( -q, v2v0 );
+    let v = d*dot(  q, v1v0 );
+    var t = d*dot( -n, rov0 );
+    if( u<0.0 || v<0.0 || (u+v)>1.0 ) { t = -1.0; }
+    return vec3<f32>( t, u, v );
+}
 
-// Compute the intersection of a ray with a triangle
-// using Möller–Trumbore algorithm
-fn intersect_triangle(r: Ray, v0: vec3<f32>, v1: vec3<f32>, v2: vec3<f32>) -> f32
-{        
-    let e1 = v1 - v0;
-    let e2 = v2 - v0;
-
-    let p = cross(r.direction, e2);
-    let det = dot(e1, p);
-
-    if (det <= NEG_HIT_EPSILON || (det > NEG_HIT_EPSILON && det < HIT_EPSILON)) {
-        return MAX_FLOAT;
-    }
-
-    let inv_det = 1. / det;
-    let centered = r.origin - v0;
-
-    let u = inv_det * dot(centered, p);
-    if (u < HIT_EPSILON || u > ONE_PLUS_HIT_EPSILON) {
-        return MAX_FLOAT;
-    }
-
-    let q = cross(centered, e1);
-    let v = inv_det * dot(r.direction, q);
-    if (v < HIT_EPSILON || u + v > ONE_PLUS_HIT_EPSILON) {
-        return MAX_FLOAT;
-    }
-    
-    let t = inv_det * dot(e2, q);
-    if (t < HIT_EPSILON)
+fn ray_triangle_intersection_point_distance(r: Ray, v0: vec3<f32>, v1: vec3<f32>, v2: vec3<f32>) -> f32
+{
+    let intersection = ray_triangle_intersection_point(r, v0, v1, v2);
+    if(intersection.x < 0.)
     {
         return MAX_FLOAT;
     }
-    return t;
+    return length(intersection - r.origin);
 }

@@ -80,11 +80,12 @@ fn main(
                 if ( (*node).parent != INVALID_NODE && intersection < nearest)
                 {
                     //if node it's a leaf - it's a meshlet index - check triangles
-                    let meshlet_id = (*mesh).meshlets_offset + u32((*node).parent);
+                    var meshlet_id = (*mesh).meshlets_offset;
+                    if ((*mesh).meshlets_count > 1u) {
+                        meshlet_id += u32((*node).parent);
+                    } 
                     let meshlet = &meshlets.data[meshlet_id];
-                    visibility_id = (meshlet_id + 1u) << 8u;
-                    nearest = intersection;
-                    /*
+
                     let triangle_count = ((*meshlet).indices_count - (*meshlet).indices_offset) / 3u; 
                     for (var primitive_id = 0u; primitive_id < triangle_count; primitive_id++) 
                     {
@@ -97,24 +98,18 @@ fn main(
                         let v2 = &vertices.data[(*mesh).vertex_offset + i2];
                         let v3 = &vertices.data[(*mesh).vertex_offset + i3];
                         
-                        let mesh_aabb = &bhv.data[(*mesh).bhv_index];
-                        let mesh_aabb_size = abs((*mesh_aabb).max - (*mesh_aabb).min);
+                        let oobb_size = oobb_max.xyz - oobb_min.xyz;
                         
-                        let vp1 = (*mesh_aabb).min + decode_as_vec3(positions.data[(*v1).position_and_color_offset]) * mesh_aabb_size;
-                        let vp2 = (*mesh_aabb).min + decode_as_vec3(positions.data[(*v2).position_and_color_offset]) * mesh_aabb_size;
-                        let vp3 = (*mesh_aabb).min + decode_as_vec3(positions.data[(*v3).position_and_color_offset]) * mesh_aabb_size;
+                        let p1 = oobb_min.xyz + decode_as_vec3(positions.data[(*v1).position_and_color_offset]) * oobb_size;
+                        let p2 = oobb_min.xyz + decode_as_vec3(positions.data[(*v2).position_and_color_offset]) * oobb_size;
+                        let p3 = oobb_min.xyz + decode_as_vec3(positions.data[(*v3).position_and_color_offset]) * oobb_size;
 
-                        var p1 = vec4<f32>(transform_vector(vp1, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.);
-                        var p2 = vec4<f32>(transform_vector(vp2, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.);
-                        var p3 = vec4<f32>(transform_vector(vp3, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.);
-
-                        let hit_distance = intersect_triangle(ray, p1.xyz, p2.xyz, p3.xyz);
+                        let hit_distance = ray_triangle_intersection_point_distance(ray, p1.xyz, p2.xyz, p3.xyz);
                         if (hit_distance < nearest) {
-                            visibility_id = 0xFFFFFFFFu;//((meshlet_id + 1u) << 8u) + primitive_id;
+                            visibility_id = ((meshlet_id + 1u) << 8u) + primitive_id;
                             nearest = hit_distance;
                         }
                     }
-                    */
                 }
                 if (first_hit_index == INVALID_NODE) {
                     first_hit_index = (*node).next;
