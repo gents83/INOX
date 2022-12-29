@@ -22,6 +22,7 @@ pub struct RayTracingVisibilityPass {
     constant_data: ConstantDataRw,
     meshes: MeshesBuffer,
     meshlets: MeshletsBuffer,
+    tlas: BHVBuffer,
     bhv: BHVBuffer,
     vertices: VerticesBuffer,
     indices: IndicesBuffer,
@@ -68,7 +69,8 @@ impl Pass for RayTracingVisibilityPass {
             constant_data: render_context.constant_data.clone(),
             meshes: render_context.render_buffers.meshes.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
-            bhv: render_context.render_buffers.meshes_bhvs.clone(),
+            tlas: render_context.render_buffers.tlas.clone(),
+            bhv: render_context.render_buffers.bhv.clone(),
             vertices: render_context.render_buffers.vertices.clone(),
             indices: render_context.render_buffers.indices.clone(),
             vertex_positions: render_context.render_buffers.vertex_positions.clone(),
@@ -147,11 +149,21 @@ impl Pass for RayTracingVisibilityPass {
                 },
             )
             .add_storage_buffer(
+                &mut *self.tlas.write().unwrap(),
+                Some("TLAS"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 6,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
                 &mut *self.bhv.write().unwrap(),
                 Some("BHV"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 6,
+                    binding_index: 7,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },

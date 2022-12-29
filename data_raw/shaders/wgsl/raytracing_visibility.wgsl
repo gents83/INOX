@@ -23,6 +23,8 @@ var<storage, read> meshes: Meshes;
 @group(0) @binding(5)
 var<storage, read> meshlets: Meshlets;
 @group(0) @binding(6)
+var<storage, read> tlas: BHV;
+@group(0) @binding(7)
 var<storage, read> bhv: BHV;
 
 @group(1) @binding(0)
@@ -51,17 +53,33 @@ fn main(
     let ray = compute_ray(pixel, dimensions);
     var nearest = MAX_FLOAT;  
     var visibility_id = 0u;
-
-    let mesh_count = arrayLength(&meshes.data);    
-    for (var mesh_id = 0u; mesh_id < mesh_count; mesh_id++) {
-        let result = traverse_bhv(ray, mesh_id);
-        if (result.visibility_id > 0u && result.distance < nearest) {
-            visibility_id = result.visibility_id;
-            nearest = result.distance;
+    
+    var tlas_index = 0;
+    let tlas_count = i32(arrayLength(&tlas.data));
+    
+    while (tlas_index >= 0 && tlas_index < tlas_count)
+    {
+        let node = &tlas.data[u32(tlas_index)];    
+        let intersection = intersect_oobb(ray, (*node).min, (*node).max);
+        if (intersection < nearest) {
+            if ((*node).reference >= 0) {
+                //leaf node
+                let mesh_id = u32((*node).reference);
+                let result = traverse_bhv(ray, mesh_id);
+                if (result.visibility_id > 0u && result.distance < nearest) {
+                    visibility_id = result.visibility_id;
+                    nearest = result.distance;
+                }
+            } else {
+                //inner node
+                tlas_index = tlas_index + 1;
+                continue;
+            }
         }
-    }    
-    //if (visibility_id > 0u) {
-    //    visibility_id = 0xFFFFFFFFu;
-    //}
+        tlas_index = (*node).miss;
+    } 
+    if (visibility_id > 0u) {
+        visibility_id = 0xFFFFFFFFu;
+    }
     textureStore(render_target, vec2<i32>(pixel), unpack4x8unorm(visibility_id));
 }

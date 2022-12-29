@@ -5,9 +5,9 @@ use std::{
 };
 
 use inox_bhv::{BHVTree, AABB};
-use inox_math::{quantize_snorm, InnerSpace, Mat4Ops, VecBase};
+use inox_math::{quantize_snorm, InnerSpace, Mat4Ops, Matrix4, VecBase};
 use inox_resources::{to_slice, Buffer, HashBuffer};
-use inox_uid::generate_uid_from_string;
+use inox_uid::{generate_static_uid_from_string, Uid};
 
 use crate::{
     utils::create_linearized_bhv, AsBinding, BindingDataBuffer, ConeCulling, DrawBHVNode,
@@ -33,6 +33,8 @@ pub type VertexColorsBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32] (rgba
 pub type VertexNormalsBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32] (10 x, 10 y, 10 z, 2 null)
 pub type VertexUVsBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32] (2 half)
 
+const TLAS_UID: Uid = generate_static_uid_from_string("TLAS");
+
 //Alignment should be 4, 8, 16 or 32 bytes
 #[derive(Default)]
 pub struct RenderBuffers {
@@ -44,7 +46,8 @@ pub struct RenderBuffers {
     pub meshes_flags: MeshesFlagsBuffer,
     pub meshlets: MeshletsBuffer,
     pub meshlets_culling: MeshletsCullingBuffer,
-    pub meshes_bhvs: BHVBuffer,
+    pub bhv: BHVBuffer,
+    pub tlas: BHVBuffer,
     pub vertices: VerticesBuffer,
     pub indices: IndicesBuffer,
     pub vertex_positions: VertexPositionsBuffer,
@@ -142,7 +145,7 @@ impl RenderBuffers {
         });
         let linearized_bhv = create_linearized_bhv(&bhv);
         let mesh_bhv_range = self
-            .meshes_bhvs
+            .bhv
             .write()
             .unwrap()
             .allocate(mesh_id, &linearized_bhv)
@@ -243,7 +246,7 @@ impl RenderBuffers {
     }
     pub fn add_mesh(&self, mesh_id: &MeshId, mesh_data: &MeshData) {
         inox_profiler::scoped_profile!("render_buffers::add_mesh");
-        self.remove_mesh(mesh_id);
+        self.remove_mesh(mesh_id, false);
         if mesh_data.vertex_count() == 0 {
             return;
         }
@@ -258,58 +261,97 @@ impl RenderBuffers {
         let (bhv_index, meshlet_offset) =
             self.extract_meshlets(mesh_data, mesh_id, mesh_index as _);
 
-        let mut meshes = self.meshes.write().unwrap();
-        let mesh = meshes.get_mut(mesh_id).unwrap();
-        mesh.vertex_offset = vertex_offset;
-        mesh.indices_offset = indices_offset;
-        mesh.bhv_index = bhv_index as _;
-        mesh.meshlets_offset = meshlet_offset as _;
-        mesh.meshlets_count = mesh_data.meshlets.len() as _;
+        {
+            let mut meshes = self.meshes.write().unwrap();
+            let mesh = meshes.get_mut(mesh_id).unwrap();
+            mesh.vertex_offset = vertex_offset;
+            mesh.indices_offset = indices_offset;
+            mesh.bhv_index = bhv_index as _;
+            mesh.meshlets_offset = meshlet_offset as _;
+            mesh.meshlets_count = mesh_data.meshlets.len() as _;
+        }
+        self.recreate_tlas();
+    }
+    fn recreate_tlas(&self) {
+        let mut meshes_aabbs = Vec::new();
+        {
+            let meshes = self.meshes.write().unwrap();
+            let bhv = self.bhv.read().unwrap();
+            let bhv = bhv.data();
+            meshes.for_each_entry(|i, mesh| {
+                let node = &bhv[mesh.bhv_index as usize];
+                let matrix = Matrix4::from_translation_orientation_scale(
+                    mesh.position.into(),
+                    mesh.orientation.into(),
+                    mesh.scale.into(),
+                );
+                let min = matrix.rotate_point(node.min.into());
+                let max = matrix.rotate_point(node.max.into());
+                let aabb = AABB::create(min, max, i as _);
+                meshes_aabbs.push(aabb);
+            });
+        }
+        let bhv = BHVTree::new(&meshes_aabbs);
+        let linearized_bhv = create_linearized_bhv(&bhv);
+        let mut tlas = self.tlas.write().unwrap();
+        tlas.allocate(&TLAS_UID, &linearized_bhv);
     }
     pub fn change_mesh(&self, mesh_id: &MeshId, mesh: &mut Mesh) {
         inox_profiler::scoped_profile!("render_buffers::change_mesh");
-        let mut meshes = self.meshes.write().unwrap();
-        if let Some(m) = meshes.get_mut(mesh_id) {
-            if let Some(material) = mesh.material() {
-                if let Some(index) = self.materials.read().unwrap().index_of(material.id()) {
-                    m.material_index = index as _;
-                }
-                if let Some(material) = self.materials.write().unwrap().get_mut(material.id()) {
-                    let blend_alpha_mode: u32 = MaterialAlphaMode::Blend.into();
-                    if material.alpha_mode == blend_alpha_mode || material.base_color[3] < 1. {
-                        mesh.remove_flag(MeshFlags::Opaque);
-                        mesh.add_flag(MeshFlags::Tranparent);
+        let mut is_matrix_changed = false;
+        {
+            let mut meshes = self.meshes.write().unwrap();
+            if let Some(m) = meshes.get_mut(mesh_id) {
+                if let Some(material) = mesh.material() {
+                    if let Some(index) = self.materials.read().unwrap().index_of(material.id()) {
+                        m.material_index = index as _;
+                    }
+                    if let Some(material) = self.materials.write().unwrap().get_mut(material.id()) {
+                        let blend_alpha_mode: u32 = MaterialAlphaMode::Blend.into();
+                        if material.alpha_mode == blend_alpha_mode || material.base_color[3] < 1. {
+                            mesh.remove_flag(MeshFlags::Opaque);
+                            mesh.add_flag(MeshFlags::Tranparent);
+                        }
                     }
                 }
-            }
 
-            let matrix = mesh.matrix();
-            m.position = matrix.translation().into();
-            m.orientation = matrix.orientation().into();
-            m.scale = matrix.scale().into();
-
-            let mesh_flags = mesh.flags();
-            {
-                let mut commands = self.commands.write().unwrap();
-                let mut meshes_flags = self.meshes_flags.write().unwrap();
-                if let Some(flags) = meshes_flags.get_mut(mesh_id) {
-                    let entry = commands.entry(*flags).or_default();
-                    entry.remove_commands(mesh_id);
-
-                    *flags = *mesh_flags;
-                } else {
-                    meshes_flags.insert(mesh_id, *mesh_flags);
+                let matrix = mesh.matrix();
+                let new_pos = matrix.translation().into();
+                let new_orientation = matrix.orientation().into();
+                let new_scale = matrix.scale().into();
+                if new_pos != m.position || new_orientation != m.orientation || new_scale != m.scale
+                {
+                    is_matrix_changed = true;
+                    m.position = new_pos;
+                    m.orientation = new_orientation;
+                    m.scale = new_scale;
                 }
-                meshes_flags.set_dirty(true);
+                let mesh_flags = mesh.flags();
+                {
+                    let mut commands = self.commands.write().unwrap();
+                    let mut meshes_flags = self.meshes_flags.write().unwrap();
+                    if let Some(flags) = meshes_flags.get_mut(mesh_id) {
+                        let entry = commands.entry(*flags).or_default();
+                        entry.remove_commands(mesh_id);
 
-                let entry = commands.entry(*mesh_flags).or_default();
-                entry.add_commands(mesh_id, m, &self.meshlets.read().unwrap());
+                        *flags = *mesh_flags;
+                    } else {
+                        meshes_flags.insert(mesh_id, *mesh_flags);
+                    }
+                    meshes_flags.set_dirty(true);
+
+                    let entry = commands.entry(*mesh_flags).or_default();
+                    entry.add_commands(mesh_id, m, &self.meshlets.read().unwrap());
+                }
+
+                meshes.set_dirty(true);
             }
-
-            meshes.set_dirty(true);
+        }
+        if is_matrix_changed {
+            self.recreate_tlas();
         }
     }
-    pub fn remove_mesh(&self, mesh_id: &MeshId) {
+    pub fn remove_mesh(&self, mesh_id: &MeshId, recreate_tlas: bool) {
         inox_profiler::scoped_profile!("render_buffers::remove_mesh");
 
         if self.meshes.write().unwrap().remove(mesh_id).is_some() {
@@ -320,16 +362,9 @@ impl RenderBuffers {
                 .for_each(|(_, entry)| {
                     entry.remove_commands(mesh_id);
                 });
-            if let Some(meshlets) = self.meshlets.write().unwrap().items(mesh_id) {
-                meshlets.iter().enumerate().for_each(|(i, _)| {
-                    let id =
-                        generate_uid_from_string(format!("Mesh{}Meshlet{}", mesh_id, i).as_str());
-                    self.meshes_bhvs.write().unwrap().remove(&id);
-                });
-            }
             self.meshlets.write().unwrap().remove(mesh_id);
             self.meshlets_culling.write().unwrap().remove(mesh_id);
-            self.meshes_bhvs.write().unwrap().remove(mesh_id);
+            self.bhv.write().unwrap().remove(mesh_id);
 
             self.vertices.write().unwrap().remove(mesh_id);
             self.indices.write().unwrap().remove(mesh_id);
@@ -337,6 +372,9 @@ impl RenderBuffers {
             self.vertex_colors.write().unwrap().remove(mesh_id);
             self.vertex_normals.write().unwrap().remove(mesh_id);
             self.vertex_uvs.write().unwrap().remove(mesh_id);
+        }
+        if recreate_tlas {
+            self.recreate_tlas();
         }
     }
     pub fn add_material(&self, material_id: &MaterialId, material: &mut Material) {

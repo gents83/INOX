@@ -187,7 +187,7 @@ impl UpdateSystem {
                 ResourceEvent::Destroyed(id) => {
                     let renderer = self.renderer.read().unwrap();
                     let render_context = renderer.render_context();
-                    render_context.render_buffers.remove_mesh(id);
+                    render_context.render_buffers.remove_mesh(id, true);
                 }
                 _ => {}
             });

@@ -82,23 +82,18 @@ fn traverse_bhv(ray: Ray, mesh_id: u32) -> Result {
     var nearest = MAX_FLOAT;  
     var visibility_id = 0u;
 
-    while (bhv_index != INVALID_NODE && bhv_index < nodes_count)
+    while (bhv_index >= 0 && bhv_index < nodes_count)
     {
         let node = &bhv.data[u32(bhv_index)];    
         let oobb_min = vec4<f32>(transform_vector((*node).min, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.);
         let oobb_max = vec4<f32>(transform_vector((*node).max, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.);
         let intersection = intersect_oobb(ray, oobb_min.xyz, oobb_max.xyz);
         if (intersection < nearest) {
-            if ((*node).reference == INVALID_NODE) {
-                //inner node
-                bhv_index = bhv_index + 1;
-                continue;
-            } else {
+            if ((*node).reference >= 0) {
                 //leaf node
                 let reference = u32((*node).reference);
                 let meshlet_id = (*mesh).meshlets_offset + (reference >> 8u) - 1u; 
                 let primitive_id = reference & 255u;
-                //if node it's a leaf - it's a triangle index - check intersection
                 let meshlet = &meshlets.data[u32(meshlet_id)];
                     
                 let index_offset = (*mesh).indices_offset + (*meshlet).indices_offset + primitive_id * 3u;
@@ -121,9 +116,12 @@ fn traverse_bhv(ray: Ray, mesh_id: u32) -> Result {
                     visibility_id = (meshlet_id + 1u) << 8u | primitive_id;
                     nearest = hit_distance;
                 }
+            } else {
+                //inner node
+                bhv_index = bhv_index + 1;
+                continue;                
             }
-        }
-        
+        }        
         bhv_index = (*node).miss;
         if bhv_index >= 0 {
             bhv_index += mesh_bhv_index;

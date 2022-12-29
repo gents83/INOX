@@ -146,7 +146,7 @@ impl Pass for CullingPass {
             meshes_flags: render_context.render_buffers.meshes_flags.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
             meshlets_culling: render_context.render_buffers.meshlets_culling.clone(),
-            bhv: render_context.render_buffers.meshes_bhvs.clone(),
+            bhv: render_context.render_buffers.bhv.clone(),
             binding_data: BindingData::new(render_context, CULLING_PASS_NAME),
             culling_data: CullingData::default(),
             visible_draw_data: VecVisibleDrawData::default(),
