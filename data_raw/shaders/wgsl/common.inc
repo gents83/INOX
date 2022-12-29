@@ -82,16 +82,16 @@ struct ConeCulling {
 
 struct Meshlet {
     @location(5) mesh_index: u32,
-    @location(6) bhv_index: u32,
-    @location(7) indices_offset: u32,
-    @location(8) indices_count: u32,
+    @location(6) indices_offset: u32,
+    @location(7) indices_count: u32,
+    @location(8) bhv_index: u32,
 };
 
 struct BHVNode {
     min: vec3<f32>,
-    next: i32,
+    miss: i32,
     max: vec3<f32>,
-    reference: i32, //-1 or mesh_index or meshlet_index
+    reference: i32, //-1 or mesh_index or meshlet_index or triangle_index
 };
 
 

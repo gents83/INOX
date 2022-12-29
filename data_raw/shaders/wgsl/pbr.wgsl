@@ -43,6 +43,7 @@ var depth_texture: texture_depth_2d;
 
 #import "texture_utils.inc"
 #import "material_utils.inc"
+#import "matrix_utils.inc"
 #import "pbr_utils.inc"
 
 

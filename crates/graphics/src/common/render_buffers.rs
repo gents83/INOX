@@ -5,14 +5,16 @@ use std::{
 };
 
 use inox_bhv::{BHVTree, AABB};
-use inox_math::{quantize_snorm, InnerSpace, Mat4Ops};
+use inox_math::{quantize_snorm, InnerSpace, Mat4Ops, VecBase};
 use inox_resources::{to_slice, Buffer, HashBuffer};
+use inox_uid::generate_uid_from_string;
 
 use crate::{
-    AsBinding, BindingDataBuffer, ConeCulling, DrawBHVNode, DrawMaterial, DrawMesh, DrawMeshlet,
-    DrawVertex, Light, LightData, LightId, Material, MaterialAlphaMode, MaterialData, MaterialId,
-    Mesh, MeshData, MeshFlags, MeshId, RenderCommandsPerType, RenderCoreContext, TextureId,
-    TextureInfo, TextureType, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS,
+    utils::create_linearized_bhv, AsBinding, BindingDataBuffer, ConeCulling, DrawBHVNode,
+    DrawMaterial, DrawMesh, DrawMeshlet, DrawVertex, Light, LightData, LightId, Material,
+    MaterialAlphaMode, MaterialData, MaterialId, Mesh, MeshData, MeshFlags, MeshId,
+    RenderCommandsPerType, RenderCoreContext, TextureId, TextureInfo, TextureType, INVALID_INDEX,
+    MAX_TEXTURE_COORDS_SETS,
 };
 
 pub type TexturesBuffer = Arc<RwLock<HashBuffer<TextureId, TextureInfo, 0>>>;
@@ -65,17 +67,42 @@ impl RenderBuffers {
         meshlets.resize(mesh_data.meshlets.len(), DrawMeshlet::default());
         meshlets_cones.resize(mesh_data.meshlets.len(), ConeCulling::default());
         let mut meshlets_aabbs = Vec::new();
+        let mut meshlet_triangles_aabbs = Vec::new();
         meshlets_aabbs.resize_with(mesh_data.meshlets.len(), AABB::empty);
         mesh_data
             .meshlets
             .iter()
             .enumerate()
             .for_each(|(i, meshlet_data)| {
+                let triangle_count = meshlet_data.indices_count / 3;
+                let mut triangles_aabbs = Vec::new();
+                triangles_aabbs.resize_with(triangle_count as _, AABB::empty);
+                triangles_aabbs
+                    .iter_mut()
+                    .enumerate()
+                    .for_each(|(triangle_index, aabb)| {
+                        let i1 = mesh_data.indices
+                            [(meshlet_data.indices_offset as usize + triangle_index * 3)];
+                        let i2 = mesh_data.indices
+                            [(meshlet_data.indices_offset as usize + triangle_index * 3 + 1)];
+                        let i3 = mesh_data.indices
+                            [(meshlet_data.indices_offset as usize + triangle_index * 3 + 2)];
+                        let v1 = mesh_data.position(i1 as _);
+                        let v2 = mesh_data.position(i2 as _);
+                        let v3 = mesh_data.position(i3 as _);
+                        let min = v1.min(v2).min(v3);
+                        let max = v1.max(v2).max(v3);
+                        aabb.set_min(min);
+                        aabb.set_max(max);
+                        aabb.set_index(triangle_index as _);
+                    });
+                meshlet_triangles_aabbs.push(triangles_aabbs);
+
                 let meshlet = DrawMeshlet {
                     mesh_index,
-                    bb_index: i as _,
                     indices_offset: meshlet_data.indices_offset as _,
                     indices_count: meshlet_data.indices_count,
+                    bvh_index: i as _,
                 };
                 meshlets[i] = meshlet;
                 let cone_axis = meshlet_data.cone_axis.normalize();
@@ -98,51 +125,28 @@ impl RenderBuffers {
             inox_log::debug_log!("No meshlet data for mesh {:?}", mesh_id);
         }
 
-        //BHV linearization
-        let bhv = BHVTree::new(&meshlets_aabbs);
-        let mut linearized_bhv = Vec::new();
-        let bhv_nodes = bhv.nodes();
-        let nodes_count = bhv_nodes.len();
-        let mut current_index = 0;
-        while current_index < nodes_count {
-            let parent_index = bhv_nodes[current_index].parent();
-            let is_leaf = bhv_nodes[current_index].is_leaf();
-            let mut linearized_node = DrawBHVNode {
-                min: bhv_nodes[current_index].min().into(),
-                max: bhv_nodes[current_index].max().into(),
-                reference: parent_index,
-                next: bhv_nodes[current_index].left() as _,
-            };
-            if is_leaf {
-                linearized_node.reference = bhv_nodes[current_index].aabb_index();
-                linearized_node.next = if parent_index >= 0
-                    && bhv_nodes[parent_index as usize].left() == current_index as u32
-                {
-                    bhv_nodes[parent_index as usize].right() as _
-                } else {
-                    INVALID_INDEX
-                };
+        let mut bhv = BHVTree::new(&meshlets_aabbs);
+        meshlets.iter_mut().enumerate().for_each(|(i, meshlet)| {
+            let mut triangles_bhv = BHVTree::new(&meshlet_triangles_aabbs[i]);
+            triangles_bhv.nodes_mut().iter_mut().for_each(|n| {
+                let primitive_index = n.aabb_index();
+                if primitive_index >= 0 {
+                    //meshlet index (shifted of 8 bits) + primitive index (in latest 8 bits)
+                    n.set_aabb_index(((i + 1) << 8 | primitive_index as usize & 255) as u32);
+                }
+            });
+            if let Some(position) = bhv.nodes().iter().position(|n| n.aabb_index() == i as i32) {
+                bhv.insert_at(position, triangles_bhv);
+                meshlet.bvh_index = position as _;
             }
-            if current_index == 0 {
-                linearized_node.reference = mesh_index as _;
-            }
-            linearized_bhv.push(linearized_node);
-            current_index += 1;
-        }
-
+        });
+        let linearized_bhv = create_linearized_bhv(&bhv);
         let mesh_bhv_range = self
             .meshes_bhvs
             .write()
             .unwrap()
             .allocate(mesh_id, &linearized_bhv)
             .1;
-        meshlets.iter_mut().enumerate().for_each(|(i, meshlet)| {
-            bhv.nodes().iter().enumerate().for_each(|(bb_index, node)| {
-                if node.is_equal(&meshlets_aabbs[i]) {
-                    meshlet.bb_index = (mesh_bhv_range.start + bb_index) as u32;
-                }
-            });
-        });
         self.meshlets_culling
             .write()
             .unwrap()
@@ -316,9 +320,17 @@ impl RenderBuffers {
                 .for_each(|(_, entry)| {
                     entry.remove_commands(mesh_id);
                 });
+            if let Some(meshlets) = self.meshlets.write().unwrap().items(mesh_id) {
+                meshlets.iter().enumerate().for_each(|(i, _)| {
+                    let id =
+                        generate_uid_from_string(format!("Mesh{}Meshlet{}", mesh_id, i).as_str());
+                    self.meshes_bhvs.write().unwrap().remove(&id);
+                });
+            }
             self.meshlets.write().unwrap().remove(mesh_id);
             self.meshlets_culling.write().unwrap().remove(mesh_id);
             self.meshes_bhvs.write().unwrap().remove(mesh_id);
+
             self.vertices.write().unwrap().remove(mesh_id);
             self.indices.write().unwrap().remove(mesh_id);
             self.vertex_positions.write().unwrap().remove(mesh_id);

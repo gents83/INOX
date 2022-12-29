@@ -88,9 +88,9 @@ pub struct ConeCulling {
 #[serde(crate = "inox_serialize")]
 pub struct DrawMeshlet {
     pub mesh_index: u32,
-    pub bb_index: u32,
     pub indices_offset: u32,
     pub indices_count: u32,
+    pub bvh_index: u32,
 }
 
 impl DrawMeshlet {
@@ -109,7 +109,7 @@ impl DrawMeshlet {
 #[serde(crate = "inox_serialize")]
 pub struct DrawBHVNode {
     pub min: [f32; 3],
-    pub next: i32,
+    pub miss: i32,
     pub max: [f32; 3],
     pub reference: i32,
 }

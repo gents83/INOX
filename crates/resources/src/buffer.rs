@@ -208,6 +208,18 @@ where
     pub fn get(&self, id: &ResourceId) -> Option<&BufferData> {
         self.occupied.iter().find(|d| d.id == *id)
     }
+    pub fn items(&self, id: &ResourceId) -> Option<&[T]> {
+        if let Some(buffer) = self.occupied.iter().find(|d| d.id == *id) {
+            return Some(&self.data[buffer.range.start..buffer.range.end + 1]);
+        }
+        None
+    }
+    pub fn items_mut(&mut self, id: &ResourceId) -> Option<&mut [T]> {
+        if let Some(buffer) = self.occupied.iter().find(|d| d.id == *id) {
+            return Some(&mut self.data[buffer.range.start..buffer.range.end + 1]);
+        }
+        None
+    }
     pub fn remove(&mut self, id: &ResourceId) -> bool {
         if let Some(index) = self.occupied.iter().position(|d| d.id == *id) {
             self.is_changed = true;

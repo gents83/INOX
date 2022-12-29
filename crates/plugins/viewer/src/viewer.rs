@@ -285,7 +285,7 @@ impl Viewer {
     ) {
         let mut compute_visibility_pass =
             RayTracingVisibilityPass::create(context, &renderer.render_context());
-        compute_visibility_pass.add_render_target_with_resolution(width / 2, height / 2);
+        compute_visibility_pass.add_render_target_with_resolution(width, height);
         renderer.add_pass(compute_visibility_pass, is_enabled);
     }
     fn create_compute_pbr_pass<P: OutputPass>(
