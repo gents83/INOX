@@ -19,6 +19,8 @@ pub fn compute_id_from_color(color: Vector4) -> u32 {
 }
 
 pub fn create_linearized_bhv(bhv: &BHVTree) -> Vec<DrawBHVNode> {
+    inox_profiler::scoped_profile!("create_linearized_bhv");
+
     let mut linearized_bhv = Vec::new();
     let bhv_nodes = bhv.nodes();
     let nodes_count = bhv_nodes.len();

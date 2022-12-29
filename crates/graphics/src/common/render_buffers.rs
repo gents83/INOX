@@ -273,6 +273,7 @@ impl RenderBuffers {
         self.recreate_tlas();
     }
     fn recreate_tlas(&self) {
+        inox_profiler::scoped_profile!("render_buffers::recreate_tlas");
         let mut meshes_aabbs = Vec::new();
         {
             let meshes = self.meshes.write().unwrap();
