@@ -199,7 +199,7 @@ impl Pass for RayTracingVisibilityPass {
             let pass = self.compute_pass.get();
             let x_pixels_managed_in_shader = 16;
             let y_pixels_managed_in_shader = 16;
-            let max_cluster_size = x_pixels_managed_in_shader * y_pixels_managed_in_shader;
+            let max_cluster_size = 32;
             let x = max_cluster_size
                 * ((render_target.get().width() + max_cluster_size - 1) / max_cluster_size)
                 / x_pixels_managed_in_shader;

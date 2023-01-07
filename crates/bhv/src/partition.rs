@@ -50,7 +50,7 @@ impl Partition {
     fn validate_partition(partition: &[[Partition; SPLIT_COUNT]; AXIS_COUNT]) -> bool {
         let mut is_valid = true;
         (0..SPLIT_COUNT).for_each(|split| {
-            is_valid &= !(0..AXIS_COUNT).all(|axis| partition[axis][split].nodes.is_empty());
+            is_valid &= (0..AXIS_COUNT).all(|axis| !partition[axis][split].nodes.is_empty());
         });
         is_valid
     }

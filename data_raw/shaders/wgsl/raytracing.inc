@@ -3,6 +3,7 @@ let HIT_EPSILON: f32 = 0.0001;
 let NEG_HIT_EPSILON: f32 = -0.0001;
 let ONE_PLUS_HIT_EPSILON: f32 = 1.0001;
 let INVALID_NODE: i32 = -1;
+let MAX_STEPS: u32 = 100000u;
 
 struct Ray {
     origin: vec3<f32>,
@@ -82,7 +83,8 @@ fn traverse_bhv(ray: Ray, mesh_id: u32) -> Result {
     var nearest = MAX_FLOAT;  
     var visibility_id = 0u;
 
-    while (bhv_index >= 0 && bhv_index < nodes_count)
+    var steps = 0u;
+    while (bhv_index >= 0 && bhv_index < nodes_count && steps < MAX_STEPS)
     {
         let node = &bhv.data[u32(bhv_index)];    
         let oobb_min = vec4<f32>(transform_vector((*node).min, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.);
@@ -119,6 +121,7 @@ fn traverse_bhv(ray: Ray, mesh_id: u32) -> Result {
             } else {
                 //inner node
                 bhv_index = bhv_index + 1;
+                steps = steps + 1u;
                 continue;                
             }
         }        
@@ -126,6 +129,7 @@ fn traverse_bhv(ray: Ray, mesh_id: u32) -> Result {
         if bhv_index >= 0 {
             bhv_index += mesh_bhv_index;
         }
+        steps = steps + 1u;
     }
     return Result(nearest, visibility_id);
 }
