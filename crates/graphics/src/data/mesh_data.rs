@@ -96,6 +96,10 @@ impl MeshData {
         self
     }
 
+    pub fn vertex(&self, i: usize) -> &DrawVertex {
+        &self.vertices[i]
+    }
+
     pub fn position(&self, i: usize) -> Vector3 {
         let size = self.aabb_max - self.aabb_min;
         let p = self.positions[i];

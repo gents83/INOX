@@ -26,6 +26,8 @@ var<storage, read> meshlets: Meshlets;
 var<storage, read> tlas: BHV;
 @group(0) @binding(7)
 var<storage, read> bhv: BHV;
+@group(0) @binding(8)
+var<storage, read> meshes_inverse_matrix: Matrices;
 
 @group(1) @binding(0)
 var render_target: texture_storage_2d<rgba8unorm, read_write>;
@@ -55,17 +57,21 @@ fn main(
     var visibility_id = 0u;
     
     var tlas_index = 0;
-    let tlas_count = i32(arrayLength(&tlas.data));
     
-    while (tlas_index >= 0 && tlas_index < tlas_count)
+    while (tlas_index >= 0)
     {
         let node = &tlas.data[u32(tlas_index)];    
-        let intersection = intersect_oobb(ray, (*node).min, (*node).max);
+        let intersection = intersect_aabb(ray, (*node).min, (*node).max);
         if (intersection < nearest) {
             if ((*node).reference >= 0) {
                 //leaf node
                 let mesh_id = u32((*node).reference);
-                let result = traverse_bhv(ray, mesh_id);
+                let inverse_matrix = &meshes_inverse_matrix.data[mesh_id];    
+                let transformed_origin = (*inverse_matrix) * vec4<f32>(ray.origin, 1.);
+                let transformed_direction = (*inverse_matrix) * vec4<f32>(ray.direction, 0.);
+                let transformed_ray = Ray(transformed_origin.xyz, transformed_direction.xyz);
+                //let result = traverse_meshlets(transformed_ray, mesh_id);
+                let result = traverse_bhv(transformed_ray, mesh_id);
                 if (result.visibility_id > 0u && result.distance < nearest) {
                     visibility_id = result.visibility_id;
                     nearest = result.distance;

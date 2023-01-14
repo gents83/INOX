@@ -2,9 +2,10 @@ use std::path::PathBuf;
 
 use crate::{
     BHVBuffer, BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DrawCommandType, IndicesBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer,
-    OutputPass, Pass, RenderContext, ShaderStage, Texture, TextureFormat, TextureId, TextureUsage,
-    TextureView, VertexPositionsBuffer, VerticesBuffer,
+    ConstantDataRw, DrawCommandType, IndicesBuffer, MeshFlags, MeshesBuffer,
+    MeshesInverseMatrixBuffer, MeshletsBuffer, OutputPass, Pass, RenderContext, ShaderStage,
+    Texture, TextureFormat, TextureId, TextureUsage, TextureView, VertexPositionsBuffer,
+    VerticesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -21,6 +22,7 @@ pub struct RayTracingVisibilityPass {
     binding_data: BindingData,
     constant_data: ConstantDataRw,
     meshes: MeshesBuffer,
+    meshes_inverse_matrix: MeshesInverseMatrixBuffer,
     meshlets: MeshletsBuffer,
     tlas: BHVBuffer,
     bhv: BHVBuffer,
@@ -68,6 +70,7 @@ impl Pass for RayTracingVisibilityPass {
             ),
             constant_data: render_context.constant_data.clone(),
             meshes: render_context.render_buffers.meshes.clone(),
+            meshes_inverse_matrix: render_context.render_buffers.meshes_inverse_matrix.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
             tlas: render_context.render_buffers.tlas.clone(),
             bhv: render_context.render_buffers.bhv.clone(),
@@ -164,6 +167,16 @@ impl Pass for RayTracingVisibilityPass {
                 BindingInfo {
                     group_index: 0,
                     binding_index: 7,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.meshes_inverse_matrix.write().unwrap(),
+                Some("Meshes Inverse Matrix"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 8,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },

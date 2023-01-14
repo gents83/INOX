@@ -5,7 +5,7 @@ use std::{
 };
 
 use inox_bhv::{BHVTree, AABB};
-use inox_math::{quantize_snorm, InnerSpace, Mat4Ops, Matrix4, VecBase};
+use inox_math::{quantize_snorm, InnerSpace, Mat4Ops, MatBase, Matrix4};
 use inox_resources::{to_slice, Buffer, HashBuffer};
 use inox_uid::{generate_static_uid_from_string, Uid};
 
@@ -23,6 +23,7 @@ pub type MaterialsBuffer = Arc<RwLock<HashBuffer<MaterialId, DrawMaterial, 0>>>;
 pub type CommandsBuffer = Arc<RwLock<HashMap<MeshFlags, RenderCommandsPerType>>>;
 pub type MeshesBuffer = Arc<RwLock<HashBuffer<MeshId, DrawMesh, 0>>>;
 pub type MeshesFlagsBuffer = Arc<RwLock<HashBuffer<MeshId, MeshFlags, 0>>>;
+pub type MeshesInverseMatrixBuffer = Arc<RwLock<HashBuffer<MeshId, [[f32; 4]; 4], 0>>>;
 pub type MeshletsBuffer = Arc<RwLock<Buffer<DrawMeshlet>>>; //MeshId <-> [DrawMeshlet]
 pub type MeshletsCullingBuffer = Arc<RwLock<Buffer<ConeCulling>>>; //MeshId <-> [DrawMeshlet]
 pub type BHVBuffer = Arc<RwLock<Buffer<DrawBHVNode>>>;
@@ -44,6 +45,7 @@ pub struct RenderBuffers {
     pub commands: CommandsBuffer,
     pub meshes: MeshesBuffer,
     pub meshes_flags: MeshesFlagsBuffer,
+    pub meshes_inverse_matrix: MeshesInverseMatrixBuffer,
     pub meshlets: MeshletsBuffer,
     pub meshlets_culling: MeshletsCullingBuffer,
     pub bhv: BHVBuffer,
@@ -70,37 +72,12 @@ impl RenderBuffers {
         meshlets.resize(mesh_data.meshlets.len(), DrawMeshlet::default());
         meshlets_cones.resize(mesh_data.meshlets.len(), ConeCulling::default());
         let mut meshlets_aabbs = Vec::new();
-        let mut meshlet_triangles_aabbs = Vec::new();
         meshlets_aabbs.resize_with(mesh_data.meshlets.len(), AABB::empty);
         mesh_data
             .meshlets
             .iter()
             .enumerate()
             .for_each(|(i, meshlet_data)| {
-                let triangle_count = meshlet_data.indices_count / 3;
-                let mut triangles_aabbs = Vec::new();
-                triangles_aabbs.resize_with(triangle_count as _, AABB::empty);
-                triangles_aabbs
-                    .iter_mut()
-                    .enumerate()
-                    .for_each(|(triangle_index, aabb)| {
-                        let i1 = mesh_data.indices
-                            [(meshlet_data.indices_offset as usize + triangle_index * 3)];
-                        let i2 = mesh_data.indices
-                            [(meshlet_data.indices_offset as usize + triangle_index * 3 + 1)];
-                        let i3 = mesh_data.indices
-                            [(meshlet_data.indices_offset as usize + triangle_index * 3 + 2)];
-                        let v1 = mesh_data.position(i1 as _);
-                        let v2 = mesh_data.position(i2 as _);
-                        let v3 = mesh_data.position(i3 as _);
-                        let min = v1.min(v2).min(v3);
-                        let max = v1.max(v2).max(v3);
-                        aabb.set_min(min);
-                        aabb.set_max(max);
-                        aabb.set_index(triangle_index as _);
-                    });
-                meshlet_triangles_aabbs.push(triangles_aabbs);
-
                 let meshlet = DrawMeshlet {
                     mesh_index,
                     indices_offset: meshlet_data.indices_offset as _,
@@ -128,21 +105,7 @@ impl RenderBuffers {
             inox_log::debug_log!("No meshlet data for mesh {:?}", mesh_id);
         }
 
-        let mut bhv = BHVTree::new(&meshlets_aabbs);
-        meshlets.iter_mut().enumerate().for_each(|(i, meshlet)| {
-            let mut triangles_bhv = BHVTree::new(&meshlet_triangles_aabbs[i]);
-            triangles_bhv.nodes_mut().iter_mut().for_each(|n| {
-                let primitive_index = n.aabb_index();
-                if primitive_index >= 0 {
-                    //meshlet index (shifted of 8 bits) + primitive index (in latest 8 bits)
-                    n.set_aabb_index(((i + 1) << 8 | primitive_index as usize & 255) as u32);
-                }
-            });
-            if let Some(position) = bhv.nodes().iter().position(|n| n.aabb_index() == i as i32) {
-                bhv.insert_at(position, triangles_bhv);
-                meshlet.bvh_index = position as _;
-            }
-        });
+        let bhv = BHVTree::new(&meshlets_aabbs);
         let linearized_bhv = create_linearized_bhv(&bhv);
         let mesh_bhv_range = self
             .bhv
@@ -255,6 +218,10 @@ impl RenderBuffers {
             .write()
             .unwrap()
             .insert(mesh_id, DrawMesh::default());
+        self.meshes_inverse_matrix
+            .write()
+            .unwrap()
+            .insert(mesh_id, Matrix4::default_identity().inverse().into());
 
         let (vertex_offset, indices_offset) =
             self.add_vertex_data(mesh_id, mesh_data, mesh_index as _);
@@ -297,6 +264,24 @@ impl RenderBuffers {
         let mut tlas = self.tlas.write().unwrap();
         tlas.allocate(&TLAS_UID, &linearized_bhv);
     }
+    fn update_transform(&self, mesh: &mut Mesh, m: &mut DrawMesh) -> bool {
+        inox_profiler::scoped_profile!("render_buffers::update_transform");
+
+        let matrix = mesh.matrix();
+        let new_pos = matrix.translation();
+        let new_orientation = matrix.orientation();
+        let new_scale = matrix.scale();
+        let old_pos = m.position.into();
+        let old_orientation = m.orientation.into();
+        let old_scale = m.scale.into();
+        if new_pos != old_pos || new_orientation != old_orientation || new_scale != old_scale {
+            m.position = new_pos.into();
+            m.orientation = new_orientation.into();
+            m.scale = new_scale.into();
+            return true;
+        }
+        false
+    }
     pub fn change_mesh(&self, mesh_id: &MeshId, mesh: &mut Mesh) {
         inox_profiler::scoped_profile!("render_buffers::change_mesh");
         let mut is_matrix_changed = false;
@@ -316,17 +301,14 @@ impl RenderBuffers {
                     }
                 }
 
-                let matrix = mesh.matrix();
-                let new_pos = matrix.translation().into();
-                let new_orientation = matrix.orientation().into();
-                let new_scale = matrix.scale().into();
-                if new_pos != m.position || new_orientation != m.orientation || new_scale != m.scale
-                {
-                    is_matrix_changed = true;
-                    m.position = new_pos;
-                    m.orientation = new_orientation;
-                    m.scale = new_scale;
+                is_matrix_changed = self.update_transform(mesh, m);
+                if is_matrix_changed {
+                    let mut meshes_inverse_matrix = self.meshes_inverse_matrix.write().unwrap();
+                    if let Some(mat) = meshes_inverse_matrix.get_mut(mesh_id) {
+                        *mat = mesh.matrix().inverse().into();
+                    }
                 }
+
                 let mesh_flags = mesh.flags();
                 {
                     let mut commands = self.commands.write().unwrap();
@@ -363,6 +345,8 @@ impl RenderBuffers {
                 .for_each(|(_, entry)| {
                     entry.remove_commands(mesh_id);
                 });
+            self.meshes_flags.write().unwrap().remove(mesh_id);
+            self.meshes_inverse_matrix.write().unwrap().remove(mesh_id);
             self.meshlets.write().unwrap().remove(mesh_id);
             self.meshlets_culling.write().unwrap().remove(mesh_id);
             self.bhv.write().unwrap().remove(mesh_id);
