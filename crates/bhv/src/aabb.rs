@@ -50,14 +50,6 @@ impl AABB {
         self.index = index as _;
         self
     }
-    pub fn set_min(&mut self, min: Vector3) -> &mut Self {
-        self.min = min;
-        self
-    }
-    pub fn set_max(&mut self, max: Vector3) -> &mut Self {
-        self.max = max;
-        self
-    }
     pub fn min(&self) -> Vector3 {
         self.min
     }

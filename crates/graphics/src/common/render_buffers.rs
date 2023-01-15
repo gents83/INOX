@@ -96,10 +96,8 @@ impl RenderBuffers {
                     center: meshlet_data.cone_center.into(),
                     cone_axis_cutoff,
                 };
-                meshlets_aabbs[i]
-                    .set_index(i as _)
-                    .set_min(meshlet_data.aabb_min)
-                    .set_max(meshlet_data.aabb_max);
+                meshlets_aabbs[i] =
+                    AABB::create(meshlet_data.aabb_min, meshlet_data.aabb_max, i as _);
             });
         if meshlets.is_empty() {
             inox_log::debug_log!("No meshlet data for mesh {:?}", mesh_id);

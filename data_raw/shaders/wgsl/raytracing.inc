@@ -1,9 +1,7 @@
 let MAX_FLOAT: f32 = 3.402823466e+38;
 let HIT_EPSILON: f32 = 0.0001;
-let NEG_HIT_EPSILON: f32 = -0.0001;
-let ONE_PLUS_HIT_EPSILON: f32 = 1.0001;
 let INVALID_NODE: i32 = -1;
-let MAX_STEPS: u32 = 10000u;
+let MAX_STEPS: u32 = 1024u;
 
 struct Ray {
     origin: vec3<f32>,
@@ -135,7 +133,7 @@ fn traverse_bhv(r: Ray, mesh_id: u32) -> Result {
     var visibility_id = 0u;
 
     var steps = 0u;
-    while (bhv_index >= 0 && bhv_index < nodes_count && steps < MAX_STEPS)
+    while (bhv_index >= 0 && steps < MAX_STEPS)
     { 
         let node = &bhv.data[u32(bhv_index)];   
         let intersection = intersect_aabb(r, (*node).min, (*node).max);

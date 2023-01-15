@@ -10,8 +10,11 @@ use inox_math::{
 };
 use inox_messenger::Listener;
 use inox_resources::{DataTypeResourceEvent, HashBuffer, Resource, ResourceEvent};
-use inox_scene::{Camera, SceneId};
+use inox_scene::{Camera, Object, ObjectId, SceneId};
 use inox_ui::{implement_widget_data, ComboBox, UIWidget, Window};
+use inox_uid::INVALID_UID;
+
+use crate::events::WidgetEvent;
 
 use super::{Gfx, Hierarchy};
 
@@ -88,6 +91,7 @@ struct Data {
     far: f32,
     fov: Degrees,
     aspect_ratio: f32,
+    selected_object_id: ObjectId,
 }
 implement_widget_data!(Data);
 
@@ -102,7 +106,8 @@ impl Info {
         let listener = Listener::new(context.message_hub());
         listener
             .register::<DataTypeResourceEvent<Mesh>>()
-            .register::<ResourceEvent<Mesh>>();
+            .register::<ResourceEvent<Mesh>>()
+            .register::<WidgetEvent>();
         let data = Data {
             context: context.clone(),
             params,
@@ -121,6 +126,7 @@ impl Info {
             far: 0.,
             fov: Degrees::new(0.),
             aspect_ratio: 1.,
+            selected_object_id: INVALID_UID,
         };
         Self {
             ui_page: Self::create(data),
@@ -150,6 +156,12 @@ impl Info {
         inox_profiler::scoped_profile!("Info::update_events");
 
         self.listener
+            .process_messages(|e: &WidgetEvent| {
+                let WidgetEvent::Selected(object_id) = e;
+                if let Some(data) = self.ui_page.get_mut().data_mut::<Data>() {
+                    data.selected_object_id = *object_id;
+                }
+            })
             .process_messages(|e: &DataTypeResourceEvent<Mesh>| {
                 let DataTypeResourceEvent::Loaded(id, mesh_data) = e;
                 let mut meshlets = Vec::new();
@@ -246,17 +258,13 @@ impl Info {
                 let renderer = data.params.renderer.read().unwrap();
                 let render_context = renderer.render_context();
                 let tlas = render_context.render_buffers.tlas.read().unwrap();
-                tlas.for_each_data(|i, _id, n| {
+                tlas.for_each_data(|_i, _id, n| {
                     data.context
                         .message_hub()
                         .send_event(DrawEvent::BoundingBox(
                             n.min.into(),
                             n.max.into(),
-                            if i == 0 {
-                                [0.0, 1.0, 0.0, 1.0].into()
-                            } else {
-                                [1.0, 1.0, 0.0, 1.0].into()
-                            },
+                            [1.0, 1.0, 0.0, 1.0].into(),
                         ));
                 });
             }
@@ -264,19 +272,18 @@ impl Info {
                 let renderer = data.params.renderer.read().unwrap();
                 let render_context = renderer.render_context();
                 let bhv = render_context.render_buffers.bhv.read().unwrap();
-                bhv.for_each_data(|i, _id, n| {
+                bhv.for_each_data(|_i_, _id, n| {
                     data.context
                         .message_hub()
                         .send_event(DrawEvent::BoundingBox(
                             n.min.into(),
                             n.max.into(),
-                            if i == 0 {
-                                [0.0, 1.0, 0.0, 1.0].into()
-                            } else {
-                                [1.0, 1.0, 0.0, 1.0].into()
-                            },
+                            [1.0, 1.0, 0.0, 1.0].into(),
                         ));
                 });
+            }
+            if !data.selected_object_id.is_nil() {
+                Self::show_meshes_of_object(data, &data.selected_object_id);
             }
             match data.meshlet_debug {
                 MeshletDebug::Sphere => {
@@ -285,6 +292,37 @@ impl Info {
                 MeshletDebug::BoundingBox => Self::show_meshlets_bounding_box(data, &self.meshes),
                 MeshletDebug::ConeAxis => Self::show_meshlets_cone_axis(data, &self.meshes),
                 _ => {}
+            }
+        }
+    }
+
+    fn show_meshes_of_object(data: &Data, object_id: &ObjectId) {
+        if let Some(object) = data.context.shared_data().get_resource::<Object>(object_id) {
+            let object = object.get();
+            let meshes = object.components_of_type::<Mesh>();
+            if meshes.is_empty() {
+                let children = object.children();
+                children.iter().for_each(|o| {
+                    Self::show_meshes_of_object(data, o.id());
+                });
+            } else {
+                let renderer = data.params.renderer.read().unwrap();
+                let render_context = renderer.render_context();
+                let bhv = render_context.render_buffers.bhv.read().unwrap();
+                meshes.iter().for_each(|mesh| {
+                    if let Some(nodes) = bhv.items(mesh.id()) {
+                        nodes.iter().for_each(|n| {
+                            let matrix = mesh.get().matrix();
+                            data.context
+                                .message_hub()
+                                .send_event(DrawEvent::BoundingBox(
+                                    matrix.rotate_point(n.min.into()),
+                                    matrix.rotate_point(n.max.into()),
+                                    [1.0, 1.0, 0.0, 1.0].into(),
+                                ));
+                        });
+                    }
+                });
             }
         }
     }

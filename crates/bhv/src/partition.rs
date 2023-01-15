@@ -92,11 +92,11 @@ impl Partition {
         container: &AABB,
         list: &[AABB],
     ) -> ([[Partition; SPLIT_COUNT]; AXIS_COUNT], Vector3) {
-        let mut min = container.max();
-        let mut max = container.min();
+        let mut min = container.max().max(container.min());
+        let mut max = container.min().min(container.max());
         list.iter().for_each(|aabb| {
-            min = min.min(aabb.center());
-            max = max.max(aabb.center());
+            min = min.min(aabb.center()).min(max);
+            max = max.max(aabb.center()).max(min);
         });
         let splice_size = (max - min) / (SPLIT_COUNT as f32);
         let partition = Self::create_partition(list, splice_size, min);

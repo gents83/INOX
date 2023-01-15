@@ -5,9 +5,11 @@ use inox_resources::{Resource, SerializableResource, SharedData, SharedDataRc};
 use inox_scene::{Object, ObjectId, Scene, SceneId};
 use inox_ui::{
     collapsing_header::CollapsingState, implement_widget_data, CollapsingHeader, ScrollArea,
-    SelectableLabel, UIWidget, Ui, Window,
+    UIWidget, Ui, Window,
 };
 use inox_uid::INVALID_UID;
+
+use crate::events::WidgetEvent;
 
 #[derive(Clone)]
 struct HierarchyData {
@@ -43,13 +45,6 @@ impl Hierarchy {
         None
     }
 
-    pub fn select_object(&mut self, object_id: ObjectId) -> &mut Self {
-        if let Some(data) = self.ui_page.get_mut().data_mut::<HierarchyData>() {
-            data.selected_object = object_id;
-        }
-        self
-    }
-
     fn create(
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
@@ -62,17 +57,14 @@ impl Hierarchy {
                     .title_bar(true)
                     .resizable(true)
                     .show(ui_context, |ui| {
-                        let _ = &data;
                         CollapsingHeader::new("Scene")
                             .show_background(false)
                             .default_open(true)
                             .show(ui, |ui| {
-                                let _ = &data;
                                 ScrollArea::vertical().show(ui, |ui| {
-                                    let _ = &data;
-                                    data.scene.get().objects().iter().for_each(|object| {
-                                        let _ = &data;
-                                        Self::object_hierarchy(ui, object, &data.selected_object);
+                                    let objects = data.scene.get().objects().clone();
+                                    objects.iter().for_each(|object| {
+                                        Self::object_hierarchy(ui, object, data);
                                     });
                                 })
                             })
@@ -85,7 +77,17 @@ impl Hierarchy {
         })
     }
 
-    fn object_hierarchy(ui: &mut Ui, object: &Resource<Object>, selected_id: &ObjectId) {
+    fn select_object(data: &mut HierarchyData, object_id: &ObjectId) {
+        if data.selected_object == *object_id {
+            data.selected_object = INVALID_UID;
+        } else {
+            data.selected_object = *object_id;
+        }
+        data.message_hub
+            .send_event(WidgetEvent::Selected(data.selected_object))
+    }
+
+    fn object_hierarchy(ui: &mut Ui, object: &Resource<Object>, data: &mut HierarchyData) {
         inox_profiler::scoped_profile!("object_hierarchy");
 
         let mut object_name = format!("Object [{:?}]", object.id().as_simple().to_string());
@@ -94,39 +96,30 @@ impl Hierarchy {
                 object_name = name.to_string();
             }
         }
-        let is_selected = object.id() == selected_id;
-        let is_child_recursive = object.get().is_child_recursive(selected_id);
+        let is_selected = object.id() == &data.selected_object;
         let has_children = object.get().has_children();
 
         if has_children {
             let id = ui.make_persistent_id(object_name.as_str());
             CollapsingState::load_with_default_open(ui.ctx(), id, true)
                 .show_header(ui, |ui| {
-                    let clicked = ui
-                        .selectable_label(is_selected || is_child_recursive, object_name.as_str())
-                        .clicked();
-                    if clicked {
+                    let mut s = is_selected;
+                    if ui.toggle_value(&mut s, object_name.as_str()).clicked() {
                         //change selected object
+                        Self::select_object(data, object.id());
                     }
                 })
                 .body(|ui| {
                     object.get().children().iter().for_each(|child| {
-                        Self::object_hierarchy(ui, child, selected_id);
+                        Self::object_hierarchy(ui, child, data);
                     });
                 });
-            /*
-            CollapsingHeader::new(object_name.as_str())
-                //.selected(is_selected || is_child_recursive)
-                .default_open(true)
-                .show(ui, |ui| {
-                    object.get().children().iter().for_each(|child| {
-                        Self::object_hierarchy(ui, child, selected_id, message_hub);
-                    });
-                });
-                response.header_response
-                */
         } else {
-            ui.add(SelectableLabel::new(is_selected, object_name.as_str()));
+            let mut s = is_selected;
+            if ui.toggle_value(&mut s, object_name.as_str()).clicked() {
+                //change selected object
+                Self::select_object(data, object.id());
+            }
         }
     }
 }

@@ -71,6 +71,7 @@ fn main(
                 let transformed_direction = (*inverse_matrix) * vec4<f32>(ray.direction, 0.);
                 let transformed_ray = Ray(transformed_origin.xyz, transformed_direction.xyz);
                 //let result = traverse_meshlets(transformed_ray, mesh_id);
+                //let result = traverse_bhv(ray, mesh_id);
                 let result = traverse_bhv(transformed_ray, mesh_id);
                 if (result.visibility_id > 0u && result.distance < nearest) {
                     visibility_id = result.visibility_id;

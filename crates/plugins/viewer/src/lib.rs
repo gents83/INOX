@@ -2,7 +2,8 @@
 
 pub use viewer::*;
 
-mod systems;
 mod config;
+mod events;
+mod systems;
 pub mod viewer;
 mod widgets;
