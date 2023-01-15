@@ -68,7 +68,7 @@ impl AABB {
         self.max - self.min
     }
     pub fn expand_to_include(&mut self, other: &AABB) {
-        self.max = self.max.max(other.max);
-        self.min = self.min.min(other.min);
+        self.max = self.max.max(other.max).max(other.min);
+        self.min = self.min.min(other.min).min(other.max);
     }
 }

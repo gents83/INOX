@@ -3,7 +3,7 @@ let HIT_EPSILON: f32 = 0.0001;
 let NEG_HIT_EPSILON: f32 = -0.0001;
 let ONE_PLUS_HIT_EPSILON: f32 = 1.0001;
 let INVALID_NODE: i32 = -1;
-let MAX_STEPS: u32 = 1000u;
+let MAX_STEPS: u32 = 10000u;
 
 struct Ray {
     origin: vec3<f32>,
@@ -19,7 +19,7 @@ fn compute_ray(image_pixel: vec2<u32>, image_size: vec2<u32>) -> Ray {
     var clip_coords = 2. * (vec2<f32>(image_pixel) / vec2<f32>(image_size)) - vec2<f32>(1., 1.);
     clip_coords.y = -clip_coords.y;
     
-    let origin = unproject(clip_coords.xy, 0.);
+    let origin = unproject(clip_coords.xy, -1.);
     let far = unproject(clip_coords.xy, 1.);
     let direction = normalize(far - origin);
     
@@ -33,20 +33,20 @@ fn intersect_aabb(r: Ray, aabb_min: vec3<f32>, aabb_max: vec3<f32>) -> f32
     let v_min = (aabb_min - r.origin) * inverse_dir;
     let v_max = (aabb_max - r.origin) * inverse_dir;
 
-    let t_min = min(v_max, v_min);
-    let t_max = max(v_max, v_min);
+    let t_min = min(v_min, v_max);
+    let t_max = max(v_min, v_max);
 
-    let smallest_max = min(min(t_max.x, t_max.y), min(t_max.x, t_max.z));
-    let largest_min = max(max(t_min.x, t_min.y), max(t_min.x, t_min.z));
+    let t_near = max(max(t_min.x, t_min.y), max(t_min.x, t_min.z));
+    let t_far = min(min(t_max.x, t_max.y), min(t_max.x, t_max.z));
 
-    if (smallest_max < largest_min || smallest_max < 0.) 
+    if (t_near > t_far || t_far < 0.) 
     { 
         return MAX_FLOAT; 
     }
-    if (largest_min > 0.) {
-        return largest_min;
+    if (t_near > 0.) {
+        return t_near;
     } else {
-        return smallest_max;
+        return t_far;
     } 
 }
 
