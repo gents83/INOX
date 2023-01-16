@@ -70,8 +70,6 @@ fn main(
                 let transformed_origin = (*inverse_matrix) * vec4<f32>(ray.origin, 1.);
                 let transformed_direction = (*inverse_matrix) * vec4<f32>(ray.direction, 0.);
                 let transformed_ray = Ray(transformed_origin.xyz, transformed_direction.xyz);
-                //let result = traverse_meshlets(transformed_ray, mesh_id);
-                //let result = traverse_bhv(ray, mesh_id);
                 let result = traverse_bhv(transformed_ray, mesh_id);
                 if (result.visibility_id > 0u && result.distance < nearest) {
                     visibility_id = result.visibility_id;
@@ -85,8 +83,8 @@ fn main(
         }
         tlas_index = (*node).miss;
     } 
-    if (visibility_id > 0u) {
-        visibility_id = 0xFFFFFFFFu;
-    }
+    //if (visibility_id > 0u) {
+    //    visibility_id = 0xFFFFFFFFu;
+    //}
     textureStore(render_target, vec2<i32>(pixel), unpack4x8unorm(visibility_id));
 }

@@ -124,11 +124,39 @@ fn traverse_meshlets(r: Ray, mesh_id: u32) -> Result {
     return Result(nearest, visibility_id);
 }
 
+fn traverse_forced_all_bhv_nodes(r: Ray, mesh_id: u32, bhv_start: i32, bhv_end: i32) -> Result {
+    let mesh = &meshes.data[mesh_id];    
+    let mesh_bhv_index = i32((*mesh).bhv_index);
+    var bhv_index = bhv_start;
+    let nodes_count = i32(arrayLength(&bhv.data));
+    var nearest = MAX_FLOAT;  
+    var visibility_id = 0u;
+
+    var steps = 0u;
+    while (bhv_index >= bhv_start && bhv_index < bhv_end && bhv_index < nodes_count)
+    { 
+        let node = &bhv.data[u32(bhv_index)];   
+        let intersection = intersect_aabb(r, (*node).min, (*node).max);
+        if (intersection < nearest) {
+            if ((*node).reference >= 0) {
+                //leaf node
+                let meshlet_id = (*mesh).meshlets_offset + u32((*node).reference);
+                let hit = intersect_meshlet(r, mesh_id, meshlet_id);
+                if (hit.distance < nearest) {
+                    visibility_id = hit.visibility_id;
+                    nearest = hit.distance;
+                }
+            }
+        }       
+        bhv_index = bhv_index + 1;
+    }
+    return Result(nearest, visibility_id);
+}
+
 fn traverse_bhv(r: Ray, mesh_id: u32) -> Result {
     let mesh = &meshes.data[mesh_id];    
     var bhv_index = i32((*mesh).bhv_index);    
     let mesh_bhv_index = bhv_index;
-    let nodes_count = i32(arrayLength(&bhv.data));
     var nearest = MAX_FLOAT;  
     var visibility_id = 0u;
 

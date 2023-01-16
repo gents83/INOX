@@ -62,17 +62,22 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>, 
     @builtin(workgroup_id) workgroup_id: vec3<u32>
 ) {   
-    let pixel = vec3<i32>(i32(global_invocation_id.x), i32(global_invocation_id.y), i32(pbr_data.visibility_buffer_index));
-    if (pixel.x >= i32(pbr_data.width) || pixel.y >= i32(pbr_data.height))
+    let target_dimensions = vec2<u32>(textureDimensions(render_target));
+    let pixel = vec3<u32>(global_invocation_id.x, global_invocation_id.y, pbr_data.visibility_buffer_index);
+    if (pixel.x >= target_dimensions.x || pixel.y >= target_dimensions.y)
     {
         return;
     }
+
+    let source_dimensions = vec2<u32>(textureDimensions(visibility_buffer_texture));
+    let ratio = vec2<f32>(vec2<f32>(source_dimensions) / vec2<f32>(target_dimensions));
+    let source_pixel = vec2<f32>(pixel.xy) * ratio;
     
     var color = vec4<f32>(0., 0., 0., 0.);
-    let visibility_output = textureLoad(visibility_buffer_texture, pixel.xy, 0);
+    let visibility_output = textureLoad(visibility_buffer_texture, vec2<i32>(source_pixel.xy), 0);
     let visibility_id = pack4x8unorm(visibility_output);
-    if ((visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
-        textureStore(render_target, pixel.xy, color);
+    if (visibility_id == 0u || (visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
+        textureStore(render_target, vec2<i32>(pixel.xy), color);
         return;
     }
 
@@ -139,7 +144,7 @@ fn main(
         let vertex_color = barycentrics.x * c1 + barycentrics.y * c2 + barycentrics.z * c3;        
         let alpha = compute_alpha(material_id, vertex_color.a);
         if alpha <= 0. {
-            textureStore(render_target, pixel.xy, color);
+            textureStore(render_target, vec2<i32>(pixel.xy), color);
             return;
         }        
 
@@ -179,5 +184,5 @@ fn main(
         color = compute_brdf(world_pos.xyz, normal, material_id, color, uv_set);
     }
 
-    textureStore(render_target, pixel.xy, color);
+    textureStore(render_target, vec2<i32>(pixel.xy), color);
 }   

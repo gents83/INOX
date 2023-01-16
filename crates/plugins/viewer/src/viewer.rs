@@ -20,7 +20,7 @@ use crate::{config::Config, systems::viewer_system::ViewerSystem};
 const ADD_WIREFRAME_PASS: bool = true;
 const ADD_UI_PASS: bool = true;
 const ADD_CULLING_PASS: bool = true;
-const USE_RAYTRACING: bool = false;
+const USE_RAYTRACING: bool = true;
 const USE_ALL_PASSES: bool = false;
 const USE_3DVIEW: bool = false;
 
@@ -150,11 +150,11 @@ impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &mut Renderer, width: u32, height: u32) {
         if USE_RAYTRACING {
             Self::create_raytracing_visibility_pass(context, renderer, width, height, true);
-            Self::create_blit_pass::<RayTracingVisibilityPass>(context, renderer, true);
-            //Self::create_compute_pbr_pass::<RayTracingVisibilityPass>(
-            //    context, renderer, width, height, true,
-            //);
-            //Self::create_blit_pass::<ComputePbrPass>(context, renderer, true);
+            //Self::create_blit_pass::<RayTracingVisibilityPass>(context, renderer, true);
+            Self::create_compute_pbr_pass::<RayTracingVisibilityPass>(
+                context, renderer, width, height, true,
+            );
+            Self::create_blit_pass::<ComputePbrPass>(context, renderer, true);
         } else {
             if USE_ALL_PASSES || !has_primitive_index_support() {
                 Self::create_gbuffer_pass(context, renderer, width, height, true);
@@ -285,7 +285,7 @@ impl Viewer {
     ) {
         let mut compute_visibility_pass =
             RayTracingVisibilityPass::create(context, &renderer.render_context());
-        compute_visibility_pass.add_render_target_with_resolution(width, height);
+        compute_visibility_pass.add_render_target_with_resolution(width / 2, height / 2);
         renderer.add_pass(compute_visibility_pass, is_enabled);
     }
     fn create_compute_pbr_pass<P: OutputPass>(

@@ -34,7 +34,13 @@ impl Partition {
         } else {
             //simple sorting from left to right and splitting in half then
             let mut list = list.to_vec();
-            list.sort_by(|a, b| a.min().x.partial_cmp(&b.min().x).unwrap());
+            list.sort_by(|a, b| {
+                a.min()
+                    .x
+                    .min(a.max().x)
+                    .partial_cmp(&b.min().x.min(b.max().x))
+                    .unwrap()
+            });
             let mut left_group = Vec::new();
             let mut right_group = Vec::new();
             list.iter().enumerate().for_each(|(i, aabb)| {

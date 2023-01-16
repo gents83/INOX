@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use inox_bhv::BHVTree;
 use inox_math::Vector4;
 
@@ -21,7 +23,7 @@ pub fn compute_id_from_color(color: Vector4) -> u32 {
 pub fn create_linearized_bhv(bhv: &BHVTree) -> Vec<DrawBHVNode> {
     inox_profiler::scoped_profile!("create_linearized_bhv");
 
-    let mut linearized_bhv = Vec::new();
+    let mut linearized_bhv = Vec::<DrawBHVNode>::new();
     let bhv_nodes = bhv.nodes();
     let nodes_count = bhv_nodes.len();
     let mut current_index = 0;
@@ -44,7 +46,7 @@ pub fn create_linearized_bhv(bhv: &BHVTree) -> Vec<DrawBHVNode> {
                 {
                     bhv_nodes[ancestor_index as usize].right() as _
                 } else {
-                    INVALID_INDEX
+                    linearized_bhv[parent_index as usize].miss
                 }
             }
         } else {
@@ -57,4 +59,13 @@ pub fn create_linearized_bhv(bhv: &BHVTree) -> Vec<DrawBHVNode> {
         current_index += 1;
     }
     linearized_bhv
+}
+
+pub fn print_bhv(bhv: &[DrawBHVNode], bhv_range: &Range<usize>) {
+    println!("BHV {} - {}", bhv_range.start, bhv_range.end + 1);
+    bhv.iter().enumerate().for_each(|(i, n)| {
+        println!("  Node[{}]:", i);
+        println!("      Miss -> {}", n.miss);
+        println!("      Ref [{}]", n.reference);
+    });
 }
