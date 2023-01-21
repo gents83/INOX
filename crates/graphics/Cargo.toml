@@ -1,16 +1,19 @@
 [package]
 name = "inox_graphics"
-version = "0.1.0"
-authors = ["gents83 <gents83@gmail.com>"]
-edition = "2021"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+keywords.workspace = true
+license.workspace = true
 
 [lib]
 crate-type = ["lib"]
 
 [dependencies]
-downcast-rs = { path = "../../extern/downcast-rs" }
-image = { path = "../../extern/image", default-features = false, features = [ "gif","jpeg","ico","png","pnm","tga","tiff","webp","bmp","hdr","dxt","dds"] }
-ttf-parser = {path = "../../extern/ttf-parser" }
+downcast-rs = { workspace = true }
+image = { workspace = true }
+ttf-parser = { workspace = true }
 inox_bitmask = { path = "../bitmask" }
 inox_bhv = { path = "../bhv" }
 inox_commands = { path = "../commands" }
@@ -26,10 +29,140 @@ inox_serialize = { path = "../serialize" }
 inox_uid = { path = "../uid" }
 
 [target.'cfg(all(not(target_arch = "wasm32")))'.dependencies]
-wgpu = { version = "0.14", path = "../../extern/wgpu/wgpu", features = ["spirv", "glsl", "wgsl"] }
-futures = { version = "0.3", features = ["std", "thread-pool"] }
+wgpu = { workspace = true }
+futures = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wgpu = { version = "0.14", path = "../../extern/wgpu/wgpu", features = ["spirv", "glsl", "wgsl"] }
-wasm-bindgen = "0.2.81"
-wasm-bindgen-futures = "0.4.29"
+wgpu = { workspace = true }
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
+js-sys = { workspace = true }
+web-sys = { workspace = true, features = [
+    "Document",
+    "Navigator",
+    "Node",
+    "NodeList",
+    "Gpu",
+    "GpuAdapter",
+    "GpuAddressMode",
+    "GpuAutoLayoutMode",
+    "GpuBindGroup",
+    "GpuBindGroupDescriptor",
+    "GpuBindGroupEntry",
+    "GpuBindGroupLayout",
+    "GpuBindGroupLayoutDescriptor",
+    "GpuBindGroupLayoutEntry",
+    "GpuBlendComponent",
+    "GpuBlendFactor",
+    "GpuBlendOperation",
+    "GpuBlendState",
+    "GpuBuffer",
+    "GpuBufferBinding",
+    "GpuBufferBindingLayout",
+    "GpuBufferBindingType",
+    "GpuBufferDescriptor",
+    "GpuCanvasAlphaMode",
+    "GpuCanvasContext",
+    "GpuCanvasConfiguration",
+    "GpuColorDict",
+    "GpuColorTargetState",
+    "GpuCommandBuffer",
+    "GpuCommandBufferDescriptor",
+    "GpuCommandEncoder",
+    "GpuCommandEncoderDescriptor",
+    "GpuCompareFunction",
+    "GpuCompilationInfo",
+    "GpuCompilationMessage",
+    "GpuCompilationMessageType",
+    "GpuComputePassDescriptor",
+    "GpuComputePassEncoder",
+    "GpuComputePipeline",
+    "GpuComputePipelineDescriptor",
+    "GpuCullMode",
+    "GpuDepthStencilState",
+    "GpuDevice",
+    "GpuDeviceDescriptor",
+    "GpuDeviceLostInfo",
+    "GpuDeviceLostReason",
+    "GpuError",
+    "GpuErrorFilter",
+    "GpuExtent3dDict",
+    "GpuFeatureName",
+    "GpuFilterMode",
+    "GpuFragmentState",
+    "GpuFrontFace",
+    "GpuImageCopyBuffer",
+    "GpuImageCopyExternalImage",
+    "GpuImageCopyTexture",
+    "GpuImageCopyTextureTagged",
+    "GpuImageDataLayout",
+    "GpuIndexFormat",
+    "GpuLoadOp",
+    "gpu_map_mode",
+    "GpuMipmapFilterMode",
+    "GpuMultisampleState",
+    "GpuObjectDescriptorBase",
+    "GpuOrigin2dDict",
+    "GpuOrigin3dDict",
+    "GpuOutOfMemoryError",
+    "GpuPipelineDescriptorBase",
+    "GpuPipelineLayout",
+    "GpuPipelineLayoutDescriptor",
+    "GpuPowerPreference",
+    "GpuPrimitiveState",
+    "GpuPrimitiveTopology",
+    "GpuProgrammableStage",
+    "GpuQuerySet",
+    "GpuQuerySetDescriptor",
+    "GpuQueryType",
+    "GpuQueue",
+    "GpuRenderBundle",
+    "GpuRenderBundleDescriptor",
+    "GpuRenderBundleEncoder",
+    "GpuRenderBundleEncoderDescriptor",
+    "GpuRenderPassColorAttachment",
+    "GpuRenderPassDepthStencilAttachment",
+    "GpuRenderPassDescriptor",
+    "GpuRenderPassEncoder",
+    "GpuRenderPipeline",
+    "GpuRenderPipelineDescriptor",
+    "GpuRequestAdapterOptions",
+    "GpuSampler",
+    "GpuSamplerBindingLayout",
+    "GpuSamplerBindingType",
+    "GpuSamplerDescriptor",
+    "GpuShaderModule",
+    "GpuShaderModuleDescriptor",
+    "GpuStencilFaceState",
+    "GpuStencilOperation",
+    "GpuStorageTextureAccess",
+    "GpuStorageTextureBindingLayout",
+    "GpuStoreOp",
+    "GpuSupportedFeatures",
+    "GpuSupportedLimits",
+    "GpuTexture",
+    "GpuTextureAspect",
+    "GpuTextureBindingLayout",
+    "GpuTextureDescriptor",
+    "GpuTextureDimension",
+    "GpuTextureFormat",
+    "GpuTextureSampleType",
+    "GpuTextureView",
+    "GpuTextureViewDescriptor",
+    "GpuTextureViewDimension",
+    "GpuUncapturedErrorEvent",
+    "GpuUncapturedErrorEventInit",
+    "GpuValidationError",
+    "GpuVertexAttribute",
+    "GpuVertexBufferLayout",
+    "GpuVertexFormat",
+    "GpuVertexState",
+    "GpuVertexStepMode",
+    "HtmlCanvasElement",
+    "OffscreenCanvas",
+    "ImageBitmap",
+    "ImageBitmapRenderingContext",
+    "Window",
+    "WorkerGlobalScope",
+    "WorkerNavigator"
+] }

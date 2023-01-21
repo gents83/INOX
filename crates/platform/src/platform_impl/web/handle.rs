@@ -9,6 +9,7 @@ pub struct HandleImpl {
     /// Each canvas created by the windowing system should be assigned their own unique ID.
     /// 0 should be reserved for invalid / null IDs.
     pub id: u32,
+    pub canvas: web_sys::HtmlCanvasElement,
 }
 
 impl HandleImpl {

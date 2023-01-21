@@ -1,8 +1,11 @@
 [package]
 name = "inox_bitmask"
-version = "0.1.0"
-authors = ["gents83 <gents83@gmail.com>"]
-edition = "2021"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+keywords.workspace = true
+license.workspace = true
 
 [lib]
 proc-macro = true

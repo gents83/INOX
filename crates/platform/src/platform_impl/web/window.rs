@@ -49,7 +49,7 @@ impl Window {
         Self::add_key_event_listener(events_dispatcher, &canvas, "keydown", InputState::Pressed);
 
         Handle {
-            handle_impl: HandleImpl { id: 0 },
+            handle_impl: HandleImpl { id: 0, canvas },
         }
     }
 

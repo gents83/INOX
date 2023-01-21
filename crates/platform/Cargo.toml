@@ -1,8 +1,11 @@
 [package]
 name = "inox_platform"
-version = "0.1.0"
-authors = ["gents83 <gents83@gmail.com>"]
-edition = "2021"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+keywords.workspace = true
+license.workspace = true
 
 [lib]
 crate-type = ["lib"]
@@ -11,12 +14,12 @@ crate-type = ["lib"]
 [dependencies]
 inox_commands = { path = "../commands" }
 inox_messenger = { path = "../messenger" }
-raw-window-handle = { version = "0.5" }
+raw-window-handle = { workspace = true }
 
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "0.2.83"
-web-sys = { version = "0.3.60", features = ["console", 
+wasm-bindgen = { workspace = true }
+web-sys = { workspace = true, features = ["console", 
     "AddEventListenerOptions",
     "CssStyleDeclaration",
     "BeforeUnloadEvent",

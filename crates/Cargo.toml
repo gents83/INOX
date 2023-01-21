@@ -29,3 +29,34 @@ members = [
 
 [workspace.package]
 edition = "2021"
+version = "0.1.0"
+authors = ["gents83 <gents83@gmail.com>"]
+repository = "https://github.com/gents83/INOX"
+keywords = ["engine", "graphics", "blender", "gamedev", "plugin", "game engine", "rendering", "wgpu", "webgpu"]
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+cgmath = { path = "../extern/cgmath", features = ["serde", "swizzle"] }
+downcast-rs = { path = "../extern/downcast-rs" }
+egui = { path = "../extern/egui/crates/egui" }
+erased-serde = {path = "../extern/erased-serde"}
+image = { path = "../extern/image", default-features = false, features = [ "gif","jpeg","ico","png","pnm","tga","tiff","webp","bmp","hdr","dxt","dds"] }
+pyo3 = { path = "../extern/pyo3", features = ["macros", "extension-module", "auto-initialize", "abi3-py310", "generate-import-lib"] }
+rand = { path = "../extern/rand", features = ["std"] }
+serde_json = { path = "../extern/json"}
+ttf-parser = {path = "../extern/ttf-parser" }
+superluminal-perf =  { path = "../extern/superluminal-perf-rs" }
+uuid = { path = "../extern/uuid", features = ["serde", "v4", "v5"] }
+wgpu = { path = "../extern/wgpu/wgpu", features = ["spirv", "glsl", "wgsl"] }
+wgpu-profiler = { path = "../extern/wgpu-profiler" }
+
+futures = { version = "0.3", features = ["std", "thread-pool"] }
+raw-window-handle = { version = "0.5" }
+serde = {version = "1.0", features = ["derive", "rc"]}
+serde_derive = {version = "1.0"}
+
+# wasm32
+wasm-bindgen = "0.2.83"
+wasm-bindgen-futures = "0.4.33"
+web-sys = { version = "0.3.60" }
+js-sys = "0.3.60"

@@ -1,9 +1,12 @@
 [package]
 name = "inox_scene"
-version = "0.1.0"
-authors = ["gents83 <gents83@gmail.com>"]
-edition = "2021"
 build = "build.rs"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+keywords.workspace = true
+license.workspace = true
 
 [lib]
 crate-type = ["lib"]

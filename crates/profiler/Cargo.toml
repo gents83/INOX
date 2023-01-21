@@ -1,21 +1,24 @@
 [package]
 name = "inox_profiler"
-version = "0.1.0"
-authors = ["gents83 <gents83@gmail.com>"]
-edition = "2021"
 build = "build.rs"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+keywords.workspace = true
+license.workspace = true
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-serde_json = { path = "../../extern/json"}
+serde_json.workspace = true
 inox_filesystem = { path = "../filesystem" }
 inox_log = { path = "../log" }
 inox_platform = { path = "../platform" }
 wgpu = { path = "../../extern/wgpu/wgpu", optional = true }
-wgpu-profiler = { path = "../../extern/wgpu-profiler", optional = true }
-superluminal-perf =  { path = "../../extern/superluminal-perf-rs", optional = true }
+wgpu-profiler = { workspace = true, optional = true }
+superluminal-perf = { workspace = true, optional = true }
 
 [features]
 default = ["gpu", "chrometrace"]
@@ -24,5 +27,5 @@ chrometrace = ["gpu"]
 superluminal = ["dep:superluminal-perf"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "0.2.83"
-web-sys = "0.3.60"
+wasm-bindgen = { workspace = true }
+web-sys = { workspace = true }
