@@ -19,7 +19,7 @@ inox_serialize = { path = "../serialize" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2.83"
-web-sys = "0.3.58"
-js-sys = "0.3.58"
+web-sys = "0.3.60"
+js-sys = "0.3.60"
 inox_common_script = { path = "../plugins/common_script" }
 inox_viewer = { path = "../plugins/viewer" }
