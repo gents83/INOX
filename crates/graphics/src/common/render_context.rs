@@ -76,13 +76,18 @@ impl RenderContext {
         inox_profiler::scoped_profile!("render_context::create_render_context");
 
         let (instance, surface, adapter, device, queue) = {
-            let backend = wgpu::Backends::all();
-            let instance = wgpu::Instance::new(backend);
+            let dx12_shader_compiler =
+                wgpu::util::dx12_shader_compiler_from_env().unwrap_or_default();
+            let backends = wgpu::Backends::all();
+            let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+                backends,
+                dx12_shader_compiler,
+            });
             let surface = unsafe { instance.create_surface(&handle).unwrap() };
 
             let adapter = wgpu::util::initialize_adapter_from_env_or_default(
                 &instance,
-                backend,
+                backends,
                 Some(&surface),
             )
             .await
@@ -101,8 +106,13 @@ impl RenderContext {
             {
                 (instance, surface, adapter, device, queue)
             } else {
+                let dx12_shader_compiler =
+                    wgpu::util::dx12_shader_compiler_from_env().unwrap_or_default();
                 let vulkan_backend = wgpu::Backends::VULKAN;
-                let vulkan_instance = wgpu::Instance::new(vulkan_backend);
+                let vulkan_instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+                    backends: vulkan_backend,
+                    dx12_shader_compiler,
+                });
                 let vulkan_surface = unsafe { vulkan_instance.create_surface(&handle).unwrap() };
 
                 let vulkan_adapter = wgpu::util::initialize_adapter_from_env_or_default(

@@ -23,13 +23,16 @@ var<storage, read> meshes: Meshes;
 @group(0) @binding(5)
 var<storage, read> meshlets: Meshlets;
 @group(0) @binding(6)
-var<storage, read> tlas: BHV;
-@group(0) @binding(7)
-var<storage, read> bhv: BHV;
-@group(0) @binding(8)
-var<storage, read> meshes_inverse_matrix: Matrices;
+var<storage, read> meshlets_culling: MeshletsCulling;
 
 @group(1) @binding(0)
+var<storage, read> tlas: BHV;
+@group(1) @binding(1)
+var<storage, read> bhv: BHV;
+@group(1) @binding(2)
+var<storage, read> meshes_inverse_matrix: Matrices;
+
+@group(2) @binding(0)
 var render_target: texture_storage_2d<rgba8unorm, read_write>;
 
 #import "matrix_utils.inc"
@@ -70,7 +73,7 @@ fn main(
                 let transformed_origin = (*inverse_matrix) * vec4<f32>(ray.origin, 1.);
                 let transformed_direction = (*inverse_matrix) * vec4<f32>(ray.direction, 0.);
                 let transformed_ray = Ray(transformed_origin.xyz, transformed_direction.xyz);
-                let result = traverse_bhv(transformed_ray, mesh_id);
+                let result = traverse_bhv_of_meshlets(transformed_ray, mesh_id);
                 if (result.visibility_id > 0u && result.distance < nearest) {
                     visibility_id = result.visibility_id;
                     nearest = result.distance;

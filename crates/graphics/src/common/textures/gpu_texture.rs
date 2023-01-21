@@ -52,6 +52,7 @@ impl GpuTexture {
             dimension: wgpu::TextureDimension::D2,
             format: format.into(),
             usage,
+            view_formats: &[],
         });
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         Self {

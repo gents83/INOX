@@ -3,9 +3,9 @@ use std::path::PathBuf;
 use crate::{
     BHVBuffer, BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
     ConstantDataRw, DrawCommandType, IndicesBuffer, MeshFlags, MeshesBuffer,
-    MeshesInverseMatrixBuffer, MeshletsBuffer, OutputPass, Pass, RenderContext, ShaderStage,
-    Texture, TextureFormat, TextureId, TextureUsage, TextureView, VertexPositionsBuffer,
-    VerticesBuffer,
+    MeshesInverseMatrixBuffer, MeshletsBuffer, MeshletsCullingBuffer, OutputPass, Pass,
+    RenderContext, ShaderStage, Texture, TextureFormat, TextureId, TextureUsage, TextureView,
+    VertexPositionsBuffer, VerticesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -24,6 +24,7 @@ pub struct RayTracingVisibilityPass {
     meshes: MeshesBuffer,
     meshes_inverse_matrix: MeshesInverseMatrixBuffer,
     meshlets: MeshletsBuffer,
+    meshlets_culling: MeshletsCullingBuffer,
     tlas: BHVBuffer,
     bhv: BHVBuffer,
     vertices: VerticesBuffer,
@@ -72,6 +73,7 @@ impl Pass for RayTracingVisibilityPass {
             meshes: render_context.render_buffers.meshes.clone(),
             meshes_inverse_matrix: render_context.render_buffers.meshes_inverse_matrix.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
+            meshlets_culling: render_context.render_buffers.meshlets_culling.clone(),
             tlas: render_context.render_buffers.tlas.clone(),
             bhv: render_context.render_buffers.bhv.clone(),
             vertices: render_context.render_buffers.vertices.clone(),
@@ -152,8 +154,8 @@ impl Pass for RayTracingVisibilityPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.tlas.write().unwrap(),
-                Some("TLAS"),
+                &mut *self.meshlets_culling.write().unwrap(),
+                Some("Meshlets Culling"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 6,
@@ -162,11 +164,21 @@ impl Pass for RayTracingVisibilityPass {
                 },
             )
             .add_storage_buffer(
+                &mut *self.tlas.write().unwrap(),
+                Some("TLAS"),
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 0,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
                 &mut *self.bhv.write().unwrap(),
                 Some("BHV"),
                 BindingInfo {
-                    group_index: 0,
-                    binding_index: 7,
+                    group_index: 1,
+                    binding_index: 1,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -175,8 +187,8 @@ impl Pass for RayTracingVisibilityPass {
                 &mut *self.meshes_inverse_matrix.write().unwrap(),
                 Some("Meshes Inverse Matrix"),
                 BindingInfo {
-                    group_index: 0,
-                    binding_index: 8,
+                    group_index: 1,
+                    binding_index: 2,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -184,7 +196,7 @@ impl Pass for RayTracingVisibilityPass {
             .add_texture(
                 self.render_target.as_ref().unwrap().id(),
                 BindingInfo {
-                    group_index: 1,
+                    group_index: 2,
                     binding_index: 0,
                     stage: ShaderStage::Compute,
                     is_storage: true,

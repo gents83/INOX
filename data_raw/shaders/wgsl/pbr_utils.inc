@@ -14,15 +14,15 @@
 // [4] "An Inexpensive BRDF Model for Physically based Rendering" by Christophe Schlick
 //     https://www.cs.virginia.edu/~jdl/bib/appearance/analytic%20models/schlick94b.pdf
 
-let PI: f32 = 3.141592653589793;
-let AMBIENT_COLOR: vec3<f32> = vec3<f32>(0.75, 0.75, 0.75);
-let AMBIENT_INTENSITY = 0.25;
-let NULL_VEC4: vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);
-let MIN_ROUGHNESS = 0.04;
+const PI: f32 = 3.141592653589793;
+const AMBIENT_COLOR: vec3<f32> = vec3<f32>(0.75, 0.75, 0.75);
+const AMBIENT_INTENSITY = 0.25;
+const NULL_VEC4: vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+const MIN_ROUGHNESS = 0.04;
 
 // Constant normal incidence Fresnel factor for all dielectrics.
-let Fdielectric: vec3<f32> = vec3<f32>(0.04, 0.04, 0.04);
-let Epsilon: f32 = 0.00001;
+const Fdielectric: vec3<f32> = vec3<f32>(0.04, 0.04, 0.04);
+const Epsilon: f32 = 0.00001;
 
 fn compute_alpha(material_index: u32, vertex_color_alpha: f32) -> f32 {
     let material = &materials.data[material_index];
