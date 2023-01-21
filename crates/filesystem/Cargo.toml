@@ -9,7 +9,7 @@ crate-type = ["lib"]
 
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "0.2.81"
+wasm-bindgen = "0.2.83"
 web-sys = { version = "0.3.58", features = ["Request", "Window", "Response"] }
 js-sys = "0.3.58"
 wasm-bindgen-futures = "0.4.29"

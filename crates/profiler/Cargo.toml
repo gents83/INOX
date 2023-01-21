@@ -24,5 +24,5 @@ chrometrace = ["gpu"]
 superluminal = ["dep:superluminal-perf"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "0.2.81"
+wasm-bindgen = "0.2.83"
 web-sys = "0.3.58"
