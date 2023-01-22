@@ -51,7 +51,7 @@ impl System for RenderingSystem {
             JobPriority::High,
             move || {
                 let mut renderer = renderer.write().unwrap();
-                renderer.update_passes();
+                renderer.submit_command_buffer();
                 renderer.present();
                 renderer.change_state(RendererState::Submitted);
             },

@@ -25,6 +25,15 @@ pub fn to_slice<T: Sized, U: Sized>(a: &[T]) -> &[U] {
     }
 }
 
+pub fn as_slice<T: Sized, U: Sized>(a: &T) -> &[U] {
+    unsafe {
+        let size_of_t = ::std::mem::size_of::<T>();
+        let size_of_u = ::std::mem::size_of::<U>();
+        let len = size_of_t / size_of_u;
+        ::std::slice::from_raw_parts((a as *const T) as *const U, len)
+    }
+}
+
 #[derive(Clone)]
 pub struct BufferData {
     id: ResourceId,

@@ -255,7 +255,7 @@ impl Renderer {
         }
     }
 
-    pub fn init_passes(&mut self, command_buffer: CommandBuffer) {
+    pub fn update_passes(&mut self, command_buffer: CommandBuffer) {
         inox_profiler::scoped_profile!("renderer::init_passes");
 
         let mut render_context = self.render_context.as_ref().unwrap().write().unwrap();
@@ -277,23 +277,28 @@ impl Renderer {
             }
         });
         self.command_buffer = Some(command_buffer);
+        if let Some(surface_view) = &self.surface_view {
+            self.passes.iter_mut().for_each(|(pass, is_enabled)| {
+                if *is_enabled && pass.is_active(&render_context) {
+                    pass.update(
+                        &render_context,
+                        surface_view,
+                        self.command_buffer.as_mut().unwrap(),
+                    );
+                }
+            });
+        }
     }
 
-    pub fn update_passes(&mut self) {
-        inox_profiler::scoped_profile!("renderer::update_passes");
-        if let Some(surface_view) = &self.surface_view {
-            if let Some(mut command_buffer) = self.command_buffer.take() {
-                let render_context = self.render_context.as_ref().unwrap().read().unwrap();
-                self.passes.iter_mut().for_each(|(pass, is_enabled)| {
-                    if *is_enabled && pass.is_active(&render_context) {
-                        pass.update(&render_context, surface_view, &mut command_buffer);
-                    }
-                });
-                render_context.binding_data_buffer.reset_buffers_changed();
-                {
-                    inox_profiler::gpu_profiler_pre_submit!(&mut command_buffer.encoder);
-                    render_context.core.submit(command_buffer);
-                }
+    pub fn submit_command_buffer(&mut self) {
+        inox_profiler::scoped_profile!("renderer::submit_command_buffer");
+        if let Some(mut command_buffer) = self.command_buffer.take() {
+            let render_context = self.render_context.as_ref().unwrap().read().unwrap();
+
+            render_context.binding_data_buffer.reset_buffers_changed();
+            {
+                inox_profiler::gpu_profiler_pre_submit!(&mut command_buffer.encoder);
+                render_context.core.submit(command_buffer);
             }
         }
     }

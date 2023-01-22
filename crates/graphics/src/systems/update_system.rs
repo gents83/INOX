@@ -279,7 +279,7 @@ impl System for UpdateSystem {
                 );
             }
 
-            renderer.init_passes(command_buffer);
+            renderer.update_passes(command_buffer);
         }
 
         {
