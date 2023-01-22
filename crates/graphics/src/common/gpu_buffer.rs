@@ -67,8 +67,9 @@ impl GpuBuffer {
             self.gpu_buffer = Some(data_buffer);
             self.size = size;
             self.usage = usage;
+            return true;
         }
-        true
+        false
     }
     pub fn init_from_type<T>(
         &mut self,
