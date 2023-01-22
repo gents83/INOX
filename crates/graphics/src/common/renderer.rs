@@ -256,7 +256,7 @@ impl Renderer {
     }
 
     pub fn update_passes(&mut self, command_buffer: CommandBuffer) {
-        inox_profiler::scoped_profile!("renderer::init_passes");
+        inox_profiler::scoped_profile!("renderer::update_passes");
 
         let mut render_context = self.render_context.as_ref().unwrap().write().unwrap();
         let render_context: &mut RenderContext = &mut render_context;
