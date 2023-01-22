@@ -40,7 +40,7 @@ var render_target: texture_storage_2d<rgba8unorm, read_write>;
 
 
 @compute
-@workgroup_size(16, 16, 1)
+@workgroup_size(8, 8, 1)
 fn main(
     @builtin(local_invocation_id) local_invocation_id: vec3<u32>, 
     @builtin(local_invocation_index) local_invocation_index: u32, 
@@ -48,8 +48,9 @@ fn main(
     @builtin(workgroup_id) workgroup_id: vec3<u32>
 ) {
     let dimensions = vec2<u32>(textureDimensions(render_target));
-         
-    let pixel = vec2<u32>(global_invocation_id.x, global_invocation_id.y);
+
+    let pixel = vec2<u32>(workgroup_id.x * 8u + local_invocation_id.x, 
+                          workgroup_id.y * 8u + local_invocation_id.y);
     if (pixel.x >= dimensions.x || pixel.y >= dimensions.y)
     {
         return;
@@ -86,8 +87,6 @@ fn main(
         }
         tlas_index = (*node).miss;
     } 
-    //if (visibility_id > 0u) {
-    //    visibility_id = 0xFFFFFFFFu;
-    //}
+    
     textureStore(render_target, vec2<i32>(pixel), unpack4x8unorm(visibility_id));
 }

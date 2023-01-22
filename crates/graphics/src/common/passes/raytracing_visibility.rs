@@ -15,7 +15,6 @@ use inox_uid::generate_random_uid;
 pub const RAYTRACING_VISIBILITY_PIPELINE: &str = "pipelines/RayTracingVisibility.compute_pipeline";
 pub const RAYTRACING_VISIBILITY_NAME: &str = "RayTracingVisibilityPass";
 const RAYTRACING_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rgba8Unorm;
-
 pub struct RayTracingVisibilityPass {
     context: ContextRc,
     compute_pass: Resource<ComputePass>,
@@ -222,8 +221,8 @@ impl Pass for RayTracingVisibilityPass {
             inox_profiler::scoped_profile!("raytracing_visibility_pass::update");
 
             let pass = self.compute_pass.get();
-            let x_pixels_managed_in_shader = 16;
-            let y_pixels_managed_in_shader = 16;
+            let x_pixels_managed_in_shader = 8;
+            let y_pixels_managed_in_shader = 8;
             let max_cluster_size = 32;
             let x = max_cluster_size
                 * ((render_target.get().width() + max_cluster_size - 1) / max_cluster_size)

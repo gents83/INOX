@@ -340,8 +340,8 @@ impl Pass for ComputePbrPass {
 
         let pass = self.compute_pass.get();
 
-        let x_pixels_managed_in_shader = 16;
-        let y_pixels_managed_in_shader = 16;
+        let x_pixels_managed_in_shader = 8;
+        let y_pixels_managed_in_shader = 8;
         let max_cluster_size = x_pixels_managed_in_shader * y_pixels_managed_in_shader;
         let x = max_cluster_size
             * ((self.data.dimensions[0] + max_cluster_size - 1) / max_cluster_size)
