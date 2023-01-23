@@ -255,22 +255,26 @@ impl Renderer {
         }
     }
 
-    pub fn update_passes(&mut self, command_buffer: CommandBuffer) {
-        inox_profiler::scoped_profile!("renderer::update_passes");
+    pub fn prepare(&mut self) {
+        inox_profiler::scoped_profile!("renderer::prepare");
 
         let mut render_context = self.render_context.as_ref().unwrap().write().unwrap();
         let render_context: &mut RenderContext = &mut render_context;
-        {
-            let render_buffers = &mut render_context.render_buffers;
-            let render_core_context = &render_context.core;
-            let binding_data_buffer = &render_context.binding_data_buffer;
-            render_buffers.bind_commands(
-                binding_data_buffer,
-                render_core_context,
-                self.need_commands_rebind,
-            );
-            self.need_commands_rebind = false;
-        }
+        let render_buffers = &mut render_context.render_buffers;
+        let render_core_context = &render_context.core;
+        let binding_data_buffer = &render_context.binding_data_buffer;
+        render_buffers.bind_commands(
+            binding_data_buffer,
+            render_core_context,
+            self.need_commands_rebind,
+        );
+        self.need_commands_rebind = false;
+    }
+    pub fn update_passes(&mut self, command_buffer: CommandBuffer) {
+        inox_profiler::scoped_profile!("renderer::update_passes");
+
+        let render_context = self.render_context.as_ref().unwrap().read().unwrap();
+        let render_context: &RenderContext = &render_context;
         self.passes.iter_mut().for_each(|(pass, is_enabled)| {
             if *is_enabled && pass.is_active(render_context) {
                 pass.init(render_context);
@@ -279,9 +283,9 @@ impl Renderer {
         self.command_buffer = Some(command_buffer);
         if let Some(surface_view) = &self.surface_view {
             self.passes.iter_mut().for_each(|(pass, is_enabled)| {
-                if *is_enabled && pass.is_active(&render_context) {
+                if *is_enabled && pass.is_active(render_context) {
                     pass.update(
-                        &render_context,
+                        render_context,
                         surface_view,
                         self.command_buffer.as_mut().unwrap(),
                     );
