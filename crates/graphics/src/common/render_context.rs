@@ -15,6 +15,8 @@ use crate::{
     DEFAULT_WIDTH,
 };
 
+const USE_VULKAN: bool = false;
+
 pub struct CommandBuffer {
     pub encoder: wgpu::CommandEncoder,
 }
@@ -89,7 +91,11 @@ impl RenderContext {
         let (instance, surface, adapter, device, queue) = {
             let dx12_shader_compiler =
                 wgpu::util::dx12_shader_compiler_from_env().unwrap_or_default();
-            let backends = wgpu::Backends::all();
+            let backends = if USE_VULKAN {
+                wgpu::Backends::VULKAN
+            } else {
+                wgpu::Backends::all()
+            };
             let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
                 backends,
                 dx12_shader_compiler,

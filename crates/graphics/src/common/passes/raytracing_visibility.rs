@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
 use crate::{
-    BHVBuffer, BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DrawCommandType, IndicesBuffer, MeshFlags, MeshesBuffer,
-    MeshesInverseMatrixBuffer, MeshletsBuffer, MeshletsCullingBuffer, OutputPass, Pass,
-    RenderContext, ShaderStage, Texture, TextureFormat, TextureId, TextureUsage, TextureView,
+    declare_as_binding_vector, AsBinding, BHVBuffer, BindingData, BindingInfo, CommandBuffer,
+    ComputePass, ComputePassData, ConstantDataRw, DrawCommandType, IndicesBuffer, MeshFlags,
+    MeshesBuffer, MeshesInverseMatrixBuffer, MeshletsBuffer, MeshletsCullingBuffer, OutputPass,
+    Pass, RenderContext, ShaderStage, Texture, TextureFormat, TextureId, TextureUsage, TextureView,
     VertexPositionsBuffer, VerticesBuffer,
 };
 
@@ -15,6 +15,10 @@ use inox_uid::generate_random_uid;
 pub const RAYTRACING_VISIBILITY_PIPELINE: &str = "pipelines/RayTracingVisibility.compute_pipeline";
 pub const RAYTRACING_VISIBILITY_NAME: &str = "RayTracingVisibilityPass";
 const RAYTRACING_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rgba8Unorm;
+const NUM_FRAMES_TO_RENDER: u32 = 4;
+
+declare_as_binding_vector!(FrameIndex, u32);
+
 pub struct RayTracingVisibilityPass {
     context: ContextRc,
     compute_pass: Resource<ComputePass>,
@@ -28,6 +32,7 @@ pub struct RayTracingVisibilityPass {
     bhv: BHVBuffer,
     vertices: VerticesBuffer,
     indices: IndicesBuffer,
+    frame_index: FrameIndex,
     vertex_positions: VertexPositionsBuffer,
     render_target: Handle<Texture>,
 }
@@ -80,6 +85,7 @@ impl Pass for RayTracingVisibilityPass {
             vertex_positions: render_context.render_buffers.vertex_positions.clone(),
             binding_data: BindingData::new(render_context, RAYTRACING_VISIBILITY_NAME),
             render_target: None,
+            frame_index: FrameIndex::default(),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -87,6 +93,14 @@ impl Pass for RayTracingVisibilityPass {
 
         if self.render_target.is_none() || self.meshlets.read().unwrap().is_empty() {
             return;
+        }
+
+        if self.frame_index.data.is_empty() {
+            self.frame_index.data = vec![0];
+            self.frame_index.set_dirty(true);
+        } else {
+            self.frame_index
+                .set(vec![(self.frame_index.data[0] + 1) % NUM_FRAMES_TO_RENDER]);
         }
 
         self.binding_data
@@ -192,6 +206,16 @@ impl Pass for RayTracingVisibilityPass {
                     ..Default::default()
                 },
             )
+            .add_storage_buffer(
+                &mut self.frame_index,
+                Some("Frame Index"),
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 3,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
             .add_texture(
                 self.render_target.as_ref().unwrap().id(),
                 BindingInfo {
@@ -223,13 +247,13 @@ impl Pass for RayTracingVisibilityPass {
             let pass = self.compute_pass.get();
             let x_pixels_managed_in_shader = 8;
             let y_pixels_managed_in_shader = 8;
-            let max_cluster_size = 32;
+            let max_cluster_size = x_pixels_managed_in_shader.max(y_pixels_managed_in_shader);
             let x = max_cluster_size
                 * ((render_target.get().width() + max_cluster_size - 1) / max_cluster_size)
-                / x_pixels_managed_in_shader;
+                / (x_pixels_managed_in_shader * NUM_FRAMES_TO_RENDER / 2);
             let y = max_cluster_size
                 * ((render_target.get().height() + max_cluster_size - 1) / max_cluster_size)
-                / y_pixels_managed_in_shader;
+                / (y_pixels_managed_in_shader * NUM_FRAMES_TO_RENDER / 2);
 
             let mut compute_pass =
                 pass.begin(render_context, &mut self.binding_data, command_buffer);
