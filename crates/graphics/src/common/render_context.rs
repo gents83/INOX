@@ -15,9 +15,6 @@ use crate::{
     DEFAULT_WIDTH,
 };
 
-#[cfg(target_arch = "wasm32")]
-const USE_VULKAN: bool = true;
-#[cfg(all(not(target_arch = "wasm32")))]
 const USE_VULKAN: bool = false;
 
 pub struct CommandBuffer {
