@@ -28,7 +28,7 @@ fn move_all_files_with_extension(src_path: PathBuf, target_path: PathBuf, extens
         });
 }
 fn link_library(name: &str) {
-    println!("cargo:rustc-link-lib=dylib={}", name);
+    println!("cargo:rustc-link-lib=dylib={name}");
 }
 
 fn main() {
@@ -65,6 +65,6 @@ fn main() {
         link_library("uxtheme");
     } else if is_android_platform || is_web_platform {
     } else {
-        panic!("Platform {} not yet supported - Check build.rs to setup this platform to build from source", target_os);
+        panic!("Platform {target_os} not yet supported - Check build.rs to setup this platform to build from source");
     }
 }
