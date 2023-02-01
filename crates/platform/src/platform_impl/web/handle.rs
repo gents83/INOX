@@ -1,3 +1,6 @@
+
+use wasm_bindgen::JsCast;
+
 use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -9,7 +12,6 @@ pub struct HandleImpl {
     /// Each canvas created by the windowing system should be assigned their own unique ID.
     /// 0 should be reserved for invalid / null IDs.
     pub id: u32,
-    pub canvas: web_sys::HtmlCanvasElement,
 }
 
 impl HandleImpl {
@@ -24,5 +26,13 @@ impl HandleImpl {
     }
     pub fn is_valid(&self) -> bool {
         self.id != 0
+    }
+    pub fn canvas(&self) -> web_sys::HtmlCanvasElement {
+        let window = web_sys::window().unwrap();
+        let document = window.document().unwrap();
+        let canvas = document.get_element_by_id("canvas").unwrap();
+        let canvas: web_sys::HtmlCanvasElement =
+            canvas.dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
+        canvas
     }
 }

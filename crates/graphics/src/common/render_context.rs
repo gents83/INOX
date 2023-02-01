@@ -15,6 +15,9 @@ use crate::{
     DEFAULT_WIDTH,
 };
 
+#[cfg(target_arch = "wasm32")]
+const USE_VULKAN: bool = true;
+#[cfg(all(not(target_arch = "wasm32")))]
 const USE_VULKAN: bool = false;
 
 pub struct CommandBuffer {
@@ -77,9 +80,10 @@ impl RenderContext {
     }
     #[cfg(target_arch = "wasm32")]
     fn create_surface(instance: &wgpu::Instance, handle: &Handle) -> wgpu::Surface {
+        let canvas = handle.handle_impl.canvas();
         instance
-            .create_surface_from_canvas(&handle.handle_impl.canvas)
-            .unwrap()
+            .create_surface_from_canvas(&canvas)
+            .expect("Could not create surface from canvas")
     }
 
     pub async fn create_render_context<F>(handle: Handle, renderer: RendererRw, on_create_func: F)
@@ -167,6 +171,7 @@ impl RenderContext {
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: *surface.get_capabilities(&adapter).formats.first().unwrap(),
+            view_formats: vec![wgpu::TextureFormat::Rgba8Unorm],
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
             present_mode: wgpu::PresentMode::AutoNoVsync,
