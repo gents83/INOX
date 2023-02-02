@@ -84,14 +84,14 @@ pub fn delete_file(filepath: PathBuf) {
 
 #[inline]
 pub fn copy_with_random_name(src_path: PathBuf, target_path: PathBuf, name: &str, extension: &str) {
-    let default_pdb_name = format!("{}{}", name, extension);
+    let default_pdb_name = format!("{name}{extension}");
     let locked_path = src_path.join(default_pdb_name);
 
     let secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_micros();
-    let new_name = format!("{}_{}.{}", name, secs, extension);
+    let new_name = format!("{name}_{secs}.{extension}");
     let new_pdb_path = target_path.join(new_name);
 
     let _res = ::std::fs::rename(locked_path, new_pdb_path);
@@ -123,7 +123,7 @@ pub fn move_all_files_with_extension(src_path: PathBuf, target_path: PathBuf, ex
 }
 #[inline]
 pub fn link_library(name: &str) {
-    println!("cargo:rustc-link-lib=dylib={}", name);
+    println!("cargo:rustc-link-lib=dylib={name}");
 }
 
 #[inline]

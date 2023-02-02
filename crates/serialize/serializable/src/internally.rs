@@ -639,7 +639,7 @@ impl<'de> Visitor<'de> for DefaultKey {
     type Value = ();
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "the string \"{}\"", DEFAULT_KEY)
+        write!(formatter, "the string \"{DEFAULT_KEY}\"")
     }
 
     fn visit_str<E>(self, string: &str) -> Result<Self::Value, E>

@@ -13,7 +13,7 @@ impl Default for Scheduler {
     fn default() -> Self {
         let mut phases = HashMap::new();
         for p in Phases::iterator() {
-            phases.insert(p, PhaseWithSystems::new(format!("{:?}", p).as_str()));
+            phases.insert(p, PhaseWithSystems::new(format!("{p:?}").as_str()));
         }
         Self {
             is_running: true,

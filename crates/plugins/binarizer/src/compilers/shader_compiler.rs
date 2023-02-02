@@ -78,7 +78,7 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
 
     fn compile_assembly(&self, path: &Path) -> bool {
         let extension = path.extension().unwrap().to_str().unwrap();
-        let source_ext = format!(".{}", extension);
+        let source_ext = format!(".{extension}");
         let destination_ext = format!(
             "_{}_{}.{}_assembly",
             generate_random_uid(),
@@ -109,9 +109,9 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
     }
     fn convert_in_spirv(&self, path: &Path) -> bool {
         let extension = path.extension().unwrap().to_str().unwrap();
-        let source_ext = format!(".{}", extension);
+        let source_ext = format!(".{extension}");
         let temp_ext = format!("_{}_{}.{}", generate_random_uid(), extension, SPV_EXTENSION);
-        let destination_ext = format!(".{}", SHADER_EXTENSION);
+        let destination_ext = format!(".{SHADER_EXTENSION}");
         let mut from_source_to_temp = path.to_str().unwrap().to_string();
         from_source_to_temp = from_source_to_temp.replace(source_ext.as_str(), temp_ext.as_str());
         let mut from_source_to_compiled = path.to_str().unwrap().to_string();
@@ -166,8 +166,8 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
     }
     fn create_wgsl_shader_data(&self, path: &Path) {
         let extension = path.extension().unwrap().to_str().unwrap();
-        let source_ext = format!(".{}", extension);
-        let destination_ext = format!(".{}", SHADER_EXTENSION);
+        let source_ext = format!(".{extension}");
+        let destination_ext = format!(".{SHADER_EXTENSION}");
         let mut from_source_to_compiled = path.to_str().unwrap().to_string();
         from_source_to_compiled = from_source_to_compiled.replace(
             self.data_raw_folder
@@ -250,10 +250,7 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
                             send_reloaded_event(&self.message_hub, new_path.as_path());
                         }
                         Err(error) => {
-                            println!(
-                                "Unable to compile shader {:?} - with error: \n{}",
-                                path, error
-                            );
+                            println!("Unable to compile shader {path:?} - with error: \n{error}");
                         }
                     };
                 }

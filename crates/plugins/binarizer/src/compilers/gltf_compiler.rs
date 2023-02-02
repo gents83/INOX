@@ -145,7 +145,7 @@ impl GltfCompiler {
                         if let Ok(mut file) = fs::File::open(filepath) {
                             return Some(self.read_from_file::<T>(&mut file, &view, accessor));
                         } else {
-                            eprintln!("Unable to open file: {:?}", local_path);
+                            eprintln!("Unable to open file: {local_path}");
                         }
                     }
                     Source::Bin => {}
@@ -283,8 +283,8 @@ impl GltfCompiler {
                 Semantic::TexCoords(texture_index) => {
                     if texture_index >= MAX_TEXTURE_COORDS_SETS as _ {
                         eprintln!(
-                            "ERROR: Texture coordinate set {} is out of range (max {})",
-                            texture_index, MAX_TEXTURE_COORDS_SETS
+                            "ERROR: Texture coordinate set {texture_index} is out of range (max {MAX_TEXTURE_COORDS_SETS})",
+                            
                         );
                         continue;
                     }
@@ -609,7 +609,7 @@ impl GltfCompiler {
 
         if let Some(mesh) = node.mesh() {
             for (primitive_index, primitive) in mesh.primitives().enumerate() {
-                let name = format!("{}_Primitive_{}", node_name, primitive_index);
+                let name = format!("{node_name}_Primitive_{primitive_index}");
                 let material_path = self.process_material_data(path, &primitive);
                 let material_path = to_local_path(
                     material_path.as_path(),

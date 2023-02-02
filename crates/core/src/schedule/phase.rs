@@ -94,10 +94,7 @@ impl PhaseWithSystems {
             self.systems_to_add.push(id);
             e.insert(SystemRunner::new(system, job_handler.clone()));
         } else {
-            eprintln!(
-                "Trying to add twice a System with id {:?} in this Phase",
-                id,
-            );
+            eprintln!("Trying to add twice a System with id {id} in this Phase");
         }
         self
     }

@@ -60,7 +60,7 @@ impl CommandParser {
             } else if let Some(command) = commands.last_mut() {
                 command.values.push(a);
             } else {
-                eprintln!("Waiting for a command '-name' instead got {}", a);
+                eprintln!("Waiting for a command '-name' instead got {a}");
             }
         }
         Self { commands }

@@ -78,7 +78,7 @@ impl UIPropertiesRegistry {
                 .as_ref()
                 .show(resource, self, ui, false);
         } else {
-            panic!("Trying to create an type not registered {:?}", typeid);
+            panic!("Trying to create an type not registered {typeid:?}");
         }
     }
 }

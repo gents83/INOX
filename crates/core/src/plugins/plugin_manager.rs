@@ -66,7 +66,7 @@ impl PluginManager {
         {
             return Some(self.static_plugins.remove(index));
         } else {
-            eprintln!("Unable to find requested plugin with id {:?}", plugin_id);
+            eprintln!("Unable to find requested plugin with id {plugin_id}");
         }
         None
     }
@@ -79,7 +79,7 @@ impl PluginManager {
         {
             return Some(self.dynamic_plugins.remove(index));
         } else {
-            eprintln!("Unable to find requested plugin with id {:?}", plugin_id);
+            eprintln!("Unable to find requested plugin with id {plugin_id}");
         }
         None
     }

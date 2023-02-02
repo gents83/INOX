@@ -34,7 +34,7 @@ impl LightData {
     #[allow(deref_nullptr)]
     pub fn debug_size(alignment_size: usize) {
         let total_size = std::mem::size_of::<Self>();
-        println!("LightData info: Total size [{}]", total_size);
+        println!("LightData info: Total size [{total_size}]");
 
         let mut s = 0;
         print_field_size!(s, position, [f32; 3], 1);

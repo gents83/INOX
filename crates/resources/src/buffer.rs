@@ -453,22 +453,19 @@ fn test_buffer() {
     assert_eq!(
         buffer.item_count(),
         mesh.data.len() * NUM_MESHES,
-        "Allocator should hold {} quad",
-        NUM_MESHES
+        "Allocator should hold {NUM_MESHES} quad"
     );
 
     assert_eq!(
         buffer.total_len(),
         mesh.data.len() * NUM_MESHES,
-        "Allocator should hold {} quad",
-        NUM_MESHES
+        "Allocator should hold {NUM_MESHES} quad"
     );
 
     assert_eq!(
         buffer.total_data::<Data>().len(),
         mesh.data.len() * NUM_MESHES,
-        "Allocator should hold {} quad",
-        NUM_MESHES
+        "Allocator should hold {NUM_MESHES} quad"
     );
 
     buffer.remove(&meshes[1].id);
@@ -477,8 +474,7 @@ fn test_buffer() {
     assert_eq!(
         buffer.total_len(),
         mesh.data.len() * NUM_MESHES,
-        "Allocator should hold anyway {} quad",
-        NUM_MESHES
+        "Allocator should hold anyway {NUM_MESHES} quad"
     );
     assert_eq!(
         buffer.item_count(),

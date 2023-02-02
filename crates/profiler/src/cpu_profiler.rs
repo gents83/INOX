@@ -167,10 +167,10 @@ impl CpuProfiler {
             } else if let Some(name) = thread::current().name() {
                 name.to_string()
             } else {
-                format!("Thread {}", thread_id)
+                format!("Thread {thread_id}")
             }
         };
-        println!("[{}]: {}", name, msg);
+        println!("[{name}]: {msg}");
     }
 
     pub fn write_profile_file(&self) {
@@ -236,6 +236,6 @@ impl CpuProfiler {
         let f = BufWriter::new(File::create(profile_file_name).unwrap());
         serde_json::to_writer(f, &data).unwrap();
 
-        println!("Profile file {} written", profile_file_name);
+        println!("Profile file {profile_file_name} written");
     }
 }

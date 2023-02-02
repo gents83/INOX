@@ -58,7 +58,7 @@ impl From<usize> for TextureType {
             6 => TextureType::Diffuse,
             7 => TextureType::_EmptyForPadding,
             8 => TextureType::Count,
-            _ => panic!("Invalid TextureType value: {}", value),
+            _ => panic!("Invalid TextureType value: {value}"),
         }
     }
 }
@@ -110,7 +110,7 @@ impl TextureInfo {
     #[allow(deref_nullptr)]
     pub fn debug_size(alignment_size: usize) {
         let total_size = std::mem::size_of::<Self>();
-        println!("ShaderTextureData info: Total size [{}]", total_size,);
+        println!("ShaderTextureData info: Total size [{total_size}]");
 
         let mut s = 0;
         print_field_size!(s, texture_index, u32, 1);

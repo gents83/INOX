@@ -23,7 +23,7 @@ fn inox_blender(_py: Python, m: &PyModule) -> PyResult<()> {
         } else {
             true
         };
-        println!("INOXEngine is running = {}", result);
+        println!("INOXEngine is running = {result}");
 
         Ok(result)
     }

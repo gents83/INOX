@@ -223,9 +223,9 @@ fn client_thread_execution(thread_data: Arc<RwLock<ThreadData>>) {
                 if let Some(file) = file {
                     let file = file.to_str().unwrap_or_default().to_string();
 
-                    println!("[Blender] INOXEngine sending to load {:?}", file);
+                    println!("[Blender] INOXEngine sending to load {file:?}");
 
-                    let message = format!("-load_file {}", file);
+                    let message = format!("-load_file {file}");
                     let msg = message.as_bytes();
 
                     stream.write_all(msg).ok();
@@ -236,7 +236,7 @@ fn client_thread_execution(thread_data: Arc<RwLock<ThreadData>>) {
                 .expect("[Blender] Client thread shutdown call failed");
         }
         Err(e) => {
-            println!("[Blender] Failed to connect: {}", e);
+            println!("[Blender] Failed to connect: {e}");
         }
     }
 }

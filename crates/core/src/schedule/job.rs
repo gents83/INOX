@@ -164,7 +164,7 @@ impl JobHandler {
     fn setup_worker_threads(&mut self, can_continue: &Arc<AtomicBool>) {
         if NUM_WORKER_THREADS > 0 {
             for i in 1..NUM_WORKER_THREADS + 1 {
-                self.add_worker(format!("Worker{}", i).as_str(), can_continue);
+                self.add_worker(format!("Worker{i}").as_str(), can_continue);
             }
         }
     }

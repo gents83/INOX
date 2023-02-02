@@ -116,7 +116,7 @@ impl System for Connector {
                                     connector_data.client_threads.push(thread);
                                 }
                                 Err(e) => {
-                                    println!("Connection failed: {}", e);
+                                    println!("Connection failed: {e}");
                                 }
                             }
                         }
@@ -150,7 +150,7 @@ fn client_thread_execution(
     message_hub: &MessageHubRc,
     is_running: Arc<AtomicBool>,
 ) {
-    println!("Thread for client at {:?} started", addr);
+    println!("Thread for client at {addr:?} started");
 
     let mut buffer = [0u8; 1024];
     while is_running.load(Ordering::SeqCst) {
@@ -166,10 +166,10 @@ fn client_thread_execution(
                 message_hub.send_from_string(s);
             }
             Err(e) => {
-                println!("[ServerThread] Failed to receive msg: {}", e);
+                println!("[ServerThread] Failed to receive msg: {e}");
             }
         }
     }
 
-    println!("Thread for client at {:?} terminated", addr);
+    println!("Thread for client at {addr:?} terminated");
 }

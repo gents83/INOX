@@ -53,7 +53,7 @@ impl GpuBuffer {
 
         self.offset = 0;
         if size > self.size || usage != self.usage {
-            let label = format!("{} Buffer", buffer_name);
+            let label = format!("{buffer_name} Buffer");
             self.name = label;
             self.release();
             let data_buffer = render_core_context

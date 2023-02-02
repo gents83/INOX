@@ -217,7 +217,7 @@ impl SharedData {
             if let Ok(mut rs) = rs.write() {
                 rs.remove_all();
             } else {
-                panic!("Unable to write to storage {} in clear()", type_id);
+                panic!("Unable to write to storage {type_id} in clear()");
             };
         }
         self.storage.write().unwrap().clear();
@@ -229,10 +229,7 @@ impl SharedData {
             if let Ok(mut rs) = rs.write() {
                 rs.flush(self, message_hub);
             } else {
-                panic!(
-                    "Unable to write to storage {} in flush_resources()",
-                    type_id
-                );
+                panic!("Unable to write to storage {type_id} in flush_resources()");
             };
         }
     }

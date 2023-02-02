@@ -109,9 +109,9 @@ impl Exporter {
             let file = File::create(path.as_path()).unwrap();
             let mut writer = BufWriter::new(file);
             if writer.write_all(data.as_bytes()).is_ok() {
-                println!("NodeTree {} exported in {:?}", name, path);
+                println!("NodeTree {name} exported in {path:?}");
             } else {
-                eprintln!("Failed to deserialize logic {}", name);
+                eprintln!("Failed to deserialize logic {name}");
             }
         }
         Ok(true)

@@ -159,7 +159,7 @@ impl Debug for BHVTree {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("BHV:\n").ok();
         self.nodes.iter().enumerate().for_each(|(i, n)| {
-            f.write_fmt(format_args!("  Node[{}]:\n", i)).ok();
+            f.write_fmt(format_args!("  Node[{i}]:\n")).ok();
             f.write_fmt(format_args!("      Left -> {}\n", n.left)).ok();
             f.write_fmt(format_args!("      Right -> {}\n", n.right))
                 .ok();

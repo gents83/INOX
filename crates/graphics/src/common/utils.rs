@@ -64,7 +64,7 @@ pub fn create_linearized_bhv(bhv: &BHVTree) -> Vec<DrawBHVNode> {
 pub fn print_bhv(bhv: &[DrawBHVNode], bhv_range: &Range<usize>) {
     println!("BHV {} - {}", bhv_range.start, bhv_range.end + 1);
     bhv.iter().enumerate().for_each(|(i, n)| {
-        println!("  Node[{}]:", i);
+        println!("  Node[{i}]:");
         println!("      Miss -> {}", n.miss);
         println!("      Ref [{}]", n.reference);
     });

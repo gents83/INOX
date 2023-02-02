@@ -314,7 +314,7 @@ impl Texture {
                 ]
             }
             _ => {
-                panic!("Unsupported texture format: {:?}", format);
+                panic!("Unsupported texture format: {format:?}");
             }
         }
     }

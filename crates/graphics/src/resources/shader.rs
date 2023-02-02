@@ -46,7 +46,7 @@ pub fn read_spirv_from_bytes<Data: ::std::io::Read + ::std::io::Seek>(
     }
     let words = (size / 4) as usize;
     let mut result = Vec::<u32>::with_capacity(words);
-    data.seek(::std::io::SeekFrom::Start(0)).unwrap();
+    data.rewind().unwrap();
     unsafe {
         data.read_exact(::std::slice::from_raw_parts_mut(
             result.as_mut_ptr() as *mut u8,
