@@ -29,6 +29,24 @@ const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 2u;
 const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE: u32 = 4u;
 const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 8u;
 
+const RAY_STEP_FLAGS_NONE: u32 = 0u;
+const RAY_STEP_FLAGS_COMPUTE_RAY: u32 = 1u;
+const RAY_STEP_FLAGS_TLAS: u32 = 2u; // 1 << 1
+const RAY_STEP_FLAGS_BLAS: u32 = 4u; // 1 << 2
+const RAY_STEP_FLAGS_MESHLET: u32 = 8u;  // 1 << 3
+const RAY_STEP_FLAGS_BOUNCE: u32 = 16u; // 1 << 4
+
+struct RayPayload {
+    origin: vec3<f32>,
+    pixel_x: u32,
+    direction: vec3<f32>,
+    pixel_y: u32,
+};
+
+struct RayJob {
+    index: u32,
+    step: u32,
+}
 
 struct ConstantData {
     view: mat4x4<f32>,
