@@ -19,8 +19,9 @@ use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
 const ADD_WIREFRAME_PASS: bool = true;
 const ADD_UI_PASS: bool = true;
-const ADD_CULLING_PASS: bool = true;
+const ADD_CULLING_PASS: bool = false;
 const USE_RAYTRACING: bool = true;
+const USE_LOW_PROFILE: bool = false;
 const USE_ALL_PASSES: bool = false;
 const USE_3DVIEW: bool = false;
 
@@ -156,7 +157,7 @@ impl Viewer {
             );
             Self::create_blit_pass::<ComputePbrPass>(context, renderer, true);
         } else {
-            if USE_ALL_PASSES || !has_primitive_index_support() {
+            if USE_LOW_PROFILE || USE_ALL_PASSES || !has_primitive_index_support() {
                 Self::create_gbuffer_pass(context, renderer, width, height, true);
                 Self::create_pbr_pass(context, renderer, true);
             }
@@ -187,43 +188,43 @@ impl Viewer {
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8Unorm,
+                format: TextureFormat::Rgba8UnormSrgb,
                 read_back: false,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8Unorm,
+                format: TextureFormat::Rgba8UnormSrgb,
                 read_back: false,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8Unorm,
+                format: TextureFormat::Rgba8UnormSrgb,
                 read_back: false,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8Unorm,
+                format: TextureFormat::Rgba8UnormSrgb,
                 read_back: false,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8Unorm,
+                format: TextureFormat::Rgba8UnormSrgb,
                 read_back: false,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8Unorm,
+                format: TextureFormat::Rgba8UnormSrgb,
                 read_back: false,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8Unorm,
+                format: TextureFormat::Rgba8UnormSrgb,
                 read_back: false,
             })
             .add_depth_target(RenderTarget::Texture {
@@ -265,7 +266,7 @@ impl Viewer {
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8Unorm,
+                format: TextureFormat::Rgba8UnormSrgb,
                 read_back: false,
             })
             .add_depth_target(RenderTarget::Texture {
@@ -335,7 +336,7 @@ impl Viewer {
                     .add_render_target(RenderTarget::Texture {
                         width,
                         height,
-                        format: TextureFormat::Rgba8Unorm,
+                        format: TextureFormat::Rgba8UnormSrgb,
                         read_back: false,
                     });
             }

@@ -18,6 +18,7 @@ pub enum DrawCommandType {
     PerTriangle,
 }
 
+#[repr(C)]
 #[derive(Default, Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug)]
 #[serde(crate = "inox_serialize")]
 pub struct DrawIndexedCommand {
@@ -28,6 +29,7 @@ pub struct DrawIndexedCommand {
     pub base_instance: u32,
 }
 
+#[repr(C, align(4))]
 #[derive(Default, Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug)]
 #[serde(crate = "inox_serialize")]
 pub struct DrawCommand {
@@ -37,6 +39,7 @@ pub struct DrawCommand {
     pub base_instance: u32,
 }
 
+#[repr(C, align(4))]
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
 #[serde(crate = "inox_serialize")]
 pub struct DrawMesh {
@@ -77,6 +80,7 @@ impl DrawMesh {
     }
 }
 
+#[repr(C, align(4))]
 #[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
 #[serde(crate = "inox_serialize")]
 pub struct ConeCulling {
@@ -84,6 +88,7 @@ pub struct ConeCulling {
     pub cone_axis_cutoff: [i8; 4],
 }
 
+#[repr(C, align(4))]
 #[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
 #[serde(crate = "inox_serialize")]
 pub struct DrawMeshlet {
@@ -105,6 +110,7 @@ impl DrawMeshlet {
     }
 }
 
+#[repr(C, align(4))]
 #[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
 #[serde(crate = "inox_serialize")]
 pub struct DrawBHVNode {
@@ -114,6 +120,7 @@ pub struct DrawBHVNode {
     pub reference: i32,
 }
 
+#[repr(C, align(4))]
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
 #[serde(crate = "inox_serialize")]
 pub struct DrawMaterial {
@@ -148,6 +155,7 @@ impl Default for DrawMaterial {
     }
 }
 
+#[repr(C, align(4))]
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug)]
 #[serde(crate = "inox_serialize")]
 pub struct DrawVertex {

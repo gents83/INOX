@@ -52,9 +52,22 @@ impl GpuTexture {
             dimension: wgpu::TextureDimension::D2,
             format: format.into(),
             usage,
-            view_formats: &[],
+            view_formats: &[format.into()],
         });
-        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let view = texture.create_view(&wgpu::TextureViewDescriptor {
+            label: Some(format!("TextureView[{id}]").as_str()),
+            format: Some(format.into()),
+            dimension: if layers_count > 1 {
+                Some(wgpu::TextureViewDimension::D2Array)
+            } else {
+                Some(wgpu::TextureViewDimension::D2)
+            },
+            aspect: wgpu::TextureAspect::default(),
+            base_mip_level: 0,
+            mip_level_count: Some(1),
+            base_array_layer: 0,
+            array_layer_count: Some(layers_count),
+        });
         Self {
             id,
             texture,
@@ -97,7 +110,9 @@ impl GpuTexture {
         // So we calculate padded_width by rounding width up to the next
         // multiple of wgpu::COPY_BYTES_PER_ROW_ALIGNMENT.
         let format: wgpu::TextureFormat = self.format.into();
-        let pixel_size = format.describe().block_size as u32;
+        let pixel_size = format
+            .block_size(Some(wgpu::TextureAspect::All))
+            .unwrap_or_default();
         let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
         let padding = (align - (pixel_size * area.width) % align) % align;
         let padded_width = (pixel_size * area.width + padding) as usize;

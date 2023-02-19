@@ -165,18 +165,19 @@ impl RenderContext {
 
         inox_log::debug_log!("Using {:?} adapter", adapter.get_info().backend);
 
+        let capabilities = surface.get_capabilities(&adapter);
+        let format = wgpu::TextureFormat::Rgba8UnormSrgb;
+
+        inox_log::debug_log!("Format {:?}", format);
+
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: *surface.get_capabilities(&adapter).formats.first().unwrap(),
-            view_formats: vec![wgpu::TextureFormat::Rgba8Unorm],
+            format,
+            view_formats: vec![format],
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
             present_mode: wgpu::PresentMode::AutoNoVsync,
-            alpha_mode: *surface
-                .get_capabilities(&adapter)
-                .alpha_modes
-                .first()
-                .unwrap(),
+            alpha_mode: *capabilities.alpha_modes.first().unwrap(),
         };
 
         //debug_log!("Surface format: {:?}", config.format);
@@ -220,7 +221,7 @@ impl RenderContext {
             .write()
             .unwrap()
             .update(view, proj, screen_size, fov_in_degrees);
-        if self.core.config.read().unwrap().format.describe().srgb {
+        if self.core.config.read().unwrap().format.is_srgb() {
             self.constant_data
                 .write()
                 .unwrap()

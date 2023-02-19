@@ -441,7 +441,9 @@ impl BindingData {
                         }
                     } else {
                         wgpu::BindingType::Texture {
-                            sample_type: format.describe().sample_type,
+                            sample_type: format
+                                .sample_type(Some(wgpu::TextureAspect::All))
+                                .unwrap_or_default(),
                             view_dimension: if texture.layers_count() > 1 {
                                 wgpu::TextureViewDimension::D2Array
                             } else {

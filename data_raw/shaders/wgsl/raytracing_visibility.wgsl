@@ -29,12 +29,12 @@ var<storage, read> meshes_inverse_matrix: Matrices;
 @group(1) @binding(3)
 var<storage, read> frame_index: FrameIndex;
 
-@group(1) @binding(4)
-var<storage, read_write> rays: RayPayload;
-@group(1) @binding(5)
-var<storage, read_write> jobs_data: RayJob;
-@group(1) @binding(6)
-var<storage, read_write> jobs: array<atomic<u32>>;
+//@group(1) @binding(4)
+//var<storage, read_write> rays: RayPayload;
+//@group(1) @binding(5)
+//var<storage, read_write> jobs_data: RayJob;
+//@group(1) @binding(6)
+//var<storage, read_write> jobs: array<atomic<u32>>;
 
 @group(2) @binding(0)
 var render_target: texture_storage_2d<rgba8unorm, read_write>;
@@ -63,9 +63,10 @@ fn main(
 ) {
     let dimensions = vec2<u32>(textureDimensions(render_target));
     let frame_origin = frame_origin(frame_index.data[0], dimensions.x, dimensions.y);
-
     let pixel = vec2<u32>(workgroup_id.x * 8u + local_invocation_id.x + frame_origin.x, 
                           workgroup_id.y * 8u + local_invocation_id.y + frame_origin.y);
+    //let pixel = vec2<u32>(workgroup_id.x * 8u + local_invocation_id.x, 
+    //                      workgroup_id.y * 8u + local_invocation_id.y);
     if (pixel.x >= dimensions.x || pixel.y >= dimensions.y)
     {
         return;
