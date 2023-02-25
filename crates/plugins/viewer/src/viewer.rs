@@ -20,7 +20,7 @@ use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
 const ADD_WIREFRAME_PASS: bool = true;
 const ADD_UI_PASS: bool = true;
-const ADD_CULLING_PASS: bool = false;
+const ADD_CULLING_PASS: bool = true;
 const USE_RAYTRACING: bool = true;
 const USE_LOW_PROFILE: bool = false;
 const USE_ALL_PASSES: bool = false;
@@ -151,10 +151,24 @@ impl Plugin for Viewer {
 impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &mut Renderer, width: u32, height: u32) {
         if USE_RAYTRACING {
-            Self::create_raytracing_pass(context, renderer, width, height, true);
+            let raytracing_dimension = (width / 2, height / 2);
+            if has_primitive_index_support() {
+                Self::create_culling_pass(context, renderer, ADD_CULLING_PASS);
+            }
+            Self::create_raytracing_pass(
+                context,
+                renderer,
+                raytracing_dimension.0,
+                raytracing_dimension.1,
+                true,
+            );
             //Self::create_blit_pass::<RayTracingVisibilityPass>(context, renderer, true);
             Self::create_compute_pbr_pass::<RayTracingVisibilityPass>(
-                context, renderer, width, height, true,
+                context,
+                renderer,
+                raytracing_dimension.0,
+                raytracing_dimension.1,
+                true,
             );
             Self::create_blit_pass::<ComputePbrPass>(context, renderer, true);
         } else {
@@ -290,7 +304,7 @@ impl Viewer {
         let mut compute_visibility_pass =
             RayTracingVisibilityPass::create(context, &renderer.render_context());
 
-        compute_visibility_pass.add_render_target_with_resolution(width / 4, height / 4);
+        compute_visibility_pass.add_render_target_with_resolution(width, height);
         compute_generate_ray_pass
             .use_render_target(compute_visibility_pass.render_target().as_ref().unwrap());
 
@@ -306,7 +320,7 @@ impl Viewer {
         is_enabled: bool,
     ) {
         let mut compute_pbr_pass = ComputePbrPass::create(context, &renderer.render_context());
-        compute_pbr_pass.add_render_target_with_resolution(width / 2, height / 2);
+        compute_pbr_pass.add_render_target_with_resolution(width, height);
         if let Some(visibility_pass) = renderer.pass::<P>() {
             visibility_pass.render_targets_id().iter().for_each(|id| {
                 compute_pbr_pass.add_texture(id);

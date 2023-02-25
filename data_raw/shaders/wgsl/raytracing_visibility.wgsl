@@ -19,6 +19,8 @@ var<storage, read> meshes: Meshes;
 var<storage, read> meshlets: Meshlets;
 @group(0) @binding(6)
 var<storage, read> meshlets_culling: MeshletsCulling;
+@group(0) @binding(7)
+var<storage, read> culling_result: array<atomic<u32>>;
 
 @group(1) @binding(0)
 var<storage, read> tlas: BHV;
@@ -28,13 +30,6 @@ var<storage, read> bhv: BHV;
 var<storage, read> meshes_inverse_matrix: Matrices;
 @group(1) @binding(3)
 var<storage, read_write> rays: Rays;
-
-//@group(1) @binding(4)
-//var<storage, read_write> rays: RayPayload;
-//@group(1) @binding(5)
-//var<storage, read_write> jobs_data: RayJob;
-//@group(1) @binding(6)
-//var<storage, read_write> jobs: array<atomic<u32>>;
 
 @group(2) @binding(0)
 var render_target: texture_storage_2d<rgba8unorm, read_write>;

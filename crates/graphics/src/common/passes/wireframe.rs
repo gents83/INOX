@@ -18,7 +18,7 @@ pub const WIREFRAME_PIPELINE: &str = "pipelines/Wireframe.render_pipeline";
 pub const WIREFRAME_PASS_NAME: &str = "WireframePass";
 
 #[derive(Default, Clone, Copy, PartialEq)]
-struct DebugVertex {
+pub struct DebugVertex {
     position: [f32; 3],
     color: u32,
 }
@@ -33,7 +33,7 @@ impl DebugVertex {
 }
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
-struct DebugInstance {
+pub struct DebugInstance {
     instance_index: u32,
     index_start: u32,
     index_count: u32,

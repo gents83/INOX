@@ -31,7 +31,7 @@ var<storage, read_write> count: atomic<u32>;
 @group(1) @binding(1)
 var<storage, read_write> commands: DrawIndexedCommands;
 @group(1) @binding(2)
-var<storage, read_write> visible_draw_data: array<atomic<u32>>;
+var<storage, read_write> culling_result: array<atomic<u32>>;
 
 #import "matrix_utils.inc"
 
@@ -136,6 +136,6 @@ fn main(
     {
         atomicAdd(&count, 1u);
         let draw_group_index = workgroup_id.x;
-        atomicOr(&visible_draw_data[draw_group_index], 1u << local_invocation_id.x);
+        atomicOr(&culling_result[draw_group_index], 1u << local_invocation_id.x);
     }
 }

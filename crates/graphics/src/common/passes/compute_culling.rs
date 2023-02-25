@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
 use crate::{
-    declare_as_binding_vector, AsBinding, BHVBuffer, BindingData, BindingInfo, CommandBuffer,
-    CommandsBuffer, ComputePass, ComputePassData, ConstantDataRw, DrawCommandType, GpuBuffer,
-    MeshFlags, MeshesBuffer, MeshesFlagsBuffer, MeshletsBuffer, MeshletsCullingBuffer, Pass,
-    RenderContext, RenderCoreContext, ShaderStage, TextureView,
+    AsBinding, BHVBuffer, BindingData, BindingInfo, CommandBuffer, CommandsBuffer, ComputePass,
+    ComputePassData, ConstantDataRw, CullingResults, DrawCommandType, GpuBuffer, MeshFlags,
+    MeshesBuffer, MeshesFlagsBuffer, MeshletsBuffer, MeshletsCullingBuffer, Pass, RenderContext,
+    RenderCoreContext, ShaderStage, TextureView, NUM_COMMANDS_PER_GROUP,
 };
 
 use inox_commands::CommandParser;
@@ -17,8 +17,6 @@ pub const CULLING_PIPELINE: &str = "pipelines/ComputeCulling.compute_pipeline";
 pub const COMPACTION_PIPELINE: &str = "pipelines/ComputeCompact.compute_pipeline";
 pub const CULLING_PASS_NAME: &str = "CullingPass";
 pub const COMPACTION_PASS_NAME: &str = "CompactionPass";
-
-const NUM_COMMANDS_PER_GROUP: u32 = 32;
 
 #[derive(Debug, PartialOrd, PartialEq, Eq, Clone)]
 pub enum CullingEvent {
@@ -72,8 +70,6 @@ impl AsBinding for CullingData {
     }
 }
 
-declare_as_binding_vector!(VecVisibleDrawData, u32);
-
 pub struct CullingPass {
     compute_pass: Resource<ComputePass>,
     compact_pass: Resource<ComputePass>,
@@ -86,7 +82,7 @@ pub struct CullingPass {
     meshlets_culling: MeshletsCullingBuffer,
     bhv: BHVBuffer,
     culling_data: CullingData,
-    visible_draw_data: VecVisibleDrawData,
+    culling_result: CullingResults,
     listener: Listener,
     update_camera: bool,
 }
@@ -149,7 +145,7 @@ impl Pass for CullingPass {
             bhv: render_context.render_buffers.bhv.clone(),
             binding_data: BindingData::new(render_context, CULLING_PASS_NAME),
             culling_data: CullingData::default(),
-            visible_draw_data: VecVisibleDrawData::default(),
+            culling_result: render_context.render_buffers.culling_result.clone(),
             listener,
             update_camera: true,
         }
@@ -190,7 +186,7 @@ impl Pass for CullingPass {
             let num_meshlets = self.meshlets.read().unwrap().item_count();
             let count = ((num_meshlets as u32 + NUM_COMMANDS_PER_GROUP - 1)
                 / NUM_COMMANDS_PER_GROUP) as usize;
-            self.visible_draw_data.set(vec![0u32; count]);
+            self.culling_result.write().unwrap().set(vec![0u32; count]);
 
             self.binding_data
                 .add_uniform_buffer(
@@ -288,8 +284,8 @@ impl Pass for CullingPass {
                     },
                 )
                 .add_storage_buffer(
-                    &mut self.visible_draw_data,
-                    Some("VisibleDrawData"),
+                    &mut *self.culling_result.write().unwrap(),
+                    Some("CullingResult"),
                     BindingInfo {
                         group_index: 1,
                         binding_index: 2,

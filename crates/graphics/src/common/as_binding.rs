@@ -138,7 +138,7 @@ where
 #[macro_export]
 macro_rules! declare_as_binding_vector {
     ($VecType:ident, $Type:ident) => {
-        struct $VecType {
+        pub struct $VecType {
             data: Vec<$Type>,
             is_dirty: bool,
         }

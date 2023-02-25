@@ -81,6 +81,16 @@ fn intersect_meshlet_primitive(r: Ray, mesh_id: u32, meshlet_id: u32, primitive_
     return intersect_triangle(r, p1, p2, p3);
 }
 
+fn is_meshlet_visible(meshlet_id: u32) -> bool
+{
+    let group_index = meshlet_id / 32u;
+    let local_index = meshlet_id % 32u;
+
+    let bits = atomicLoad(&culling_result[group_index]);
+    let shift = 1u << local_index;
+    return (bits & shift) > 0u;
+}
+
 fn is_meshlet_frontfacing(r: Ray, mesh_id: u32, meshlet_id: u32) -> bool 
 {    
     let mesh = &meshes.data[mesh_id];   
@@ -119,13 +129,13 @@ fn traverse_meshlets(r: Ray, mesh_id: u32, far_plane: f32) -> Result {
     for(var i = 0u; i < (*mesh).meshlets_count; i = i + 1u)
     {
         let meshlet_id = (*mesh).meshlets_offset + i;             
-        //if (is_meshlet_frontfacing(r, mesh_id, meshlet_id)) {
+        if (is_meshlet_visible(meshlet_id)) {
             let hit = intersect_meshlet(r, mesh_id, meshlet_id, nearest);
             if (hit.distance < nearest) {
                 visibility_id = hit.visibility_id;
                 nearest = hit.distance;
             }
-        //}
+        }
     }
     return Result(nearest, visibility_id);
 }
@@ -147,13 +157,13 @@ fn traverse_forced_all_bhv_nodes(r: Ray, mesh_id: u32, bhv_start: i32, bhv_end: 
             if ((*node).reference >= 0) {
                 //leaf node
                 let meshlet_id = (*mesh).meshlets_offset + u32((*node).reference);                
-                //if (is_meshlet_frontfacing(r, mesh_id, meshlet_id)) {
+                if (is_meshlet_visible(meshlet_id)) {
                     let hit = intersect_meshlet(r, mesh_id, meshlet_id, nearest);
                     if (hit.distance < nearest) {
                         visibility_id = hit.visibility_id;
                         nearest = hit.distance;
                     }
-                //}
+                }
             }
         }       
         bhv_index = bhv_index + 1;
@@ -182,13 +192,13 @@ fn traverse_bhv_of_meshlets(r: Ray, mesh_id: u32, far_plane: f32) -> Result {
             }
             //leaf node
             let meshlet_id = (*mesh).meshlets_offset + u32((*node).reference);             
-            //if (is_meshlet_frontfacing(r, mesh_id, meshlet_id)) {
+            if (is_meshlet_visible(meshlet_id)) {
                 let hit = intersect_meshlet(r, mesh_id, meshlet_id, nearest);
                 if (hit.distance < nearest) {
                     visibility_id = hit.visibility_id;
                     nearest = hit.distance;
                 }         
-            //}
+            }
         }        
         bhv_index = (*node).miss;
         if bhv_index >= 0 {

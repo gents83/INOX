@@ -31,7 +31,7 @@ var<storage, read_write> count: atomic<u32>;
 @group(1) @binding(1)
 var<storage, read_write> commands: DrawIndexedCommands;
 @group(1) @binding(2)
-var<storage, read_write> visible_draw_data: array<atomic<u32>>;
+var<storage, read_write> culling_result: array<atomic<u32>>;
 
 
 
@@ -48,13 +48,10 @@ fn main(
     if (meshlet_id >= total) {
         return;
     }
-    let meshlet = &meshlets.data[meshlet_id];
-    let mesh_id = (*meshlet).mesh_index;
-    let mesh = &meshes.data[mesh_id];
     
     let draw_group_index = workgroup_id.x;
 
-    let bits = atomicLoad(&visible_draw_data[draw_group_index]);
+    let bits = atomicLoad(&culling_result[draw_group_index]);
     let shift = 1u << local_invocation_id.x;
     let is_visible = bits & shift;
     if (is_visible != 0u) {
@@ -64,11 +61,15 @@ fn main(
 
         var previous_count = 0u;
         for(var i = 0u; i < draw_group_index; i = i + 1u) {
-            let b = atomicLoad(&visible_draw_data[i]);
+            let b = atomicLoad(&culling_result[i]);
             previous_count = previous_count + countOneBits(b);
         }
         let index = previous_count + group_count - 1u;
 
+        let meshlet = &meshlets.data[meshlet_id];
+        let mesh_id = (*meshlet).mesh_index;
+        let mesh = &meshes.data[mesh_id];
+        
         let command = &commands.data[index];
         (*command).vertex_count = (*meshlet).indices_count;
         (*command).instance_count = 1u;

@@ -10,12 +10,14 @@ use inox_resources::{to_slice, Buffer, HashBuffer};
 use inox_uid::{generate_static_uid_from_string, Uid};
 
 use crate::{
-    utils::create_linearized_bhv, AsBinding, BindingDataBuffer, ConeCulling, DrawBHVNode,
-    DrawMaterial, DrawMesh, DrawMeshlet, DrawRay, DrawVertex, Light, LightData, LightId, Material,
-    MaterialAlphaMode, MaterialData, MaterialId, Mesh, MeshData, MeshFlags, MeshId,
-    RenderCommandsPerType, RenderCoreContext, TextureId, TextureInfo, TextureType, INVALID_INDEX,
-    MAX_TEXTURE_COORDS_SETS,
+    declare_as_binding_vector, utils::create_linearized_bhv, AsBinding, BindingDataBuffer,
+    ConeCulling, DrawBHVNode, DrawMaterial, DrawMesh, DrawMeshlet, DrawRay, DrawVertex, Light,
+    LightData, LightId, Material, MaterialAlphaMode, MaterialData, MaterialId, Mesh, MeshData,
+    MeshFlags, MeshId, RenderCommandsPerType, RenderCoreContext, TextureId, TextureInfo,
+    TextureType, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS,
 };
+
+declare_as_binding_vector!(VecVisibleDrawData, u32);
 
 pub type TexturesBuffer = Arc<RwLock<HashBuffer<TextureId, TextureInfo, 0>>>;
 pub type LightsBuffer = Arc<RwLock<HashBuffer<LightId, LightData, 0>>>;
@@ -34,8 +36,10 @@ pub type VertexColorsBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32] (rgba
 pub type VertexNormalsBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32] (10 x, 10 y, 10 z, 2 null)
 pub type VertexUVsBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32] (2 half)
 pub type RaysBuffer = Arc<RwLock<Buffer<DrawRay>>>;
+pub type CullingResults = Arc<RwLock<VecVisibleDrawData>>;
 
 const TLAS_UID: Uid = generate_static_uid_from_string("TLAS");
+pub const NUM_COMMANDS_PER_GROUP: u32 = 32;
 
 //Alignment should be 4, 8, 16 or 32 bytes
 #[derive(Default)]
@@ -58,6 +62,7 @@ pub struct RenderBuffers {
     pub vertex_normals: VertexNormalsBuffer,
     pub vertex_uvs: VertexUVsBuffer,
     pub rays: RaysBuffer,
+    pub culling_result: CullingResults,
 }
 
 impl RenderBuffers {
@@ -238,6 +243,16 @@ impl RenderBuffers {
             mesh.meshlets_count = mesh_data.meshlets.len() as _;
         }
         self.recreate_tlas();
+        self.update_culling_data();
+    }
+    fn update_culling_data(&self) {
+        let num_meshlets = self.meshlets.read().unwrap().item_count();
+        let count =
+            ((num_meshlets as u32 + NUM_COMMANDS_PER_GROUP - 1) / NUM_COMMANDS_PER_GROUP) as usize;
+        self.culling_result
+            .write()
+            .unwrap()
+            .set(vec![u32::MAX; count]);
     }
     fn recreate_tlas(&self) {
         inox_profiler::scoped_profile!("render_buffers::recreate_tlas");
@@ -361,6 +376,7 @@ impl RenderBuffers {
         if recreate_tlas {
             self.recreate_tlas();
         }
+        self.update_culling_data();
     }
     pub fn add_material(&self, material_id: &MaterialId, material: &mut Material) {
         inox_profiler::scoped_profile!("render_buffers::add_material");

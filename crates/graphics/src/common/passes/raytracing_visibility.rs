@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::{
     BHVBuffer, BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DrawCommandType, IndicesBuffer, MeshFlags, MeshesBuffer,
+    ConstantDataRw, CullingResults, DrawCommandType, IndicesBuffer, MeshFlags, MeshesBuffer,
     MeshesInverseMatrixBuffer, MeshletsBuffer, MeshletsCullingBuffer, OutputPass, Pass, RaysBuffer,
     RenderContext, ShaderStage, Texture, TextureFormat, TextureId, TextureUsage, TextureView,
     VertexPositionsBuffer, VerticesBuffer,
@@ -25,6 +25,7 @@ pub struct RayTracingVisibilityPass {
     meshes_inverse_matrix: MeshesInverseMatrixBuffer,
     meshlets: MeshletsBuffer,
     meshlets_culling: MeshletsCullingBuffer,
+    culling_result: CullingResults,
     tlas: BHVBuffer,
     bhv: BHVBuffer,
     vertices: VerticesBuffer,
@@ -75,6 +76,7 @@ impl Pass for RayTracingVisibilityPass {
             meshes_inverse_matrix: render_context.render_buffers.meshes_inverse_matrix.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
             meshlets_culling: render_context.render_buffers.meshlets_culling.clone(),
+            culling_result: render_context.render_buffers.culling_result.clone(),
             tlas: render_context.render_buffers.tlas.clone(),
             bhv: render_context.render_buffers.bhv.clone(),
             vertices: render_context.render_buffers.vertices.clone(),
@@ -161,6 +163,16 @@ impl Pass for RayTracingVisibilityPass {
                 BindingInfo {
                     group_index: 0,
                     binding_index: 6,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.culling_result.write().unwrap(),
+                Some("Culling Results"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 7,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
