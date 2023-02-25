@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
 use crate::{
-    declare_as_binding_vector, AsBinding, BHVBuffer, BindingData, BindingInfo, CommandBuffer,
-    ComputePass, ComputePassData, ConstantDataRw, DrawCommandType, IndicesBuffer, MeshFlags,
-    MeshesBuffer, MeshesInverseMatrixBuffer, MeshletsBuffer, MeshletsCullingBuffer, OutputPass,
-    Pass, RenderContext, ShaderStage, Texture, TextureFormat, TextureId, TextureUsage, TextureView,
+    BHVBuffer, BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
+    ConstantDataRw, DrawCommandType, IndicesBuffer, MeshFlags, MeshesBuffer,
+    MeshesInverseMatrixBuffer, MeshletsBuffer, MeshletsCullingBuffer, OutputPass, Pass, RaysBuffer,
+    RenderContext, ShaderStage, Texture, TextureFormat, TextureId, TextureUsage, TextureView,
     VertexPositionsBuffer, VerticesBuffer,
 };
 
@@ -15,9 +15,6 @@ use inox_uid::generate_random_uid;
 pub const RAYTRACING_VISIBILITY_PIPELINE: &str = "pipelines/RayTracingVisibility.compute_pipeline";
 pub const RAYTRACING_VISIBILITY_NAME: &str = "RayTracingVisibilityPass";
 const RAYTRACING_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rgba8Unorm;
-const NUM_FRAMES_TO_RENDER: u32 = 4;
-
-declare_as_binding_vector!(FrameIndex, u32);
 
 pub struct RayTracingVisibilityPass {
     context: ContextRc,
@@ -32,9 +29,9 @@ pub struct RayTracingVisibilityPass {
     bhv: BHVBuffer,
     vertices: VerticesBuffer,
     indices: IndicesBuffer,
-    frame_index: FrameIndex,
     vertex_positions: VertexPositionsBuffer,
     render_target: Handle<Texture>,
+    rays: RaysBuffer,
 }
 unsafe impl Send for RayTracingVisibilityPass {}
 unsafe impl Sync for RayTracingVisibilityPass {}
@@ -85,7 +82,7 @@ impl Pass for RayTracingVisibilityPass {
             vertex_positions: render_context.render_buffers.vertex_positions.clone(),
             binding_data: BindingData::new(render_context, RAYTRACING_VISIBILITY_NAME),
             render_target: None,
-            frame_index: FrameIndex::default(),
+            rays: render_context.render_buffers.rays.clone(),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -93,14 +90,6 @@ impl Pass for RayTracingVisibilityPass {
 
         if self.render_target.is_none() || self.meshlets.read().unwrap().is_empty() {
             return;
-        }
-
-        if self.frame_index.data.is_empty() {
-            self.frame_index.data = vec![0];
-            self.frame_index.set_dirty(true);
-        } else {
-            self.frame_index
-                .set(vec![(self.frame_index.data[0] + 1) % NUM_FRAMES_TO_RENDER]);
         }
 
         self.binding_data
@@ -207,12 +196,13 @@ impl Pass for RayTracingVisibilityPass {
                 },
             )
             .add_storage_buffer(
-                &mut self.frame_index,
-                Some("Frame Index"),
+                &mut *self.rays.write().unwrap(),
+                Some("Rays"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 3,
                     stage: ShaderStage::Compute,
+                    read_only: false,
                     ..Default::default()
                 },
             )
@@ -245,15 +235,15 @@ impl Pass for RayTracingVisibilityPass {
             inox_profiler::scoped_profile!("raytracing_visibility_pass::update");
 
             let pass = self.compute_pass.get();
-            let x_pixels_managed_in_shader = 8;
-            let y_pixels_managed_in_shader = 8;
+            let x_pixels_managed_in_shader = 16;
+            let y_pixels_managed_in_shader = 16;
             let max_cluster_size = x_pixels_managed_in_shader.max(y_pixels_managed_in_shader);
-            let x = max_cluster_size
-                * ((render_target.get().width() + max_cluster_size - 1) / max_cluster_size)
-                / (x_pixels_managed_in_shader * NUM_FRAMES_TO_RENDER / 2);
-            let y = max_cluster_size
-                * ((render_target.get().height() + max_cluster_size - 1) / max_cluster_size)
-                / (y_pixels_managed_in_shader * NUM_FRAMES_TO_RENDER / 2);
+            let x = (max_cluster_size
+                * ((render_target.get().width() + max_cluster_size - 1) / max_cluster_size))
+                / x_pixels_managed_in_shader;
+            let y = (max_cluster_size
+                * ((render_target.get().height() + max_cluster_size - 1) / max_cluster_size))
+                / y_pixels_managed_in_shader;
 
             let mut compute_pass =
                 pass.begin(render_context, &mut self.binding_data, command_buffer);
@@ -276,6 +266,9 @@ impl OutputPass for RayTracingVisibilityPass {
 }
 
 impl RayTracingVisibilityPass {
+    pub fn render_target(&self) -> &Handle<Texture> {
+        &self.render_target
+    }
     pub fn add_render_target_with_resolution(&mut self, width: u32, height: u32) -> &mut Self {
         self.render_target = Some(Texture::create_from_format(
             self.context.shared_data(),

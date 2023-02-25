@@ -29,6 +29,8 @@ const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 2u;
 const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE: u32 = 4u;
 const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 8u;
 
+const MAX_FLOAT: f32 = 3.402823466e+38;
+
 const RAY_STEP_FLAGS_NONE: u32 = 0u;
 const RAY_STEP_FLAGS_COMPUTE_RAY: u32 = 1u;
 const RAY_STEP_FLAGS_TLAS: u32 = 2u; // 1 << 1
@@ -218,3 +220,14 @@ struct MeshFlags {
     data: array<u32>,
 };
 
+
+struct Ray {
+    origin: vec3<f32>,
+    t_min: f32,
+    direction: vec3<f32>,
+    t_max: f32,
+}
+
+struct Rays {
+    data: array<Ray>,
+};

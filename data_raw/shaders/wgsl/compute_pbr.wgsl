@@ -55,7 +55,7 @@ var render_target: texture_storage_2d<rgba8unorm, read_write>;
 
 
 @compute
-@workgroup_size(8, 8, 1)
+@workgroup_size(16, 16, 1)
 fn main(
     @builtin(local_invocation_id) local_invocation_id: vec3<u32>, 
     @builtin(local_invocation_index) local_invocation_index: u32, 
@@ -64,8 +64,8 @@ fn main(
 ) {   
     let target_dimensions = vec2<u32>(textureDimensions(render_target));
     //let pixel = vec3<u32>(global_invocation_id.x, global_invocation_id.y, pbr_data.visibility_buffer_index);
-    let pixel = vec3<u32>(workgroup_id.x * 8u + local_invocation_id.x, 
-                          workgroup_id.y * 8u + local_invocation_id.y,
+    let pixel = vec3<u32>(workgroup_id.x * 16u + local_invocation_id.x, 
+                          workgroup_id.y * 16u + local_invocation_id.y,
                           pbr_data.visibility_buffer_index);    
     if (pixel.x >= target_dimensions.x || pixel.y >= target_dimensions.y)
     {

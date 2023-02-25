@@ -191,3 +191,13 @@ impl DrawVertex {
         layout_builder
     }
 }
+
+#[repr(C, align(4))]
+#[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
+#[serde(crate = "inox_serialize")]
+pub struct DrawRay {
+    pub origin: [f32; 3],
+    pub t_min: f32,
+    pub direction: [f32; 3],
+    pub t_max: f32,
+}

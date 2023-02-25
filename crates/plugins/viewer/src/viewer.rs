@@ -5,9 +5,10 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 use inox_graphics::{
     platform::has_primitive_index_support, rendering_system::RenderingSystem,
     update_system::UpdateSystem, BlitPass, ComputePbrPass, CullingPass, GBufferPass, LoadOperation,
-    OutputPass, OutputRenderPass, PBRPass, Pass, RayTracingVisibilityPass, RenderPass,
-    RenderTarget, Renderer, RendererRw, TextureFormat, VisibilityBufferPass, WireframePass,
-    DEFAULT_HEIGHT, DEFAULT_WIDTH, GBUFFER_PASS_NAME, WIREFRAME_PASS_NAME,
+    OutputPass, OutputRenderPass, PBRPass, Pass, RayTracingGenerateRayPass,
+    RayTracingVisibilityPass, RenderPass, RenderTarget, Renderer, RendererRw, TextureFormat,
+    VisibilityBufferPass, WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH, GBUFFER_PASS_NAME,
+    WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -150,7 +151,7 @@ impl Plugin for Viewer {
 impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &mut Renderer, width: u32, height: u32) {
         if USE_RAYTRACING {
-            Self::create_raytracing_visibility_pass(context, renderer, width, height, true);
+            Self::create_raytracing_pass(context, renderer, width, height, true);
             //Self::create_blit_pass::<RayTracingVisibilityPass>(context, renderer, true);
             Self::create_compute_pbr_pass::<RayTracingVisibilityPass>(
                 context, renderer, width, height, true,
@@ -277,17 +278,25 @@ impl Viewer {
             });
         renderer.add_pass(visibility_pass, is_enabled);
     }
-    fn create_raytracing_visibility_pass(
+    fn create_raytracing_pass(
         context: &ContextRc,
         renderer: &mut Renderer,
         width: u32,
         height: u32,
         is_enabled: bool,
     ) {
+        let mut compute_generate_ray_pass =
+            RayTracingGenerateRayPass::create(context, &renderer.render_context());
         let mut compute_visibility_pass =
             RayTracingVisibilityPass::create(context, &renderer.render_context());
-        compute_visibility_pass.add_render_target_with_resolution(width / 2, height / 2);
-        renderer.add_pass(compute_visibility_pass, is_enabled);
+
+        compute_visibility_pass.add_render_target_with_resolution(width / 4, height / 4);
+        compute_generate_ray_pass
+            .use_render_target(compute_visibility_pass.render_target().as_ref().unwrap());
+
+        renderer
+            .add_pass(compute_generate_ray_pass, is_enabled)
+            .add_pass(compute_visibility_pass, is_enabled);
     }
     fn create_compute_pbr_pass<P: OutputPass>(
         context: &ContextRc,

@@ -11,7 +11,7 @@ use inox_uid::{generate_static_uid_from_string, Uid};
 
 use crate::{
     utils::create_linearized_bhv, AsBinding, BindingDataBuffer, ConeCulling, DrawBHVNode,
-    DrawMaterial, DrawMesh, DrawMeshlet, DrawVertex, Light, LightData, LightId, Material,
+    DrawMaterial, DrawMesh, DrawMeshlet, DrawRay, DrawVertex, Light, LightData, LightId, Material,
     MaterialAlphaMode, MaterialData, MaterialId, Mesh, MeshData, MeshFlags, MeshId,
     RenderCommandsPerType, RenderCoreContext, TextureId, TextureInfo, TextureType, INVALID_INDEX,
     MAX_TEXTURE_COORDS_SETS,
@@ -33,6 +33,7 @@ pub type VertexPositionsBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32] (1
 pub type VertexColorsBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32] (rgba)
 pub type VertexNormalsBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32] (10 x, 10 y, 10 z, 2 null)
 pub type VertexUVsBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32] (2 half)
+pub type RaysBuffer = Arc<RwLock<Buffer<DrawRay>>>;
 
 const TLAS_UID: Uid = generate_static_uid_from_string("TLAS");
 
@@ -56,6 +57,7 @@ pub struct RenderBuffers {
     pub vertex_colors: VertexColorsBuffer,
     pub vertex_normals: VertexNormalsBuffer,
     pub vertex_uvs: VertexUVsBuffer,
+    pub rays: RaysBuffer,
 }
 
 impl RenderBuffers {

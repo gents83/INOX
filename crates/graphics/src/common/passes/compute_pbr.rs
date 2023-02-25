@@ -125,7 +125,11 @@ impl Pass for ComputePbrPass {
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("compute_pbr_pass::init");
 
-        let resolution = render_context.resolution();
+        if self.render_target.is_none() {
+            return;
+        }
+
+        let resolution = self.render_target.as_ref().unwrap().get().dimensions();
         if self.render_target.is_none()
             && (self.data.dimensions[0] != resolution.0 || self.data.dimensions[1] != resolution.1)
         {
@@ -340,14 +344,14 @@ impl Pass for ComputePbrPass {
 
         let pass = self.compute_pass.get();
 
-        let x_pixels_managed_in_shader = 8;
-        let y_pixels_managed_in_shader = 8;
+        let x_pixels_managed_in_shader = 16;
+        let y_pixels_managed_in_shader = 16;
         let max_cluster_size = x_pixels_managed_in_shader.max(y_pixels_managed_in_shader);
-        let x = max_cluster_size
-            * ((self.data.dimensions[0] + max_cluster_size - 1) / max_cluster_size)
+        let x = (max_cluster_size
+            * ((self.data.dimensions[0] + max_cluster_size - 1) / max_cluster_size))
             / x_pixels_managed_in_shader;
-        let y = max_cluster_size
-            * ((self.data.dimensions[1] + max_cluster_size - 1) / max_cluster_size)
+        let y = (max_cluster_size
+            * ((self.data.dimensions[1] + max_cluster_size - 1) / max_cluster_size))
             / y_pixels_managed_in_shader;
 
         let mut compute_pass = pass.begin(render_context, &mut self.binding_data, command_buffer);

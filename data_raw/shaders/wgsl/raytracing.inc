@@ -1,29 +1,12 @@
-const MAX_FLOAT: f32 = 3.402823466e+38;
 const HIT_EPSILON: f32 = 0.0001;
 const INVALID_NODE: i32 = -1;
 const MAX_STEPS: u32 = 1024u;
-
-struct Ray {
-    origin: vec3<f32>,
-    direction: vec3<f32>,
-}
 
 struct Result {
     distance: f32,
     visibility_id: u32,
 }
 
-fn compute_ray(image_pixel: vec2<u32>, image_size: vec2<u32>) -> Ray {
-    var clip_coords = 2. * (vec2<f32>(image_pixel) / vec2<f32>(image_size)) - vec2<f32>(1., 1.);
-    clip_coords.y = -clip_coords.y;
-    
-    let origin = unproject(clip_coords.xy, -1.);
-    let far = unproject(clip_coords.xy, 1.);
-    let direction = normalize(far - origin);
-    
-    let ray = Ray(origin, direction);
-    return ray;
-}
 
 fn intersect_aabb(r: Ray, aabb_min: vec3<f32>, aabb_max: vec3<f32>) -> f32 
 {     
