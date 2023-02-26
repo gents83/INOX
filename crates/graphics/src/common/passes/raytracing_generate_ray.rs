@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData, ConstantDataRw,
-    DrawCommandType, DrawRay, MeshFlags, OutputPass, Pass, RaysBuffer, RenderContext, ShaderStage,
-    Texture, TextureId, TextureView,
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
+    ConstantDataRw, DrawCommandType, DrawRay, MeshFlags, OutputPass, Pass, RaysBuffer,
+    RenderContext, ShaderStage, Texture, TextureId, TextureView,
 };
 
 use inox_core::ContextRc;
@@ -94,8 +94,7 @@ impl Pass for RayTracingGenerateRayPass {
                     group_index: 1,
                     binding_index: 0,
                     stage: ShaderStage::Compute,
-                    read_only: false,
-                    ..Default::default()
+                    flags: BindingFlags::ReadWrite,
                 },
             )
             .add_texture(
@@ -104,9 +103,7 @@ impl Pass for RayTracingGenerateRayPass {
                     group_index: 2,
                     binding_index: 0,
                     stage: ShaderStage::Compute,
-                    is_storage: true,
-                    read_only: false,
-                    ..Default::default()
+                    flags: BindingFlags::Read | BindingFlags::Storage,
                 },
             );
 
@@ -160,7 +157,7 @@ impl RayTracingGenerateRayPass {
         self.height = texture.get().height();
         {
             let mut rays = self.rays.write().unwrap();
-            let ray_data = vec![DrawRay::default(); (self.width * self.height * 4) as usize];
+            let ray_data = vec![DrawRay::default(); (self.width * self.height) as usize];
             rays.allocate(&RAYS_UID, ray_data.as_ref());
         }
         self

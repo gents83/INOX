@@ -162,7 +162,6 @@ impl Viewer {
                 raytracing_dimension.1,
                 true,
             );
-            //Self::create_blit_pass::<RayTracingVisibilityPass>(context, renderer, true);
             Self::create_compute_pbr_pass::<RayTracingVisibilityPass>(
                 context,
                 renderer,
@@ -203,43 +202,43 @@ impl Viewer {
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
                 read_back: false,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
                 read_back: false,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
                 read_back: false,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
                 read_back: false,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
                 read_back: false,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
                 read_back: false,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
                 read_back: false,
             })
             .add_depth_target(RenderTarget::Texture {
@@ -281,7 +280,7 @@ impl Viewer {
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
                 read_back: false,
             })
             .add_depth_target(RenderTarget::Texture {
@@ -359,7 +358,7 @@ impl Viewer {
                     .add_render_target(RenderTarget::Texture {
                         width,
                         height,
-                        format: TextureFormat::Rgba8UnormSrgb,
+                        format: TextureFormat::Rgba8Unorm,
                         read_back: false,
                     });
             }

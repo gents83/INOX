@@ -7,7 +7,7 @@ var<uniform> constant_data: ConstantData;
 var<storage, read_write> rays: Rays;
 
 @group(2) @binding(0)
-var render_target: texture_storage_2d<rgba8unorm, read_write>;
+var render_target: texture_storage_2d<rgba8unorm, read>;
 
 #import "matrix_utils.inc"
 
@@ -27,8 +27,6 @@ fn compute_ray(image_pixel: vec2<u32>, image_size: vec2<u32>) -> Ray {
 @workgroup_size(16, 16, 1)
 fn main(
     @builtin(local_invocation_id) local_invocation_id: vec3<u32>, 
-    @builtin(local_invocation_index) local_invocation_index: u32, 
-    @builtin(global_invocation_id) global_invocation_id: vec3<u32>, 
     @builtin(workgroup_id) workgroup_id: vec3<u32>
 ) {
     let dimensions = vec2<u32>(textureDimensions(render_target));    

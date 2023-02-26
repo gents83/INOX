@@ -166,7 +166,7 @@ impl RenderContext {
         inox_log::debug_log!("Using {:?} adapter", adapter.get_info().backend);
 
         let capabilities = surface.get_capabilities(&adapter);
-        let format = wgpu::TextureFormat::Rgba8UnormSrgb;
+        let format = wgpu::TextureFormat::Rgba8Unorm;
 
         inox_log::debug_log!("Format {:?}", format);
 

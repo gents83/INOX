@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use inox_core::ContextRc;
 use inox_graphics::{
-    declare_as_binding_vector, AsBinding, BindingData, BindingInfo, CommandBuffer, ConstantDataRw,
-    DrawCommandType, GpuBuffer, MeshFlags, OutputRenderPass, Pass, RenderContext,
+    declare_as_binding_vector, AsBinding, BindingData, BindingFlags, BindingInfo, CommandBuffer,
+    ConstantDataRw, DrawCommandType, GpuBuffer, MeshFlags, OutputRenderPass, Pass, RenderContext,
     RenderCoreContext, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage,
     StoreOperation, TextureView, TexturesBuffer, VertexBufferLayoutBuilder, VertexFormat,
 };
@@ -186,8 +186,7 @@ impl Pass for UIPass {
                     group_index: 1,
                     binding_index: 0,
                     stage: ShaderStage::Fragment,
-
-                    ..Default::default()
+                    flags: BindingFlags::Read | BindingFlags::Storage,
                 },
             )
             .add_default_sampler(BindingInfo {

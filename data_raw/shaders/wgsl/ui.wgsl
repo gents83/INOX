@@ -37,6 +37,37 @@ var<storage, read> textures: Textures;
 #import "texture_utils.inc"
 
 
+// 0-1 linear  from  0-1 sRGB gamma
+fn linear_from_gamma_rgb(srgb: vec3<f32>) -> vec3<f32> {
+    let cutoff = srgb < vec3<f32>(0.04045);
+    let lower = srgb / vec3<f32>(12.92);
+    let higher = pow((srgb + vec3<f32>(0.055)) / vec3<f32>(1.055), vec3<f32>(2.4));
+    return select(higher, lower, cutoff);
+}
+
+// 0-1 sRGB gamma  from  0-1 linear
+fn gamma_from_linear_rgb(rgb: vec3<f32>) -> vec3<f32> {
+    let cutoff = rgb < vec3<f32>(0.0031308);
+    let lower = rgb * vec3<f32>(12.92);
+    let higher = vec3<f32>(1.055) * pow(rgb, vec3<f32>(1.0 / 2.4)) - vec3<f32>(0.055);
+    return select(higher, lower, cutoff);
+}
+
+// 0-1 sRGBA gamma  from  0-1 linear
+fn gamma_from_linear_rgba(linear_rgba: vec4<f32>) -> vec4<f32> {
+    return vec4<f32>(gamma_from_linear_rgb(linear_rgba.rgb), linear_rgba.a);
+}
+
+// [u8; 4] SRGB as u32 -> [r, g, b, a] in 0.-1
+fn unpack_color(color: u32) -> vec4<f32> {
+    return vec4<f32>(
+        f32(color & 255u),
+        f32((color >> 8u) & 255u),
+        f32((color >> 16u) & 255u),
+        f32((color >> 24u) & 255u),
+    ) / 255.;
+}
+
 @vertex
 fn vs_main(
     v_in: UIVertex,
@@ -52,18 +83,21 @@ fn vs_main(
         0.001 * f32(i_in.index),
         1.
     );
-    let color = u32(v_in.color);
-    let c = unpack_color(color);
-    //vertex_out.color = vec4<f32>(linear_from_srgb(c.rgb), c.a / 255.0);
-    vertex_out.color = vec4<f32>(c / 255.);
+    vertex_out.color = unpack_color(u32(v_in.color));
     vertex_out.tex_coords = vec3<f32>(v_in.uv.xy, f32(i_in.texture_index));
 
     return vertex_out;
 }
 
 @fragment
-fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
-    let texture_color = sample_texture(v_in.tex_coords);
-    let final_color = vec4<f32>(v_in.color .rgb * texture_color.rgb, v_in.color.a);
-    return final_color;
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    let tex_linear = sample_texture(in.tex_coords);
+
+    //let tex_gamma = gamma_from_linear_rgba(tex_linear);
+    //let out_color_gamma = in.color * tex_gamma;
+    //return vec4<f32>(linear_from_gamma_rgb(out_color_gamma.rgb), out_color_gamma.a);
+    
+    let tex_gamma = gamma_from_linear_rgba(tex_linear);
+    let out_color_gamma = in.color * tex_gamma;
+    return out_color_gamma;
 }

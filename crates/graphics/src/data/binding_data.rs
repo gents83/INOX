@@ -1,5 +1,8 @@
 use std::num::NonZeroU32;
 
+use inox_bitmask::bitmask;
+use inox_serialize::{Deserialize, Serialize};
+
 use crate::{
     platform::required_gpu_features, AsBinding, BindingDataBufferRc, BufferId, RenderContext,
     RenderCoreContextRc, ShaderStage, TextureHandlerRc, TextureId, MAX_TEXTURE_ATLAS_COUNT,
@@ -7,16 +10,48 @@ use crate::{
 
 const DEBUG_BINDINGS: bool = false;
 
+#[bitmask]
+pub enum BindingFlags {
+    Read,
+    Write,
+    ReadWrite,
+    CPUAccessible,
+    Indirect,
+    Vertex,
+    Index,
+    Storage,
+}
+
+impl From<BindingFlags> for wgpu::BufferUsages {
+    fn from(val: BindingFlags) -> Self {
+        let mut usage = wgpu::BufferUsages::empty();
+        if val.contains(BindingFlags::Read) || val.contains(BindingFlags::ReadWrite) {
+            usage |= wgpu::BufferUsages::COPY_SRC;
+        }
+        if val.contains(BindingFlags::Write) || val.contains(BindingFlags::ReadWrite) {
+            usage |= wgpu::BufferUsages::COPY_DST;
+        }
+        if val.contains(BindingFlags::CPUAccessible) {
+            usage |= wgpu::BufferUsages::MAP_READ;
+        }
+        if val.contains(BindingFlags::Indirect) {
+            usage |= wgpu::BufferUsages::INDIRECT;
+        }
+        if val.contains(BindingFlags::Index) {
+            usage |= wgpu::BufferUsages::INDEX;
+        }
+        if val.contains(BindingFlags::Vertex) {
+            usage |= wgpu::BufferUsages::VERTEX;
+        }
+        usage
+    }
+}
+
 pub struct BindingInfo {
     pub group_index: usize,
     pub binding_index: usize,
     pub stage: ShaderStage,
-    pub read_only: bool,
-    pub cpu_accessible: bool,
-    pub is_indirect: bool,
-    pub is_vertex: bool,
-    pub is_index: bool,
-    pub is_storage: bool,
+    pub flags: BindingFlags,
 }
 
 impl Default for BindingInfo {
@@ -25,12 +60,7 @@ impl Default for BindingInfo {
             group_index: 0,
             binding_index: 0,
             stage: ShaderStage::VertexAndFragment,
-            read_only: true,
-            cpu_accessible: false,
-            is_indirect: false,
-            is_vertex: false,
-            is_index: false,
-            is_storage: false,
+            flags: BindingFlags::Read,
         }
     }
 }
@@ -231,22 +261,7 @@ impl BindingData {
             return self;
         }
 
-        let mut usage = wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST;
-        if !info.read_only {
-            usage |= wgpu::BufferUsages::COPY_SRC;
-        }
-        if info.cpu_accessible {
-            usage |= wgpu::BufferUsages::MAP_READ;
-        }
-        if info.is_indirect {
-            usage |= wgpu::BufferUsages::INDIRECT;
-        }
-        if info.is_index {
-            usage |= wgpu::BufferUsages::INDEX;
-        }
-        if info.is_vertex {
-            usage |= wgpu::BufferUsages::VERTEX;
-        }
+        let usage = wgpu::BufferUsages::STORAGE | info.flags.into();
         let is_changed =
             self.binding_data_buffer
                 .bind_buffer(label, data, usage, &self.render_core_context);
@@ -277,7 +292,7 @@ impl BindingData {
                 visibility: info.stage.into(),
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Storage {
-                        read_only: info.read_only,
+                        read_only: info.flags.contains(BindingFlags::Read),
                     },
                     has_dynamic_offset: false,
                     min_binding_size: None,
@@ -425,12 +440,14 @@ impl BindingData {
                 self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
                     binding: info.binding_index as _,
                     visibility: info.stage.into(),
-                    ty: if info.is_storage {
+                    ty: if info.flags.contains(BindingFlags::Storage) {
                         wgpu::BindingType::StorageTexture {
-                            access: if info.read_only {
-                                wgpu::StorageTextureAccess::ReadOnly
-                            } else {
+                            access: if info.flags.contains(BindingFlags::Write) {
+                                wgpu::StorageTextureAccess::WriteOnly
+                            } else if info.flags.contains(BindingFlags::ReadWrite) {
                                 wgpu::StorageTextureAccess::ReadWrite
+                            } else {
+                                wgpu::StorageTextureAccess::ReadOnly
                             },
                             view_dimension: if texture.layers_count() > 1 {
                                 wgpu::TextureViewDimension::D2Array

@@ -124,7 +124,7 @@ impl GpuBuffer {
         }
     }
     pub fn add_to_gpu_buffer<T>(&mut self, render_core_context: &RenderCoreContext, data: &[T]) {
-        if data.is_empty() {
+        if data.is_empty() || !self.usage.contains(wgpu::BufferUsages::COPY_DST) {
             return;
         }
         inox_profiler::scoped_profile!("GpuBuffer::add_to_gpu_buffer({})", &self.name);
