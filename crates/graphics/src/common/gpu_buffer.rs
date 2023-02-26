@@ -16,7 +16,7 @@ impl Default for GpuBuffer {
     fn default() -> Self {
         Self {
             gpu_buffer: None,
-            usage: wgpu::BufferUsages::STORAGE,
+            usage: wgpu::BufferUsages::empty(),
             offset: 0,
             size: 0,
             name: String::new(),
@@ -56,17 +56,17 @@ impl GpuBuffer {
             let label = format!("{buffer_name} Buffer");
             self.name = label;
             self.release();
+            self.usage |= usage;
             let data_buffer = render_core_context
                 .device
                 .create_buffer(&wgpu::BufferDescriptor {
                     label: Some(self.name.as_str()),
                     size,
                     mapped_at_creation: false,
-                    usage,
+                    usage: self.usage,
                 });
             self.gpu_buffer = Some(data_buffer);
             self.size = size;
-            self.usage = usage;
             return true;
         }
         false
@@ -154,8 +154,10 @@ impl GpuBuffer {
             format!("{}[{}]", std::any::type_name::<T>(), id)
         };
         let is_changed = self.init(render_core_context, data.size(), usage, name.as_str());
-        data.fill_buffer(render_core_context, self);
-        data.set_dirty(false);
+        if usage.intersects(wgpu::BufferUsages::COPY_DST) {
+            data.fill_buffer(render_core_context, self);
+            data.set_dirty(false);
+        }
         is_changed
     }
     pub fn read_from_gpu(&self, render_core_context: &RenderCoreContext) -> Option<Vec<u8>> {

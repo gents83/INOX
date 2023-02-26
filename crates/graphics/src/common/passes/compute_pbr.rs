@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 
 use crate::{
-    AsBinding, BHVBuffer, BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DrawCommandType, GpuBuffer, IndicesBuffer, LightsBuffer, MaterialsBuffer,
-    MeshFlags, MeshesBuffer, MeshletsBuffer, OutputPass, Pass, RenderContext, RenderCoreContext,
-    ShaderStage, Texture, TextureFormat, TextureId, TextureUsage, TextureView, TexturesBuffer,
-    VertexColorsBuffer, VertexNormalsBuffer, VertexPositionsBuffer, VertexUVsBuffer,
-    VerticesBuffer, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    AsBinding, BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass,
+    ComputePassData, ConstantDataRw, DrawCommandType, GpuBuffer, IndicesBuffer, LightsBuffer,
+    MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer, OutputPass, Pass, RenderContext,
+    RenderCoreContext, ShaderStage, Texture, TextureFormat, TextureId, TextureUsage, TextureView,
+    TexturesBuffer, VertexColorsBuffer, VertexNormalsBuffer, VertexPositionsBuffer,
+    VertexUVsBuffer, VerticesBuffer, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 use inox_core::ContextRc;
@@ -174,8 +174,7 @@ impl Pass for ComputePbrPass {
                     group_index: 0,
                     binding_index: 2,
                     stage: ShaderStage::Compute,
-                    is_index: true,
-                    ..Default::default()
+                    flags: BindingFlags::Read | BindingFlags::Index,
                 },
             )
             .add_storage_buffer(
@@ -185,8 +184,7 @@ impl Pass for ComputePbrPass {
                     group_index: 0,
                     binding_index: 3,
                     stage: ShaderStage::Compute,
-                    is_vertex: true,
-                    ..Default::default()
+                    flags: BindingFlags::Read | BindingFlags::Vertex,
                 },
             )
             .add_storage_buffer(
@@ -316,9 +314,7 @@ impl Pass for ComputePbrPass {
                     group_index: 3,
                     binding_index: 1,
                     stage: ShaderStage::Compute,
-                    is_storage: true,
-                    read_only: false,
-                    ..Default::default()
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
             );
 

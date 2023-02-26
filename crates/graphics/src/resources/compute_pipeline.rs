@@ -135,7 +135,7 @@ impl ComputePipeline {
                 });
 
         let compute_pipeline = {
-            inox_profiler::scoped_profile!("compute_pipeline::crate[{}]", self.name());
+            inox_profiler::scoped_profile!("compute_pipeline::create[{}]", self.name());
             context
                 .core
                 .device

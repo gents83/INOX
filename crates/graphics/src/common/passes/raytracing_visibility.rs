@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{
-    BHVBuffer, BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
+    BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
     ConstantDataRw, CullingResults, DrawCommandType, IndicesBuffer, MeshFlags, MeshesBuffer,
     MeshesInverseMatrixBuffer, MeshletsBuffer, MeshletsCullingBuffer, OutputPass, Pass, RaysBuffer,
     RenderContext, ShaderStage, Texture, TextureFormat, TextureId, TextureUsage, TextureView,
@@ -112,8 +112,7 @@ impl Pass for RayTracingVisibilityPass {
                     group_index: 0,
                     binding_index: 1,
                     stage: ShaderStage::Compute,
-                    is_index: true,
-                    ..Default::default()
+                    flags: BindingFlags::Read | BindingFlags::Index,
                 },
             )
             .add_storage_buffer(
@@ -123,8 +122,7 @@ impl Pass for RayTracingVisibilityPass {
                     group_index: 0,
                     binding_index: 2,
                     stage: ShaderStage::Compute,
-                    is_vertex: true,
-                    ..Default::default()
+                    flags: BindingFlags::Read | BindingFlags::Vertex,
                 },
             )
             .add_storage_buffer(
@@ -214,8 +212,7 @@ impl Pass for RayTracingVisibilityPass {
                     group_index: 1,
                     binding_index: 3,
                     stage: ShaderStage::Compute,
-                    read_only: false,
-                    ..Default::default()
+                    flags: BindingFlags::ReadWrite,
                 },
             )
             .add_texture(
@@ -224,9 +221,7 @@ impl Pass for RayTracingVisibilityPass {
                     group_index: 2,
                     binding_index: 0,
                     stage: ShaderStage::Compute,
-                    is_storage: true,
-                    read_only: false,
-                    ..Default::default()
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
             );
 
