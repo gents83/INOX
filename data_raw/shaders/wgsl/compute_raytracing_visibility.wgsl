@@ -37,7 +37,7 @@ var<storage, read_write> jobs: array<atomic<u32>>;
 var render_target: texture_storage_2d<rgba8unorm, write>;
 
 #import "matrix_utils.inc"
-#import "raytracing_jobs.inc"
+#import "jobs.inc"
 #import "raytracing.inc"
 
 

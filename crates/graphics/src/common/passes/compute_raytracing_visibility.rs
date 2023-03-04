@@ -12,11 +12,12 @@ use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Handle, Resource};
 use inox_uid::generate_random_uid;
 
-pub const RAYTRACING_VISIBILITY_PIPELINE: &str = "pipelines/RayTracingVisibility.compute_pipeline";
-pub const RAYTRACING_VISIBILITY_NAME: &str = "RayTracingVisibilityPass";
+pub const COMPUTE_RAYTRACING_VISIBILITY_PIPELINE: &str =
+    "pipelines/ComputeRayTracingVisibility.compute_pipeline";
+pub const COMPUTE_RAYTRACING_VISIBILITY_NAME: &str = "ComputeRayTracingVisibilityPass";
 const RAYTRACING_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rgba8Unorm;
 
-pub struct RayTracingVisibilityPass {
+pub struct ComputeRayTracingVisibilityPass {
     context: ContextRc,
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
@@ -35,15 +36,15 @@ pub struct RayTracingVisibilityPass {
     rays: RaysBuffer,
     raytracing_jobs: RaytracingJobsBuffer,
 }
-unsafe impl Send for RayTracingVisibilityPass {}
-unsafe impl Sync for RayTracingVisibilityPass {}
+unsafe impl Send for ComputeRayTracingVisibilityPass {}
+unsafe impl Sync for ComputeRayTracingVisibilityPass {}
 
-impl Pass for RayTracingVisibilityPass {
+impl Pass for ComputeRayTracingVisibilityPass {
     fn name(&self) -> &str {
-        RAYTRACING_VISIBILITY_NAME
+        COMPUTE_RAYTRACING_VISIBILITY_NAME
     }
     fn static_name() -> &'static str {
-        RAYTRACING_VISIBILITY_NAME
+        COMPUTE_RAYTRACING_VISIBILITY_NAME
     }
     fn is_active(&self, render_context: &RenderContext) -> bool {
         render_context.has_commands(&self.draw_commands_type(), &self.mesh_flags())
@@ -59,8 +60,8 @@ impl Pass for RayTracingVisibilityPass {
         Self: Sized,
     {
         let data = ComputePassData {
-            name: RAYTRACING_VISIBILITY_NAME.to_string(),
-            pipelines: vec![PathBuf::from(RAYTRACING_VISIBILITY_PIPELINE)],
+            name: COMPUTE_RAYTRACING_VISIBILITY_NAME.to_string(),
+            pipelines: vec![PathBuf::from(COMPUTE_RAYTRACING_VISIBILITY_PIPELINE)],
         };
 
         Self {
@@ -83,7 +84,7 @@ impl Pass for RayTracingVisibilityPass {
             vertices: render_context.render_buffers.vertices.clone(),
             indices: render_context.render_buffers.indices.clone(),
             vertex_positions: render_context.render_buffers.vertex_positions.clone(),
-            binding_data: BindingData::new(render_context, RAYTRACING_VISIBILITY_NAME),
+            binding_data: BindingData::new(render_context, COMPUTE_RAYTRACING_VISIBILITY_NAME),
             render_target: None,
             rays: render_context.render_buffers.rays.clone(),
             raytracing_jobs: render_context.render_buffers.raytracing_jobs.clone(),
@@ -286,13 +287,13 @@ impl Pass for RayTracingVisibilityPass {
     }
 }
 
-impl OutputPass for RayTracingVisibilityPass {
+impl OutputPass for ComputeRayTracingVisibilityPass {
     fn render_targets_id(&self) -> Vec<TextureId> {
         [*self.render_target.as_ref().unwrap().id()].to_vec()
     }
 }
 
-impl RayTracingVisibilityPass {
+impl ComputeRayTracingVisibilityPass {
     pub fn render_target(&self) -> &Handle<Texture> {
         &self.render_target
     }

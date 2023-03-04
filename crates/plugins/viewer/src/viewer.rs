@@ -4,9 +4,9 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
     platform::has_primitive_index_support, rendering_system::RenderingSystem,
-    update_system::UpdateSystem, BlitPass, ComputePbrPass, CullingPass, GBufferPass, LoadOperation,
-    OutputPass, OutputRenderPass, PBRPass, Pass, RayTracingGenerateRayPass,
-    RayTracingVisibilityPass, RenderPass, RenderTarget, Renderer, RendererRw, TextureFormat,
+    update_system::UpdateSystem, BlitPass, ComputePbrPass, ComputeRayTracingGenerateRayPass,
+    ComputeRayTracingVisibilityPass, CullingPass, GBufferPass, LoadOperation, OutputPass,
+    OutputRenderPass, PBRPass, Pass, RenderPass, RenderTarget, Renderer, RendererRw, TextureFormat,
     VisibilityBufferPass, WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH, GBUFFER_PASS_NAME,
     WIREFRAME_PASS_NAME,
 };
@@ -163,7 +163,7 @@ impl Viewer {
                 true,
             );
             //Self::create_blit_pass::<RayTracingVisibilityPass>(context, renderer, true);
-            Self::create_compute_pbr_pass::<RayTracingVisibilityPass>(
+            Self::create_compute_pbr_pass::<ComputeRayTracingVisibilityPass>(
                 context,
                 renderer,
                 raytracing_dimension.0,
@@ -300,9 +300,9 @@ impl Viewer {
         is_enabled: bool,
     ) {
         let mut compute_generate_ray_pass =
-            RayTracingGenerateRayPass::create(context, &renderer.render_context());
+            ComputeRayTracingGenerateRayPass::create(context, &renderer.render_context());
         let mut compute_visibility_pass =
-            RayTracingVisibilityPass::create(context, &renderer.render_context());
+            ComputeRayTracingVisibilityPass::create(context, &renderer.render_context());
 
         compute_visibility_pass.add_render_target_with_resolution(width, height);
         compute_generate_ray_pass

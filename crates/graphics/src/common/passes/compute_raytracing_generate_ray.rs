@@ -10,13 +10,13 @@ use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid, INVALID_UID};
 
-pub const RAYTRACING_GENERATE_RAY_PIPELINE: &str =
-    "pipelines/RayTracingGenerateRay.compute_pipeline";
-pub const RAYTRACING_GENERATE_RAY_NAME: &str = "RayTracingGenerateRayPass";
+pub const COMPUTE_RAYTRACING_GENERATE_RAY_PIPELINE: &str =
+    "pipelines/ComputeRayTracingGenerateRay.compute_pipeline";
+pub const COMPUTE_RAYTRACING_GENERATE_RAY_NAME: &str = "ComputeRayTracingGenerateRayPass";
 
 const RAYS_UID: Uid = generate_static_uid_from_string("RAYS");
 
-pub struct RayTracingGenerateRayPass {
+pub struct ComputeRayTracingGenerateRayPass {
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
@@ -25,15 +25,15 @@ pub struct RayTracingGenerateRayPass {
     height: u32,
     rays: RaysBuffer,
 }
-unsafe impl Send for RayTracingGenerateRayPass {}
-unsafe impl Sync for RayTracingGenerateRayPass {}
+unsafe impl Send for ComputeRayTracingGenerateRayPass {}
+unsafe impl Sync for ComputeRayTracingGenerateRayPass {}
 
-impl Pass for RayTracingGenerateRayPass {
+impl Pass for ComputeRayTracingGenerateRayPass {
     fn name(&self) -> &str {
-        RAYTRACING_GENERATE_RAY_NAME
+        COMPUTE_RAYTRACING_GENERATE_RAY_NAME
     }
     fn static_name() -> &'static str {
-        RAYTRACING_GENERATE_RAY_NAME
+        COMPUTE_RAYTRACING_GENERATE_RAY_NAME
     }
     fn is_active(&self, render_context: &RenderContext) -> bool {
         render_context.has_commands(&self.draw_commands_type(), &self.mesh_flags())
@@ -49,8 +49,8 @@ impl Pass for RayTracingGenerateRayPass {
         Self: Sized,
     {
         let data = ComputePassData {
-            name: RAYTRACING_GENERATE_RAY_NAME.to_string(),
-            pipelines: vec![PathBuf::from(RAYTRACING_GENERATE_RAY_PIPELINE)],
+            name: COMPUTE_RAYTRACING_GENERATE_RAY_NAME.to_string(),
+            pipelines: vec![PathBuf::from(COMPUTE_RAYTRACING_GENERATE_RAY_PIPELINE)],
         };
 
         Self {
@@ -62,7 +62,7 @@ impl Pass for RayTracingGenerateRayPass {
                 None,
             ),
             constant_data: render_context.constant_data.clone(),
-            binding_data: BindingData::new(render_context, RAYTRACING_GENERATE_RAY_NAME),
+            binding_data: BindingData::new(render_context, COMPUTE_RAYTRACING_GENERATE_RAY_NAME),
             rays: render_context.render_buffers.rays.clone(),
             width: 0,
             height: 0,
@@ -144,13 +144,13 @@ impl Pass for RayTracingGenerateRayPass {
     }
 }
 
-impl OutputPass for RayTracingGenerateRayPass {
+impl OutputPass for ComputeRayTracingGenerateRayPass {
     fn render_targets_id(&self) -> Vec<TextureId> {
         [self.render_target_id].to_vec()
     }
 }
 
-impl RayTracingGenerateRayPass {
+impl ComputeRayTracingGenerateRayPass {
     pub fn use_render_target(&mut self, texture: &Resource<Texture>) -> &mut Self {
         self.render_target_id = *texture.id();
         self.width = texture.get().width();
