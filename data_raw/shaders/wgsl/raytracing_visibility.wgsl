@@ -40,8 +40,9 @@ var render_target: texture_storage_2d<rgba8unorm, write>;
 #import "raytracing_jobs.inc"
 #import "raytracing.inc"
 
+
 fn execute_job(job_index: u32, dimensions: vec2<u32>) {    
-    let ray = &rays.data[job_index];
+    var ray = rays.data[job_index];
     var nearest = MAX_FLOAT;  
     var visibility_id = 0u;
     
@@ -50,25 +51,25 @@ fn execute_job(job_index: u32, dimensions: vec2<u32>) {
     while (tlas_index >= 0)
     {
         let node = &tlas.data[u32(tlas_index)];    
-        let intersection = intersect_aabb(*ray, (*node).min, (*node).max);
-        if (intersection < nearest) {
-            if ((*node).reference < 0) {
-                //inner node
-                tlas_index = tlas_index + 1;
-                continue;
-            }
-            //leaf node
-            let mesh_id = u32((*node).reference);
-            let inverse_matrix = &meshes_inverse_matrix.data[mesh_id];    
-            let transformed_origin = (*inverse_matrix) * vec4<f32>((*ray).origin, 1.);
-            let transformed_direction = (*inverse_matrix) * vec4<f32>((*ray).direction, 0.);
-            let transformed_ray = Ray(transformed_origin.xyz, 0., transformed_direction.xyz, MAX_FLOAT);
-            let result = traverse_bhv_of_meshlets(transformed_ray, mesh_id, nearest);
-            if (result.visibility_id > 0u && result.distance < nearest) {
-                visibility_id = result.visibility_id;
-                nearest = result.distance;
-            }
+        let intersection = intersect_aabb(&ray, (*node).min, (*node).max);
+        if (intersection >= nearest) {
+            tlas_index = (*node).miss;
+            continue;
         }
+        if ((*node).reference < 0) {
+            //inner node
+            tlas_index = tlas_index + 1;
+            continue;
+        }
+        //leaf node
+        let mesh_id = u32((*node).reference);
+        let inverse_matrix = &meshes_inverse_matrix.data[mesh_id];    
+        let transformed_origin = (*inverse_matrix) * vec4<f32>(ray.origin, 1.);
+        let transformed_direction = (*inverse_matrix) * vec4<f32>(ray.direction, 0.);
+        var transformed_ray = Ray(transformed_origin.xyz, ray.t_min, transformed_direction.xyz, ray.t_max);
+        let result = traverse_bhv_of_meshlets(&transformed_ray, mesh_id, nearest);
+        visibility_id = select(visibility_id, result.visibility_id, result.distance < nearest);
+        nearest = result.distance;
         tlas_index = (*node).miss;
     } 
         
@@ -89,17 +90,17 @@ fn main(
     let pixel = vec2<u32>(workgroup_id.x * 16u + local_invocation_id.x, 
                           workgroup_id.y * 16u + local_invocation_id.y);
     let total_job_index = pixel.y * dimensions.x + pixel.x;
-    //execute_job(total_job_index, dimensions);
-    
+    execute_job(total_job_index, dimensions);
+    /*
     var atomic_index = i32(total_job_index / 32u);
     let last_atomic = atomic_index + (16 * 16) / 32;
     while (atomic_index >= 0 && atomic_index < last_atomic) {
         let job_index = extract_job_index(u32(atomic_index));
         if (job_index < 0) {
             atomic_index = find_busy_atomic(u32(atomic_index), u32(last_atomic));
-            return;//continue;
+            continue;
         }
         execute_job(u32(atomic_index * 32 + job_index), dimensions);
     }
-    
+    */
 }
