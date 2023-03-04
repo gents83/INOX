@@ -4,7 +4,7 @@ use crate::{
     AsBinding, BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, CommandsBuffer,
     ComputePass, ComputePassData, ConstantDataRw, CullingResults, DrawCommandType, GpuBuffer,
     MeshFlags, MeshesBuffer, MeshesFlagsBuffer, MeshletsBuffer, MeshletsCullingBuffer, Pass,
-    RenderContext, RenderCoreContext, ShaderStage, TextureView, NUM_COMMANDS_PER_GROUP,
+    RenderContext, RenderCoreContext, ShaderStage, TextureView, ATOMIC_SIZE,
 };
 
 use inox_commands::CommandParser;
@@ -184,8 +184,7 @@ impl Pass for CullingPass {
             commands.counter.count = 0;
 
             let num_meshlets = self.meshlets.read().unwrap().item_count();
-            let count = ((num_meshlets as u32 + NUM_COMMANDS_PER_GROUP - 1)
-                / NUM_COMMANDS_PER_GROUP) as usize;
+            let count = ((num_meshlets as u32 + ATOMIC_SIZE - 1) / ATOMIC_SIZE) as usize;
             self.culling_result.write().unwrap().set(vec![0u32; count]);
 
             self.binding_data
@@ -316,7 +315,7 @@ impl Pass for CullingPass {
             if commands.commands.is_empty() {
                 return;
             }
-            let count = (num_meshlets as u32 + NUM_COMMANDS_PER_GROUP - 1) / NUM_COMMANDS_PER_GROUP;
+            let count = (num_meshlets as u32 + ATOMIC_SIZE - 1) / ATOMIC_SIZE;
 
             let pass = self.compute_pass.get();
             let mut compute_pass =

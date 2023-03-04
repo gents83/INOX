@@ -176,6 +176,12 @@ macro_rules! declare_as_binding_vector {
 
         #[allow(dead_code)]
         impl $VecType {
+            pub fn data(&self) -> &[$Type] {
+                &self.data
+            }
+            pub fn data_mut(&mut self) -> &mut [$Type] {
+                &mut self.data
+            }
             pub fn set(&mut self, data: Vec<$Type>) -> &mut Self {
                 use $crate::AsBinding;
 

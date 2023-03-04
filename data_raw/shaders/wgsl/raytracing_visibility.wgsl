@@ -30,30 +30,18 @@ var<storage, read> bhv: BHV;
 var<storage, read> meshes_inverse_matrix: Matrices;
 @group(1) @binding(3)
 var<storage, read_write> rays: Rays;
+@group(1) @binding(4)
+var<storage, read_write> jobs: array<atomic<u32>>;
 
 @group(2) @binding(0)
-var render_target: texture_storage_2d<rgba8unorm, read_write>;
+var render_target: texture_storage_2d<rgba8unorm, write>;
 
 #import "matrix_utils.inc"
+#import "raytracing_jobs.inc"
 #import "raytracing.inc"
 
-@compute
-@workgroup_size(16, 16, 1)
-fn main(
-    @builtin(local_invocation_id) local_invocation_id: vec3<u32>, 
-    @builtin(local_invocation_index) local_invocation_index: u32, 
-    @builtin(global_invocation_id) global_invocation_id: vec3<u32>, 
-    @builtin(workgroup_id) workgroup_id: vec3<u32>
-) {
-    let dimensions = vec2<u32>(textureDimensions(render_target));
-    let pixel = vec2<u32>(workgroup_id.x * 16u + local_invocation_id.x, 
-                          workgroup_id.y * 16u + local_invocation_id.y);
-    if (pixel.x >= dimensions.x || pixel.y >= dimensions.y)
-    {
-        return;
-    }    
-    let index = pixel.y * dimensions.x + pixel.x;
-    let ray = &rays.data[index];
+fn execute_job(job_index: u32, dimensions: vec2<u32>) {    
+    let ray = &rays.data[job_index];
     var nearest = MAX_FLOAT;  
     var visibility_id = 0u;
     
@@ -83,6 +71,35 @@ fn main(
         }
         tlas_index = (*node).miss;
     } 
+        
+    let x = i32(job_index % dimensions.x);
+    let y = i32(job_index / dimensions.x); 
+    textureStore(render_target, vec2<i32>(x, y), unpack4x8unorm(visibility_id));
+}
+
+@compute
+@workgroup_size(16, 16, 1)
+fn main(
+    @builtin(local_invocation_id) local_invocation_id: vec3<u32>, 
+    @builtin(workgroup_id) workgroup_id: vec3<u32>
+) {
+    let dimensions = vec2<u32>(textureDimensions(render_target));
+    let atomic_count = arrayLength(&jobs);
     
-    textureStore(render_target, vec2<i32>(pixel), unpack4x8unorm(visibility_id));
+    let pixel = vec2<u32>(workgroup_id.x * 16u + local_invocation_id.x, 
+                          workgroup_id.y * 16u + local_invocation_id.y);
+    let total_job_index = pixel.y * dimensions.x + pixel.x;
+    //execute_job(total_job_index, dimensions);
+    
+    var atomic_index = i32(total_job_index / 32u);
+    let last_atomic = atomic_index + (16 * 16) / 32;
+    while (atomic_index >= 0 && atomic_index < last_atomic) {
+        let job_index = extract_job_index(u32(atomic_index));
+        if (job_index < 0) {
+            atomic_index = find_busy_atomic(u32(atomic_index), u32(last_atomic));
+            return;//continue;
+        }
+        execute_job(u32(atomic_index * 32 + job_index), dimensions);
+    }
+    
 }

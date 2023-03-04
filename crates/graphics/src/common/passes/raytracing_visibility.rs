@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
 use crate::{
-    BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, CullingResults, DrawCommandType, IndicesBuffer, MeshFlags, MeshesBuffer,
-    MeshesInverseMatrixBuffer, MeshletsBuffer, MeshletsCullingBuffer, OutputPass, Pass, RaysBuffer,
-    RenderContext, ShaderStage, Texture, TextureFormat, TextureId, TextureUsage, TextureView,
-    VertexPositionsBuffer, VerticesBuffer,
+    AsBinding, BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass,
+    ComputePassData, ConstantDataRw, CullingResults, DrawCommandType, IndicesBuffer, MeshFlags,
+    MeshesBuffer, MeshesInverseMatrixBuffer, MeshletsBuffer, MeshletsCullingBuffer, OutputPass,
+    Pass, RaysBuffer, RaytracingJobsBuffer, RenderContext, ShaderStage, Texture, TextureFormat,
+    TextureId, TextureUsage, TextureView, VertexPositionsBuffer, VerticesBuffer, ATOMIC_SIZE,
 };
 
 use inox_core::ContextRc;
@@ -33,6 +33,7 @@ pub struct RayTracingVisibilityPass {
     vertex_positions: VertexPositionsBuffer,
     render_target: Handle<Texture>,
     rays: RaysBuffer,
+    raytracing_jobs: RaytracingJobsBuffer,
 }
 unsafe impl Send for RayTracingVisibilityPass {}
 unsafe impl Sync for RayTracingVisibilityPass {}
@@ -85,6 +86,7 @@ impl Pass for RayTracingVisibilityPass {
             binding_data: BindingData::new(render_context, RAYTRACING_VISIBILITY_NAME),
             render_target: None,
             rays: render_context.render_buffers.rays.clone(),
+            raytracing_jobs: render_context.render_buffers.raytracing_jobs.clone(),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -92,6 +94,11 @@ impl Pass for RayTracingVisibilityPass {
 
         if self.render_target.is_none() || self.meshlets.read().unwrap().is_empty() {
             return;
+        }
+        {
+            let mut raytracing_jobs = self.raytracing_jobs.write().unwrap();
+            raytracing_jobs.data_mut().fill(u32::MAX);
+            raytracing_jobs.set_dirty(true);
         }
 
         self.binding_data
@@ -215,13 +222,23 @@ impl Pass for RayTracingVisibilityPass {
                     flags: BindingFlags::ReadWrite,
                 },
             )
+            .add_storage_buffer(
+                &mut *self.raytracing_jobs.write().unwrap(),
+                Some("Jobs"),
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 4,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::ReadWrite,
+                },
+            )
             .add_texture(
                 self.render_target.as_ref().unwrap().id(),
                 BindingInfo {
                     group_index: 2,
                     binding_index: 0,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                    flags: BindingFlags::Write | BindingFlags::Storage,
                 },
             );
 
@@ -238,30 +255,33 @@ impl Pass for RayTracingVisibilityPass {
         if self.render_target.is_none() || self.meshlets.read().unwrap().is_empty() {
             return;
         }
-        if let Some(render_target) = &self.render_target {
-            inox_profiler::scoped_profile!("raytracing_visibility_pass::update");
 
-            let pass = self.compute_pass.get();
-            let x_pixels_managed_in_shader = 16;
-            let y_pixels_managed_in_shader = 16;
-            let max_cluster_size = x_pixels_managed_in_shader.max(y_pixels_managed_in_shader);
-            let x = (max_cluster_size
-                * ((render_target.get().width() + max_cluster_size - 1) / max_cluster_size))
-                / x_pixels_managed_in_shader;
-            let y = (max_cluster_size
-                * ((render_target.get().height() + max_cluster_size - 1) / max_cluster_size))
-                / y_pixels_managed_in_shader;
+        inox_profiler::scoped_profile!("raytracing_visibility_pass::update");
 
-            let mut compute_pass =
-                pass.begin(render_context, &mut self.binding_data, command_buffer);
-            {
-                inox_profiler::gpu_scoped_profile!(
-                    &mut compute_pass,
-                    &render_context.core.device,
-                    "raytracing_visibility_pass",
-                );
-                pass.dispatch(render_context, compute_pass, x, y, 1);
-            }
+        let pass = self.compute_pass.get();
+        let x_pixels_managed_in_shader = 16u32;
+        let y_pixels_managed_in_shader = 16u32;
+        /*
+        let count = self.raytracing_jobs.read().unwrap().data().len() as u32;
+        let max_cluster_size =
+            (count / (x_pixels_managed_in_shader * y_pixels_managed_in_shader)).next_power_of_two();
+        let x = (max_cluster_size as f32).sqrt() as _;
+        let y = x;
+        */
+        let max_cluster_size = x_pixels_managed_in_shader.max(y_pixels_managed_in_shader);
+        let x = (max_cluster_size * ((960 + max_cluster_size - 1) / max_cluster_size))
+            / x_pixels_managed_in_shader;
+        let y = (max_cluster_size * ((540 + max_cluster_size - 1) / max_cluster_size))
+            / y_pixels_managed_in_shader;
+
+        let mut compute_pass = pass.begin(render_context, &mut self.binding_data, command_buffer);
+        {
+            inox_profiler::gpu_scoped_profile!(
+                &mut compute_pass,
+                &render_context.core.device,
+                "raytracing_visibility_pass",
+            );
+            pass.dispatch(render_context, compute_pass, x, y, 1);
         }
     }
 }
@@ -289,6 +309,12 @@ impl RayTracingVisibilityPass {
                 | TextureUsage::RenderAttachment
                 | TextureUsage::StorageBinding,
         ));
+        {
+            let dimensions = self.render_target.as_ref().unwrap().get().dimensions();
+            let count = (dimensions.0 * dimensions.1 / ATOMIC_SIZE).max(1);
+            let mut jobs = self.raytracing_jobs.write().unwrap();
+            jobs.set(vec![u32::MAX; count as usize]);
+        }
         self
     }
 }
