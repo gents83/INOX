@@ -72,7 +72,7 @@ fn execute_job(job_index: u32, dimensions: vec2<u32>) -> vec4<f32>  {
 }
 
 @compute
-@workgroup_size(16, 16, 1)
+@workgroup_size(8, 8, 1)
 fn main(
     @builtin(local_invocation_id) local_invocation_id: vec3<u32>, 
     @builtin(workgroup_id) workgroup_id: vec3<u32>
@@ -80,15 +80,15 @@ fn main(
     let dimensions = vec2<u32>(textureDimensions(render_target));
     let atomic_count = arrayLength(&jobs);
     
-    let pixel = vec2<u32>(workgroup_id.x * 16u + local_invocation_id.x, 
-                          workgroup_id.y * 16u + local_invocation_id.y);
+    let pixel = vec2<u32>(workgroup_id.x * 8u + local_invocation_id.x, 
+                          workgroup_id.y * 8u + local_invocation_id.y);
     let total_job_index = pixel.y * dimensions.x + pixel.x;
     let v = execute_job(total_job_index, dimensions);
     
     textureStore(render_target, vec2<i32>(i32(pixel.x), i32(pixel.y)), v);
     /*
     var atomic_index = i32(total_job_index / 32u);
-    let last_atomic = atomic_index + (16 * 16) / 32;
+    let last_atomic = atomic_index + (8 * 8) / 32;
     while (atomic_index >= 0 && atomic_index < last_atomic) {
         let job_index = extract_job_index(u32(atomic_index));
         if (job_index < 0) {

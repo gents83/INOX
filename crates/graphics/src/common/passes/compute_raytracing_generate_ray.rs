@@ -20,6 +20,7 @@ const RAYS_UID: Uid = generate_static_uid_from_string("RAYS");
 struct Data {
     width: u32,
     height: u32,
+    _padding: [u32; 2],
     is_dirty: bool,
 }
 
@@ -31,11 +32,14 @@ impl AsBinding for Data {
         self.is_dirty = is_dirty;
     }
     fn size(&self) -> u64 {
-        std::mem::size_of_val(&self.width) as u64 + std::mem::size_of_val(&self.height) as u64
+        std::mem::size_of_val(&self.width) as u64
+            + std::mem::size_of_val(&self.height) as u64
+            + std::mem::size_of_val(&self._padding) as u64
     }
     fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut GpuBuffer) {
         buffer.add_to_gpu_buffer(render_core_context, &[self.width]);
         buffer.add_to_gpu_buffer(render_core_context, &[self.height]);
+        buffer.add_to_gpu_buffer(render_core_context, &[self._padding]);
     }
 }
 
@@ -144,8 +148,8 @@ impl Pass for ComputeRayTracingGenerateRayPass {
         inox_profiler::scoped_profile!("raytracing_generate_ray_pass::update");
 
         let pass = self.compute_pass.get();
-        let x_pixels_managed_in_shader = 16;
-        let y_pixels_managed_in_shader = 16;
+        let x_pixels_managed_in_shader = 8;
+        let y_pixels_managed_in_shader = 8;
         let max_cluster_size = x_pixels_managed_in_shader.max(y_pixels_managed_in_shader);
         let x = (max_cluster_size * ((self.data.width + max_cluster_size - 1) / max_cluster_size))
             / x_pixels_managed_in_shader;

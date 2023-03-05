@@ -21,8 +21,8 @@ use crate::{config::Config, systems::viewer_system::ViewerSystem};
 const ADD_WIREFRAME_PASS: bool = true;
 const ADD_UI_PASS: bool = true;
 const ADD_CULLING_PASS: bool = true;
-const USE_COMPUTE_RAYTRACING: bool = false;
-const USE_RAYTRACING: bool = true;
+const USE_COMPUTE_RAYTRACING: bool = true;
+const USE_FRAGMENT_RAYTRACING: bool = false;
 const USE_LOW_PROFILE: bool = false;
 const USE_ALL_PASSES: bool = false;
 const USE_3DVIEW: bool = false;
@@ -151,7 +151,7 @@ impl Plugin for Viewer {
 
 impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &mut Renderer, width: u32, height: u32) {
-        if USE_RAYTRACING || USE_COMPUTE_RAYTRACING {
+        if USE_FRAGMENT_RAYTRACING || USE_COMPUTE_RAYTRACING {
             let raytracing_dimension = (width / 2, height / 2);
             if has_primitive_index_support() {
                 Self::create_culling_pass(context, renderer, ADD_CULLING_PASS);
@@ -178,27 +178,27 @@ impl Viewer {
                     raytracing_dimension.1,
                     USE_COMPUTE_RAYTRACING,
                 );
-            } else if USE_RAYTRACING {
+            } else if USE_FRAGMENT_RAYTRACING {
                 Self::create_compute_ray_generation_pass(
                     context,
                     renderer,
                     raytracing_dimension.0,
                     raytracing_dimension.1,
-                    USE_RAYTRACING,
+                    USE_FRAGMENT_RAYTRACING,
                 );
                 Self::create_raytracing_visibility_pass(
                     context,
                     renderer,
                     raytracing_dimension.0,
                     raytracing_dimension.1,
-                    USE_RAYTRACING,
+                    USE_FRAGMENT_RAYTRACING,
                 );
                 Self::create_compute_pbr_pass::<RayTracingVisibilityPass>(
                     context,
                     renderer,
                     raytracing_dimension.0,
                     raytracing_dimension.1,
-                    USE_RAYTRACING,
+                    USE_FRAGMENT_RAYTRACING,
                 );
             }
             Self::create_blit_pass::<ComputePbrPass>(context, renderer, true);

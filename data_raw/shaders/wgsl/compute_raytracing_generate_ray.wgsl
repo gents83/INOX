@@ -3,6 +3,7 @@
 struct Data {
     width: u32,
     height: u32,
+    _padding: vec2<u32>,
 };
 
 @group(0) @binding(0)
@@ -31,15 +32,14 @@ fn compute_ray(image_pixel: vec2<u32>, image_size: vec2<u32>) -> Ray {
 
 
 @compute
-@workgroup_size(16, 16, 1)
+@workgroup_size(8, 8, 1)
 fn main(
     @builtin(local_invocation_id) local_invocation_id: vec3<u32>, 
     @builtin(workgroup_id) workgroup_id: vec3<u32>
 ) {  
-    let pixel = vec2<u32>(workgroup_id.x * 16u + local_invocation_id.x, 
-                          workgroup_id.y * 16u + local_invocation_id.y);
-    if (pixel.x >= data.width || pixel.y >= data.height)
-    {
+    let pixel = vec2<u32>(workgroup_id.x * 8u + local_invocation_id.x, 
+                          workgroup_id.y * 8u + local_invocation_id.y);
+    if (pixel.x >= data.width || pixel.y >= data.height) {
         return;
     }    
     // Create a ray with the current fragment as the origin.

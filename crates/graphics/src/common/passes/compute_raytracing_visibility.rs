@@ -260,8 +260,8 @@ impl Pass for ComputeRayTracingVisibilityPass {
         inox_profiler::scoped_profile!("raytracing_visibility_pass::update");
 
         let pass = self.compute_pass.get();
-        let x_pixels_managed_in_shader = 16u32;
-        let y_pixels_managed_in_shader = 16u32;
+        let x_pixels_managed_in_shader = 8u32;
+        let y_pixels_managed_in_shader = 8u32;
         /*
         let count = self.raytracing_jobs.read().unwrap().data().len() as u32;
         let max_cluster_size =
@@ -269,10 +269,11 @@ impl Pass for ComputeRayTracingVisibilityPass {
         let x = (max_cluster_size as f32).sqrt() as _;
         let y = x;
         */
+        let dimensions = self.render_target.as_ref().unwrap().get().dimensions();
         let max_cluster_size = x_pixels_managed_in_shader.max(y_pixels_managed_in_shader);
-        let x = (max_cluster_size * ((960 + max_cluster_size - 1) / max_cluster_size))
+        let x = (max_cluster_size * ((dimensions.0 + max_cluster_size - 1) / max_cluster_size))
             / x_pixels_managed_in_shader;
-        let y = (max_cluster_size * ((540 + max_cluster_size - 1) / max_cluster_size))
+        let y = (max_cluster_size * ((dimensions.1 + max_cluster_size - 1) / max_cluster_size))
             / y_pixels_managed_in_shader;
 
         let mut compute_pass = pass.begin(render_context, &mut self.binding_data, command_buffer);
