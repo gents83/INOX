@@ -1,7 +1,14 @@
 #import "common.inc"
 
+struct Data {
+    width: u32,
+    height: u32,
+};
+
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
+@group(0) @binding(1)
+var<uniform> data: Data;
 
 @group(1) @binding(0)
 var<storage, read_write> rays: Rays;
@@ -28,15 +35,14 @@ fn compute_ray(image_pixel: vec2<u32>, image_size: vec2<u32>) -> Ray {
 fn main(
     @builtin(local_invocation_id) local_invocation_id: vec3<u32>, 
     @builtin(workgroup_id) workgroup_id: vec3<u32>
-) {
-    let dimensions = vec2<u32>(textureDimensions(render_target));    
+) {  
     let pixel = vec2<u32>(workgroup_id.x * 16u + local_invocation_id.x, 
                           workgroup_id.y * 16u + local_invocation_id.y);
-    if (pixel.x >= dimensions.x || pixel.y >= dimensions.y)
+    if (pixel.x >= data.width || pixel.y >= data.height)
     {
         return;
     }    
     // Create a ray with the current fragment as the origin.
-    let index = pixel.y * dimensions.x + pixel.x;
-    rays.data[index] = compute_ray(pixel, dimensions);
+    let index = pixel.y * data.width + pixel.x;
+    rays.data[index] = compute_ray(pixel, vec2<u32>(data.width, data.height));
 }

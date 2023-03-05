@@ -6,6 +6,7 @@ pub use self::compute_raytracing_visibility::*;
 pub use self::gbuffer::*;
 pub use self::pass::*;
 pub use self::pbr::*;
+pub use self::raytracing_visibility::*;
 pub use self::visibility::*;
 pub use self::wireframe::*;
 
@@ -17,5 +18,6 @@ pub mod compute_raytracing_visibility;
 pub mod gbuffer;
 pub mod pass;
 pub mod pbr;
+pub mod raytracing_visibility;
 pub mod visibility;
 pub mod wireframe;

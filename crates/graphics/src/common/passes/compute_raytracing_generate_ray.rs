@@ -1,14 +1,14 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DrawCommandType, DrawRay, MeshFlags, OutputPass, Pass, RaysBuffer,
-    RenderContext, ShaderStage, Texture, TextureId, TextureView,
+    AsBinding, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
+    ConstantDataRw, DrawCommandType, DrawRay, GpuBuffer, MeshFlags, Pass, RaysBuffer,
+    RenderContext, RenderCoreContext, ShaderStage, TextureView,
 };
 
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
-use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid, INVALID_UID};
+use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
 pub const COMPUTE_RAYTRACING_GENERATE_RAY_PIPELINE: &str =
     "pipelines/ComputeRayTracingGenerateRay.compute_pipeline";
@@ -16,13 +16,34 @@ pub const COMPUTE_RAYTRACING_GENERATE_RAY_NAME: &str = "ComputeRayTracingGenerat
 
 const RAYS_UID: Uid = generate_static_uid_from_string("RAYS");
 
+#[derive(Default)]
+struct Data {
+    width: u32,
+    height: u32,
+    is_dirty: bool,
+}
+
+impl AsBinding for Data {
+    fn is_dirty(&self) -> bool {
+        self.is_dirty
+    }
+    fn set_dirty(&mut self, is_dirty: bool) {
+        self.is_dirty = is_dirty;
+    }
+    fn size(&self) -> u64 {
+        std::mem::size_of_val(&self.width) as u64 + std::mem::size_of_val(&self.height) as u64
+    }
+    fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut GpuBuffer) {
+        buffer.add_to_gpu_buffer(render_core_context, &[self.width]);
+        buffer.add_to_gpu_buffer(render_core_context, &[self.height]);
+    }
+}
+
 pub struct ComputeRayTracingGenerateRayPass {
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    render_target_id: TextureId,
-    width: u32,
-    height: u32,
+    data: Data,
     rays: RaysBuffer,
 }
 unsafe impl Send for ComputeRayTracingGenerateRayPass {}
@@ -64,15 +85,13 @@ impl Pass for ComputeRayTracingGenerateRayPass {
             constant_data: render_context.constant_data.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_RAYTRACING_GENERATE_RAY_NAME),
             rays: render_context.render_buffers.rays.clone(),
-            width: 0,
-            height: 0,
-            render_target_id: INVALID_UID,
+            data: Data::default(),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("raytracing_generate_ray_pass::init");
 
-        if self.render_target_id.is_nil() {
+        if self.data.width == 0 || self.data.height == 0 {
             return;
         }
 
@@ -87,6 +106,16 @@ impl Pass for ComputeRayTracingGenerateRayPass {
                     ..Default::default()
                 },
             )
+            .add_uniform_buffer(
+                &mut self.data,
+                Some("Data"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 1,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
             .add_storage_buffer(
                 &mut *self.rays.write().unwrap(),
                 Some("Rays"),
@@ -95,15 +124,6 @@ impl Pass for ComputeRayTracingGenerateRayPass {
                     binding_index: 0,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite,
-                },
-            )
-            .add_texture(
-                &self.render_target_id,
-                BindingInfo {
-                    group_index: 2,
-                    binding_index: 0,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Read | BindingFlags::Storage,
                 },
             );
 
@@ -117,7 +137,7 @@ impl Pass for ComputeRayTracingGenerateRayPass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        if self.render_target_id.is_nil() || self.rays.read().unwrap().is_empty() {
+        if self.data.width == 0 || self.data.height == 0 {
             return;
         }
 
@@ -127,9 +147,9 @@ impl Pass for ComputeRayTracingGenerateRayPass {
         let x_pixels_managed_in_shader = 16;
         let y_pixels_managed_in_shader = 16;
         let max_cluster_size = x_pixels_managed_in_shader.max(y_pixels_managed_in_shader);
-        let x = (max_cluster_size * ((self.width + max_cluster_size - 1) / max_cluster_size))
+        let x = (max_cluster_size * ((self.data.width + max_cluster_size - 1) / max_cluster_size))
             / x_pixels_managed_in_shader;
-        let y = (max_cluster_size * ((self.height + max_cluster_size - 1) / max_cluster_size))
+        let y = (max_cluster_size * ((self.data.height + max_cluster_size - 1) / max_cluster_size))
             / y_pixels_managed_in_shader;
 
         let mut compute_pass = pass.begin(render_context, &mut self.binding_data, command_buffer);
@@ -144,20 +164,14 @@ impl Pass for ComputeRayTracingGenerateRayPass {
     }
 }
 
-impl OutputPass for ComputeRayTracingGenerateRayPass {
-    fn render_targets_id(&self) -> Vec<TextureId> {
-        [self.render_target_id].to_vec()
-    }
-}
-
 impl ComputeRayTracingGenerateRayPass {
-    pub fn use_render_target(&mut self, texture: &Resource<Texture>) -> &mut Self {
-        self.render_target_id = *texture.id();
-        self.width = texture.get().width();
-        self.height = texture.get().height();
+    pub fn set_dimensions(&mut self, width: u32, height: u32) -> &mut Self {
+        self.data.width = width;
+        self.data.height = height;
+        self.data.set_dirty(true);
         {
             let mut rays = self.rays.write().unwrap();
-            let ray_data = vec![DrawRay::default(); (self.width * self.height) as usize];
+            let ray_data = vec![DrawRay::default(); (self.data.width * self.data.height) as usize];
             rays.allocate(&RAYS_UID, ray_data.as_ref());
         }
         self
