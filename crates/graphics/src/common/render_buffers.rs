@@ -113,11 +113,7 @@ impl RenderBuffers {
             inox_log::debug_log!("No meshlet data for mesh {:?}", mesh_id);
         }
 
-        let bhv = BHVTree::new(&meshlets_aabbs)/*.sort_by(|a, b| {
-            let c1 = a.min() + (a.max() - a.min()) * 0.5;
-            let c2 = b.min() + (b.max() - b.min()) * 0.5;
-            c1.z.partial_cmp(&c2.z).unwrap()
-        })*/;
+        let bhv = BHVTree::new(&meshlets_aabbs);
         let linearized_bhv = create_linearized_bhv(&bhv);
         let mesh_bhv_range = self
             .bhv
