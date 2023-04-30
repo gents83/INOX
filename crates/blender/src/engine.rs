@@ -112,8 +112,8 @@ impl INOXEngine {
             let string = "-plugin ".to_string() + plugin;
             command.arg(string);
         });
-        command.arg("-plugin inox_connector");
-        command.arg("-plugin inox_viewer");
+        command.args(["-plugin", "inox_connector"]);
+        command.args(["-plugin", "inox_viewer"]);
         command.current_dir(self.working_dir.as_path());
 
         if let Ok(process) = command.spawn() {

@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{cmp::Ordering, fmt::Debug};
 
 use inox_math::Vector3;
 
@@ -80,6 +80,34 @@ impl BHVTree {
         }
         tree
     }
+    pub fn sort_by<F>(mut self, mut f: F) -> Self
+    where
+        F: FnMut(&BHVNode, &BHVNode) -> Ordering,
+    {
+        let mut nodes: Vec<(usize, BHVNode)> = self
+            .nodes
+            .iter()
+            .enumerate()
+            .map(|(i, n)| (i, *n))
+            .collect();
+        nodes.sort_by(|(_, a), (_, b)| f(a, b));
+
+        // Update the node indices
+        for (new_index, (old_index, _)) in nodes.iter().enumerate() {
+            self.nodes.iter_mut().for_each(|n| {
+                if n.parent == *old_index as _ {
+                    n.parent = new_index as _;
+                }
+                if n.left == *old_index as _ {
+                    n.left = new_index as _;
+                }
+                if n.right == *old_index as _ {
+                    n.right = new_index as _;
+                }
+            });
+        }
+        self
+    }
     pub fn nodes(&self) -> &[BHVNode] {
         &self.nodes
     }
@@ -87,7 +115,7 @@ impl BHVTree {
         &mut self.nodes
     }
     fn add(&mut self, parent_aabb: &AABB, parent_index: usize, list: &[AABB]) {
-        let (mut left_group, mut right_group) = Partition::compute(parent_aabb, list);
+        let (mut left_group, mut right_group) = Partition::compute_sah(parent_aabb, list);
 
         let left_aabb = if left_group.len() > 1 {
             AABB::compute_aabb(&left_group)

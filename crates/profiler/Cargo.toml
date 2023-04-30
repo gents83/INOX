@@ -16,7 +16,7 @@ serde_json.workspace = true
 inox_filesystem = { path = "../filesystem" }
 inox_log = { path = "../log" }
 inox_platform = { path = "../platform" }
-wgpu = { path = "../../extern/wgpu/wgpu", optional = true }
+wgpu = { workspace = true, optional = true }
 wgpu-profiler = { workspace = true, optional = true }
 superluminal-perf = { workspace = true, optional = true }
 

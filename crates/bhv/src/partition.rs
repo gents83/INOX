@@ -1,4 +1,4 @@
-use inox_math::{VecBase, Vector3};
+use inox_math::{Vector3};
 
 use crate::{AABB, AXIS_COUNT};
 
@@ -19,154 +19,51 @@ impl Partition {
     fn size(&self) -> Vector3 {
         self.container.size()
     }
-    pub fn compute(container: &AABB, list: &[AABB]) -> (Vec<AABB>, Vec<AABB>) {
-        let (partition, splice_size) = {
-            let (partition, splice_size) = Partition::compute_csh(container, list);
-            if Self::validate_partition(&partition) {
-                (partition, splice_size)
-            } else {
-                Partition::compute_cdh(container, list)
+    fn calculate_sah(container: &AABB, aabbs: &[AABB], split_index: usize) -> f32 {
+        let mut left_aabb = AABB::default();
+        let mut right_aabb = AABB::default();
+
+        (0..split_index).for_each(|i| {
+            left_aabb.expand_to_include(&aabbs[i]);
+        });
+        (split_index..aabbs.len()).for_each(|i| {
+            right_aabb.expand_to_include(&aabbs[i]);
+        });
+        let left_area = left_aabb.surface_area();
+        let right_area = right_aabb.surface_area();
+        let total_area = container.surface_area();
+
+        0.125
+            + (left_area * split_index as f32 + right_area * (aabbs.len() - split_index) as f32)
+                / total_area
+    }
+    fn find_best_split(container: &AABB, aabbs: &[AABB], axis: usize) -> (usize, f32) {
+        let mut sorted_aabbs = aabbs.to_vec();
+        sorted_aabbs.sort_by(|a, b| a.center()[axis].partial_cmp(&b.center()[axis]).unwrap());
+
+        let mut best_split = 0;
+        let mut best_sah = f32::INFINITY;
+        for i in 0..sorted_aabbs.len() - 1 {
+            let sah = Self::calculate_sah(container, &sorted_aabbs, i + 1);
+
+            if sah < best_sah {
+                best_split = i + 1;
+                best_sah = sah;
             }
-        };
-        if Self::validate_partition(&partition) {
-            let (left_group, right_group) = Self::compute_sah(&partition, splice_size);
-            (left_group, right_group)
-        } else {
-            //simple sorting from left to right and splitting in half then
-            let mut list = list.to_vec();
-            list.sort_by(|a, b| {
-                a.min()
-                    .x
-                    .min(a.max().x)
-                    .partial_cmp(&b.min().x.min(b.max().x))
-                    .unwrap()
-            });
-            let mut left_group = Vec::new();
-            let mut right_group = Vec::new();
-            list.iter().enumerate().for_each(|(i, aabb)| {
-                if i < list.len() / 2 {
-                    left_group.push(*aabb);
-                } else {
-                    right_group.push(*aabb);
-                }
-            });
-            (left_group, right_group)
         }
-    }
-    fn validate_partition(partition: &[[Partition; SPLIT_COUNT]; AXIS_COUNT]) -> bool {
-        let mut is_valid = true;
-        (0..SPLIT_COUNT).for_each(|split| {
-            is_valid &= (0..AXIS_COUNT).all(|axis| !partition[axis][split].nodes.is_empty());
-        });
-        is_valid
-    }
-    fn create_partition(
-        list: &[AABB],
-        splice_size: Vector3,
-        min: Vector3,
-    ) -> [[Partition; SPLIT_COUNT]; AXIS_COUNT] {
-        const EPSILON: f32 = 0.0001;
-        let mut partition: [[Partition; SPLIT_COUNT]; AXIS_COUNT] = Default::default();
-        list.iter().for_each(|aabb| {
-            let center = aabb.min() + aabb.size() / 2.;
-            let mut is_assigned = [false; AXIS_COUNT];
-            let mut centroid = min;
-            (0..SPLIT_COUNT).for_each(|split| {
-                let split_min = centroid;
-                centroid += splice_size;
-                let split_max = centroid;
-                (0..AXIS_COUNT).for_each(|axis| {
-                    if !is_assigned[axis]
-                        && ((split == 0
-                            && center[axis] >= (split_min[axis] - EPSILON)
-                            && center[axis] <= split_max[axis])
-                            || (split == (AXIS_COUNT - 1)
-                                && center[axis] > split_min[axis]
-                                && center[axis] <= (split_max[axis] + EPSILON))
-                            || (center[axis] > split_min[axis] && center[axis] <= split_max[axis]))
-                    {
-                        partition[axis][split].add(aabb);
-                        is_assigned[axis] = true;
-                    }
-                });
-            });
-        });
-        partition
-    }
-    //centroid distance heuristic
-    fn compute_cdh(
-        container: &AABB,
-        list: &[AABB],
-    ) -> ([[Partition; SPLIT_COUNT]; AXIS_COUNT], Vector3) {
-        let mut min = container.max().max(container.min());
-        let mut max = container.min().min(container.max());
-        list.iter().for_each(|aabb| {
-            min = min.min(aabb.center()).min(max);
-            max = max.max(aabb.center()).max(min);
-        });
-        let splice_size = (max - min) / (SPLIT_COUNT as f32);
-        let partition = Self::create_partition(list, splice_size, min);
-        (partition, splice_size)
-    }
-    //container space heuristic
-    fn compute_csh(
-        container: &AABB,
-        list: &[AABB],
-    ) -> ([[Partition; SPLIT_COUNT]; AXIS_COUNT], Vector3) {
-        let splice_size = container.size() / (SPLIT_COUNT as f32);
-        let partition = Self::create_partition(list, splice_size, container.min());
-        (partition, splice_size)
+        (best_split, best_sah)
     }
     //screen area heuristic
-    fn compute_sah(
-        partition: &[[Partition; SPLIT_COUNT]; AXIS_COUNT],
-        splice_size: Vector3,
-    ) -> (Vec<AABB>, Vec<AABB>) {
-        let mut ratio_diff = [[0_f32; SPLIT_COUNT - 1]; AXIS_COUNT];
-        (0..AXIS_COUNT).for_each(|axis| {
-            (0..SPLIT_COUNT - 1).for_each(|split| {
-                let mut left_ratio = 0_f32;
-                for split_index in 0..(split + 1) {
-                    let partition_size = partition[axis][split_index].size();
-                    left_ratio += partition_size[axis] / splice_size[axis];
-                }
-                let mut right_ratio = 0_f32;
-                for split_index in (split + 1)..SPLIT_COUNT {
-                    let partition_size = partition[axis][split_index].size();
-                    right_ratio += partition_size[axis] / splice_size[axis];
-                }
-                ratio_diff[axis][split] = (left_ratio - right_ratio).max(right_ratio - left_ratio);
-            });
-        });
-        let mut best_separation_axis = 0;
-        let mut best_separation_axis_split = 0;
-        let reference_diff = f32::MAX;
-        (0..AXIS_COUNT).for_each(|axis| {
-            let mut axis_diff = f32::MAX;
-            let mut best_split = 0;
-            (0..SPLIT_COUNT - 1).for_each(|split| {
-                if ratio_diff[axis][split] < axis_diff {
-                    axis_diff = ratio_diff[axis][split];
-                    best_split = split;
-                }
-            });
-            if axis_diff < reference_diff {
-                best_separation_axis = axis;
-                best_separation_axis_split = best_split;
-            }
-        });
-        let mut left_nodes = Vec::new();
-        let mut right_nodes = Vec::new();
-        partition[best_separation_axis]
-            .iter()
-            .enumerate()
-            .for_each(|(index, partition)| {
-                if index <= best_separation_axis_split {
-                    left_nodes.extend_from_slice(&partition.nodes);
-                } else {
-                    right_nodes.extend_from_slice(&partition.nodes);
-                }
-            });
-        (left_nodes, right_nodes)
+    pub fn compute_sah(container: &AABB, list: &[AABB]) -> (Vec<AABB>, Vec<AABB>) {
+        let (best_axis, _) = (0..AXIS_COUNT)
+            .map(|axis| (axis, Self::find_best_split(container, list, axis).1))
+            .min_by(|(_, cost1), (_, cost2)| cost1.partial_cmp(cost2).unwrap())
+            .unwrap();
+        let (split_index, _) = Self::find_best_split(container, list, best_axis);
+
+        let mut aabbs = list.to_vec();
+        aabbs.swap(split_index, list.len() - 1);
+        let (left, right) = aabbs.split_at_mut(split_index);
+        (left.to_vec(), right.to_vec())
     }
 }

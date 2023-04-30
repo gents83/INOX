@@ -17,18 +17,13 @@ pub enum NodeExecutionType {
     Continuous,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Default, Clone, PartialEq, Eq, Hash)]
 pub enum NodeState {
+    #[default]
     Active,
     Running(Option<Vec<PinId>>),
     Executed(Option<Vec<PinId>>),
 }
-impl Default for NodeState {
-    fn default() -> Self {
-        NodeState::Active
-    }
-}
-
 pub type NodeId = Uid;
 
 #[inox_serializable::serializable(tag = "node_type")]

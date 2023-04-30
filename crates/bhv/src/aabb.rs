@@ -63,4 +63,11 @@ impl AABB {
         self.max = self.max.max(other.max).max(other.min);
         self.min = self.min.min(other.min).min(other.max);
     }
+    pub fn surface_area(&self) -> f32 {
+        let extent = self.max - self.min;
+        let x = extent.x;
+        let y = extent.y;
+        let z = extent.z;
+        2.0 * (x * y + y * z + z * x)
+    }
 }

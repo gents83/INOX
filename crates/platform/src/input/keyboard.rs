@@ -10,7 +10,7 @@ use super::state::*;
 // Please refer to
 // https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values
 
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
+#[derive(Default, Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
 #[repr(u32)]
 pub enum Key {
     /// The '1' key over the letters.
@@ -70,6 +70,7 @@ pub enum Key {
     Numpad8,
     Numpad9,
     /** The user agent wasn't able to map the event's virtual keycode to a specific key value. This can happen due to hardware or software constraints, or because of constraints around the platform on which the user agent is running. */
+    #[default]
     Unidentified,
     /** The Alt (Alternative) key. */
     Alt,
@@ -783,13 +784,6 @@ impl Default for KeyEvent {
             code: Key::Unidentified,
             state: InputState::Invalid,
         }
-    }
-}
-
-impl Default for Key {
-    #[inline]
-    fn default() -> Self {
-        Key::Unidentified
     }
 }
 
