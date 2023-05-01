@@ -87,7 +87,7 @@ impl BHVTree {
         &mut self.nodes
     }
     fn add(&mut self, parent_aabb: &AABB, parent_index: usize, list: &[AABB]) {
-        let (mut left_group, mut right_group) = Partition::compute(parent_aabb, list);
+        let (mut left_group, mut right_group) = Partition::compute_sah(parent_aabb, list);
 
         let left_aabb = if left_group.len() > 1 {
             AABB::compute_aabb(&left_group)

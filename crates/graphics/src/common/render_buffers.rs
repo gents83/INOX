@@ -17,7 +17,7 @@ use crate::{
     TextureType, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS,
 };
 
-declare_as_binding_vector!(VecVisibleDrawData, u32);
+declare_as_binding_vector!(VecU32, u32);
 
 pub type TexturesBuffer = Arc<RwLock<HashBuffer<TextureId, TextureInfo, 0>>>;
 pub type LightsBuffer = Arc<RwLock<HashBuffer<LightId, LightData, 0>>>;
@@ -35,11 +35,12 @@ pub type VertexPositionsBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32] (1
 pub type VertexColorsBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32] (rgba)
 pub type VertexNormalsBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32] (10 x, 10 y, 10 z, 2 null)
 pub type VertexUVsBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32] (2 half)
+pub type CullingResults = Arc<RwLock<VecU32>>;
+
 pub type RaysBuffer = Arc<RwLock<Buffer<DrawRay>>>;
-pub type CullingResults = Arc<RwLock<VecVisibleDrawData>>;
 
 const TLAS_UID: Uid = generate_static_uid_from_string("TLAS");
-pub const NUM_COMMANDS_PER_GROUP: u32 = 32;
+pub const ATOMIC_SIZE: u32 = 32;
 
 //Alignment should be 4, 8, 16 or 32 bytes
 #[derive(Default)]
@@ -247,8 +248,7 @@ impl RenderBuffers {
     }
     fn update_culling_data(&self) {
         let num_meshlets = self.meshlets.read().unwrap().item_count();
-        let count =
-            ((num_meshlets as u32 + NUM_COMMANDS_PER_GROUP - 1) / NUM_COMMANDS_PER_GROUP) as usize;
+        let count = ((num_meshlets as u32 + ATOMIC_SIZE - 1) / ATOMIC_SIZE) as usize;
         self.culling_result
             .write()
             .unwrap()
@@ -274,7 +274,11 @@ impl RenderBuffers {
                 meshes_aabbs.push(aabb);
             });
         }
-        let bhv = BHVTree::new(&meshes_aabbs);
+        let bhv = BHVTree::new(&meshes_aabbs)/*.sort_by(|a, b| {
+            let c1 = a.min() + (a.max() - a.min()) * 0.5;
+            let c2 = b.min() + (b.max() - b.min()) * 0.5;
+            c1.z.partial_cmp(&c2.z).unwrap()
+        })*/;
         let linearized_bhv = create_linearized_bhv(&bhv);
         let mut tlas = self.tlas.write().unwrap();
         tlas.allocate(&TLAS_UID, &linearized_bhv);

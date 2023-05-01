@@ -1,4 +1,3 @@
-
 fn quantize_unorm(v: f32, n: u32) -> u32 {
     let scale = f32((1 << n) - 1);
     return u32(0.5 + (v * scale));

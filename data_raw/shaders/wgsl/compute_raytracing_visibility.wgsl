@@ -1,14 +1,8 @@
 #import "utils.inc"
 #import "common.inc"
 
-struct Data {
-    width: u32,
-    height: u32,
-};
-
-
 @group(0) @binding(0)
-var<uniform> data: Data;
+var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
 var<storage, read> indices: Indices;
 @group(0) @binding(2)
@@ -24,6 +18,16 @@ var<storage, read> meshlets_culling: MeshletsCulling;
 @group(0) @binding(7)
 var<storage, read> culling_result: array<atomic<u32>>;
 
+
+
+struct Job {
+    state: u32,
+    tlas_index: i32,
+    blas_index: i32,
+    nearest: f32,
+    visibility_id: u32,
+};
+
 @group(1) @binding(0)
 var<storage, read> tlas: BHV;
 @group(1) @binding(1)
@@ -31,12 +35,18 @@ var<storage, read> bhv: BHV;
 @group(1) @binding(2)
 var<storage, read> meshes_inverse_matrix: Matrices;
 @group(1) @binding(3)
-var<storage, read> rays: Rays;
+var<storage, read_write> rays: Rays;
+@group(1) @binding(4)
+var<storage, read_write> jobs_count: atomic<i32>;
 
+@group(2) @binding(0)
+var render_target: texture_storage_2d<rgba8unorm, write>;
+
+#import "matrix_utils.inc"
 #import "raytracing.inc"
 
 
-fn execute_job(job_index: u32, dimensions: vec2<u32>) -> vec4<f32> {    
+fn execute_job(job_index: u32) -> vec4<f32>  {    
     var ray = rays.data[job_index];
     var nearest = MAX_FLOAT;  
     var visibility_id = 0u;
@@ -70,33 +80,21 @@ fn execute_job(job_index: u32, dimensions: vec2<u32>) -> vec4<f32> {
     return unpack4x8unorm(visibility_id);
 }
 
-struct VertexOutput {
-    @builtin(position) clip_position: vec4<f32>,
-    @location(0) uv: vec2<f32>,
-};
 
-struct FragmentOutput {
-    @location(0) color: vec4<f32>,
-};
-
-@vertex
-fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
-    //only one triangle, exceeding the viewport size
-    let uv = vec2<f32>(f32((in_vertex_index << 1u) & 2u), f32(in_vertex_index & 2u));
-    let pos = vec4<f32>(uv * vec2<f32>(2., -2.) + vec2<f32>(-1., 1.), 0., 1.);
-
-    var vertex_out: VertexOutput;
-    vertex_out.clip_position = pos;
-    vertex_out.uv = uv;
-    return vertex_out;
-}
-
-@fragment
-fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
-    let pixel = vec2<u32>(u32(v_in.uv.x * f32(data.width)), u32(v_in.uv.y * f32(data.height)));
-
-    let total_job_index = pixel.y * data.width + pixel.x;
-    
-    let texture_color = execute_job(total_job_index, vec2<u32>(data.width, data.height));
-    return texture_color;
+@compute
+@workgroup_size(8, 8, 1)
+fn main(
+    @builtin(local_invocation_id) local_invocation_id: vec3<u32>, 
+    @builtin(workgroup_id) workgroup_id: vec3<u32>
+) {
+    let dimensions = vec2<u32>(textureDimensions(render_target));
+    var job_index = atomicSub(&jobs_count, 1) - 1;
+    while(job_index >= 0)
+    {
+        let v = execute_job(u32(job_index));
+        let x = job_index % i32(dimensions.x);
+        let y = job_index / i32(dimensions.x);
+        textureStore(render_target, vec2<i32>(x, y), v);
+        job_index = atomicSub(&jobs_count, 1);
+    }
 }

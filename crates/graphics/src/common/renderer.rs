@@ -127,6 +127,19 @@ impl Renderer {
         }
         None
     }
+    pub fn pass_mut<T>(&mut self) -> Option<&mut T>
+    where
+        T: Pass,
+    {
+        if let Some(p) = self
+            .passes
+            .iter_mut()
+            .find(|(pass, _)| pass.name() == T::static_name())
+        {
+            return p.0.downcast_mut::<T>();
+        }
+        None
+    }
 
     pub fn add_pass(&mut self, pass: impl Pass, is_enabled: bool) -> &mut Self {
         self.passes.push((Box::new(pass), is_enabled));

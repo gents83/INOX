@@ -2,21 +2,15 @@ use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
 pub const SHADER_EXTENSION: &str = "shader";
 
-#[derive(Clone, Copy)]
+#[derive(Default, Clone, Copy)]
 pub enum ShaderStage {
+    #[default]
     None,
     Vertex,
     Fragment,
     Compute,
     VertexAndFragment,
 }
-
-impl Default for ShaderStage {
-    fn default() -> Self {
-        ShaderStage::None
-    }
-}
-
 impl From<ShaderStage> for wgpu::ShaderStages {
     fn from(val: ShaderStage) -> Self {
         match val {

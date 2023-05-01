@@ -1,5 +1,3 @@
-use std::num::NonZeroU32;
-
 use wgpu::util::DeviceExt;
 
 use crate::{TextureFormat, TextureId};
@@ -145,8 +143,8 @@ impl GpuTexture {
                 buffer: &buffer,
                 layout: wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: NonZeroU32::new(pixel_size * area.width + padding),
-                    rows_per_image: NonZeroU32::new(area.height),
+                    bytes_per_row: Some(pixel_size * area.width + padding),
+                    rows_per_image: Some(area.height),
                 },
             },
             wgpu::ImageCopyTexture {

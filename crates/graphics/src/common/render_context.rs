@@ -71,16 +71,8 @@ pub struct RenderContext {
 pub type RenderContextRw = Arc<RwLock<RenderContext>>;
 
 impl RenderContext {
-    #[cfg(all(not(target_arch = "wasm32")))]
     fn create_surface(instance: &wgpu::Instance, handle: &Handle) -> wgpu::Surface {
         unsafe { instance.create_surface(&handle).unwrap() }
-    }
-    #[cfg(target_arch = "wasm32")]
-    fn create_surface(instance: &wgpu::Instance, handle: &Handle) -> wgpu::Surface {
-        let canvas = handle.handle_impl.canvas();
-        instance
-            .create_surface_from_canvas(&canvas)
-            .expect("Could not create surface from canvas")
     }
 
     pub async fn create_render_context<F>(handle: Handle, renderer: RendererRw, on_create_func: F)

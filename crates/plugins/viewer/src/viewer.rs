@@ -4,11 +4,11 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
     platform::has_primitive_index_support, rendering_system::RenderingSystem,
-    update_system::UpdateSystem, BlitPass, ComputePbrPass, CullingPass, GBufferPass, LoadOperation,
-    OutputPass, OutputRenderPass, PBRPass, Pass, RayTracingGenerateRayPass,
-    RayTracingVisibilityPass, RenderPass, RenderTarget, Renderer, RendererRw, TextureFormat,
-    VisibilityBufferPass, WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH, GBUFFER_PASS_NAME,
-    WIREFRAME_PASS_NAME,
+    update_system::UpdateSystem, BlitPass, ComputePbrPass, ComputeRayTracingGenerateRayPass,
+    ComputeRayTracingVisibilityPass, CullingPass, GBufferPass, LoadOperation, OutputPass,
+    OutputRenderPass, PBRPass, Pass, RayTracingVisibilityPass, RenderPass, RenderTarget, Renderer,
+    RendererRw, TextureFormat, VisibilityBufferPass, WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    GBUFFER_PASS_NAME, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -21,7 +21,8 @@ use crate::{config::Config, systems::viewer_system::ViewerSystem};
 const ADD_WIREFRAME_PASS: bool = true;
 const ADD_UI_PASS: bool = true;
 const ADD_CULLING_PASS: bool = true;
-const USE_RAYTRACING: bool = true;
+const USE_COMPUTE_RAYTRACING: bool = true;
+const USE_FRAGMENT_RAYTRACING: bool = false;
 const USE_LOW_PROFILE: bool = false;
 const USE_ALL_PASSES: bool = false;
 const USE_3DVIEW: bool = false;
@@ -150,26 +151,56 @@ impl Plugin for Viewer {
 
 impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &mut Renderer, width: u32, height: u32) {
-        if USE_RAYTRACING {
+        if USE_FRAGMENT_RAYTRACING || USE_COMPUTE_RAYTRACING {
             let raytracing_dimension = (width / 2, height / 2);
             if has_primitive_index_support() {
                 Self::create_culling_pass(context, renderer, ADD_CULLING_PASS);
             }
-            Self::create_raytracing_pass(
-                context,
-                renderer,
-                raytracing_dimension.0,
-                raytracing_dimension.1,
-                true,
-            );
-            //Self::create_blit_pass::<RayTracingVisibilityPass>(context, renderer, true);
-            Self::create_compute_pbr_pass::<RayTracingVisibilityPass>(
-                context,
-                renderer,
-                raytracing_dimension.0,
-                raytracing_dimension.1,
-                true,
-            );
+            if USE_COMPUTE_RAYTRACING {
+                Self::create_compute_ray_generation_pass(
+                    context,
+                    renderer,
+                    raytracing_dimension.0,
+                    raytracing_dimension.1,
+                    USE_COMPUTE_RAYTRACING,
+                );
+                Self::create_compute_raytracing_pass(
+                    context,
+                    renderer,
+                    raytracing_dimension.0,
+                    raytracing_dimension.1,
+                    USE_COMPUTE_RAYTRACING,
+                );
+                Self::create_compute_pbr_pass::<ComputeRayTracingVisibilityPass>(
+                    context,
+                    renderer,
+                    raytracing_dimension.0,
+                    raytracing_dimension.1,
+                    USE_COMPUTE_RAYTRACING,
+                );
+            } else if USE_FRAGMENT_RAYTRACING {
+                Self::create_compute_ray_generation_pass(
+                    context,
+                    renderer,
+                    raytracing_dimension.0,
+                    raytracing_dimension.1,
+                    USE_FRAGMENT_RAYTRACING,
+                );
+                Self::create_raytracing_visibility_pass(
+                    context,
+                    renderer,
+                    raytracing_dimension.0,
+                    raytracing_dimension.1,
+                    USE_FRAGMENT_RAYTRACING,
+                );
+                Self::create_compute_pbr_pass::<RayTracingVisibilityPass>(
+                    context,
+                    renderer,
+                    raytracing_dimension.0,
+                    raytracing_dimension.1,
+                    USE_FRAGMENT_RAYTRACING,
+                );
+            }
             Self::create_blit_pass::<ComputePbrPass>(context, renderer, true);
         } else {
             if USE_LOW_PROFILE || USE_ALL_PASSES || !has_primitive_index_support() {
@@ -292,7 +323,34 @@ impl Viewer {
             });
         renderer.add_pass(visibility_pass, is_enabled);
     }
-    fn create_raytracing_pass(
+    fn create_raytracing_visibility_pass(
+        context: &ContextRc,
+        renderer: &mut Renderer,
+        width: u32,
+        height: u32,
+        is_enabled: bool,
+    ) {
+        let mut raytracing_visibility_pass =
+            RayTracingVisibilityPass::create(context, &renderer.render_context());
+        raytracing_visibility_pass
+            .render_pass()
+            .get_mut()
+            .add_render_target(RenderTarget::Texture {
+                width,
+                height,
+                format: TextureFormat::Rgba8UnormSrgb,
+                read_back: false,
+            })
+            .add_depth_target(RenderTarget::Texture {
+                width,
+                height,
+                format: TextureFormat::Depth32Float,
+                read_back: false,
+            });
+        raytracing_visibility_pass.set_resolution(width, height);
+        renderer.add_pass(raytracing_visibility_pass, is_enabled);
+    }
+    fn create_compute_ray_generation_pass(
         context: &ContextRc,
         renderer: &mut Renderer,
         width: u32,
@@ -300,17 +358,21 @@ impl Viewer {
         is_enabled: bool,
     ) {
         let mut compute_generate_ray_pass =
-            RayTracingGenerateRayPass::create(context, &renderer.render_context());
+            ComputeRayTracingGenerateRayPass::create(context, &renderer.render_context());
+        compute_generate_ray_pass.set_dimensions(width, height);
+        renderer.add_pass(compute_generate_ray_pass, is_enabled);
+    }
+    fn create_compute_raytracing_pass(
+        context: &ContextRc,
+        renderer: &mut Renderer,
+        width: u32,
+        height: u32,
+        is_enabled: bool,
+    ) {
         let mut compute_visibility_pass =
-            RayTracingVisibilityPass::create(context, &renderer.render_context());
-
+            ComputeRayTracingVisibilityPass::create(context, &renderer.render_context());
         compute_visibility_pass.add_render_target_with_resolution(width, height);
-        compute_generate_ray_pass
-            .use_render_target(compute_visibility_pass.render_target().as_ref().unwrap());
-
-        renderer
-            .add_pass(compute_generate_ray_pass, is_enabled)
-            .add_pass(compute_visibility_pass, is_enabled);
+        renderer.add_pass(compute_visibility_pass, is_enabled);
     }
     fn create_compute_pbr_pass<P: OutputPass>(
         context: &ContextRc,

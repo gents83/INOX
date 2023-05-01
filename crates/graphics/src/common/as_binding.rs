@@ -176,6 +176,12 @@ macro_rules! declare_as_binding_vector {
 
         #[allow(dead_code)]
         impl $VecType {
+            pub fn data(&self) -> &[$Type] {
+                &self.data
+            }
+            pub fn data_mut(&mut self) -> &mut [$Type] {
+                &mut self.data
+            }
             pub fn set(&mut self, data: Vec<$Type>) -> &mut Self {
                 use $crate::AsBinding;
 
@@ -186,3 +192,31 @@ macro_rules! declare_as_binding_vector {
         }
     };
 }
+
+#[macro_export]
+macro_rules! declare_as_dirty_binding {
+    ($Type:ident) => {
+        impl AsBinding for $Type {
+            fn is_dirty(&self) -> bool {
+                true
+            }
+
+            fn set_dirty(&mut self, _is_dirty: bool) {}
+
+            fn size(&self) -> u64 {
+                std::mem::size_of::<$Type>() as u64
+            }
+
+            fn fill_buffer(
+                &self,
+                render_core_context: &$crate::RenderCoreContext,
+                buffer: &mut $crate::GpuBuffer,
+            ) {
+                buffer.add_to_gpu_buffer(render_core_context, &[*self]);
+            }
+        }
+    };
+}
+
+declare_as_dirty_binding!(u32);
+declare_as_dirty_binding!(i32);

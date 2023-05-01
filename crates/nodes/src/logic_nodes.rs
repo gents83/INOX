@@ -9,15 +9,11 @@ use crate::{
 };
 use inox_serialize::inox_serializable;
 
-#[derive(Serialize, Deserialize, Copy, Clone)]
+#[derive(Default, Serialize, Deserialize, Copy, Clone)]
 #[serde(crate = "inox_serialize")]
 pub enum LogicExecution {
+    #[default]
     Type,
-}
-impl Default for LogicExecution {
-    fn default() -> Self {
-        LogicExecution::Type
-    }
 }
 implement_pin!(LogicExecution);
 
