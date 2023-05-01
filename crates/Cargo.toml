@@ -47,6 +47,7 @@ serde_json = { path = "../extern/json"}
 ttf-parser = {path = "../extern/ttf-parser" }
 superluminal-perf =  { path = "../extern/superluminal-perf-rs" }
 uuid = { path = "../extern/uuid", features = ["serde", "v4", "v5", "js"] }
+
 wgpu = { path = "../extern/wgpu/wgpu", features = ["spirv", "glsl", "wgsl"] }
 wgpu-profiler = { path = "../extern/wgpu-profiler" }
 

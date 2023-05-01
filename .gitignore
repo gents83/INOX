@@ -3,8 +3,6 @@
 /data
 /data_raw/blender_export
 /data_raw/models/Sponza
-Cargo.lock
-*.lock
 *.gfxr
 *.foz
 *.inox_profile
