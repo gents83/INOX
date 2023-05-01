@@ -256,9 +256,10 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
                 }
                 Err(ref e) => {
                     println!(
-                        "Unable to compile shader {:?} - with error: \n{}",
+                        "Unable to compile shader {:?} - with error: \n{}\n{}",
                         path,
-                        e.emit_to_string(e.message())
+                        e.message(),
+                        e.emit_to_string(&preprocessed_code),
                     );
                 }
             }

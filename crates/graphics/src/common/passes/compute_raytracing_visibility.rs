@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
 use crate::{
-    AsBinding, BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass,
-    ComputePassData, ConstantDataRw, CullingResults, DrawCommandType, IndicesBuffer, MeshFlags,
-    MeshesBuffer, MeshesInverseMatrixBuffer, MeshletsBuffer, MeshletsCullingBuffer, OutputPass,
-    Pass, RaysBuffer, RaytracingJobsBuffer, RenderContext, ShaderStage, Texture, TextureFormat,
-    TextureId, TextureUsage, TextureView, VertexPositionsBuffer, VerticesBuffer, ATOMIC_SIZE,
+    BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
+    ConstantDataRw, CullingResults, DrawCommandType, IndicesBuffer, MeshFlags, MeshesBuffer,
+    MeshesInverseMatrixBuffer, MeshletsBuffer, MeshletsCullingBuffer, OutputPass, Pass, RaysBuffer,
+    RenderContext, ShaderStage, Texture, TextureFormat, TextureId, TextureUsage, TextureView,
+    VertexPositionsBuffer, VerticesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -34,7 +34,7 @@ pub struct ComputeRayTracingVisibilityPass {
     vertex_positions: VertexPositionsBuffer,
     render_target: Handle<Texture>,
     rays: RaysBuffer,
-    raytracing_jobs: RaytracingJobsBuffer,
+    jobs_count: i32,
 }
 unsafe impl Send for ComputeRayTracingVisibilityPass {}
 unsafe impl Sync for ComputeRayTracingVisibilityPass {}
@@ -87,7 +87,7 @@ impl Pass for ComputeRayTracingVisibilityPass {
             binding_data: BindingData::new(render_context, COMPUTE_RAYTRACING_VISIBILITY_NAME),
             render_target: None,
             rays: render_context.render_buffers.rays.clone(),
-            raytracing_jobs: render_context.render_buffers.raytracing_jobs.clone(),
+            jobs_count: 0,
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -97,9 +97,8 @@ impl Pass for ComputeRayTracingVisibilityPass {
             return;
         }
         {
-            let mut raytracing_jobs = self.raytracing_jobs.write().unwrap();
-            raytracing_jobs.data_mut().fill(u32::MAX);
-            raytracing_jobs.set_dirty(true);
+            let dimensions = self.render_target.as_ref().unwrap().get().dimensions();
+            self.jobs_count = (dimensions.0 * dimensions.1) as _;
         }
 
         self.binding_data
@@ -224,8 +223,8 @@ impl Pass for ComputeRayTracingVisibilityPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.raytracing_jobs.write().unwrap(),
-                Some("Jobs"),
+                &mut self.jobs_count,
+                Some("JobsCount"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 4,
@@ -260,20 +259,14 @@ impl Pass for ComputeRayTracingVisibilityPass {
         inox_profiler::scoped_profile!("raytracing_visibility_pass::update");
 
         let pass = self.compute_pass.get();
-        let x_pixels_managed_in_shader = 8u32;
-        let y_pixels_managed_in_shader = 8u32;
-        /*
-        let count = self.raytracing_jobs.read().unwrap().data().len() as u32;
-        let max_cluster_size =
-            (count / (x_pixels_managed_in_shader * y_pixels_managed_in_shader)).next_power_of_two();
-        let x = (max_cluster_size as f32).sqrt() as _;
-        let y = x;
-        */
-        let dimensions = self.render_target.as_ref().unwrap().get().dimensions();
+
+        let x_pixels_managed_in_shader = 8;
+        let y_pixels_managed_in_shader = 8;
+        let dimensions = self.render_target().as_ref().unwrap().get().dimensions();
         let max_cluster_size = x_pixels_managed_in_shader.max(y_pixels_managed_in_shader);
-        let x = (max_cluster_size * ((dimensions.0 + max_cluster_size - 1) / max_cluster_size))
+        let x = (max_cluster_size * ((dimensions.0 / 4 + max_cluster_size - 1) / max_cluster_size))
             / x_pixels_managed_in_shader;
-        let y = (max_cluster_size * ((dimensions.1 + max_cluster_size - 1) / max_cluster_size))
+        let y = (max_cluster_size * ((dimensions.1 / 4 + max_cluster_size - 1) / max_cluster_size))
             / y_pixels_managed_in_shader;
 
         let mut compute_pass = pass.begin(render_context, &mut self.binding_data, command_buffer);
@@ -311,12 +304,6 @@ impl ComputeRayTracingVisibilityPass {
                 | TextureUsage::RenderAttachment
                 | TextureUsage::StorageBinding,
         ));
-        {
-            let dimensions = self.render_target.as_ref().unwrap().get().dimensions();
-            let count = (dimensions.0 * dimensions.1 / ATOMIC_SIZE).max(1);
-            let mut jobs = self.raytracing_jobs.write().unwrap();
-            jobs.set(vec![u32::MAX; count as usize]);
-        }
         self
     }
 }

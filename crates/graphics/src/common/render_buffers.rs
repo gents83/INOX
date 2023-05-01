@@ -38,7 +38,6 @@ pub type VertexUVsBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32] (2 half)
 pub type CullingResults = Arc<RwLock<VecU32>>;
 
 pub type RaysBuffer = Arc<RwLock<Buffer<DrawRay>>>;
-pub type RaytracingJobsBuffer = Arc<RwLock<VecU32>>;
 
 const TLAS_UID: Uid = generate_static_uid_from_string("TLAS");
 pub const ATOMIC_SIZE: u32 = 32;
@@ -64,7 +63,6 @@ pub struct RenderBuffers {
     pub vertex_normals: VertexNormalsBuffer,
     pub vertex_uvs: VertexUVsBuffer,
     pub rays: RaysBuffer,
-    pub raytracing_jobs: RaytracingJobsBuffer,
     pub culling_result: CullingResults,
 }
 

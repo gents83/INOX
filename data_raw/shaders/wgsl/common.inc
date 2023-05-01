@@ -226,7 +226,7 @@ struct Ray {
     t_min: f32,
     direction: vec3<f32>,
     t_max: f32,
-}
+};
 
 struct Rays {
     data: array<Ray>,

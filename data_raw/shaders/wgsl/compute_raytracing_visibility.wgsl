@@ -18,6 +18,16 @@ var<storage, read> meshlets_culling: MeshletsCulling;
 @group(0) @binding(7)
 var<storage, read> culling_result: array<atomic<u32>>;
 
+
+
+struct Job {
+    state: u32,
+    tlas_index: i32,
+    blas_index: i32,
+    nearest: f32,
+    visibility_id: u32,
+};
+
 @group(1) @binding(0)
 var<storage, read> tlas: BHV;
 @group(1) @binding(1)
@@ -27,17 +37,16 @@ var<storage, read> meshes_inverse_matrix: Matrices;
 @group(1) @binding(3)
 var<storage, read_write> rays: Rays;
 @group(1) @binding(4)
-var<storage, read_write> jobs: array<atomic<u32>>;
+var<storage, read_write> jobs_count: atomic<i32>;
 
 @group(2) @binding(0)
 var render_target: texture_storage_2d<rgba8unorm, write>;
 
 #import "matrix_utils.inc"
-#import "jobs.inc"
 #import "raytracing.inc"
 
 
-fn execute_job(job_index: u32, dimensions: vec2<u32>) -> vec4<f32>  {    
+fn execute_job(job_index: u32) -> vec4<f32>  {    
     var ray = rays.data[job_index];
     var nearest = MAX_FLOAT;  
     var visibility_id = 0u;
@@ -71,6 +80,7 @@ fn execute_job(job_index: u32, dimensions: vec2<u32>) -> vec4<f32>  {
     return unpack4x8unorm(visibility_id);
 }
 
+
 @compute
 @workgroup_size(8, 8, 1)
 fn main(
@@ -78,24 +88,13 @@ fn main(
     @builtin(workgroup_id) workgroup_id: vec3<u32>
 ) {
     let dimensions = vec2<u32>(textureDimensions(render_target));
-    let atomic_count = arrayLength(&jobs);
-    
-    let pixel = vec2<u32>(workgroup_id.x * 8u + local_invocation_id.x, 
-                          workgroup_id.y * 8u + local_invocation_id.y);
-    let total_job_index = pixel.y * dimensions.x + pixel.x;
-    let v = execute_job(total_job_index, dimensions);
-    
-    textureStore(render_target, vec2<i32>(i32(pixel.x), i32(pixel.y)), v);
-    /*
-    var atomic_index = i32(total_job_index / 32u);
-    let last_atomic = atomic_index + (8 * 8) / 32;
-    while (atomic_index >= 0 && atomic_index < last_atomic) {
-        let job_index = extract_job_index(u32(atomic_index));
-        if (job_index < 0) {
-            atomic_index = find_busy_atomic(u32(atomic_index), u32(last_atomic));
-            continue;
-        }
-        execute_job(u32(atomic_index * 32 + job_index), dimensions);
+    var job_index = atomicSub(&jobs_count, 1) - 1;
+    while(job_index >= 0)
+    {
+        let v = execute_job(u32(job_index));
+        let x = job_index % i32(dimensions.x);
+        let y = job_index / i32(dimensions.x);
+        textureStore(render_target, vec2<i32>(x, y), v);
+        job_index = atomicSub(&jobs_count, 1);
     }
-    */
 }
