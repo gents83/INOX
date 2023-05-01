@@ -69,15 +69,19 @@ fn intersect_meshlet_primitive(ray: ptr<function, Ray>, mesh_id: u32, meshlet_id
     let i2 = indices.data[index_offset + 1u];
     let i3 = indices.data[index_offset + 2u];
 
-    let v1 = &vertices.data[(*mesh).vertex_offset + i1];
-    let v2 = &vertices.data[(*mesh).vertex_offset + i2];
-    let v3 = &vertices.data[(*mesh).vertex_offset + i3];
+    let o1 = vertices.data[(*mesh).vertex_offset + i1].position_and_color_offset;
+    let o2 = vertices.data[(*mesh).vertex_offset + i2].position_and_color_offset;
+    let o3 = vertices.data[(*mesh).vertex_offset + i3].position_and_color_offset;
+
+    let v1 = positions.data[o1];
+    let v2 = positions.data[o2];
+    let v3 = positions.data[o3];
     
     let oobb_size = (*node).max - (*node).min;
     
-    let p1 = (*node).min + decode_as_vec3(positions.data[(*v1).position_and_color_offset]) * oobb_size;
-    let p2 = (*node).min + decode_as_vec3(positions.data[(*v2).position_and_color_offset]) * oobb_size;
-    let p3 = (*node).min + decode_as_vec3(positions.data[(*v3).position_and_color_offset]) * oobb_size;
+    let p1 = (*node).min + decode_as_vec3(v1) * oobb_size;
+    let p2 = (*node).min + decode_as_vec3(v2) * oobb_size;
+    let p3 = (*node).min + decode_as_vec3(v3) * oobb_size;
     
     return intersect_triangle(ray, p1, p2, p3);
 }
@@ -94,7 +98,6 @@ fn intersect_meshlet(ray: ptr<function, Ray>, mesh_id: u32, meshlet_id: u32, far
     
     let mesh = &meshes.data[mesh_id];   
     let meshlet = &meshlets.data[meshlet_id];
-    let node = &bhv.data[u32((*mesh).bhv_index)];  
     let primitive_count = (*meshlet).indices_count / 3u;
     for(var primitive_id = 0u; primitive_id < primitive_count; primitive_id = primitive_id + 1u)
     {       
@@ -104,54 +107,6 @@ fn intersect_meshlet(ray: ptr<function, Ray>, mesh_id: u32, meshlet_id: u32, far
     }
     return Result(nearest, visibility_id);
 }
-
-//fn traverse_meshlets(r: Ray, mesh_id: u32, far_plane: f32) -> Result {
-//    let mesh = &meshes.data[mesh_id];    
-//    var nearest = far_plane;  
-//    var visibility_id = 0u;
-//    for(var i = 0u; i < (*mesh).meshlets_count; i = i + 1u)
-//    {
-//        let meshlet_id = (*mesh).meshlets_offset + i;             
-//        if (is_meshlet_visible(meshlet_id)) {
-//            let hit = intersect_meshlet(r, mesh_id, meshlet_id, nearest);
-//            if (hit.distance < nearest) {
-//                visibility_id = hit.visibility_id;
-//                nearest = hit.distance;
-//            }
-//        }
-//    }
-//    return Result(nearest, visibility_id);
-//}
-//
-//fn traverse_forced_all_bhv_nodes(r: Ray, mesh_id: u32, bhv_start: i32, bhv_end: i32, far_plane: f32) -> Result {
-//    let mesh = &meshes.data[mesh_id];    
-//    let mesh_bhv_index = i32((*mesh).bhv_index);
-//    var bhv_index = bhv_start;
-//    let nodes_count = i32(arrayLength(&bhv.data));
-//    var nearest = far_plane;  
-//    var visibility_id = 0u;
-//
-//    while (bhv_index >= bhv_start && bhv_index < bhv_end && bhv_index < nodes_count)
-//    { 
-//        let node = &bhv.data[u32(bhv_index)];   
-//        let intersection = intersect_aabb(r, (*node).min, (*node).max);
-//        if (intersection < nearest) {
-//            if ((*node).reference >= 0) {
-//                //leaf node
-//                let meshlet_id = (*mesh).meshlets_offset + u32((*node).reference);                
-//                if (is_meshlet_visible(meshlet_id)) {
-//                    let hit = intersect_meshlet(r, mesh_id, meshlet_id, nearest);
-//                    if (hit.distance < nearest) {
-//                        visibility_id = hit.visibility_id;
-//                        nearest = hit.distance;
-//                    }
-//                }
-//            }
-//        }       
-//        bhv_index = bhv_index + 1;
-//    }
-//    return Result(nearest, visibility_id);
-//}
 
 fn traverse_bhv_of_meshlets(ray: ptr<function, Ray>, mesh_id: u32, far_plane: f32) -> Result {
     let mesh = &meshes.data[mesh_id];    
