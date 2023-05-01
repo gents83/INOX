@@ -47,7 +47,7 @@ serde_json = { path = "../extern/json"}
 ttf-parser = {path = "../extern/ttf-parser" }
 superluminal-perf =  { path = "../extern/superluminal-perf-rs" }
 uuid = { path = "../extern/uuid", features = ["serde", "v4", "v5", "js"] }
-wgpu = { git = "https://github.com/gents83/wgpu.git", branch = "master", features = ["spirv", "glsl", "wgsl"] }
+wgpu = { path = "../extern/wgpu/wgpu", features = ["spirv", "glsl", "wgsl"] }
 wgpu-profiler = { path = "../extern/wgpu-profiler" }
 
 futures = { version = "0.3", features = ["std", "thread-pool"] }
