@@ -314,7 +314,7 @@ impl Pass for ComputePbrPass {
                     group_index: 3,
                     binding_index: 1,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                    flags: BindingFlags::Write | BindingFlags::Storage,
                 },
             );
 

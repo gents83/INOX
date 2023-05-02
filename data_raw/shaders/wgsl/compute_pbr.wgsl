@@ -43,7 +43,7 @@ var<storage, read> bhv: BHV;
 @group(3) @binding(0)
 var visibility_buffer_texture: texture_2d<f32>;
 @group(3) @binding(1)
-var render_target: texture_storage_2d<rgba8unorm, read_write>;
+var render_target: texture_storage_2d<rgba8unorm, write>;
 
 
 
