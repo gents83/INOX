@@ -27,7 +27,7 @@ const USE_ALL_PASSES: bool = false;
 const USE_3DVIEW: bool = false;
 #[cfg(target_arch = "wasm32")]
 const USE_LOW_PROFILE: bool = true;
-#[cfg(!(target_arch = "wasm32"))]
+#[cfg(not(target_arch = "wasm32"))]
 const USE_LOW_PROFILE: bool = false;
 
 pub struct Viewer {
