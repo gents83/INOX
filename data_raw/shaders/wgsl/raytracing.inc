@@ -89,7 +89,7 @@ fn intersect_meshlet_primitive(ray: ptr<function, Ray>, mesh_id: u32, meshlet_id
 fn is_meshlet_visible(meshlet_id: u32) -> bool
 {
     let bits = atomicLoad(&culling_result[meshlet_id / 32u]);
-    return (bits & (1u << meshlet_id % 32u)) > 0u;
+    return (bits & ((1u << meshlet_id) % 32u)) > 0u;
 }
 
 fn intersect_meshlet(ray: ptr<function, Ray>, mesh_id: u32, meshlet_id: u32, far_plane: f32) -> Result {
@@ -102,7 +102,7 @@ fn intersect_meshlet(ray: ptr<function, Ray>, mesh_id: u32, meshlet_id: u32, far
     for(var primitive_id = 0u; primitive_id < primitive_count; primitive_id = primitive_id + 1u)
     {       
         let hit = intersect_meshlet_primitive(ray, mesh_id, meshlet_id, primitive_id);
-        visibility_id = select(visibility_id, (meshlet_id + 1u) << 8u | primitive_id, hit < nearest);
+        visibility_id = select(visibility_id, ((meshlet_id + 1u) << 8u) | primitive_id, hit < nearest);
         nearest = min(nearest, hit);
     }
     return Result(nearest, visibility_id);

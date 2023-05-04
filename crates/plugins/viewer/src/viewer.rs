@@ -23,9 +23,12 @@ const ADD_UI_PASS: bool = true;
 const ADD_CULLING_PASS: bool = true;
 const USE_COMPUTE_RAYTRACING: bool = true;
 const USE_FRAGMENT_RAYTRACING: bool = false;
-const USE_LOW_PROFILE: bool = false;
 const USE_ALL_PASSES: bool = false;
 const USE_3DVIEW: bool = false;
+#[cfg(target_arch = "wasm32")]
+const USE_LOW_PROFILE: bool = true;
+#[cfg(!(target_arch = "wasm32"))]
+const USE_LOW_PROFILE: bool = false;
 
 pub struct Viewer {
     window: Option<Window>,
@@ -151,7 +154,7 @@ impl Plugin for Viewer {
 
 impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &mut Renderer, width: u32, height: u32) {
-        if USE_FRAGMENT_RAYTRACING || USE_COMPUTE_RAYTRACING {
+        if !USE_LOW_PROFILE && (USE_FRAGMENT_RAYTRACING || USE_COMPUTE_RAYTRACING) {
             let raytracing_dimension = (width / 2, height / 2);
             if has_primitive_index_support() {
                 Self::create_culling_pass(context, renderer, ADD_CULLING_PASS);

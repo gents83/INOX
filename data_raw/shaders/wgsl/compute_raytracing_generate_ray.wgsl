@@ -14,9 +14,6 @@ var<uniform> data: Data;
 @group(1) @binding(0)
 var<storage, read_write> rays: Rays;
 
-@group(2) @binding(0)
-var render_target: texture_storage_2d<rgba8unorm, read>;
-
 #import "matrix_utils.inc"
 
 fn compute_ray(image_pixel: vec2<u32>, image_size: vec2<u32>) -> Ray {
