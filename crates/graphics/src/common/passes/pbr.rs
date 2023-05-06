@@ -249,8 +249,8 @@ impl OutputRenderPass for PBRPass {
 }
 
 impl PBRPass {
-    pub fn set_gbuffers_textures(&mut self, textures: &[&TextureId]) -> &mut Self {
-        self.gbuffer_textures = textures.iter().map(|&id| *id).collect();
+    pub fn set_gbuffers_textures(&mut self, textures: &[TextureId]) -> &mut Self {
+        self.gbuffer_textures = textures.to_vec();
         self
     }
     pub fn set_depth_texture(&mut self, texture_id: &TextureId) -> &mut Self {

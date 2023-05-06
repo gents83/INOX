@@ -35,7 +35,11 @@ pub enum RenderTarget {
         width: u32,
         height: u32,
         format: TextureFormat,
-        read_back: bool,
+    },
+    RWTexture {
+        width: u32,
+        height: u32,
+        format: TextureFormat,
     },
 }
 #[derive(Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]

@@ -282,8 +282,11 @@ impl Pass for ComputeRayTracingVisibilityPass {
 }
 
 impl OutputPass for ComputeRayTracingVisibilityPass {
-    fn render_targets_id(&self) -> Vec<TextureId> {
-        [*self.render_target.as_ref().unwrap().id()].to_vec()
+    fn render_targets_id(&self) -> Option<Vec<TextureId>> {
+        Some([*self.render_target.as_ref().unwrap().id()].to_vec())
+    }
+    fn depth_target_id(&self) -> Option<TextureId> {
+        None
     }
 }
 

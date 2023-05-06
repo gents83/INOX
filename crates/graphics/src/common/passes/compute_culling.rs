@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use crate::{
     AsBinding, BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, CommandsBuffer,
     ComputePass, ComputePassData, ConstantDataRw, CullingResults, DrawCommandType, GpuBuffer,
-    MeshFlags, MeshesBuffer, MeshesFlagsBuffer, MeshletsBuffer, MeshletsCullingBuffer, Pass,
-    RenderContext, RenderCoreContext, ShaderStage, TextureView, ATOMIC_SIZE,
+    MeshFlags, MeshesBuffer, MeshesFlagsBuffer, MeshletsBuffer, MeshletsCullingBuffer, OutputPass,
+    Pass, RenderContext, RenderCoreContext, ShaderStage, TextureId, TextureView, ATOMIC_SIZE,
 };
 
 use inox_commands::CommandParser;
@@ -341,6 +341,15 @@ impl Pass for CullingPass {
                 pass.dispatch(render_context, compact_pass, count, 1, 1);
             }
         }
+    }
+}
+
+impl OutputPass for CullingPass {
+    fn render_targets_id(&self) -> Option<Vec<TextureId>> {
+        None
+    }
+    fn depth_target_id(&self) -> Option<TextureId> {
+        None
     }
 }
 

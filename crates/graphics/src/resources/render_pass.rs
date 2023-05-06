@@ -115,7 +115,6 @@ impl RenderPass {
             width,
             height,
             format,
-            read_back: _,
         } = render_target
         {
             let texture = Texture::create_from_format(
@@ -144,7 +143,6 @@ impl RenderPass {
                 width,
                 height,
                 format,
-                read_back: _,
             } => {
                 let texture = Texture::create_from_format(
                     &self.shared_data,

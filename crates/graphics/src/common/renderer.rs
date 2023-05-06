@@ -1,6 +1,6 @@
 use crate::{
-    CommandBuffer, ComputePipeline, Material, Pass, RenderContext, RenderContextRw, RenderPass,
-    RenderPipeline, Texture, TextureId, TextureUsage, TextureView,
+    CommandBuffer, ComputePipeline, Material, OutputPass, RenderContext, RenderContextRw,
+    RenderPass, RenderPipeline, Texture, TextureId, TextureUsage, TextureView,
 };
 use inox_core::ContextRc;
 
@@ -33,7 +33,7 @@ pub struct Renderer {
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
     state: RendererState,
-    passes: Vec<(Box<dyn Pass>, bool)>,
+    passes: Vec<(Box<dyn OutputPass>, bool)>,
     command_buffer: Option<CommandBuffer>,
     surface_texture: Option<wgpu::SurfaceTexture>,
     surface_view: Option<TextureView>,
@@ -111,12 +111,12 @@ impl Renderer {
             }
         }
     }
-    pub fn pass_at(&self, index: usize) -> Option<&dyn Pass> {
+    pub fn pass_at(&self, index: usize) -> Option<&dyn OutputPass> {
         self.passes.get(index).map(|v| v.0.as_ref())
     }
     pub fn pass<T>(&self) -> Option<&T>
     where
-        T: Pass,
+        T: OutputPass,
     {
         if let Some(p) = self
             .passes
@@ -129,7 +129,7 @@ impl Renderer {
     }
     pub fn pass_mut<T>(&mut self) -> Option<&mut T>
     where
-        T: Pass,
+        T: OutputPass,
     {
         if let Some(p) = self
             .passes
@@ -141,7 +141,7 @@ impl Renderer {
         None
     }
 
-    pub fn add_pass(&mut self, pass: impl Pass, is_enabled: bool) -> &mut Self {
+    pub fn add_pass(&mut self, pass: impl OutputPass, is_enabled: bool) -> &mut Self {
         self.passes.push((Box::new(pass), is_enabled));
         self
     }

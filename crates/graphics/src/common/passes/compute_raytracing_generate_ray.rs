@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::{
     AsBinding, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
     ConstantDataRw, DrawCommandType, DrawRay, GpuBuffer, MeshFlags, Pass, RaysBuffer,
-    RenderContext, RenderCoreContext, ShaderStage, TextureView,
+    RenderContext, RenderCoreContext, ShaderStage, TextureView, OutputPass, TextureId,
 };
 
 use inox_core::ContextRc;
@@ -165,6 +165,15 @@ impl Pass for ComputeRayTracingGenerateRayPass {
             );
             pass.dispatch(render_context, compute_pass, x, y, 1);
         }
+    }
+}
+
+impl OutputPass for ComputeRayTracingGenerateRayPass {
+    fn render_targets_id(&self) -> Option<Vec<TextureId>> {
+        None
+    }
+    fn depth_target_id(&self) -> Option<TextureId> {
+        None
     }
 }
 

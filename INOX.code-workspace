@@ -2,6 +2,12 @@
 	"folders": [
 		{
 			"path": "."
+		},
+		{
+			"path": ".\\crates\\"
+		},
+		{
+			"path": ".\\extern\\"
 		}
 	],
 	"extensions": {
@@ -9,11 +15,9 @@
 			"bungcip.better-toml",
 			"ms-vscode.cpptools",
 			"vadimcn.vscode-lldb",
-			"dtoplak.vscode-glsllint",
-			"github.vscode-pull-request-github",
 			"ms-python.python",
 			"rust-lang.rust-analyzer",
 			"PolyMeilex.wgsl"
 		]
-	}
+	},
 }

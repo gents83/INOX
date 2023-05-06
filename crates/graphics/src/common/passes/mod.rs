@@ -8,6 +8,7 @@ pub use self::pass::*;
 pub use self::pbr::*;
 pub use self::raytracing_visibility::*;
 pub use self::visibility::*;
+pub use self::visibility_to_gbuffer::*;
 pub use self::wireframe::*;
 
 pub mod blit;
@@ -20,4 +21,5 @@ pub mod pass;
 pub mod pbr;
 pub mod raytracing_visibility;
 pub mod visibility;
+pub mod visibility_to_gbuffer;
 pub mod wireframe;
