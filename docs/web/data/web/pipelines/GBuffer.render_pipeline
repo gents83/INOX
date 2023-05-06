@@ -1,8 +1,8 @@
 {
     "vertex_shader": "shaders/wgsl/gbuffer.shader",
     "fragment_shader": "shaders/wgsl/gbuffer.shader",
-    "front_face": "Clockwise",
-    "culling": "None",
+    "front_face": "CounterClockwise",
+    "culling": "Back",
     "mode": "Fill",
     "depth_write_enabled": true,
     "depth_compare": "Less",
