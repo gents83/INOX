@@ -250,37 +250,37 @@ impl Viewer {
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
             })
             .add_depth_target(RenderTarget::Texture {
                 width,
@@ -317,7 +317,7 @@ impl Viewer {
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
             })
             .add_depth_target(RenderTarget::Texture {
                 width,
@@ -342,37 +342,37 @@ impl Viewer {
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
             })
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
             })
             .add_depth_target(RenderTarget::Texture {
                 width,
@@ -408,7 +408,7 @@ impl Viewer {
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8UnormSrgb,
+                format: TextureFormat::Rgba8Unorm,
             })
             .add_depth_target(RenderTarget::Texture {
                 width,
@@ -508,7 +508,7 @@ impl Viewer {
                 blit_pass.add_render_target(RenderTarget::Texture {
                     width,
                     height,
-                    format: TextureFormat::Rgba8UnormSrgb,
+                    format: TextureFormat::Rgba8Unorm,
                 });
             }
         } else {
