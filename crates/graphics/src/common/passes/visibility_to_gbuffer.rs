@@ -14,6 +14,7 @@ use inox_uid::{generate_random_uid, INVALID_UID};
 pub const VISIBILITY_TO_GBUFFER_PIPELINE: &str = "pipelines/VisibilityToGBuffer.render_pipeline";
 pub const VISIBILITY_TO_GBUFFER_PASS_NAME: &str = "VisibilityToGBufferPass";
 
+#[allow(dead_code)]
 pub struct VisibilityToGBufferPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
