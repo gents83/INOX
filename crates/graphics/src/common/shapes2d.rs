@@ -2,14 +2,19 @@ use std::f32::consts::PI;
 
 use inox_math::{VecBase, VecBaseFloat, Vector2, Vector3, Vector4};
 
-use crate::{MeshData, MeshletData};
+use crate::{MeshData, MeshletData, VertexAttributeLayout};
 
 pub fn create_quad(rect: Vector4, z: f32) -> MeshData {
     create_quad_with_texture(rect, z, [0., 0., 1., 1.].into())
 }
 
 pub fn create_quad_with_texture(rect: Vector4, z: f32, tex_coords: Vector4) -> MeshData {
-    let mut mesh_data = MeshData::default();
+    let mut mesh_data = MeshData {
+        vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
+        aabb_min: Vector3::new(rect.x, rect.y, z),
+        aabb_max: Vector3::new(rect.z, rect.w, z),
+        ..Default::default()
+    };
     mesh_data.add_vertex_pos_color_normal_uv(
         [rect.x, rect.y, z].into(),
         Vector4::default_one(),
@@ -46,7 +51,12 @@ pub fn create_quad_with_texture(rect: Vector4, z: f32, tex_coords: Vector4) -> M
     mesh_data
 }
 pub fn create_colored_quad(rect: Vector4, z: f32, color: Vector4) -> MeshData {
-    let mut mesh_data = MeshData::default();
+    let mut mesh_data = MeshData {
+        vertex_layout: VertexAttributeLayout::pos_color(),
+        aabb_min: Vector3::new(rect.x, rect.y, z),
+        aabb_max: Vector3::new(rect.z, rect.w, z),
+        ..Default::default()
+    };
     mesh_data.add_vertex_pos_color([rect.x, rect.y, z].into(), color);
     mesh_data.add_vertex_pos_color([rect.x, rect.w, z].into(), color);
     mesh_data.add_vertex_pos_color([rect.z, rect.w, z].into(), color);
@@ -64,7 +74,12 @@ pub fn create_colored_quad(rect: Vector4, z: f32, color: Vector4) -> MeshData {
 }
 
 pub fn create_triangle_up() -> MeshData {
-    let mut mesh_data = MeshData::default();
+    let mut mesh_data = MeshData {
+        vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
+        aabb_min: Vector3::new(0., 0., 0.),
+        aabb_max: Vector3::new(1., 1., 0.),
+        ..Default::default()
+    };
     mesh_data.add_vertex_pos_color_normal_uv(
         [0., 1., 0.].into(),
         Vector4::default_one(),
@@ -97,7 +112,12 @@ pub fn create_triangle_up() -> MeshData {
 }
 
 pub fn create_triangle_down() -> MeshData {
-    let mut mesh_data = MeshData::default();
+    let mut mesh_data = MeshData {
+        vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
+        aabb_min: Vector3::new(0., 0., 0.),
+        aabb_max: Vector3::new(1., 1., 0.),
+        ..Default::default()
+    };
     mesh_data.add_vertex_pos_color_normal_uv(
         [0., 0., 0.].into(),
         Vector4::default_one(),
@@ -154,7 +174,12 @@ pub fn create_rounded_rect(
     num_slices: u32,
     color: Vector4,
 ) -> MeshData {
-    let mut mesh_data = MeshData::default();
+    let mut mesh_data = MeshData {
+        vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
+        aabb_min: Vector3::new(rect.x, rect.y, 0.),
+        aabb_max: Vector3::new(rect.z, rect.w, 0.),
+        ..Default::default()
+    };
     mesh_data.add_vertex_pos_color_normal_uv(
         [
             rect.x + (rect.z - rect.x) * 0.5,

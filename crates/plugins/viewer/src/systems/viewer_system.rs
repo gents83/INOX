@@ -2,7 +2,7 @@ use inox_commands::CommandParser;
 use inox_core::{implement_unique_system_uid, ContextRc, System};
 use inox_graphics::{
     create_quad, Light, Material, MaterialData, Mesh, MeshData, MeshFlags, RendererRw, Texture,
-    View,
+    VertexAttributeLayout, View,
 };
 use inox_log::debug_log;
 use inox_math::{Mat4Ops, Matrix4, VecBase, Vector2, Vector3};
@@ -180,7 +180,10 @@ impl ViewerSystem {
                 .set_material(material)
                 .set_flags(MeshFlags::Visible | MeshFlags::Opaque);
 
-            let mut mesh_data = MeshData::default();
+            let mut mesh_data = MeshData {
+                vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
+                ..Default::default()
+            };
             let quad = create_quad([-10., -10., 10., 10.].into(), 0.);
             mesh_data.append_mesh_data(quad, false);
             mesh_data.set_vertex_color([0.0, 0.0, 1.0, 1.0].into());
@@ -226,7 +229,10 @@ impl ViewerSystem {
                 .set_material(flat_material)
                 .set_flags(MeshFlags::Visible | MeshFlags::Opaque);
 
-            let mut mesh_data = MeshData::default();
+            let mut mesh_data = MeshData {
+                vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
+                ..Default::default()
+            };
             let quad = create_quad([-10., -10., 10., 10.].into(), 0.);
             mesh_data.append_mesh_data(quad, false);
             mesh_data.set_vertex_color([1.0, 1.0, 0.0, 1.0].into());

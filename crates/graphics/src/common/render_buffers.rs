@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    ops::Range,
     sync::{Arc, RwLock},
 };
 
@@ -11,33 +10,31 @@ use inox_uid::{generate_static_uid_from_string, Uid};
 
 use crate::{
     declare_as_binding_vector, utils::create_linearized_bhv, AsBinding, BindingDataBuffer,
-    ConeCulling, DrawBHVNode, DrawMaterial, DrawMesh, DrawMeshlet, DrawRay, DrawVertex, Light,
+    ConeCulling, GPUBHVNode, GPUMaterial, GPUMesh, GPUMeshlet, GPURay, GPURuntimeVertexData, Light,
     LightData, LightId, Material, MaterialAlphaMode, MaterialData, MaterialId, Mesh, MeshData,
     MeshFlags, MeshId, RenderCommandsPerType, RenderCoreContext, TextureId, TextureInfo,
-    TextureType, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS,
+    TextureType, INVALID_INDEX,
 };
 
 declare_as_binding_vector!(VecU32, u32);
 
 pub type TexturesBuffer = Arc<RwLock<HashBuffer<TextureId, TextureInfo, 0>>>;
 pub type LightsBuffer = Arc<RwLock<HashBuffer<LightId, LightData, 0>>>;
-pub type MaterialsBuffer = Arc<RwLock<HashBuffer<MaterialId, DrawMaterial, 0>>>;
+pub type MaterialsBuffer = Arc<RwLock<HashBuffer<MaterialId, GPUMaterial, 0>>>;
 pub type CommandsBuffer = Arc<RwLock<HashMap<MeshFlags, RenderCommandsPerType>>>;
-pub type MeshesBuffer = Arc<RwLock<HashBuffer<MeshId, DrawMesh, 0>>>;
+pub type MeshesBuffer = Arc<RwLock<HashBuffer<MeshId, GPUMesh, 0>>>;
 pub type MeshesFlagsBuffer = Arc<RwLock<HashBuffer<MeshId, MeshFlags, 0>>>;
 pub type MeshesInverseMatrixBuffer = Arc<RwLock<HashBuffer<MeshId, [[f32; 4]; 4], 0>>>;
-pub type MeshletsBuffer = Arc<RwLock<Buffer<DrawMeshlet>>>; //MeshId <-> [DrawMeshlet]
-pub type MeshletsCullingBuffer = Arc<RwLock<Buffer<ConeCulling>>>; //MeshId <-> [DrawMeshlet]
-pub type BHVBuffer = Arc<RwLock<Buffer<DrawBHVNode>>>;
-pub type VerticesBuffer = Arc<RwLock<Buffer<DrawVertex>>>; //MeshId <-> [DrawVertex]
+pub type MeshletsBuffer = Arc<RwLock<Buffer<GPUMeshlet>>>; //MeshId <-> [GPUMeshlet]
+pub type MeshletsCullingBuffer = Arc<RwLock<Buffer<ConeCulling>>>; //MeshId <-> [GPUMeshlet]
+pub type BHVBuffer = Arc<RwLock<Buffer<GPUBHVNode>>>;
 pub type IndicesBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32]
+pub type RuntimeVerticesBuffer = Arc<RwLock<Buffer<GPURuntimeVertexData>>>;
 pub type VertexPositionsBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32] (10 x, 10 y, 10 z, 2 null)
-pub type VertexColorsBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32] (rgba)
-pub type VertexNormalsBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32] (10 x, 10 y, 10 z, 2 null)
-pub type VertexUVsBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32] (2 half)
+pub type VertexAttributesBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32]
 pub type CullingResults = Arc<RwLock<VecU32>>;
 
-pub type RaysBuffer = Arc<RwLock<Buffer<DrawRay>>>;
+pub type RaysBuffer = Arc<RwLock<Buffer<GPURay>>>;
 
 const TLAS_UID: Uid = generate_static_uid_from_string("TLAS");
 pub const ATOMIC_SIZE: u32 = 32;
@@ -54,14 +51,12 @@ pub struct RenderBuffers {
     pub meshes_inverse_matrix: MeshesInverseMatrixBuffer,
     pub meshlets: MeshletsBuffer,
     pub meshlets_culling: MeshletsCullingBuffer,
-    pub bhv: BHVBuffer,
+    pub blas: BHVBuffer,
     pub tlas: BHVBuffer,
-    pub vertices: VerticesBuffer,
     pub indices: IndicesBuffer,
     pub vertex_positions: VertexPositionsBuffer,
-    pub vertex_colors: VertexColorsBuffer,
-    pub vertex_normals: VertexNormalsBuffer,
-    pub vertex_uvs: VertexUVsBuffer,
+    pub vertex_attributes: VertexAttributesBuffer,
+    pub runtime_vertices: RuntimeVerticesBuffer,
     pub rays: RaysBuffer,
     pub culling_result: CullingResults,
 }
@@ -72,12 +67,13 @@ impl RenderBuffers {
         mesh_data: &MeshData,
         mesh_id: &MeshId,
         mesh_index: u32,
+        indices_offset: u32,
     ) -> (usize, usize) {
         inox_profiler::scoped_profile!("render_buffers::extract_meshlets");
 
         let mut meshlets = Vec::new();
         let mut meshlets_cones = Vec::new();
-        meshlets.resize(mesh_data.meshlets.len(), DrawMeshlet::default());
+        meshlets.resize(mesh_data.meshlets.len(), GPUMeshlet::default());
         meshlets_cones.resize(mesh_data.meshlets.len(), ConeCulling::default());
         let mut meshlets_aabbs = Vec::new();
         meshlets_aabbs.resize_with(mesh_data.meshlets.len(), AABB::empty);
@@ -86,11 +82,11 @@ impl RenderBuffers {
             .iter()
             .enumerate()
             .for_each(|(i, meshlet_data)| {
-                let meshlet = DrawMeshlet {
+                let meshlet = GPUMeshlet {
                     mesh_index,
-                    indices_offset: meshlet_data.indices_offset as _,
+                    indices_offset: (indices_offset + meshlet_data.indices_offset) as _,
                     indices_count: meshlet_data.indices_count,
-                    bvh_index: i as _,
+                    blas_index: i as _,
                 };
                 meshlets[i] = meshlet;
                 let cone_axis = meshlet_data.cone_axis.normalize();
@@ -114,7 +110,7 @@ impl RenderBuffers {
         let bhv = BHVTree::new(&meshlets_aabbs);
         let linearized_bhv = create_linearized_bhv(&bhv);
         let mesh_bhv_range = self
-            .bhv
+            .blas
             .write()
             .unwrap()
             .allocate(mesh_id, &linearized_bhv)
@@ -134,76 +130,47 @@ impl RenderBuffers {
     fn add_vertex_data(
         &self,
         mesh_id: &MeshId,
-        mesh_data: &MeshData,
         mesh_index: u32,
-    ) -> (u32, u32) {
+        mesh_data: &MeshData,
+    ) -> (u32, u32, u32) {
         inox_profiler::scoped_profile!("render_buffers::add_vertex_data");
 
-        if mesh_data.vertices.is_empty() {
-            inox_log::debug_log!("No vertices for mesh {:?}", mesh_id);
-            return (0, 0);
-        }
-        if mesh_data.indices.is_empty() {
-            inox_log::debug_log!("No indices for mesh {:?}", mesh_id);
-            return (0, 0);
-        }
+        debug_assert!(
+            mesh_data.vertex_count() > 0,
+            "No vertices for mesh {:?}",
+            mesh_id
+        );
+        debug_assert!(
+            !mesh_data.indices.is_empty(),
+            "No indices for mesh {:?}",
+            mesh_id
+        );
 
-        let position_range = self
+        let vertex_offset = self
             .vertex_positions
             .write()
             .unwrap()
-            .allocate(mesh_id, to_slice(mesh_data.positions.as_slice()))
-            .1;
-        //We're expecting positions and colors to be always present
-        if mesh_data.colors.is_empty() {
-            let colors = vec![0xFFFFFFFFu32; mesh_data.positions.len()];
-            self.vertex_colors
-                .write()
-                .unwrap()
-                .allocate(mesh_id, to_slice(colors.as_slice()));
-        } else {
-            self.vertex_colors
-                .write()
-                .unwrap()
-                .allocate(mesh_id, to_slice(mesh_data.colors.as_slice()));
-        }
-
-        let mut normal_range = Range::<usize>::default();
-        if !mesh_data.normals.is_empty() {
-            normal_range = self
-                .vertex_normals
-                .write()
-                .unwrap()
-                .allocate(mesh_id, to_slice(mesh_data.normals.as_slice()))
-                .1;
-        }
-
-        let mut uv_range = Range::<usize>::default();
-        if !mesh_data.uvs.is_empty() {
-            uv_range = self
-                .vertex_uvs
-                .write()
-                .unwrap()
-                .allocate(mesh_id, to_slice(mesh_data.uvs.as_slice()))
-                .1;
-        }
-
-        let mut vertices = mesh_data.vertices.clone();
-        vertices.iter_mut().for_each(|v| {
-            v.position_and_color_offset += position_range.start as u32;
-            v.normal_offset += normal_range.start as i32;
-            (0..MAX_TEXTURE_COORDS_SETS).for_each(|i| {
-                v.uv_offset[i] += uv_range.start as i32;
-            });
-            v.mesh_index = mesh_index;
-        });
-        let vertex_offset = self
-            .vertices
-            .write()
-            .unwrap()
-            .allocate(mesh_id, vertices.as_slice())
+            .allocate(mesh_id, to_slice(mesh_data.vertex_positions.as_slice()))
             .1
             .start;
+        let attributes_offset = self
+            .vertex_attributes
+            .write()
+            .unwrap()
+            .allocate(mesh_id, to_slice(mesh_data.vertex_attributes.as_slice()))
+            .1
+            .start;
+        let runtime_vertices = vec![
+            GPURuntimeVertexData {
+                mesh_index,
+                ..Default::default()
+            };
+            mesh_data.vertex_count()
+        ];
+        self.runtime_vertices
+            .write()
+            .unwrap()
+            .allocate(mesh_id, runtime_vertices.as_slice());
         let indices_offset = self
             .indices
             .write()
@@ -211,7 +178,11 @@ impl RenderBuffers {
             .allocate(mesh_id, mesh_data.indices.as_slice())
             .1
             .start;
-        (vertex_offset as _, indices_offset as _)
+        (
+            vertex_offset as _,
+            indices_offset as _,
+            attributes_offset as _,
+        )
     }
     pub fn add_mesh(&self, mesh_id: &MeshId, mesh_data: &MeshData) {
         inox_profiler::scoped_profile!("render_buffers::add_mesh");
@@ -223,25 +194,25 @@ impl RenderBuffers {
             .meshes
             .write()
             .unwrap()
-            .insert(mesh_id, DrawMesh::default());
+            .insert(mesh_id, GPUMesh::default());
         self.meshes_inverse_matrix
             .write()
             .unwrap()
             .insert(mesh_id, Matrix4::default_identity().inverse().into());
 
-        let (vertex_offset, indices_offset) =
-            self.add_vertex_data(mesh_id, mesh_data, mesh_index as _);
-        let (bhv_index, meshlet_offset) =
-            self.extract_meshlets(mesh_data, mesh_id, mesh_index as _);
+        let (vertex_offset, indices_offset, attributes_offset) =
+            self.add_vertex_data(mesh_id, mesh_index as _, mesh_data);
+        let (blas_index, meshlet_offset) =
+            self.extract_meshlets(mesh_data, mesh_id, mesh_index as _, indices_offset);
 
         {
             let mut meshes = self.meshes.write().unwrap();
             let mesh = meshes.get_mut(mesh_id).unwrap();
-            mesh.vertex_offset = vertex_offset;
-            mesh.indices_offset = indices_offset;
-            mesh.bhv_index = bhv_index as _;
+            mesh.vertices_position_offset = vertex_offset;
+            mesh.vertices_attribute_offset = attributes_offset;
+            mesh.vertices_attribute_layout = mesh_data.vertex_layout.into();
+            mesh.blas_index = blas_index as _;
             mesh.meshlets_offset = meshlet_offset as _;
-            mesh.meshlets_count = mesh_data.meshlets.len() as _;
         }
         self.recreate_tlas();
         self.update_culling_data();
@@ -259,10 +230,10 @@ impl RenderBuffers {
         let mut meshes_aabbs = Vec::new();
         {
             let meshes = self.meshes.write().unwrap();
-            let bhv = self.bhv.read().unwrap();
+            let bhv = self.blas.read().unwrap();
             let bhv = bhv.data();
             meshes.for_each_entry(|i, mesh| {
-                let node = &bhv[mesh.bhv_index as usize];
+                let node = &bhv[mesh.blas_index as usize];
                 let matrix = Matrix4::from_translation_orientation_scale(
                     mesh.position.into(),
                     mesh.orientation.into(),
@@ -274,16 +245,12 @@ impl RenderBuffers {
                 meshes_aabbs.push(aabb);
             });
         }
-        let bhv = BHVTree::new(&meshes_aabbs)/*.sort_by(|a, b| {
-            let c1 = a.min() + (a.max() - a.min()) * 0.5;
-            let c2 = b.min() + (b.max() - b.min()) * 0.5;
-            c1.z.partial_cmp(&c2.z).unwrap()
-        })*/;
+        let bhv = BHVTree::new(&meshes_aabbs);
         let linearized_bhv = create_linearized_bhv(&bhv);
         let mut tlas = self.tlas.write().unwrap();
         tlas.allocate(&TLAS_UID, &linearized_bhv);
     }
-    fn update_transform(&self, mesh: &mut Mesh, m: &mut DrawMesh) -> bool {
+    fn update_transform(&self, mesh: &mut Mesh, m: &mut GPUMesh) -> bool {
         inox_profiler::scoped_profile!("render_buffers::update_transform");
 
         let matrix = mesh.matrix();
@@ -368,14 +335,12 @@ impl RenderBuffers {
             self.meshes_inverse_matrix.write().unwrap().remove(mesh_id);
             self.meshlets.write().unwrap().remove(mesh_id);
             self.meshlets_culling.write().unwrap().remove(mesh_id);
-            self.bhv.write().unwrap().remove(mesh_id);
+            self.blas.write().unwrap().remove(mesh_id);
 
-            self.vertices.write().unwrap().remove(mesh_id);
             self.indices.write().unwrap().remove(mesh_id);
             self.vertex_positions.write().unwrap().remove(mesh_id);
-            self.vertex_colors.write().unwrap().remove(mesh_id);
-            self.vertex_normals.write().unwrap().remove(mesh_id);
-            self.vertex_uvs.write().unwrap().remove(mesh_id);
+            self.runtime_vertices.write().unwrap().remove(mesh_id);
+            self.vertex_attributes.write().unwrap().remove(mesh_id);
         }
         if recreate_tlas {
             self.recreate_tlas();
@@ -401,7 +366,7 @@ impl RenderBuffers {
         } else {
             let index = materials.insert(
                 material_id,
-                DrawMaterial {
+                GPUMaterial {
                     textures_indices,
                     ..Default::default()
                 },

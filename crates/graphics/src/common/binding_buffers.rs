@@ -42,7 +42,7 @@ impl BindingDataBuffer {
         let buffer = bind_data_buffer
             .entry(id)
             .or_insert_with(GpuBuffer::default);
-        if data.is_dirty() {
+        if data.is_dirty() || usage != buffer.usage() {
             let is_changed = buffer.bind(label, data, usage, render_core_context);
             if is_changed {
                 self.changed_this_frame.write().unwrap().push(id);

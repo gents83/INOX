@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use crate::{
     AsBinding, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DrawCommandType, DrawRay, GpuBuffer, MeshFlags, Pass, RaysBuffer,
-    RenderContext, RenderCoreContext, ShaderStage, TextureView, OutputPass, TextureId,
+    ConstantDataRw, DrawCommandType, GPURay, GpuBuffer, MeshFlags, OutputPass, Pass, RaysBuffer,
+    RenderContext, RenderCoreContext, ShaderStage, TextureId, TextureView,
 };
 
 use inox_core::ContextRc;
@@ -184,7 +184,7 @@ impl ComputeRayTracingGenerateRayPass {
         self.data.set_dirty(true);
         {
             let mut rays = self.rays.write().unwrap();
-            let ray_data = vec![DrawRay::default(); (self.data.width * self.data.height) as usize];
+            let ray_data = vec![GPURay::default(); (self.data.width * self.data.height) as usize];
             rays.allocate(&RAYS_UID, ray_data.as_ref());
         }
         self

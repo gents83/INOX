@@ -60,18 +60,18 @@ fn intersect_triangle(ray: ptr<function, Ray>, v0: vec3<f32>, v1: vec3<f32>, v2:
 
 fn intersect_meshlet_primitive(ray: ptr<function, Ray>, mesh_id: u32, meshlet_id: u32, primitive_id: u32) -> f32 {
     let mesh = &meshes.data[mesh_id];    
-    let node = &bhv.data[u32((*mesh).bhv_index)];  
+    let node = &bhv.data[u32((*mesh).blas_index)];  
     
     let meshlet = &meshlets.data[meshlet_id];
     
-    let index_offset = (*mesh).indices_offset + (*meshlet).indices_offset + (primitive_id * 3u);
+    let index_offset = (*meshlet).indices_offset + (primitive_id * 3u);
     let i1 = indices.data[index_offset];
     let i2 = indices.data[index_offset + 1u];
     let i3 = indices.data[index_offset + 2u];
 
-    let o1 = vertices.data[(*mesh).vertex_offset + i1].position_and_color_offset;
-    let o2 = vertices.data[(*mesh).vertex_offset + i2].position_and_color_offset;
-    let o3 = vertices.data[(*mesh).vertex_offset + i3].position_and_color_offset;
+    let o1 = vertices.data[(*mesh).vertices_position_offset + i1].position_and_color_offset;
+    let o2 = vertices.data[(*mesh).vertices_position_offset + i2].position_and_color_offset;
+    let o3 = vertices.data[(*mesh).vertices_position_offset + i3].position_and_color_offset;
 
     let v1 = positions.data[o1];
     let v2 = positions.data[o2];
@@ -95,8 +95,7 @@ fn is_meshlet_visible(meshlet_id: u32) -> bool
 fn intersect_meshlet(ray: ptr<function, Ray>, mesh_id: u32, meshlet_id: u32, far_plane: f32) -> Result {
     var nearest = far_plane;  
     var visibility_id = 0u;
-    
-    let mesh = &meshes.data[mesh_id];   
+      
     let meshlet = &meshlets.data[meshlet_id];
     let primitive_count = (*meshlet).indices_count / 3u;
     for(var primitive_id = 0u; primitive_id < primitive_count; primitive_id = primitive_id + 1u)
@@ -110,7 +109,7 @@ fn intersect_meshlet(ray: ptr<function, Ray>, mesh_id: u32, meshlet_id: u32, far
 
 fn traverse_bhv_of_meshlets(ray: ptr<function, Ray>, mesh_id: u32, far_plane: f32) -> Result {
     let mesh = &meshes.data[mesh_id];    
-    var bhv_index = i32((*mesh).bhv_index);    
+    var bhv_index = i32((*mesh).blas_index);    
     let mesh_bhv_index = bhv_index;
     var nearest = far_plane;  
     var visibility_id = 0u;

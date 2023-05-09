@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
 use crate::{
-    BHVBuffer, BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
-    DrawVertex, IndicesBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer, OutputRenderPass, Pass,
-    RenderContext, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage,
-    StoreOperation, TextureView, VertexPositionsBuffer, VerticesBuffer,
+    BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, GPURuntimeVertexData,
+    IndicesBuffer, MeshFlags, OutputRenderPass, Pass, RenderContext, RenderPass,
+    RenderPassBeginData, RenderPassData, RenderTarget, RuntimeVerticesBuffer, ShaderStage,
+    StoreOperation, TextureView,
 };
 
 use inox_core::ContextRc;
@@ -18,12 +18,8 @@ pub struct VisibilityBufferPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    meshes: MeshesBuffer,
-    bhv: BHVBuffer,
-    meshlets: MeshletsBuffer,
-    vertices: VerticesBuffer,
     indices: IndicesBuffer,
-    vertex_positions: VertexPositionsBuffer,
+    runtime_vertices: RuntimeVerticesBuffer,
 }
 unsafe impl Send for VisibilityBufferPass {}
 unsafe impl Sync for VisibilityBufferPass {}
@@ -67,14 +63,10 @@ impl Pass for VisibilityBufferPass {
                 &data,
                 None,
             ),
-            constant_data: render_context.constant_data.clone(),
-            meshes: render_context.render_buffers.meshes.clone(),
-            bhv: render_context.render_buffers.bhv.clone(),
-            meshlets: render_context.render_buffers.meshlets.clone(),
-            vertices: render_context.render_buffers.vertices.clone(),
-            indices: render_context.render_buffers.indices.clone(),
-            vertex_positions: render_context.render_buffers.vertex_positions.clone(),
             binding_data: BindingData::new(render_context, VISIBILITY_BUFFER_PASS_NAME),
+            constant_data: render_context.constant_data.clone(),
+            indices: render_context.render_buffers.indices.clone(),
+            runtime_vertices: render_context.render_buffers.runtime_vertices.clone(),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -93,54 +85,14 @@ impl Pass for VisibilityBufferPass {
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
-                &mut *self.vertex_positions.write().unwrap(),
-                Some("VertexPositions"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 1,
-                    stage: ShaderStage::Vertex,
-
-                    ..Default::default()
-                },
+            .set_vertex_buffer(
+                0,
+                &mut *self.runtime_vertices.write().unwrap(),
+                Some("Runtime Vertices"),
             )
-            .add_storage_buffer(
-                &mut *self.meshes.write().unwrap(),
-                Some("Meshes"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 2,
-                    stage: ShaderStage::Vertex,
-
-                    ..Default::default()
-                },
-            )
-            .add_storage_buffer(
-                &mut *self.meshlets.write().unwrap(),
-                Some("Meshlets"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 3,
-                    stage: ShaderStage::Vertex,
-
-                    ..Default::default()
-                },
-            )
-            .add_storage_buffer(
-                &mut *self.bhv.write().unwrap(),
-                Some("BHV"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 4,
-                    stage: ShaderStage::Vertex,
-
-                    ..Default::default()
-                },
-            )
-            .set_vertex_buffer(0, &mut *self.vertices.write().unwrap(), Some("Vertices"))
             .set_index_buffer(&mut *self.indices.write().unwrap(), Some("Indices"));
 
-        let vertex_layout = DrawVertex::descriptor(0);
+        let vertex_layout = GPURuntimeVertexData::descriptor(0);
         pass.init(
             render_context,
             &mut self.binding_data,

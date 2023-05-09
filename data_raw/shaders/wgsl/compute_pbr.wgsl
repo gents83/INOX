@@ -1,5 +1,5 @@
-#import "utils.inc"
 #import "common.inc"
+#import "utils.inc"
 
 
 struct PbrData {
@@ -111,17 +111,17 @@ fn main(
     screen_pixel = screen_pixel / vec2<f32>(f32(pbr_data.width), f32(pbr_data.height));
     screen_pixel.y = 1. - screen_pixel.y;
     
-    let index_offset = (*mesh).indices_offset + (*meshlet).indices_offset + (primitive_id * 3u);
+    let index_offset = (*meshlet).indices_offset + (primitive_id * 3u);
     let i1 = indices.data[index_offset];
     let i2 = indices.data[index_offset + 1u];
     let i3 = indices.data[index_offset + 2u];
 
-    let vertex_offset = (*mesh).vertex_offset;
+    let vertex_offset = (*mesh).vertices_position_offset;
     let v1 = &vertices.data[vertex_offset + i1];
     let v2 = &vertices.data[vertex_offset + i2];
     let v3 = &vertices.data[vertex_offset + i3];
 
-    let oobb = &bhv.data[(*mesh).bhv_index];
+    let oobb = &bhv.data[(*mesh).blas_index];
     let oobb_size = (*oobb).max - (*oobb).min;
 
     let vp1 = (*oobb).min + decode_as_vec3(positions.data[(*v1).position_and_color_offset]) * oobb_size;

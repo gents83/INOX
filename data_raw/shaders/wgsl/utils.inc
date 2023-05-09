@@ -86,10 +86,59 @@ fn hash( x: u32 ) -> u32 {
     return v;
 }
 
-
 fn swap_f32(ptr_a: ptr<function, f32>, ptr_b: ptr<function, f32>) 
 {
     let c = *ptr_a;
     *ptr_a = *ptr_b;
     *ptr_b = c;
+}
+
+fn has_vertex_attribute(vertex_attribute_layout: u32, attribute_to_check: u32) -> bool {
+    return bool(vertex_attribute_layout & attribute_to_check);
+}
+fn vertex_attribute_offset(vertex_attribute_layout: u32, attribute_to_check: u32) -> u32 
+{
+    var result = 0u;
+    if(attribute_to_check >= VERTEX_ATTRIBUTE_HAS_COLOR && has_vertex_attribute(vertex_attribute_layout, VERTEX_ATTRIBUTE_HAS_COLOR)) {
+        result += 1u;
+    }
+    if(attribute_to_check >= VERTEX_ATTRIBUTE_HAS_NORMAL && has_vertex_attribute(vertex_attribute_layout, VERTEX_ATTRIBUTE_HAS_NORMAL)) {
+        result += 1u;
+    }
+    if(attribute_to_check >= VERTEX_ATTRIBUTE_HAS_UV1 && has_vertex_attribute(vertex_attribute_layout, VERTEX_ATTRIBUTE_HAS_UV1)) {
+        result += 1u;
+    }
+    if(attribute_to_check >= VERTEX_ATTRIBUTE_HAS_UV2 && has_vertex_attribute(vertex_attribute_layout, VERTEX_ATTRIBUTE_HAS_UV2)) {
+        result += 1u;
+    }
+    if(attribute_to_check >= VERTEX_ATTRIBUTE_HAS_UV3 && has_vertex_attribute(vertex_attribute_layout, VERTEX_ATTRIBUTE_HAS_UV3)) {
+        result += 1u;
+    }
+    if(attribute_to_check >= VERTEX_ATTRIBUTE_HAS_UV4 && has_vertex_attribute(vertex_attribute_layout, VERTEX_ATTRIBUTE_HAS_UV4)) {
+        result += 1u;
+    }
+    return result;
+}
+fn vertex_layout_stride(vertex_attribute_layout: u32) -> u32 
+{
+    var result = 0u;
+    if(has_vertex_attribute(vertex_attribute_layout, VERTEX_ATTRIBUTE_HAS_COLOR)) {
+        result += 1u;
+    }
+    if(has_vertex_attribute(vertex_attribute_layout, VERTEX_ATTRIBUTE_HAS_NORMAL)) {
+        result += 1u;
+    }
+    if(has_vertex_attribute(vertex_attribute_layout, VERTEX_ATTRIBUTE_HAS_UV1)) {
+        result += 1u;
+    }
+    if(has_vertex_attribute(vertex_attribute_layout, VERTEX_ATTRIBUTE_HAS_UV2)) {
+        result += 1u;
+    }
+    if(has_vertex_attribute(vertex_attribute_layout, VERTEX_ATTRIBUTE_HAS_UV3)) {
+        result += 1u;
+    }
+    if(has_vertex_attribute(vertex_attribute_layout, VERTEX_ATTRIBUTE_HAS_UV4)) {
+        result += 1u;
+    }
+    return result;
 }

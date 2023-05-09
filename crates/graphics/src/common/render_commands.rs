@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use inox_resources::Buffer;
 
-use crate::{AsBinding, DrawCommandType, DrawIndexedCommand, DrawMesh, DrawMeshlet, MeshId};
+use crate::{AsBinding, DrawCommandType, DrawIndexedCommand, GPUMesh, GPUMeshlet, MeshId};
 
 #[derive(Default)]
 pub struct RenderCommandsPerType {
@@ -60,54 +60,50 @@ impl RenderCommands {
     fn add_commands(
         &mut self,
         mesh_id: &MeshId,
-        mesh: &DrawMesh,
-        meshlets: &[DrawMeshlet],
+        mesh: &GPUMesh,
+        meshlets: &[GPUMeshlet],
         draw_command_type: DrawCommandType,
     ) -> &mut Self {
         let mut commands = Vec::new();
         match draw_command_type {
             DrawCommandType::PerMeshlet => {
-                for meshlet_index in
-                    mesh.meshlets_offset..mesh.meshlets_offset + mesh.meshlets_count
-                {
-                    let meshlet = &meshlets[meshlet_index as usize];
+                let mut meshlet_index = mesh.meshlets_offset;
+                for meshlet in meshlets {
                     let command = DrawIndexedCommand {
                         vertex_count: meshlet.indices_count as _,
                         instance_count: 1,
-                        base_index: (mesh.indices_offset + meshlet.indices_offset) as _,
-                        vertex_offset: mesh.vertex_offset as _,
+                        base_index: meshlet.indices_offset as _,
+                        vertex_offset: mesh.vertices_position_offset as _,
                         base_instance: meshlet_index as _,
                     };
+                    meshlet_index += 1;
                     commands.push(command);
                 }
             }
             DrawCommandType::PerTriangle => {
-                for meshlet_index in
-                    mesh.meshlets_offset..mesh.meshlets_offset + mesh.meshlets_count
-                {
-                    let meshlet = &meshlets[meshlet_index as usize];
-
-                    let total_indices =
-                        mesh.indices_offset + meshlet.indices_offset + meshlet.indices_count;
+                let mut meshlet_index = mesh.meshlets_offset;
+                for meshlet in meshlets {
+                    let total_indices = meshlet.indices_offset + meshlet.indices_count;
                     debug_assert!(
                         meshlet.indices_count % 3 == 0,
                         "indices count {} is not divisible by 3",
                         meshlet.indices_count
                     );
-                    let mut i = mesh.indices_offset + meshlet.indices_offset;
+                    let mut i = meshlet.indices_offset;
                     let mut triangle_index = 0;
                     while i < total_indices {
                         let command = DrawIndexedCommand {
                             vertex_count: 3,
                             instance_count: 1,
                             base_index: i as _,
-                            vertex_offset: mesh.vertex_offset as _,
+                            vertex_offset: mesh.vertices_position_offset as _,
                             base_instance: (triangle_index << 24 | meshlet_index) as _,
                         };
                         commands.push(command);
                         i += 3;
                         triangle_index += 1;
                     }
+                    meshlet_index += 1;
                 }
             }
             _ => {}
@@ -132,18 +128,18 @@ impl RenderCommandsPerType {
     pub fn add_commands(
         &mut self,
         mesh_id: &MeshId,
-        mesh: &DrawMesh,
-        meshlets: &Buffer<DrawMeshlet>,
+        mesh: &GPUMesh,
+        meshlets: &Buffer<GPUMeshlet>,
     ) -> &mut Self {
-        let meshlets = meshlets.data();
+        if let Some(meshlets) = meshlets.items(mesh_id) {
+            let meshlet_entry = self.map.entry(DrawCommandType::PerMeshlet).or_default();
+            meshlet_entry.remove_commands(mesh_id);
+            meshlet_entry.add_commands(mesh_id, mesh, meshlets, DrawCommandType::PerMeshlet);
 
-        let meshlet_entry = self.map.entry(DrawCommandType::PerMeshlet).or_default();
-        meshlet_entry.remove_commands(mesh_id);
-        meshlet_entry.add_commands(mesh_id, mesh, meshlets, DrawCommandType::PerMeshlet);
-
-        let triangle_entry = self.map.entry(DrawCommandType::PerTriangle).or_default();
-        triangle_entry.remove_commands(mesh_id);
-        triangle_entry.add_commands(mesh_id, mesh, meshlets, DrawCommandType::PerTriangle);
+            let triangle_entry = self.map.entry(DrawCommandType::PerTriangle).or_default();
+            triangle_entry.remove_commands(mesh_id);
+            triangle_entry.add_commands(mesh_id, mesh, meshlets, DrawCommandType::PerTriangle);
+        }
 
         self
     }

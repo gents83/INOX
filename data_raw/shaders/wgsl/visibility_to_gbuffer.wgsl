@@ -1,5 +1,5 @@
-#import "utils.inc"
 #import "common.inc"
+#import "utils.inc"
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
@@ -61,7 +61,7 @@ fn vs_main(
 
     let mesh_id = u32(meshlets.data[meshlet_id].mesh_index);
     let mesh = &meshes.data[mesh_id];
-    let aabb = &bhv.data[(*mesh).bhv_index];
+    let aabb = &bhv.data[(*mesh).blas_index];
 
     let aabb_size = abs((*aabb).max - (*aabb).min);
     

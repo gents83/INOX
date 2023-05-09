@@ -1,11 +1,10 @@
 use std::path::PathBuf;
 
 use crate::{
-    BHVBuffer, BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
-    DrawVertex, IndicesBuffer, MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer,
-    OutputRenderPass, Pass, RenderContext, RenderPass, RenderPassBeginData, RenderPassData,
-    RenderTarget, ShaderStage, StoreOperation, TextureView, TexturesBuffer, VertexColorsBuffer,
-    VertexNormalsBuffer, VertexPositionsBuffer, VertexUVsBuffer, VerticesBuffer,
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
+    GPURuntimeVertexData, IndicesBuffer, MeshFlags, MeshesBuffer, OutputRenderPass, Pass,
+    RenderContext, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
+    RuntimeVerticesBuffer, ShaderStage, StoreOperation, TextureView, VertexAttributesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -19,17 +18,10 @@ pub struct GBufferPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    textures: TexturesBuffer,
-    materials: MaterialsBuffer,
     meshes: MeshesBuffer,
-    bhv: BHVBuffer,
-    meshlets: MeshletsBuffer,
-    vertices: VerticesBuffer,
     indices: IndicesBuffer,
-    vertex_positions: VertexPositionsBuffer,
-    vertex_colors: VertexColorsBuffer,
-    vertex_normals: VertexNormalsBuffer,
-    vertex_uvs: VertexUVsBuffer,
+    runtime_vertices: RuntimeVerticesBuffer,
+    vertices_attributes: VertexAttributesBuffer,
 }
 unsafe impl Send for GBufferPass {}
 unsafe impl Sync for GBufferPass {}
@@ -73,19 +65,12 @@ impl Pass for GBufferPass {
                 &data,
                 None,
             ),
-            constant_data: render_context.constant_data.clone(),
-            textures: render_context.render_buffers.textures.clone(),
-            materials: render_context.render_buffers.materials.clone(),
-            meshes: render_context.render_buffers.meshes.clone(),
-            bhv: render_context.render_buffers.bhv.clone(),
-            meshlets: render_context.render_buffers.meshlets.clone(),
-            vertices: render_context.render_buffers.vertices.clone(),
-            indices: render_context.render_buffers.indices.clone(),
-            vertex_positions: render_context.render_buffers.vertex_positions.clone(),
-            vertex_colors: render_context.render_buffers.vertex_colors.clone(),
-            vertex_normals: render_context.render_buffers.vertex_normals.clone(),
-            vertex_uvs: render_context.render_buffers.vertex_uvs.clone(),
             binding_data: BindingData::new(render_context, GBUFFER_PASS_NAME),
+            constant_data: render_context.constant_data.clone(),
+            meshes: render_context.render_buffers.meshes.clone(),
+            indices: render_context.render_buffers.indices.clone(),
+            runtime_vertices: render_context.render_buffers.runtime_vertices.clone(),
+            vertices_attributes: render_context.render_buffers.vertex_attributes.clone(),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -93,18 +78,11 @@ impl Pass for GBufferPass {
 
         let mut pass = self.render_pass.get_mut();
 
-        if self.textures.read().unwrap().is_empty()
-            || self.meshes.read().unwrap().is_empty()
-            || self.meshlets.read().unwrap().is_empty()
-            || self.materials.read().unwrap().is_empty()
-            || self.vertex_positions.read().unwrap().is_empty()
-            || self.vertex_normals.read().unwrap().is_empty()
-            || self.vertex_colors.read().unwrap().is_empty()
-            || self.vertex_uvs.read().unwrap().is_empty()
-        {
+        if self.runtime_vertices.read().unwrap().is_empty() {
             return;
         }
-
+        let mut runtime_vertices = self.runtime_vertices.write().unwrap();
+        let mut vertices_attributes = self.vertices_attributes.write().unwrap();
         self.binding_data
             .add_uniform_buffer(
                 &mut *self.constant_data.write().unwrap(),
@@ -112,116 +90,44 @@ impl Pass for GBufferPass {
                 BindingInfo {
                     group_index: 0,
                     binding_index: 0,
-                    stage: ShaderStage::VertexAndFragment,
+                    stage: ShaderStage::Vertex,
                     ..Default::default()
                 },
             )
             .add_storage_buffer(
-                &mut *self.vertex_positions.write().unwrap(),
-                Some("VertexPositions"),
+                &mut *runtime_vertices,
+                Some("Runtime Vertices"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,
                     stage: ShaderStage::Vertex,
-                    ..Default::default()
+                    flags: BindingFlags::Vertex | BindingFlags::Read,
                 },
             )
             .add_storage_buffer(
-                &mut *self.vertex_colors.write().unwrap(),
-                Some("VertexColors"),
+                &mut *vertices_attributes,
+                Some("Vertices Attributes"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,
                     stage: ShaderStage::Vertex,
-                    ..Default::default()
-                },
-            )
-            .add_storage_buffer(
-                &mut *self.vertex_normals.write().unwrap(),
-                Some("VertexNormals"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 3,
-                    stage: ShaderStage::Vertex,
-                    ..Default::default()
-                },
-            )
-            .add_storage_buffer(
-                &mut *self.vertex_uvs.write().unwrap(),
-                Some("VertexUVs"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 4,
-                    stage: ShaderStage::Vertex,
-                    ..Default::default()
+                    flags: BindingFlags::Read,
                 },
             )
             .add_storage_buffer(
                 &mut *self.meshes.write().unwrap(),
                 Some("Meshes"),
                 BindingInfo {
-                    group_index: 1,
-                    binding_index: 0,
-                    stage: ShaderStage::VertexAndFragment,
-                    ..Default::default()
-                },
-            )
-            .add_storage_buffer(
-                &mut *self.materials.write().unwrap(),
-                Some("Materials"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 1,
-                    stage: ShaderStage::Fragment,
-                    ..Default::default()
-                },
-            )
-            .add_storage_buffer(
-                &mut *self.textures.write().unwrap(),
-                Some("Textures"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 2,
-                    stage: ShaderStage::Fragment,
-                    ..Default::default()
-                },
-            )
-            .add_storage_buffer(
-                &mut *self.meshlets.write().unwrap(),
-                Some("Meshlets"),
-                BindingInfo {
-                    group_index: 1,
+                    group_index: 0,
                     binding_index: 3,
                     stage: ShaderStage::Vertex,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
-                &mut *self.bhv.write().unwrap(),
-                Some("BHV"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 4,
-                    stage: ShaderStage::Vertex,
-                    ..Default::default()
-                },
-            )
-            .add_default_sampler(BindingInfo {
-                group_index: 2,
-                binding_index: 0,
-                stage: ShaderStage::Fragment,
-                ..Default::default()
-            })
-            .add_material_textures(BindingInfo {
-                group_index: 2,
-                binding_index: 1,
-                stage: ShaderStage::Fragment,
-                ..Default::default()
-            })
-            .set_vertex_buffer(0, &mut *self.vertices.write().unwrap(), Some("Vertices"))
+            .set_vertex_buffer(0, &mut *runtime_vertices, Some("Runtime Vertices"))
             .set_index_buffer(&mut *self.indices.write().unwrap(), Some("Indices"));
 
-        let vertex_layout = DrawVertex::descriptor(0);
+        let vertex_layout = GPURuntimeVertexData::descriptor(0);
         pass.init(
             render_context,
             &mut self.binding_data,

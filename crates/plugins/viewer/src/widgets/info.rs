@@ -271,7 +271,7 @@ impl Info {
             if data.show_blas {
                 let renderer = data.params.renderer.read().unwrap();
                 let render_context = renderer.render_context();
-                let bhv = render_context.render_buffers.bhv.read().unwrap();
+                let bhv = render_context.render_buffers.blas.read().unwrap();
                 bhv.for_each_data(|_i_, _id, n| {
                     data.context
                         .message_hub()
@@ -308,7 +308,7 @@ impl Info {
             } else {
                 let renderer = data.params.renderer.read().unwrap();
                 let render_context = renderer.render_context();
-                let bhv = render_context.render_buffers.bhv.read().unwrap();
+                let bhv = render_context.render_buffers.blas.read().unwrap();
                 meshes.iter().for_each(|mesh| {
                     if let Some(nodes) = bhv.items(mesh.id()) {
                         nodes.iter().for_each(|n| {

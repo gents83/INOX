@@ -1,7 +1,5 @@
-
-
-#import "utils.inc"
 #import "common.inc"
+#import "utils.inc"
 
 struct CullingData {
     view: mat4x4<f32>,
@@ -101,7 +99,7 @@ fn main(
     }
 
     let mesh = &meshes.data[mesh_id];
-    let bb_id = (*mesh).bhv_index + (*meshlet).bhv_index;
+    let bb_id = (*mesh).blas_index + (*meshlet).blas_index;
     let bb = &bhv.data[bb_id];
     let max = transform_vector((*bb).max, (*mesh).position, (*mesh).orientation, (*mesh).scale);
     let min = transform_vector((*bb).min, (*mesh).position, (*mesh).orientation, (*mesh).scale);

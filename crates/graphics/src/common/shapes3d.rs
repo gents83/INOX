@@ -1,15 +1,20 @@
 use std::f32::consts::PI;
 
-use inox_math::{Mat4Ops, MatBase, Matrix4, VecBaseFloat, Vector2, Vector3, Vector4};
+use inox_math::{Mat4Ops, MatBase, Matrix4, VecBase, VecBaseFloat, Vector2, Vector3, Vector4};
 
-use crate::{MeshData, MeshletData};
+use crate::{MeshData, MeshletData, VertexAttributeLayout};
 
 pub fn create_cube(size: Vector3, color: Vector4) -> MeshData {
     create_cube_from_min_max(-size, size, color)
 }
 
 pub fn create_cube_from_min_max(min: Vector3, max: Vector3, color: Vector4) -> MeshData {
-    let mut mesh_data = MeshData::default();
+    let mut mesh_data = MeshData {
+        vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
+        aabb_max: max,
+        aabb_min: min,
+        ..Default::default()
+    };
     mesh_data.add_vertex_pos_color_normal_uv(
         Vector3::new(min.x, min.y, min.z),
         color,
@@ -81,7 +86,20 @@ pub fn create_cylinder(
     num_stack: u32,
     color: Vector4,
 ) -> MeshData {
-    let mut mesh_data = MeshData::default();
+    let mut mesh_data = MeshData {
+        vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
+        aabb_min: Vector3::new(
+            -base_radius.max(top_radius),
+            -base_radius.max(top_radius),
+            -height * 0.5,
+        ),
+        aabb_max: Vector3::new(
+            base_radius.max(top_radius),
+            base_radius.max(top_radius),
+            height * 0.5,
+        ),
+        ..Default::default()
+    };
 
     let angle_step = 2. * PI / num_slices as f32;
 
@@ -228,7 +246,20 @@ pub fn create_sphere(
     num_stack: u32,
     color: Vector4,
 ) -> MeshData {
-    let mut mesh_data = MeshData::default();
+    let mut mesh_data = MeshData {
+        vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
+        aabb_min: Vector3::new(
+            -position.x - radius,
+            -position.y - radius,
+            -position.z - radius,
+        ),
+        aabb_max: Vector3::new(
+            position.x + radius,
+            position.y + radius,
+            position.z + radius,
+        ),
+        ..Default::default()
+    };
 
     let slice_step = 2. * PI / num_slices as f32;
     let stack_step = PI / num_stack as f32;
@@ -284,7 +315,10 @@ pub fn create_sphere(
 }
 
 pub fn create_arrow(position: Vector3, direction: Vector3, color: Vector4) -> MeshData {
-    let mut shape_mesh_data = MeshData::default();
+    let mut shape_mesh_data = MeshData {
+        vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
+        ..Default::default()
+    };
 
     let height = direction.length();
 
@@ -306,7 +340,12 @@ pub fn create_arrow(position: Vector3, direction: Vector3, color: Vector4) -> Me
 }
 
 pub fn create_line(start: Vector3, end: Vector3, color: Vector4) -> MeshData {
-    let mut mesh_data = MeshData::default();
+    let mut mesh_data = MeshData {
+        vertex_layout: VertexAttributeLayout::pos_color(),
+        aabb_min: start.min(end),
+        aabb_max: start.max(end),
+        ..Default::default()
+    };
     mesh_data.add_vertex_pos_color([start.x, start.y, start.z].into(), color);
     mesh_data.add_vertex_pos_color([start.x, start.y, start.z].into(), color);
     mesh_data.add_vertex_pos_color([end.x, end.y, end.z].into(), color);
@@ -329,7 +368,10 @@ pub fn create_circumference(
     num_slices: u32,
     color: Vector4,
 ) -> MeshData {
-    let mut mesh_data = MeshData::default();
+    let mut mesh_data = MeshData {
+        vertex_layout: VertexAttributeLayout::pos_color(),
+        ..Default::default()
+    };
 
     let slice_step = 2. * PI / num_slices as f32;
 
@@ -358,7 +400,12 @@ pub fn create_circumference(
 }
 
 pub fn create_circle(position: Vector3, radius: f32, num_slices: u32, color: Vector4) -> MeshData {
-    let mut mesh_data = MeshData::default();
+    let mut mesh_data = MeshData {
+        vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
+        aabb_min: Vector3::new(position.x - radius, position.y - radius, position.z),
+        aabb_max: Vector3::new(position.x + radius, position.y + radius, position.z),
+        ..Default::default()
+    };
 
     let slice_step = 2. * PI / num_slices as f32;
     let inv = 1. / radius;
@@ -396,7 +443,10 @@ pub fn create_circle(position: Vector3, radius: f32, num_slices: u32, color: Vec
 }
 
 pub fn create_hammer(position: Vector3, direction: Vector3, color: Vector4) -> MeshData {
-    let mut shape_mesh_data = MeshData::default();
+    let mut shape_mesh_data = MeshData {
+        vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
+        ..Default::default()
+    };
 
     let height = direction.length();
 
@@ -430,7 +480,20 @@ pub fn create_torus(
     direction: Vector3,
     color: Vector4,
 ) -> MeshData {
-    let mut mesh_data = MeshData::default();
+    let mut mesh_data = MeshData {
+        vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
+        aabb_min: Vector3::new(
+            position.x - main_radius - tube_radius,
+            position.y - main_radius - tube_radius,
+            -tube_radius,
+        ),
+        aabb_max: Vector3::new(
+            position.x + main_radius + tube_radius,
+            position.y + main_radius + tube_radius,
+            tube_radius,
+        ),
+        ..Default::default()
+    };
 
     let main_step = 2. * PI / num_main_slices as f32;
     let tube_step = 2. * PI / num_tube_slices as f32;

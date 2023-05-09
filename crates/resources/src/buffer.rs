@@ -129,10 +129,10 @@ where
         if let Some(index) = self
             .free
             .iter()
-            .position(|d| (d.range.end + 1 - d.range.start) >= size)
+            .position(|d| (d.range.end - d.range.start) >= size)
         {
             let free_data = self.free.remove(index);
-            if (free_data.range.end + 1 - free_data.range.start) > size {
+            if (free_data.range.end - free_data.range.start) > size {
                 self.free.push(BufferData::new(
                     &generate_random_uid(),
                     free_data.range.start + size,
@@ -149,7 +149,7 @@ where
     fn insert(&mut self, id: &ResourceId, data: &[T]) -> Range<usize> {
         let start = self.data.len();
         let size = data.len();
-        let end = start + size - 1;
+        let end = start + size;
         //inox_log::debug_log!("[{:?}] added, [start {} : end {}]", id, start, end);
 
         self.is_changed = true;
@@ -160,15 +160,11 @@ where
     fn insert_at(&mut self, id: &ResourceId, start: usize, data: &[T]) -> Range<usize> {
         debug_assert!(start <= self.data.len());
         let size = data.len();
-        let end = start + size - 1;
+        let end = start + size;
         self.is_changed = true;
         //inox_log::debug_log!("[{:?}] inserting at {}", id, start);
         self.update(start, data);
-        if let Some(i) = self
-            .occupied
-            .iter()
-            .position(|d| (d.range.end + 1) == start)
-        {
+        if let Some(i) = self.occupied.iter().position(|d| d.range.end == start) {
             self.occupied.insert(i + 1, BufferData::new(id, start, end));
         } else if let Some(i) = self.occupied.iter().position(|d| d.range.start > end) {
             self.occupied.insert(i, BufferData::new(id, start, end));
@@ -202,7 +198,7 @@ where
     pub fn item_count(&self) -> usize {
         let mut count = 0;
         self.occupied.iter().for_each(|b| {
-            count += b.range.end + 1 - b.range.start;
+            count += b.range.end - b.range.start;
         });
         count
     }
@@ -219,13 +215,13 @@ where
     }
     pub fn items(&self, id: &ResourceId) -> Option<&[T]> {
         if let Some(buffer) = self.occupied.iter().find(|d| d.id == *id) {
-            return Some(&self.data[buffer.range.start..buffer.range.end + 1]);
+            return Some(&self.data[buffer.range.start..buffer.range.end]);
         }
         None
     }
     pub fn items_mut(&mut self, id: &ResourceId) -> Option<&mut [T]> {
         if let Some(buffer) = self.occupied.iter().find(|d| d.id == *id) {
-            return Some(&mut self.data[buffer.range.start..buffer.range.end + 1]);
+            return Some(&mut self.data[buffer.range.start..buffer.range.end]);
         }
         None
     }
@@ -278,7 +274,7 @@ where
     {
         self.occupied.iter().for_each(|b| {
             let func = &mut f;
-            self.data[b.range.start..(b.range.end + 1)]
+            self.data[b.range.start..b.range.end]
                 .iter()
                 .enumerate()
                 .for_each(|(i, d)| {
@@ -292,7 +288,7 @@ where
     {
         self.occupied.iter().for_each(|b| {
             let func = &mut f;
-            self.data[b.range.start..(b.range.end + 1)]
+            self.data[b.range.start..b.range.end]
                 .iter_mut()
                 .enumerate()
                 .for_each(|(i, d)| {
@@ -359,10 +355,10 @@ where
             let mut new_data = Vec::<T>::new();
             let mut last_index = 0;
             self.occupied.iter_mut().for_each(|d| {
-                new_data.extend_from_slice(&self.data[d.range.start..=d.range.end]);
+                new_data.extend_from_slice(&self.data[d.range.start..d.range.end]);
                 d.range.start = last_index;
                 last_index = new_data.len();
-                d.range.end = last_index - 1;
+                d.range.end = last_index;
             });
             self.data = new_data;
             self.is_changed = true;

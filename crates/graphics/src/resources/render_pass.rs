@@ -393,40 +393,39 @@ impl RenderPass {
         inox_profiler::scoped_profile!("render_pass::draw_meshlets");
 
         let mesh_flags = self.pipeline().get().data().mesh_flags;
-        let meshlets = render_context.render_buffers.meshlets.read().unwrap();
-        let meshlets = meshlets.data();
         render_context
             .render_buffers
             .meshes
             .read()
             .unwrap()
             .for_each_id(|mesh_id, _, mesh| {
-                if let Some(flags) = render_context
-                    .render_buffers
-                    .meshes_flags
-                    .read()
-                    .unwrap()
-                    .get(mesh_id)
-                {
-                    if flags == &mesh_flags {
-                        inox_profiler::scoped_profile!("render_pass::draw_mesh");
-                        for i in mesh.meshlets_offset..mesh.meshlets_offset + mesh.meshlets_count {
-                            inox_profiler::scoped_profile!("render_pass::draw_indexed");
-                            inox_profiler::gpu_scoped_profile!(
-                                &mut render_pass,
-                                &render_context.core.device,
-                                "render_pass::draw_indexed",
-                            );
-                            let meshlet = &meshlets[i as usize];
-                            render_pass.draw_indexed(
-                                (mesh.indices_offset + meshlet.indices_offset) as _
-                                    ..(mesh.indices_offset
-                                        + meshlet.indices_offset
-                                        + meshlet.indices_count)
-                                        as _,
-                                mesh.vertex_offset as _,
-                                i as _..(i + 1),
-                            );
+                let meshlets = render_context.render_buffers.meshlets.read().unwrap();
+                if let Some(meshlets) = meshlets.items(mesh_id) {
+                    if let Some(flags) = render_context
+                        .render_buffers
+                        .meshes_flags
+                        .read()
+                        .unwrap()
+                        .get(mesh_id)
+                    {
+                        if flags == &mesh_flags {
+                            let mut meshlet_index = mesh.meshlets_offset;
+                            inox_profiler::scoped_profile!("render_pass::draw_mesh");
+                            for meshlet in meshlets {
+                                inox_profiler::scoped_profile!("render_pass::draw_indexed");
+                                inox_profiler::gpu_scoped_profile!(
+                                    &mut render_pass,
+                                    &render_context.core.device,
+                                    "render_pass::draw_indexed",
+                                );
+                                render_pass.draw_indexed(
+                                    meshlet.indices_offset as _
+                                        ..(meshlet.indices_offset + meshlet.indices_count) as _,
+                                    mesh.vertices_position_offset as _,
+                                    meshlet_index as _..(meshlet_index + 1),
+                                );
+                                meshlet_index += 1;
+                            }
                         }
                     }
                 }
@@ -502,7 +501,6 @@ impl RenderPass {
 
         let mesh_flags = self.pipeline().get().data().mesh_flags;
         let meshlets = render_context.render_buffers.meshlets.read().unwrap();
-        let meshlets = meshlets.data();
         render_context
             .render_buffers
             .meshes
@@ -517,22 +515,27 @@ impl RenderPass {
                     .get(mesh_id)
                 {
                     if flags == &mesh_flags {
-                        let start = mesh.indices_offset;
-                        let mut end = start;
-                        for i in mesh.meshlets_offset..mesh.meshlets_offset + mesh.meshlets_count {
-                            let meshlet = &meshlets[i as usize];
-                            end += meshlet.indices_count;
+                        if let Some(meshlets) = meshlets.items(mesh_id) {
+                            let mut start = 0;
+                            let mut end = 0;
+                            meshlets.iter().enumerate().for_each(|(i, meshlet)| {
+                                if i == 0 {
+                                    start = meshlet.indices_offset;
+                                    end = start;
+                                }
+                                end += meshlet.indices_count;
+                            });
+                            inox_profiler::gpu_scoped_profile!(
+                                &mut render_pass,
+                                &render_context.core.device,
+                                "render_pass::draw_indexed",
+                            );
+                            render_pass.draw_indexed(
+                                start..end as _,
+                                mesh.vertices_position_offset as _,
+                                index as _..(index as u32 + 1),
+                            );
                         }
-                        inox_profiler::gpu_scoped_profile!(
-                            &mut render_pass,
-                            &render_context.core.device,
-                            "render_pass::draw_indexed",
-                        );
-                        render_pass.draw_indexed(
-                            start..end as _,
-                            mesh.vertex_offset as _,
-                            index as _..(index as u32 + 1),
-                        );
                     }
                 }
             });

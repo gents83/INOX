@@ -32,7 +32,7 @@ fn vs_main(
     let meshlet = &meshlets.data[meshlet_id];
     let mesh_id = (*meshlet).mesh_index;
     let mesh = &meshes.data[mesh_id];
-    let aabb = &bhv.data[(*mesh).bhv_index];
+    let aabb = &bhv.data[(*mesh).blas_index];
     
     let aabb_size = (*aabb).max - (*aabb).min;
     let p = (*aabb).min + decode_as_vec3(positions.data[v_in.position_and_color_offset]) * aabb_size;

@@ -1,5 +1,5 @@
-#import "utils.inc"
 #import "common.inc"
+#import "utils.inc"
 
 struct DebugVertex {
     @builtin(vertex_index) index: u32,
