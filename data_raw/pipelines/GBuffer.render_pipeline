@@ -2,7 +2,7 @@
     "vertex_shader": "shaders/wgsl/gbuffer.shader",
     "fragment_shader": "shaders/wgsl/gbuffer.shader",
     "front_face": "CounterClockwise",
-    "culling": "Back",
+    "culling": "None",
     "mode": "Fill",
     "depth_write_enabled": true,
     "depth_compare": "Less",
