@@ -62,6 +62,31 @@ enum NodeType {
     Light,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct GltfVertex {
+    pos: Vector3,
+    color: Option<Vector4>,
+    normal: Option<Vector3>,
+    uv_0: Option<Vector2>,
+    uv_1: Option<Vector2>,
+    uv_2: Option<Vector2>,
+    uv_3: Option<Vector2>,
+}
+
+impl Default for GltfVertex {
+    fn default() -> Self {
+        Self {
+            pos: Vector3::default_zero(),
+            color: None,
+            normal: None,
+            uv_0: None,
+            uv_1: None,
+            uv_2: None,
+            uv_3: None,
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct GltfCompiler {
     shared_data: SharedDataRc,
@@ -182,14 +207,8 @@ impl GltfCompiler {
         indices
     }
 
-    fn extract_vertices(&mut self, path: &Path, primitive: &Primitive) -> MeshData {
-        let mut mesh_data = MeshData::default();
-        let mut colors = Vec::new();
-        let mut normals = Vec::new();
-        let mut uvs = vec![Vec::default(); MAX_TEXTURE_COORDS_SETS];
-
-        mesh_data.aabb_max = Vector3::new(-f32::INFINITY, -f32::INFINITY, -f32::INFINITY);
-        mesh_data.aabb_min = Vector3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY);
+    fn extract_vertices(&mut self, path: &Path, primitive: &Primitive) -> Vec<GltfVertex> {
+        let mut vertices = Vec::new();
 
         for (_attribute_index, (semantic, accessor)) in primitive.attributes().enumerate() {
             //debug_log!("Attribute[{}]: {:?}", _attribute_index, semantic);
@@ -198,17 +217,12 @@ impl GltfCompiler {
                     let num = self.num_from_type(&accessor);
                     let num_bytes = self.bytes_from_dimension(&accessor);
                     debug_assert!(num == 3 && num_bytes == 4);
-                    mesh_data.vertex_layout |= VertexAttributeLayout::HasPosition;
                     if let Some(pos) = self.read_accessor_from_path::<Vector3>(path, &accessor) {
-                        if mesh_data.vertex_positions.is_empty() {
-                            mesh_data.vertex_positions.reserve(pos.len());
+                        if vertices.is_empty() {
+                            vertices.resize(pos.len(), GltfVertex::default());
                         }
-                        pos.iter().for_each(|p| {
-                            mesh_data.aabb_max = mesh_data.aabb_max.max(*p);
-                            mesh_data.aabb_min = mesh_data.aabb_min.min(*p);
-                        });
-                        pos.iter().for_each(|p| {
-                            mesh_data.insert_position(*p);
+                        pos.iter().enumerate().for_each(|(i, v)| {
+                            vertices[i].pos = *v;
                         });
                     }
                 }
@@ -216,31 +230,38 @@ impl GltfCompiler {
                     let num = self.num_from_type(&accessor);
                     let num_bytes = self.bytes_from_dimension(&accessor);
                     debug_assert!(num == 3 && num_bytes == 4);
-                    mesh_data.vertex_layout |= VertexAttributeLayout::HasNormal;
                     if let Some(norm) = self.read_accessor_from_path::<Vector3>(path, &accessor) {
-                        normals = norm;
+                        if vertices.is_empty() {
+                            vertices.resize(norm.len(), GltfVertex::default());
+                        }
+                        norm.iter().enumerate().for_each(|(i, v)| {
+                            vertices[i].normal = Some(*v);
+                        });
                     }
                 }
                 Semantic::Colors(_color_index) => {
                     let num = self.num_from_type(&accessor);
                     let num_bytes = self.bytes_from_dimension(&accessor);
                     debug_assert!(num == 4);
-                    mesh_data.vertex_layout |= VertexAttributeLayout::HasColor;
                     if num_bytes == 2 {
                         debug_assert!(num_bytes == 2);
                         if let Some(col) = self.read_accessor_from_path::<Vector4h>(path, &accessor)
                         {
-                            colors.reserve(col.len());
-                            col.iter().for_each(|c| {
-                                colors
-                                    .push([c.x as f32, c.y as f32, c.z as f32, c.z as f32].into());
+                            if vertices.is_empty() {
+                                vertices.resize(col.len(), GltfVertex::default());
+                            }
+                            col.iter().enumerate().for_each(|(i, v)| {
+                                vertices[i].color =
+                                    Some([v.x as f32, v.y as f32, v.z as f32, v.z as f32].into());
                             });
                         }
                     } else {
                         debug_assert!(num_bytes == 4);
                         if let Some(col) = self.read_accessor_from_path::<Vector4>(path, &accessor)
                         {
-                            colors = col;
+                            col.iter().enumerate().for_each(|(i, v)| {
+                                vertices[i].color = Some(*v);
+                            });
                         }
                     }
                 }
@@ -248,119 +269,125 @@ impl GltfCompiler {
                     let num = self.num_from_type(&accessor);
                     let num_bytes = self.bytes_from_dimension(&accessor);
                     debug_assert!(num == 2 && num_bytes == 4);
-                    match texture_index {
-                        0 => mesh_data.vertex_layout |= VertexAttributeLayout::HasUV1,
-                        1 => mesh_data.vertex_layout |= VertexAttributeLayout::HasUV2,
-                        2 => mesh_data.vertex_layout |= VertexAttributeLayout::HasUV3,
-                        3 => mesh_data.vertex_layout |= VertexAttributeLayout::HasUV4,
-                        _ => {
-                            eprintln!(
-                            "ERROR: Texture coordinate set {texture_index} is out of range (max {MAX_TEXTURE_COORDS_SETS})",
-                        );
-                            continue;
+                    if let Some(tex) = self.read_accessor_from_path::<Vector2>(path, &accessor) {
+                        if vertices.is_empty() {
+                            vertices.resize(tex.len(), GltfVertex::default());
                         }
-                    }
-                    if let Some(mut tex) = self.read_accessor_from_path::<Vector2>(path, &accessor)
-                    {
-                        uvs[texture_index as usize].append(&mut tex);
+                        match texture_index {
+                            0 => {
+                                tex.iter().enumerate().for_each(|(i, v)| {
+                                    vertices[i].uv_0 = Some(*v);
+                                });
+                            }
+                            1 => {
+                                tex.iter().enumerate().for_each(|(i, v)| {
+                                    vertices[i].uv_1 = Some(*v);
+                                });
+                            }
+                            2 => {
+                                tex.iter().enumerate().for_each(|(i, v)| {
+                                    vertices[i].uv_2 = Some(*v);
+                                });
+                            }
+                            3 => {
+                                tex.iter().enumerate().for_each(|(i, v)| {
+                                    vertices[i].uv_3 = Some(*v);
+                                });
+                            }
+                            _ => {
+                                eprintln!(
+                                "ERROR: Texture coordinate set {texture_index} is out of range (max {MAX_TEXTURE_COORDS_SETS})",
+                            );
+                                continue;
+                            }
+                        }
                     }
                 }
                 _ => {}
             }
         }
-        mesh_data
-            .vertex_attributes
-            .reserve(mesh_data.vertex_layout.stride_in_count() * mesh_data.vertex_count());
-        for i in 0..mesh_data.vertex_count() {
-            if mesh_data
-                .vertex_layout
-                .intersects(VertexAttributeLayout::HasColor)
-            {
-                mesh_data.insert_color(colors[i]);
-            }
-            if mesh_data
-                .vertex_layout
-                .intersects(VertexAttributeLayout::HasNormal)
-            {
-                mesh_data.insert_normal(normals[i]);
-            }
-            if mesh_data
-                .vertex_layout
-                .intersects(VertexAttributeLayout::HasUV1)
-            {
-                mesh_data.insert_uv(uvs[0][i]);
-            }
-            if mesh_data
-                .vertex_layout
-                .intersects(VertexAttributeLayout::HasUV2)
-            {
-                mesh_data.insert_uv(uvs[1][i]);
-            }
-            if mesh_data
-                .vertex_layout
-                .intersects(VertexAttributeLayout::HasUV3)
-            {
-                mesh_data.insert_uv(uvs[2][i]);
-            }
-            if mesh_data
-                .vertex_layout
-                .intersects(VertexAttributeLayout::HasUV4)
-            {
-                mesh_data.insert_uv(uvs[3][i]);
-            }
-        }
-        mesh_data
+        vertices
     }
 
-    fn optimize_mesh(&self, mesh_data: &mut MeshData) {
-        if self.optimize_meshes {
-            let vertices = meshopt::optimize_vertex_fetch(
-                mesh_data.indices.as_mut_slice(),
-                mesh_data.vertex_positions.as_slice(),
-            );
-
-            let (num_vertices, vertices_remap_table) = meshopt::generate_vertex_remap(
-                vertices.as_slice(),
-                Some(mesh_data.indices.as_slice()),
-            );
+    fn optimize_mesh(&self, vertices: &[GltfVertex], indices: &[u32]) -> MeshData {
+        let mut mesh_data = MeshData {
+            vertex_layout: VertexAttributeLayout::HasPosition,
+            aabb_max: Vector3::new(-f32::INFINITY, -f32::INFINITY, -f32::INFINITY),
+            aabb_min: Vector3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY),
+            ..Default::default()
+        };
+        let (vertices, indices) = if self.optimize_meshes {
+            let (num_vertices, vertices_remap_table) =
+                meshopt::generate_vertex_remap(vertices, Some(indices));
 
             let new_vertices = meshopt::remap_vertex_buffer(
-                vertices.as_slice(),
+                vertices,
                 num_vertices,
                 vertices_remap_table.as_slice(),
             );
-            let new_vertices_attributes = meshopt::remap_vertex_stride_buffer(
-                mesh_data.vertex_attributes.as_slice(),
-                mesh_data.vertex_layout.stride_in_byte(),
+            let new_indices = meshopt::remap_index_buffer(
+                Some(indices),
                 num_vertices,
                 vertices_remap_table.as_slice(),
             );
 
-            let mut new_indices = meshopt::remap_index_buffer(
-                Some(mesh_data.indices.as_slice()),
-                num_vertices,
-                vertices_remap_table.as_slice(),
-            );
-            let mut positions = Vec::new();
-            positions.reserve(mesh_data.vertex_count());
-            for i in 0..mesh_data.vertex_count() {
-                positions.push(mesh_data.position(i));
-            }
-            let vertices_bytes = to_slice(positions.as_slice());
-            let vertex_stride = size_of::<Vector3>();
+            let mut new_indices =
+                meshopt::optimize_vertex_cache(new_indices.as_slice(), num_vertices);
+
+            let vertices_bytes = to_slice(vertices);
+            let vertex_stride = size_of::<GltfVertex>();
             let vertex_data_adapter =
                 meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
             meshopt::optimize_overdraw_in_place(
                 new_indices.as_mut_slice(),
                 vertex_data_adapter.as_ref().unwrap(),
-                1.05,
+                1.01,
             );
-            let new_indices = meshopt::optimize_vertex_cache(new_indices.as_slice(), num_vertices);
+            let new_vertices =
+                meshopt::optimize_vertex_fetch(new_indices.as_mut_slice(), new_vertices.as_slice());
 
-            mesh_data.vertex_positions = new_vertices;
-            mesh_data.vertex_attributes = new_vertices_attributes;
-            mesh_data.indices = new_indices;
-        }
+            (new_vertices, new_indices)
+        } else {
+            (vertices.to_vec(), indices.to_vec())
+        };
+
+        vertices.iter().for_each(|v| {
+            mesh_data.aabb_max = mesh_data.aabb_max.max(v.pos);
+            mesh_data.aabb_min = mesh_data.aabb_min.min(v.pos);
+        });
+        mesh_data.indices = indices;
+        mesh_data.vertex_positions.reserve(vertices.len());
+        mesh_data
+            .vertex_attributes
+            .reserve(VertexAttributeLayout::all().stride_in_count() * vertices.len());
+        vertices.iter().for_each(|v| {
+            mesh_data.insert_position(v.pos);
+            if let Some(c) = v.color {
+                mesh_data.vertex_layout |= VertexAttributeLayout::HasColor;
+                mesh_data.insert_color(c);
+            }
+            if let Some(n) = v.normal {
+                mesh_data.vertex_layout |= VertexAttributeLayout::HasNormal;
+                mesh_data.insert_normal(n);
+            }
+            if let Some(uv) = v.uv_0 {
+                mesh_data.vertex_layout |= VertexAttributeLayout::HasUV1;
+                mesh_data.insert_uv(uv);
+            }
+            if let Some(uv) = v.uv_1 {
+                mesh_data.vertex_layout |= VertexAttributeLayout::HasUV2;
+                mesh_data.insert_uv(uv);
+            }
+            if let Some(uv) = v.uv_2 {
+                mesh_data.vertex_layout |= VertexAttributeLayout::HasUV3;
+                mesh_data.insert_uv(uv);
+            }
+            if let Some(uv) = v.uv_3 {
+                mesh_data.vertex_layout |= VertexAttributeLayout::HasUV4;
+                mesh_data.insert_uv(uv);
+            }
+        });
+        mesh_data
     }
 
     fn compute_meshlets(&self, mesh_data: &mut MeshData) {
@@ -446,9 +473,9 @@ impl GltfCompiler {
         primitive: &Primitive,
         material_path: &Path,
     ) -> PathBuf {
-        let mut mesh_data = self.extract_vertices(path, primitive);
-        mesh_data.indices = self.extract_indices(path, primitive);
-        self.optimize_mesh(&mut mesh_data);
+        let vertices = self.extract_vertices(path, primitive);
+        let indices = self.extract_indices(path, primitive);
+        let mut mesh_data = self.optimize_mesh(&vertices, &indices);
         self.compute_meshlets(&mut mesh_data);
 
         mesh_data.material = material_path.to_path_buf();

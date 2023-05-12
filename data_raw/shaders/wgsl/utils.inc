@@ -36,9 +36,6 @@ fn decode_snorm(i: u32, n: u32) -> f32 {
 }
 
 
-fn decode_uv(v: u32) -> vec2<f32> {
-    return unpack2x16float(v);
-}
 fn decode_as_vec3(v: u32) -> vec3<f32> {
     let vx = decode_unorm((v >> 20u) & 0x000003FFu, 10u);
     let vy = decode_unorm((v >> 10u) & 0x000003FFu, 10u);

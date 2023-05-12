@@ -88,7 +88,7 @@ fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
 @fragment
 fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     let d = vec2<f32>(textureDimensions(depth_texture));
-    let pixel_coords = vec2<i32>(i32(v_in.uv.x * d.x), i32(v_in.uv.y * d.y));
+    let pixel_coords = vec2<i32>(v_in.uv * d);
     
     let vertex_color = sample_gbuffer(0u, pixel_coords);
     let meshlet_id = pack4x8unorm(sample_gbuffer(2u, pixel_coords));
@@ -107,7 +107,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
             f32((meshlet_color >> 16u) & 255u)
         ) / 255., 1.);
     } else {
-        let uv_set = vec4<u32>(sample_gbuffer(3u, pixel_coords));
+        let uv_set = sample_gbuffer(3u, pixel_coords);
 
         let mesh_id = meshlets.data[meshlet_id - 1u].mesh_index;
         let mesh = &meshes.data[mesh_id];
@@ -125,7 +125,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let n = unpack_normal(packed_normal);
         let world_pos = compute_world_position_from_depth(pixel_coords, v_in.uv);
         let normal = rotate_vector(n, (*mesh).orientation);
-        color = compute_brdf(world_pos, normal, material_id, color, uv_set);
+        //color = compute_brdf(world_pos, normal, material_id, color, uv_set);
     }
 
     return color;

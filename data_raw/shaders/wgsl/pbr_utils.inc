@@ -45,7 +45,7 @@ fn compute_alpha(material_index: u32, vertex_color_alpha: f32) -> f32 {
     return alpha;
 }
 
-fn compute_normal(material_id: u32, normal: vec3<f32>, position: vec3<f32>, uv_set: vec4<u32>) -> vec3<f32> {
+fn compute_normal(material_id: u32, normal: vec3<f32>, position: vec3<f32>, uv_set: vec4<f32>) -> vec3<f32> {
     let material = &materials.data[material_id];
     var n = normal;
     //if (has_texture(material_id, TEXTURE_TYPE_NORMAL)) {    
@@ -125,7 +125,7 @@ fn microfacet_distribution(alpha_roughness: f32, NdotH: f32) -> f32 {
     return roughnessSq / (PI * f * f);
 }
 
-fn compute_brdf(world_pos: vec3<f32>, normal: vec3<f32>, material_id: u32, color: vec4<f32>, uv_set: vec4<u32>) -> vec4<f32> {
+fn compute_brdf(world_pos: vec3<f32>, normal: vec3<f32>, material_id: u32, color: vec4<f32>, uv_set: vec4<f32>) -> vec4<f32> {
     let material = &materials.data[material_id];
     var perceptual_roughness = (*material).roughness_factor;
     var metallic = (*material).metallic_factor;

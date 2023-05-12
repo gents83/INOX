@@ -43,19 +43,18 @@ fn vs_main(
     vertex_out.world_pos = v_in.world_pos;
     vertex_out.clip_position = mvp * vec4<f32>(v_in.world_pos, 1.);
     vertex_out.meshlet_id = meshlet_id;
-    vertex_out.albedo = vec4<f32>(0.);
-    vertex_out.normal = vec3<f32>(0.);
+    vertex_out.albedo = vec4<f32>(1.);
+    vertex_out.normal = vec3<f32>(1.);
     vertex_out.uv_0 = vec2<f32>(0.);
     vertex_out.uv_1 = vec2<f32>(0.);
     vertex_out.uv_2 = vec2<f32>(0.);
     vertex_out.uv_3 = vec2<f32>(0.);
 
+    let vertex_index = vertex_id - meshes.data[v_in.mesh_index].vertices_position_offset;
     let vertex_layout = meshes.data[v_in.mesh_index].vertices_attribute_layout;
     let vertex_attribute_stride = vertex_layout_stride(vertex_layout);
-    //let attributes_offset = meshes.data[v_in.mesh_index].vertices_attribute_offset + vertex_id * vertex_attribute_stride;
-    //TODO: Investigate wrong local offset
-    let attributes_offset = vertex_id * vertex_attribute_stride;
-
+    let attributes_offset = meshes.data[v_in.mesh_index].vertices_attribute_offset + vertex_index * vertex_attribute_stride;
+    
     let offset_color = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_COLOR);
     let offset_normal = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_NORMAL);
     let offset_uv0 = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_UV1);
@@ -89,17 +88,11 @@ fn fs_main(
     v_in: VertexOutput,
 ) -> FragmentOutput {    
     var fragment_out: FragmentOutput;
-    let uv_set = vec4<f32>(
-        f32(pack2x16float(v_in.uv_0)),
-        f32(pack2x16float(v_in.uv_1)),
-        f32(pack2x16float(v_in.uv_2)),
-        f32(pack2x16float(v_in.uv_3))
-    );
 
     fragment_out.gbuffer_1 = v_in.albedo;
     fragment_out.gbuffer_2 = unpack4x8unorm(pack2x16float(pack_normal(v_in.normal.xyz)));
     fragment_out.gbuffer_3 = unpack4x8unorm(v_in.meshlet_id + 1u);
-    fragment_out.gbuffer_4 = uv_set;
+    fragment_out.gbuffer_4 = vec4<f32>(v_in.uv_0, v_in.uv_1);
     
     return fragment_out;
 }
