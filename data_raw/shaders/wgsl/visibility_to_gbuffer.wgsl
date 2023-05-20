@@ -3,83 +3,45 @@
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) @interpolate(flat) mesh_and_meshlet_ids: vec2<u32>,
-    @location(1) world_pos: vec4<f32>,
-    @location(2) color: vec4<f32>,
-    @location(3) normal: vec3<f32>,
-    @location(4) uv_0: vec2<f32>,
-    @location(5) uv_1: vec2<f32>,
-    @location(6) uv_2: vec2<f32>,
-    @location(7) uv_3: vec2<f32>,
+    @location(0) uv: vec2<f32>,
 };
 
 struct FragmentOutput {
-    @location(0) gbuffer_1: vec4<f32>,  //color        
+    @location(0) gbuffer_1: vec4<f32>,  //albedo        
     @location(1) gbuffer_2: vec4<f32>,  //normal       
     @location(2) gbuffer_3: vec4<f32>,  //meshlet_id   
-    @location(3) gbuffer_4: vec4<f32>,  //uv_0         
-    @location(4) gbuffer_5: vec4<f32>,  //uv_1         
-    @location(5) gbuffer_6: vec4<f32>,  //uv_2         
-    @location(6) gbuffer_7: vec4<f32>,  //uv_3         
+    @location(3) gbuffer_4: vec4<f32>,  //uvs      
 };
 
 
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
-var<storage, read> positions: Positions;
+var<storage, read> indices: Indices;
 @group(0) @binding(2)
-var<storage, read> colors: Colors;
+var<storage, read> runtime_vertices: RuntimeVertices;
 @group(0) @binding(3)
-var<storage, read> normals: Normals;
+var<storage, read> vertices_attributes: VerticesAttributes;
 @group(0) @binding(4)
-var<storage, read> uvs: UVs;
-
-@group(1) @binding(0)
 var<storage, read> meshes: Meshes;
-@group(1) @binding(1)
-var<storage, read> materials: Materials;
-@group(1) @binding(2)
-var<storage, read> textures: Textures;
-@group(1) @binding(3)
+@group(0) @binding(5)
 var<storage, read> meshlets: Meshlets;
-@group(1) @binding(4)
-var<storage, read> bhv: BHV;
+@group(0) @binding(6)
+var visibility_buffer_texture: texture_2d<f32>;
 
 #import "matrix_utils.inc"
-#import "texture_utils.inc"
-#import "material_utils.inc"
+#import "geom_utils.inc"
 
 
 @vertex
-fn vs_main(
-    @builtin(vertex_index) vertex_index: u32,
-    @builtin(instance_index) meshlet_id: u32,
-    v_in: Vertex,
-) -> VertexOutput {
-    let mvp = constant_data.proj * constant_data.view;
+fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
+    //only one triangle, exceeding the viewport size
+    let uv = vec2<f32>(f32((in_vertex_index << 1u) & 2u), f32(in_vertex_index & 2u));
+    let pos = vec4<f32>(uv * vec2<f32>(2., -2.) + vec2<f32>(-1., 1.), 0., 1.);
 
-    let mesh_id = u32(meshlets.data[meshlet_id].mesh_index);
-    let mesh = &meshes.data[mesh_id];
-    let aabb = &bhv.data[(*mesh).blas_index];
-
-    let aabb_size = abs((*aabb).max - (*aabb).min);
-    
-    let p = (*aabb).min + decode_as_vec3(positions.data[v_in.position_and_color_offset]) * aabb_size;
-    let world_position = vec4<f32>(transform_vector(p, (*mesh).position, (*mesh).orientation, (*mesh).scale), 1.0);
-    let color = unpack_unorm_to_4_f32(colors.data[v_in.position_and_color_offset]);
-    
     var vertex_out: VertexOutput;
-    vertex_out.clip_position = mvp * world_position;
-    vertex_out.mesh_and_meshlet_ids = vec2<u32>(mesh_id, meshlet_id);
-    vertex_out.world_pos = world_position;
-    vertex_out.color = color;
-    vertex_out.normal = decode_as_vec3(normals.data[v_in.normal_offset]); 
-    vertex_out.uv_0 = unpack2x16float(uvs.data[v_in.uvs_offset.x]);
-    vertex_out.uv_1 = unpack2x16float(uvs.data[v_in.uvs_offset.y]);
-    vertex_out.uv_2 = unpack2x16float(uvs.data[v_in.uvs_offset.z]);
-    vertex_out.uv_3 = unpack2x16float(uvs.data[v_in.uvs_offset.w]);
-
+    vertex_out.clip_position = pos;
+    vertex_out.uv = uv;
     return vertex_out;
 }
 
@@ -88,24 +50,110 @@ fn fs_main(
     v_in: VertexOutput,
 ) -> FragmentOutput {    
     var fragment_out: FragmentOutput;
+    if v_in.uv.x < 0. || v_in.uv.x > 1. || v_in.uv.y < 0. || v_in.uv.y > 1. {
+        return fragment_out;
+    }
+    let d = vec2<f32>(textureDimensions(visibility_buffer_texture));
+    let pixel_coords = vec2<i32>(i32(v_in.uv.x * d.x), i32(v_in.uv.y * d.y));
+    let visibility_output = textureLoad(visibility_buffer_texture, pixel_coords.xy, 0);
+    let visibility_id = pack4x8unorm(visibility_output);
+    if (visibility_id == 0u || (visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
+        return fragment_out;
+    }
+    let meshlet_id = (visibility_id >> 8u) - 1u; 
+    let primitive_id = visibility_id & 255u;
+    fragment_out.gbuffer_3 = unpack4x8unorm(meshlet_id + 1u);
 
-    let mesh_id = u32(v_in.mesh_and_meshlet_ids.x);
-    let mesh = &meshes.data[mesh_id];
-    let material_id = u32((*mesh).material_index);
-    let uv_set = vec4<u32>(
-        pack2x16float(v_in.uv_0),
-        pack2x16float(v_in.uv_1),
-        pack2x16float(v_in.uv_2),
-        pack2x16float(v_in.uv_3)
-    );
+    let meshlet = &meshlets.data[meshlet_id];
+    let index_offset = (*meshlet).indices_offset + (primitive_id * 3u);
 
-    fragment_out.gbuffer_1 = v_in.color;
-    fragment_out.gbuffer_2 = unpack4x8unorm(pack2x16float(pack_normal(v_in.normal.xyz)));
-    fragment_out.gbuffer_3 = unpack4x8unorm(v_in.mesh_and_meshlet_ids.y + 1u);
-    fragment_out.gbuffer_4 = unpack4x8unorm(pack2x16float(v_in.uv_0));
-    fragment_out.gbuffer_5 = unpack4x8unorm(pack2x16float(v_in.uv_1));
-    fragment_out.gbuffer_6 = unpack4x8unorm(pack2x16float(v_in.uv_2));
-    fragment_out.gbuffer_7 = unpack4x8unorm(pack2x16float(v_in.uv_3));
+    let mesh = &meshes.data[(*meshlet).mesh_index];
+    let position_offset = (*mesh).vertices_position_offset;
+    let attributes_offset = (*mesh).vertices_attribute_offset;
+    let vertex_layout = (*mesh).vertices_attribute_layout;
+    let vertex_attribute_stride = vertex_layout_stride(vertex_layout);   
+    let offset_color = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_COLOR);
+    let offset_normal = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_NORMAL);
+    let offset_uv0 = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_UV1);
+    let offset_uv1 = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_UV2);
+    let offset_uv2 = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_UV3);
+    let offset_uv3 = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_UV4); 
+
+    let vert_indices = vec3<u32>(indices.data[index_offset], indices.data[index_offset + 1u], indices.data[index_offset + 2u]);
+    let pos_indices = vert_indices + vec3<u32>(position_offset, position_offset, position_offset);
+    let attr_indices = vec3<u32>(attributes_offset + vert_indices.x * vertex_attribute_stride, 
+                                 attributes_offset + vert_indices.y * vertex_attribute_stride,
+                                 attributes_offset + vert_indices.z * vertex_attribute_stride);
+    
+    let v1 = runtime_vertices.data[pos_indices.x].world_pos;
+    let v2 = runtime_vertices.data[pos_indices.y].world_pos;
+    let v3 = runtime_vertices.data[pos_indices.z].world_pos;
+    
+    let mvp = constant_data.proj * constant_data.view;
+    var p1 = mvp * vec4<f32>(v1, 1.);
+    var p2 = mvp * vec4<f32>(v2, 1.);
+    var p3 = mvp * vec4<f32>(v3, 1.);
+
+    // Calculate the inverse of w, since it's going to be used several times
+    let one_over_w = 1. / vec3<f32>(p1.w, p2.w, p3.w);
+    p1 = (p1 * one_over_w.x + 1.) * 0.5;
+    p2 = (p2 * one_over_w.y + 1.) * 0.5;
+    p3 = (p3 * one_over_w.z + 1.) * 0.5;
+    
+    // Get delta vector that describes current screen point relative to vertex 0
+    var screen_pixel = v_in.uv.xy;
+    screen_pixel.y = 1. - screen_pixel.y;
+    let delta = screen_pixel + -p1.xy;
+    let barycentrics = compute_barycentrics(p1.xy, p2.xy, p3.xy, screen_pixel);
+    let deriv = compute_partial_derivatives(p1.xy, p2.xy, p3.xy);
+
+    if (offset_color >= 0) {
+        let a1 = vertices_attributes.data[attr_indices.x + u32(offset_color)];
+        let a2 = vertices_attributes.data[attr_indices.y + u32(offset_color)];
+        let a3 = vertices_attributes.data[attr_indices.z + u32(offset_color)];
+        let c1 = unpack_unorm_to_4_f32(a1);
+        let c2 = unpack_unorm_to_4_f32(a2);
+        let c3 = unpack_unorm_to_4_f32(a3);
+        let vertex_color = barycentrics.x * c1 + barycentrics.y * c2 + barycentrics.z * c3;    
+        fragment_out.gbuffer_1 = vertex_color;
+    } else {
+        fragment_out.gbuffer_1 = vec4<f32>(1.);
+    }
+    if (offset_normal >= 0) {
+        let a1 = vertices_attributes.data[attr_indices.x + u32(offset_normal)];
+        let a2 = vertices_attributes.data[attr_indices.y + u32(offset_normal)];
+        let a3 = vertices_attributes.data[attr_indices.z + u32(offset_normal)];
+        let n1 = decode_as_vec3(a1);
+        let n2 = decode_as_vec3(a2);
+        let n3 = decode_as_vec3(a3);
+        let n = interpolate_3d_attribute(n1, n2, n3, deriv, delta);
+        let normal = rotate_vector(n, (*mesh).orientation);
+        fragment_out.gbuffer_2 = unpack4x8unorm(pack2x16float(pack_normal(normal.xyz)));
+    }
+    var uvs = vec4<f32>(0.);
+    if(offset_uv0 >= 0) {
+        let a1 = vertices_attributes.data[attr_indices.x + u32(offset_uv0)];
+        let a2 = vertices_attributes.data[attr_indices.y + u32(offset_uv0)];
+        let a3 = vertices_attributes.data[attr_indices.z + u32(offset_uv0)];
+        let uv1 = unpack2x16float(a1);
+        let uv2 = unpack2x16float(a2);
+        let uv3 = unpack2x16float(a3);
+        var uv = interpolate_2d_attribute(uv1, uv2, uv3, deriv, delta);
+        uvs.x = uv.x;
+        uvs.y = uv.y;
+    }
+    if(offset_uv1 >= 0) {
+        let a1 = vertices_attributes.data[attr_indices.x + u32(offset_uv1)];
+        let a2 = vertices_attributes.data[attr_indices.y + u32(offset_uv1)];
+        let a3 = vertices_attributes.data[attr_indices.z + u32(offset_uv1)];
+        let uv1 = unpack2x16float(a1);
+        let uv2 = unpack2x16float(a2);
+        let uv3 = unpack2x16float(a3);
+        var uv = interpolate_2d_attribute(uv1, uv2, uv3, deriv, delta);
+        uvs.z = uv.x;
+        uvs.w = uv.y;
+    }
+    fragment_out.gbuffer_4 = uvs;
     
     return fragment_out;
 }

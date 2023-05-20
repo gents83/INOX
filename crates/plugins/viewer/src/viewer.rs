@@ -5,9 +5,9 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 use inox_graphics::{
     platform::has_primitive_index_support, rendering_system::RenderingSystem,
     update_system::UpdateSystem, BlitPass, ComputeRuntimeVerticesPass, CullingPass, GBufferPass,
-    LoadOperation, OutputRenderPass, PBRPass, Pass, RenderPass, RenderTarget, Renderer, RendererRw,
-    TextureFormat, WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH, GBUFFER_PASS_NAME,
-    WIREFRAME_PASS_NAME,
+    LoadOperation, OutputPass, OutputRenderPass, PBRPass, Pass, RenderPass, RenderTarget, Renderer,
+    RendererRw, TextureFormat, TextureId, VisibilityBufferPass, VisibilityToGBufferPass,
+    WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH, GBUFFER_PASS_NAME, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -20,7 +20,7 @@ use crate::{config::Config, systems::viewer_system::ViewerSystem};
 const USE_COMPUTE_RAYTRACING: bool = false;
 const USE_FRAGMENT_RAYTRACING: bool = false;
 */
-const FORCE_LOW_PROFILE: bool = true;
+const FORCE_LOW_PROFILE: bool = false;
 const ADD_CULLING_PASS: bool = true;
 const ADD_WIREFRAME_PASS: bool = true;
 const ADD_UI_PASS: bool = true;
@@ -150,35 +150,28 @@ impl Plugin for Viewer {
 
 impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &mut Renderer, width: u32, height: u32) {
-        Self::create_compute_runtime_vertices_pass(context, renderer, true);
-        Self::create_culling_pass(context, renderer, ADD_CULLING_PASS);
         let half_dimension = (width / 2, height / 2);
         let use_visibility_buffer = has_primitive_index_support() && !FORCE_LOW_PROFILE;
-        Self::create_gbuffer_pass(
-            context,
-            renderer,
-            half_dimension.0,
-            half_dimension.1,
-            !use_visibility_buffer,
-        );
-        Self::create_pbr_pass(context, renderer, !use_visibility_buffer);
+
+        Self::create_compute_runtime_vertices_pass(context, renderer, true);
+        Self::create_culling_pass(context, renderer, ADD_CULLING_PASS);
+        let depth_texture_id = if use_visibility_buffer {
+            let depth_texture_id =
+                Self::create_visibility_pass(context, renderer, half_dimension.0, half_dimension.1);
+            Self::create_visibility_to_gbuffer_pass(
+                context,
+                renderer,
+                half_dimension.0,
+                half_dimension.1,
+            );
+            depth_texture_id
+        } else {
+            Self::create_gbuffer_pass(context, renderer, half_dimension.0, half_dimension.1)
+        };
+        Self::create_pbr_pass(context, renderer, depth_texture_id);
         Self::create_wireframe_pass(context, renderer, ADD_WIREFRAME_PASS);
         Self::create_ui_pass(context, renderer, width, height, ADD_UI_PASS);
         /*
-        Self::create_visibility_pass(
-            context,
-            renderer,
-            half_dimension.0,
-            half_dimension.1,
-            use_visibility_buffer,
-        );
-        Self::create_visibility_to_gbuffer_pass(
-            context,
-            renderer,
-            half_dimension.0,
-            half_dimension.1,
-            use_visibility_buffer,
-        );
 
         if use_visibility_buffer {
             if USE_COMPUTE_RAYTRACING {
@@ -231,96 +224,6 @@ impl Viewer {
         */
     }
     /*
-    fn create_visibility_pass(
-        context: &ContextRc,
-        renderer: &mut Renderer,
-        width: u32,
-        height: u32,
-        is_enabled: bool,
-    ) {
-        if !is_enabled {
-            return;
-        }
-        let visibility_pass = VisibilityBufferPass::create(context, &renderer.render_context());
-        visibility_pass
-            .add_render_target(RenderTarget::Texture {
-                width,
-                height,
-                format: TextureFormat::Rgba8Unorm,
-            })
-            .add_depth_target(RenderTarget::Texture {
-                width,
-                height,
-                format: TextureFormat::Depth32Float,
-            });
-        renderer.add_pass(visibility_pass, is_enabled);
-    }
-    fn create_visibility_to_gbuffer_pass(
-        context: &ContextRc,
-        renderer: &mut Renderer,
-        width: u32,
-        height: u32,
-        is_enabled: bool,
-    ) {
-        if !is_enabled {
-            return;
-        }
-        let mut visibility_to_gbuffer_pass =
-            VisibilityToGBufferPass::create(context, &renderer.render_context());
-        visibility_to_gbuffer_pass
-            .add_render_target(RenderTarget::Texture {
-                width,
-                height,
-                format: TextureFormat::Rgba8Unorm,
-            })
-            .add_render_target(RenderTarget::Texture {
-                width,
-                height,
-                format: TextureFormat::Rgba8Unorm,
-            })
-            .add_render_target(RenderTarget::Texture {
-                width,
-                height,
-                format: TextureFormat::Rgba8Unorm,
-            })
-            .add_render_target(RenderTarget::Texture {
-                width,
-                height,
-                format: TextureFormat::Rgba8Unorm,
-            })
-            .add_render_target(RenderTarget::Texture {
-                width,
-                height,
-                format: TextureFormat::Rgba8Unorm,
-            })
-            .add_render_target(RenderTarget::Texture {
-                width,
-                height,
-                format: TextureFormat::Rgba8Unorm,
-            })
-            .add_render_target(RenderTarget::Texture {
-                width,
-                height,
-                format: TextureFormat::Rgba8Unorm,
-            })
-            .add_depth_target(RenderTarget::Texture {
-                width,
-                height,
-                format: TextureFormat::Depth32Float,
-            });
-        if let Some(visibility_pass) = renderer.pass::<VisibilityBufferPass>() {
-            visibility_to_gbuffer_pass.set_visibility_texture(
-                visibility_pass
-                    .render_targets_id()
-                    .unwrap()
-                    .first()
-                    .unwrap(),
-            );
-            visibility_to_gbuffer_pass
-                .set_depth_texture(&visibility_pass.depth_target_id().unwrap());
-        }
-        renderer.add_pass(visibility_to_gbuffer_pass, is_enabled);
-    }
     fn create_raytracing_visibility_pass(
         context: &ContextRc,
         renderer: &mut Renderer,
@@ -434,16 +337,74 @@ impl Viewer {
         let culling_pass = CullingPass::create(context, &renderer.render_context());
         renderer.add_pass(culling_pass, is_enabled);
     }
+    fn create_visibility_pass(
+        context: &ContextRc,
+        renderer: &mut Renderer,
+        width: u32,
+        height: u32,
+    ) -> TextureId {
+        let visibility_pass = VisibilityBufferPass::create(context, &renderer.render_context());
+        visibility_pass
+            .add_render_target(RenderTarget::Texture {
+                width,
+                height,
+                format: TextureFormat::Rgba8Unorm,
+            })
+            .add_depth_target(RenderTarget::Texture {
+                width,
+                height,
+                format: TextureFormat::Depth32Float,
+            });
+        let depth_target_id = visibility_pass.depth_target_id().unwrap();
+        renderer.add_pass(visibility_pass, true);
+        depth_target_id
+    }
+    fn create_visibility_to_gbuffer_pass(
+        context: &ContextRc,
+        renderer: &mut Renderer,
+        width: u32,
+        height: u32,
+    ) {
+        let mut visibility_to_gbuffer_pass =
+            VisibilityToGBufferPass::create(context, &renderer.render_context());
+        visibility_to_gbuffer_pass
+            .add_render_target(RenderTarget::Texture {
+                width,
+                height,
+                format: TextureFormat::Rgba8Unorm,
+            })
+            .add_render_target(RenderTarget::Texture {
+                width,
+                height,
+                format: TextureFormat::Rgba8Unorm,
+            })
+            .add_render_target(RenderTarget::Texture {
+                width,
+                height,
+                format: TextureFormat::Rgba8Unorm,
+            })
+            .add_render_target(RenderTarget::Texture {
+                width,
+                height,
+                format: TextureFormat::Rgba32Float,
+            });
+        if let Some(visibility_pass) = renderer.pass::<VisibilityBufferPass>() {
+            visibility_to_gbuffer_pass.set_visibility_texture(
+                visibility_pass
+                    .render_targets_id()
+                    .unwrap()
+                    .first()
+                    .unwrap(),
+            );
+        }
+        renderer.add_pass(visibility_to_gbuffer_pass, true);
+    }
     fn create_gbuffer_pass(
         context: &ContextRc,
         renderer: &mut Renderer,
         width: u32,
         height: u32,
-        is_enabled: bool,
-    ) {
-        if !is_enabled {
-            return;
-        }
+    ) -> TextureId {
         let gbuffer_pass = GBufferPass::create(context, &renderer.render_context());
         gbuffer_pass
             .add_render_target(RenderTarget::Texture {
@@ -471,20 +432,18 @@ impl Viewer {
                 height,
                 format: TextureFormat::Depth32Float,
             });
-
-        renderer.add_pass(gbuffer_pass, is_enabled);
+        let depth_targget_id = gbuffer_pass.depth_target_id().unwrap();
+        renderer.add_pass(gbuffer_pass, true);
+        depth_targget_id
     }
-    fn create_pbr_pass(context: &ContextRc, renderer: &mut Renderer, is_enabled: bool) {
-        if !is_enabled {
-            return;
-        }
+    fn create_pbr_pass(context: &ContextRc, renderer: &mut Renderer, depth_texture_id: TextureId) {
         let mut pbr_pass = PBRPass::create(context, &renderer.render_context());
 
         if let Some(gbuffer_pass) = renderer.pass_at(renderer.num_passes() - 1) {
             pbr_pass.set_gbuffers_textures(&gbuffer_pass.render_targets_id().unwrap());
-            pbr_pass.set_depth_texture(&gbuffer_pass.depth_target_id().unwrap());
         }
-        renderer.add_pass(pbr_pass, is_enabled);
+        pbr_pass.set_depth_texture(&depth_texture_id);
+        renderer.add_pass(pbr_pass, true);
     }
     fn create_wireframe_pass(context: &ContextRc, renderer: &mut Renderer, is_enabled: bool) {
         if !is_enabled {

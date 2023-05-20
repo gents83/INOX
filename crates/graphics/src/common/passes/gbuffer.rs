@@ -95,21 +95,11 @@ impl Pass for GBufferPass {
                 },
             )
             .add_storage_buffer(
-                &mut *runtime_vertices,
-                Some("Runtime Vertices"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 1,
-                    stage: ShaderStage::Vertex,
-                    flags: BindingFlags::Vertex | BindingFlags::Read,
-                },
-            )
-            .add_storage_buffer(
                 &mut *vertices_attributes,
                 Some("Vertices Attributes"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 2,
+                    binding_index: 1,
                     stage: ShaderStage::Vertex,
                     flags: BindingFlags::Read,
                 },
@@ -119,7 +109,7 @@ impl Pass for GBufferPass {
                 Some("Meshes"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 3,
+                    binding_index: 2,
                     stage: ShaderStage::Vertex,
                     ..Default::default()
                 },

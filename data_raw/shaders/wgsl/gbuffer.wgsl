@@ -24,10 +24,8 @@ struct FragmentOutput {
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
-var<storage, read> runtime_vertices: RuntimeVertices;
-@group(0) @binding(2)
 var<storage, read> vertices_attributes: VerticesAttributes;
-@group(0) @binding(3)
+@group(0) @binding(2)
 var<storage, read> meshes: Meshes;
 
 
