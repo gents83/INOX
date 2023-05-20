@@ -87,6 +87,10 @@ fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
 
 @fragment
 fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
+    var color = vec4<f32>(0., 0., 0., 0.);
+    if v_in.uv.x < 0. || v_in.uv.x > 1. || v_in.uv.y < 0. || v_in.uv.y > 1. {
+        return color;
+    }
     let d = vec2<f32>(textureDimensions(depth_texture));
     let pixel_coords = vec2<i32>(v_in.uv * d);
     
@@ -94,10 +98,9 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     let meshlet_id = pack4x8unorm(sample_gbuffer(2u, pixel_coords));
     let num_meshlets = arrayLength(&meshlets.data);
     if meshlet_id == 0u || meshlet_id > num_meshlets {
-        return vec4<f32>(0., 0., 0., 0.);
+        return color;
     }
 
-    var color = vec4<f32>(0., 0., 0., 0.);
     let display_meshlets = constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS;
     if (display_meshlets != 0u) {
         let meshlet_color = hash(meshlet_id);
@@ -123,9 +126,11 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
 
         let packed_normal = unpack2x16float(pack4x8unorm(sample_gbuffer(1u, pixel_coords)));
         let n = unpack_normal(packed_normal);
-        let world_pos = compute_world_position_from_depth(pixel_coords, v_in.uv);
         let normal = rotate_vector(n, (*mesh).orientation);
-        //color = compute_brdf(world_pos, normal, material_id, color, uv_set);
+        var screen_pixel = v_in.uv.xy;
+        screen_pixel.y = 1. - screen_pixel.y;
+        let world_pos = compute_world_position_from_depth(pixel_coords, screen_pixel);
+        color = compute_brdf(world_pos, normal, material_id, color, uv_set);
     }
 
     return color;

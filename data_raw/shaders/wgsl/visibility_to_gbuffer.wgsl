@@ -126,8 +126,7 @@ fn fs_main(
         let n1 = decode_as_vec3(a1);
         let n2 = decode_as_vec3(a2);
         let n3 = decode_as_vec3(a3);
-        let n = interpolate_3d_attribute(n1, n2, n3, deriv, delta);
-        let normal = rotate_vector(n, (*mesh).orientation);
+        let normal = barycentrics.x * n1 + barycentrics.y * n2 + barycentrics.z * n3;    
         fragment_out.gbuffer_2 = unpack4x8unorm(pack2x16float(pack_normal(normal.xyz)));
     }
     var uvs = vec4<f32>(0.);
