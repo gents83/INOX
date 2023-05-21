@@ -170,6 +170,10 @@ struct RuntimeVertices {
     data: array<RuntimeVertexData>,
 };
 
+struct VerticesPositions {
+    data: array<u32>,
+};
+
 struct VerticesAttributes {
     data: array<u32>,
 };
