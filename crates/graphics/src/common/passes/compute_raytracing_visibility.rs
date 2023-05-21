@@ -223,14 +223,9 @@ impl Pass for ComputeRayTracingVisibilityPass {
 
         let pass = self.compute_pass.get();
 
-        let x_pixels_managed_in_shader = 8;
-        let y_pixels_managed_in_shader = 8;
         let dimensions = self.render_target.as_ref().unwrap().get().dimensions();
-        let max_cluster_size = x_pixels_managed_in_shader.max(y_pixels_managed_in_shader);
-        let x = (max_cluster_size * ((dimensions.0 / 4 + max_cluster_size - 1) / max_cluster_size))
-            / x_pixels_managed_in_shader;
-        let y = (max_cluster_size * ((dimensions.1 / 4 + max_cluster_size - 1) / max_cluster_size))
-            / y_pixels_managed_in_shader;
+        let workgroup_size = 256;
+        let count = (dimensions.0 * dimensions.1 + workgroup_size - 1) / workgroup_size;
 
         let mut compute_pass = pass.begin(render_context, &mut self.binding_data, command_buffer);
         {
@@ -239,7 +234,7 @@ impl Pass for ComputeRayTracingVisibilityPass {
                 &render_context.core.device,
                 "raytracing_visibility_pass",
             );
-            pass.dispatch(render_context, compute_pass, x, y, 1);
+            pass.dispatch(render_context, compute_pass, count, 1, 1);
         }
     }
 }
