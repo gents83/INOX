@@ -96,7 +96,7 @@ fn has_vertex_attribute(vertex_attribute_layout: u32, attribute_to_check: u32) -
 fn vertex_attribute_offset(vertex_attribute_layout: u32, attribute_to_check: u32) -> i32 
 {
     if(has_vertex_attribute(vertex_attribute_layout, attribute_to_check)) {
-        let mask = vertex_attribute_layout & (!attribute_to_check & (attribute_to_check - 1u));
+        let mask = vertex_attribute_layout & (~attribute_to_check & (attribute_to_check - 1u));
         return i32(countOneBits(mask));
     }
     return -1;
