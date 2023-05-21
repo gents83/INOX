@@ -271,7 +271,7 @@ impl DebugDrawerSystem {
                 }
             });
 
-        if !opaque_mesh_data.vertices.is_empty() {
+        if !opaque_mesh_data.vertex_count() == 0 {
             self.mesh_instance
                 .get_mut()
                 .set_mesh_data(opaque_mesh_data)
@@ -279,7 +279,7 @@ impl DebugDrawerSystem {
         } else {
             self.mesh_instance.get_mut().remove_flag(MeshFlags::Visible);
         }
-        if !wireframe_mesh_data.vertices.is_empty() {
+        if !wireframe_mesh_data.vertex_count() == 0 {
             self.wireframe_mesh_instance
                 .get_mut()
                 .add_flag(MeshFlags::Visible)

@@ -1,10 +1,8 @@
 use inox_bitmask::bitmask;
 use inox_math::{Mat4Ops, Matrix4};
-use inox_serialize::{Deserialize, Serialize};
 
 use crate::{
     MaterialAlphaMode, TextureType, VertexBufferLayoutBuilder, VertexFormat, INVALID_INDEX,
-    MAX_TEXTURE_COORDS_SETS,
 };
 
 // Pipeline has a list of meshes to process
@@ -19,8 +17,7 @@ pub enum DrawCommandType {
 }
 
 #[repr(C)]
-#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug)]
-#[serde(crate = "inox_serialize")]
+#[derive(Default, PartialEq, Eq, Clone, Copy, Debug)]
 pub struct DrawIndexedCommand {
     pub vertex_count: u32,
     pub instance_count: u32,
@@ -30,8 +27,7 @@ pub struct DrawIndexedCommand {
 }
 
 #[repr(C, align(4))]
-#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug)]
-#[serde(crate = "inox_serialize")]
+#[derive(Default, PartialEq, Eq, Clone, Copy, Debug)]
 pub struct DrawCommand {
     pub vertex_count: u32,
     pub instance_count: u32,
@@ -40,37 +36,36 @@ pub struct DrawCommand {
 }
 
 #[repr(C, align(4))]
-#[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
-#[serde(crate = "inox_serialize")]
-pub struct DrawMesh {
-    pub vertex_offset: u32,
-    pub indices_offset: u32,
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub struct GPUMesh {
+    pub vertices_position_offset: u32,
+    pub vertices_attribute_offset: u32,
+    pub vertices_attribute_layout: u32,
     pub material_index: i32,
-    pub bhv_index: u32,
+    pub orientation: [f32; 4],
     pub position: [f32; 3],
     pub meshlets_offset: u32,
     pub scale: [f32; 3],
-    pub meshlets_count: u32,
-    pub orientation: [f32; 4],
+    pub blas_index: u32,
 }
 
-impl Default for DrawMesh {
+impl Default for GPUMesh {
     fn default() -> Self {
         Self {
-            vertex_offset: 0,
-            indices_offset: 0,
+            vertices_position_offset: 0,
+            vertices_attribute_offset: 0,
             material_index: INVALID_INDEX,
-            bhv_index: 0,
+            blas_index: 0,
             position: [0.; 3],
             meshlets_offset: 0,
             scale: [1.; 3],
-            meshlets_count: 0,
+            vertices_attribute_layout: 0,
             orientation: [0., 0., 0., 1.],
         }
     }
 }
 
-impl DrawMesh {
+impl GPUMesh {
     pub fn transform(&self) -> Matrix4 {
         Matrix4::from_translation_orientation_scale(
             self.position.into(),
@@ -81,24 +76,22 @@ impl DrawMesh {
 }
 
 #[repr(C, align(4))]
-#[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
-#[serde(crate = "inox_serialize")]
+#[derive(Default, PartialEq, Clone, Copy, Debug)]
 pub struct ConeCulling {
     pub center: [f32; 3],
     pub cone_axis_cutoff: [i8; 4],
 }
 
 #[repr(C, align(4))]
-#[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
-#[serde(crate = "inox_serialize")]
-pub struct DrawMeshlet {
+#[derive(Default, PartialEq, Clone, Copy, Debug)]
+pub struct GPUMeshlet {
     pub mesh_index: u32,
     pub indices_offset: u32,
     pub indices_count: u32,
-    pub bvh_index: u32,
+    pub blas_index: u32,
 }
 
-impl DrawMeshlet {
+impl GPUMeshlet {
     pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
         let mut layout_builder = VertexBufferLayoutBuilder::instance();
         layout_builder.starting_location(starting_location);
@@ -111,9 +104,8 @@ impl DrawMeshlet {
 }
 
 #[repr(C, align(4))]
-#[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
-#[serde(crate = "inox_serialize")]
-pub struct DrawBHVNode {
+#[derive(Default, PartialEq, Clone, Copy, Debug)]
+pub struct GPUBHVNode {
     pub min: [f32; 3],
     pub miss: i32,
     pub max: [f32; 3],
@@ -121,9 +113,8 @@ pub struct DrawBHVNode {
 }
 
 #[repr(C, align(4))]
-#[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
-#[serde(crate = "inox_serialize")]
-pub struct DrawMaterial {
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub struct GPUMaterial {
     pub textures_indices: [i32; TextureType::Count as _],
     pub textures_coord_set: [u32; TextureType::Count as _],
     pub roughness_factor: f32,
@@ -137,7 +128,7 @@ pub struct DrawMaterial {
     pub specular_color: [f32; 4],
 }
 
-impl Default for DrawMaterial {
+impl Default for GPUMaterial {
     fn default() -> Self {
         Self {
             textures_indices: [INVALID_INDEX; TextureType::Count as _],
@@ -156,48 +147,27 @@ impl Default for DrawMaterial {
 }
 
 #[repr(C, align(4))]
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug)]
-#[serde(crate = "inox_serialize")]
-pub struct DrawVertex {
-    pub position_and_color_offset: u32,
-    pub normal_offset: i32,
-    pub tangent_offset: i32,
-    pub mesh_index: u32,
-    pub uv_offset: [i32; MAX_TEXTURE_COORDS_SETS],
-}
-
-impl Default for DrawVertex {
-    fn default() -> Self {
-        Self {
-            position_and_color_offset: 0,
-            normal_offset: INVALID_INDEX,
-            tangent_offset: INVALID_INDEX,
-            mesh_index: 0,
-            uv_offset: [INVALID_INDEX; MAX_TEXTURE_COORDS_SETS],
-        }
-    }
-}
-
-impl DrawVertex {
-    pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
-        let mut layout_builder = VertexBufferLayoutBuilder::vertex();
-        layout_builder.starting_location(starting_location);
-        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
-        layout_builder.add_attribute::<i32>(VertexFormat::Sint32.into());
-        layout_builder.add_attribute::<i32>(VertexFormat::Sint32.into());
-        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
-        layout_builder
-            .add_attribute::<[i32; MAX_TEXTURE_COORDS_SETS]>(VertexFormat::Sint32x4.into());
-        layout_builder
-    }
-}
-
-#[repr(C, align(4))]
-#[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
-#[serde(crate = "inox_serialize")]
-pub struct DrawRay {
+#[derive(Default, PartialEq, Clone, Copy, Debug)]
+pub struct GPURay {
     pub origin: [f32; 3],
     pub t_min: f32,
     pub direction: [f32; 3],
     pub t_max: f32,
+}
+
+#[repr(C, align(4))]
+#[derive(Default, PartialEq, Clone, Copy, Debug)]
+pub struct GPURuntimeVertexData {
+    pub world_pos: [f32; 3],
+    pub mesh_index: u32,
+}
+
+impl GPURuntimeVertexData {
+    pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
+        let mut layout_builder = VertexBufferLayoutBuilder::vertex();
+        layout_builder.starting_location(starting_location);
+        layout_builder.add_attribute::<[f32; 3]>(VertexFormat::Float32x3.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder
+    }
 }

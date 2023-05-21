@@ -31,24 +31,13 @@ const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 8u;
 
 const MAX_FLOAT: f32 = 3.402823466e+38;
 
-const RAY_STEP_FLAGS_NONE: u32 = 0u;
-const RAY_STEP_FLAGS_COMPUTE_RAY: u32 = 1u;
-const RAY_STEP_FLAGS_TLAS: u32 = 2u; // 1 << 1
-const RAY_STEP_FLAGS_BLAS: u32 = 4u; // 1 << 2
-const RAY_STEP_FLAGS_MESHLET: u32 = 8u;  // 1 << 3
-const RAY_STEP_FLAGS_BOUNCE: u32 = 16u; // 1 << 4
-
-struct RayPayload {
-    origin: vec3<f32>,
-    pixel_x: u32,
-    direction: vec3<f32>,
-    pixel_y: u32,
-};
-
-struct RayJob {
-    index: u32,
-    step: u32,
-}
+const VERTEX_ATTRIBUTE_HAS_POSITION: u32 = 0u;
+const VERTEX_ATTRIBUTE_HAS_COLOR: u32 = 1u;
+const VERTEX_ATTRIBUTE_HAS_NORMAL: u32 = 2u; // 1 << 1
+const VERTEX_ATTRIBUTE_HAS_UV1: u32 = 4u; // 1 << 2
+const VERTEX_ATTRIBUTE_HAS_UV2: u32 = 8u;  // 1 << 3
+const VERTEX_ATTRIBUTE_HAS_UV3: u32 = 16u; // 1 << 4
+const VERTEX_ATTRIBUTE_HAS_UV4: u32 = 32u; // 1 << 5
 
 struct ConstantData {
     view: mat4x4<f32>,
@@ -60,12 +49,9 @@ struct ConstantData {
     flags: u32,
 };
 
-struct Vertex {
-    @location(0) position_and_color_offset: u32,
-    @location(1) normal_offset: i32,
-    @location(2) tangent_offset: i32,
-    @location(3) mesh_index: u32,
-    @location(4) uvs_offset: vec4<i32>,
+struct RuntimeVertexData {
+    @location(0) world_pos: vec3<f32>,
+    @location(1) @interpolate(flat) mesh_index: u32,
 };
 
 struct DrawCommand {
@@ -84,15 +70,15 @@ struct DrawIndexedCommand {
 };
 
 struct Mesh {
-    vertex_offset: u32,
-    indices_offset: u32,
+    vertices_position_offset: u32,
+    vertices_attribute_offset: u32,
+    vertices_attribute_layout: u32,
     material_index: i32,
-    bhv_index: u32,
+    orientation: vec4<f32>,
     position: vec3<f32>,
     meshlets_offset: u32,
     scale: vec3<f32>,
-    meshlets_count: u32,
-    orientation: vec4<f32>,
+    blas_index: u32,
 };
 
 struct ConeCulling {
@@ -104,7 +90,7 @@ struct Meshlet {
     @location(5) mesh_index: u32,
     @location(6) indices_offset: u32,
     @location(7) indices_count: u32,
-    @location(8) bhv_index: u32,
+    @location(8) blas_index: u32,
 };
 
 struct BHVNode {
@@ -180,36 +166,20 @@ struct Indices {
     data: array<u32>,
 };
 
-struct Vertices {
-    data: array<Vertex>,
+struct RuntimeVertices {
+    data: array<RuntimeVertexData>,
 };
 
-struct Matrices {
-    data: array<mat4x4<f32>>,
-};
-
-struct Positions {
-    data: array<u32>,
-};
-
-struct Colors {
-    data: array<u32>,
-};
-
-struct Normals {
-    data: array<u32>,
-};
-
-struct Tangents {
-    data: array<vec4<f32>>,
-};
-
-struct UVs {
+struct VerticesAttributes {
     data: array<u32>,
 };
 
 struct MeshletsCulling {
     data: array<ConeCulling>,
+};
+
+struct Matrices {
+    data: array<mat4x4<f32>>,
 };
 
 struct BHV {
@@ -231,3 +201,15 @@ struct Ray {
 struct Rays {
     data: array<Ray>,
 };
+
+struct RayPayload {
+    origin: vec3<f32>,
+    pixel_x: u32,
+    direction: vec3<f32>,
+    pixel_y: u32,
+};
+
+struct RayJob {
+    index: u32,
+    step: u32,
+}

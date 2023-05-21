@@ -1,4 +1,119 @@
+use inox_bitmask::bitmask;
+
 pub const MAX_TEXTURE_COORDS_SETS: usize = 4;
+
+#[bitmask]
+#[repr(u32)]
+pub enum VertexAttributeLayout {
+    HasPosition = 0, // 	1 packed u32 with xyz in 0..1 in min-max (at runtime then 3 float)
+    HasColor = 1,    // 	1 packed u32 in rgba 255bit (at runtime then 4 float)
+    HasNormal = 1 << 1, // 	1 packed u32 with xy in 2f16 and z recomputed  (at runtime then 3 float)
+    HasUV1 = 1 << 2, //	1 packed u32 with uv in 2f16 (at runtime then 2 float)
+    HasUV2 = 1 << 3, //	1 packed u32 with uv in 2f16 (at runtime then 2 float)
+    HasUV3 = 1 << 4, //	1 packed u32 with uv in 2f16 (at runtime then 2 float)
+    HasUV4 = 1 << 5, //	1 packed u32 with uv in 2f16 (at runtime then 2 float)
+}
+
+impl VertexAttributeLayout {
+    pub fn pos_color() -> Self {
+        Self::HasPosition | Self::HasColor
+    }
+    pub fn pos_color_normal() -> Self {
+        Self::HasPosition | Self::HasColor | Self::HasNormal
+    }
+    pub fn pos_color_normal_uv1() -> Self {
+        Self::HasPosition | Self::HasColor | Self::HasNormal | Self::HasUV1
+    }
+    pub fn pos_color_normal_uv1_uv2() -> Self {
+        Self::HasPosition | Self::HasColor | Self::HasNormal | Self::HasUV1 | Self::HasUV2
+    }
+    pub const fn color_offset() -> usize {
+        0
+    }
+    pub const fn normal_offset() -> usize {
+        1
+    }
+    pub const fn uv1_offset() -> usize {
+        2
+    }
+    pub const fn uv2_offset() -> usize {
+        3
+    }
+    pub const fn uv3_offset() -> usize {
+        4
+    }
+    pub const fn uv4_offset() -> usize {
+        5
+    }
+    pub fn stride_in_count(&self) -> usize {
+        let mut stride = 0;
+        if self.intersects(VertexAttributeLayout::HasColor) {
+            stride += 1;
+        }
+        if self.intersects(VertexAttributeLayout::HasNormal) {
+            stride += 1;
+        }
+        if self.intersects(VertexAttributeLayout::HasUV1) {
+            stride += 1;
+        }
+        if self.intersects(VertexAttributeLayout::HasUV2) {
+            stride += 1;
+        }
+        if self.intersects(VertexAttributeLayout::HasUV3) {
+            stride += 1;
+        }
+        if self.intersects(VertexAttributeLayout::HasUV4) {
+            stride += 1;
+        }
+        stride
+    }
+    pub fn stride_in_byte(&self) -> usize {
+        let mut stride = 0;
+        if self.intersects(VertexAttributeLayout::HasColor) {
+            stride += std::mem::size_of::<u32>();
+        }
+        if self.intersects(VertexAttributeLayout::HasNormal) {
+            stride += std::mem::size_of::<u32>();
+        }
+        if self.intersects(VertexAttributeLayout::HasUV1) {
+            stride += std::mem::size_of::<u32>();
+        }
+        if self.intersects(VertexAttributeLayout::HasUV2) {
+            stride += std::mem::size_of::<u32>();
+        }
+        if self.intersects(VertexAttributeLayout::HasUV3) {
+            stride += std::mem::size_of::<u32>();
+        }
+        if self.intersects(VertexAttributeLayout::HasUV4) {
+            stride += std::mem::size_of::<u32>();
+        }
+        stride
+    }
+
+    pub fn descriptor<'a>(&self, starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
+        let mut layout_builder = VertexBufferLayoutBuilder::vertex();
+        layout_builder.starting_location(starting_location);
+        if self.intersects(VertexAttributeLayout::HasColor) {
+            layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        }
+        if self.intersects(VertexAttributeLayout::HasNormal) {
+            layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        }
+        if self.intersects(VertexAttributeLayout::HasUV1) {
+            layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        }
+        if self.intersects(VertexAttributeLayout::HasUV2) {
+            layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        }
+        if self.intersects(VertexAttributeLayout::HasUV3) {
+            layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        }
+        if self.intersects(VertexAttributeLayout::HasUV4) {
+            layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        }
+        layout_builder
+    }
+}
 
 pub enum VertexFormat {
     Uint8x2 = wgpu::VertexFormat::Uint8x2 as _,

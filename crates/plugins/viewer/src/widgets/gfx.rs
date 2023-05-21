@@ -44,7 +44,7 @@ impl Gfx {
                 let render_context = renderer.render_context();
                 data.vertices_count = render_context
                     .render_buffers
-                    .vertices
+                    .vertex_positions
                     .read()
                     .unwrap()
                     .item_count();

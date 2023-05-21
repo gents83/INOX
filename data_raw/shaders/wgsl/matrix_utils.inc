@@ -31,13 +31,6 @@ fn normalize_plane(plane: vec4<f32>) -> vec4<f32>
     return (plane / length(plane.xyz));
 }
 
-fn unproject(ncd_pos: vec2<f32>, depth: f32) -> vec3<f32> 
-{    
-    var world_pos = constant_data.inverse_view_proj * vec4<f32>(ncd_pos, depth, 1. );
-    world_pos /= world_pos.w;
-    return world_pos.xyz;
-}
-
 fn rotate_vector(v: vec3<f32>, orientation: vec4<f32>) -> vec3<f32> 
 {
     return v + 2. * cross(orientation.xyz, cross(orientation.xyz, v) + orientation.w * v);

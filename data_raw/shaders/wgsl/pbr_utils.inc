@@ -45,28 +45,28 @@ fn compute_alpha(material_index: u32, vertex_color_alpha: f32) -> f32 {
     return alpha;
 }
 
-fn compute_normal(material_id: u32, normal: vec3<f32>, position: vec3<f32>, uv_set: vec4<u32>) -> vec3<f32> {
+fn compute_normal(material_id: u32, normal: vec3<f32>, position: vec3<f32>, uv_set: vec4<f32>) -> vec3<f32> {
     let material = &materials.data[material_id];
     var n = normal;
-    //if (has_texture(material_id, TEXTURE_TYPE_NORMAL)) {    
-    //    let uv = compute_uvs(material_id, TEXTURE_TYPE_NORMAL, uv_set);    
-    //    //// get edge vectors of the pixel triangle 
-    //    let dp1 = dpdx( position ); 
-    //    let dp2 = dpdy( position ); 
-    //    let duv1 = dpdx( uv.xy ); 
-    //    let duv2 = dpdy( uv.xy );   
-    //    // solve the linear system 
-    //    let dp2perp = cross( dp2, n ); 
-    //    let dp1perp = cross( n, dp1 ); 
-    //    let tangent = dp2perp * duv1.x + dp1perp * duv2.x; 
-    //    let bitangent = dp2perp * duv1.y + dp1perp * duv2.y;
-    //    let t = normalize(tangent);
-    //    let b = normalize(bitangent); 
-    //    let tbn = mat3x3<f32>(t, b, n);
-    //    let tn = sample_texture(uv);
-    //    n = tbn * (2.0 * tn.rgb - vec3<f32>(1.));
-    //    n = normalize(n);
-    //}
+    if (has_texture(material_id, TEXTURE_TYPE_NORMAL)) {    
+        let uv = compute_uvs(material_id, TEXTURE_TYPE_NORMAL, uv_set);    
+        //// get edge vectors of the pixel triangle 
+        let dp1 = dpdx( position ); 
+        let dp2 = dpdy( position ); 
+        let duv1 = dpdx( uv.xy ); 
+        let duv2 = dpdy( uv.xy );   
+        // solve the linear system 
+        let dp2perp = cross( dp2, n ); 
+        let dp1perp = cross( n, dp1 ); 
+        let tangent = dp2perp * duv1.x + dp1perp * duv2.x; 
+        let bitangent = dp2perp * duv1.y + dp1perp * duv2.y;
+        let t = normalize(tangent);
+        let b = normalize(bitangent); 
+        let tbn = mat3x3<f32>(t, b, n);
+        let tn = sample_texture(uv);
+        n = tbn * (2.0 * tn.rgb - vec3<f32>(1.));
+        n = normalize(n);
+    }
     return n;
 }
 
@@ -125,7 +125,7 @@ fn microfacet_distribution(alpha_roughness: f32, NdotH: f32) -> f32 {
     return roughnessSq / (PI * f * f);
 }
 
-fn compute_brdf(world_pos: vec3<f32>, normal: vec3<f32>, material_id: u32, color: vec4<f32>, uv_set: vec4<u32>) -> vec4<f32> {
+fn compute_brdf(world_pos: vec3<f32>, normal: vec3<f32>, material_id: u32, color: vec4<f32>, uv_set: vec4<f32>) -> vec4<f32> {
     let material = &materials.data[material_id];
     var perceptual_roughness = (*material).roughness_factor;
     var metallic = (*material).metallic_factor;

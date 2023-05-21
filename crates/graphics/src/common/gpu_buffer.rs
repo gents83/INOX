@@ -34,6 +34,9 @@ impl GpuBuffer {
     pub fn size(&self) -> u64 {
         self.size
     }
+    pub fn usage(&self) -> wgpu::BufferUsages {
+        self.usage
+    }
     pub fn name(&self) -> &str {
         self.name.as_str()
     }

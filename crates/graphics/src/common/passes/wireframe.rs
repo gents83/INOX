@@ -231,12 +231,12 @@ impl WireframePass {
             vertex_start: vertices.data.len() as _,
             instance_index: instances.data.len() as _,
         });
-        mesh_data.vertices.iter().for_each(|v| {
+        for i in 0..mesh_data.vertex_count() {
             vertices.data.push(DebugVertex {
-                position: mesh_data.position(v.position_and_color_offset as _).into(),
-                color: mesh_data.colors[v.position_and_color_offset as usize],
+                position: mesh_data.position(i as _).into(),
+                color: mesh_data.packed_color(i),
             });
-        });
+        }
         indices.data.extend_from_slice(&mesh_data.indices);
         instances.set_dirty(true);
         indices.set_dirty(true);

@@ -1,7 +1,5 @@
-
-
-#import "utils.inc"
 #import "common.inc"
+#import "utils.inc"
 
 struct CullingData {
     view: mat4x4<f32>,
@@ -73,8 +71,8 @@ fn main(
         let command = &commands.data[index];
         (*command).vertex_count = (*meshlet).indices_count;
         (*command).instance_count = 1u;
-        (*command).base_index = (*mesh).indices_offset + (*meshlet).indices_offset;
-        (*command).vertex_offset = i32((*mesh).vertex_offset);
+        (*command).base_index = (*meshlet).indices_offset;
+        (*command).vertex_offset = i32((*mesh).vertices_position_offset);
         (*command).base_instance = meshlet_id;
     }
 }

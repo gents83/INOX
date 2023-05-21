@@ -80,7 +80,7 @@ pub struct CullingPass {
     meshes_flags: MeshesFlagsBuffer,
     meshlets: MeshletsBuffer,
     meshlets_culling: MeshletsCullingBuffer,
-    bhv: BHVBuffer,
+    blas: BHVBuffer,
     culling_data: CullingData,
     culling_result: CullingResults,
     listener: Listener,
@@ -142,7 +142,7 @@ impl Pass for CullingPass {
             meshes_flags: render_context.render_buffers.meshes_flags.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
             meshlets_culling: render_context.render_buffers.meshlets_culling.clone(),
-            bhv: render_context.render_buffers.bhv.clone(),
+            blas: render_context.render_buffers.blas.clone(),
             binding_data: BindingData::new(render_context, CULLING_PASS_NAME),
             culling_data: CullingData::default(),
             culling_result: render_context.render_buffers.culling_result.clone(),
@@ -239,8 +239,8 @@ impl Pass for CullingPass {
                     },
                 )
                 .add_storage_buffer(
-                    &mut *self.bhv.write().unwrap(),
-                    Some("BHVs"),
+                    &mut *self.blas.write().unwrap(),
+                    Some("BLAS BHV"),
                     BindingInfo {
                         group_index: 0,
                         binding_index: 5,

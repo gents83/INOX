@@ -2,10 +2,10 @@ use std::path::PathBuf;
 
 use crate::{
     BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, CullingResults, DrawCommandType, IndicesBuffer, MeshFlags, MeshesBuffer,
-    MeshesInverseMatrixBuffer, MeshletsBuffer, MeshletsCullingBuffer, OutputPass, Pass, RaysBuffer,
-    RenderContext, ShaderStage, Texture, TextureFormat, TextureId, TextureUsage, TextureView,
-    VertexPositionsBuffer, VerticesBuffer,
+    CullingResults, DrawCommandType, IndicesBuffer, MeshFlags, MeshesBuffer,
+    MeshesInverseMatrixBuffer, MeshletsBuffer, OutputPass, Pass, RaysBuffer, RenderContext,
+    RuntimeVerticesBuffer, ShaderStage, Texture, TextureFormat, TextureId, TextureUsage,
+    TextureView,
 };
 
 use inox_core::ContextRc;
@@ -15,24 +15,20 @@ use inox_uid::generate_random_uid;
 pub const COMPUTE_RAYTRACING_VISIBILITY_PIPELINE: &str =
     "pipelines/ComputeRayTracingVisibility.compute_pipeline";
 pub const COMPUTE_RAYTRACING_VISIBILITY_NAME: &str = "ComputeRayTracingVisibilityPass";
-const RAYTRACING_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rgba8Unorm;
 
 pub struct ComputeRayTracingVisibilityPass {
     context: ContextRc,
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
-    constant_data: ConstantDataRw,
+    render_target: Handle<Texture>,
     meshes: MeshesBuffer,
     meshes_inverse_matrix: MeshesInverseMatrixBuffer,
     meshlets: MeshletsBuffer,
-    meshlets_culling: MeshletsCullingBuffer,
     culling_result: CullingResults,
     tlas: BHVBuffer,
-    bhv: BHVBuffer,
-    vertices: VerticesBuffer,
+    blas: BHVBuffer,
     indices: IndicesBuffer,
-    vertex_positions: VertexPositionsBuffer,
-    render_target: Handle<Texture>,
+    runtime_vertices: RuntimeVerticesBuffer,
     rays: RaysBuffer,
     jobs_count: i32,
 }
@@ -73,17 +69,14 @@ impl Pass for ComputeRayTracingVisibilityPass {
                 &data,
                 None,
             ),
-            constant_data: render_context.constant_data.clone(),
             meshes: render_context.render_buffers.meshes.clone(),
             meshes_inverse_matrix: render_context.render_buffers.meshes_inverse_matrix.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
-            meshlets_culling: render_context.render_buffers.meshlets_culling.clone(),
             culling_result: render_context.render_buffers.culling_result.clone(),
             tlas: render_context.render_buffers.tlas.clone(),
-            bhv: render_context.render_buffers.bhv.clone(),
-            vertices: render_context.render_buffers.vertices.clone(),
+            blas: render_context.render_buffers.blas.clone(),
             indices: render_context.render_buffers.indices.clone(),
-            vertex_positions: render_context.render_buffers.vertex_positions.clone(),
+            runtime_vertices: render_context.render_buffers.runtime_vertices.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_RAYTRACING_VISIBILITY_NAME),
             render_target: None,
             rays: render_context.render_buffers.rays.clone(),
@@ -102,44 +95,24 @@ impl Pass for ComputeRayTracingVisibilityPass {
         }
 
         self.binding_data
-            .add_uniform_buffer(
-                &mut *self.constant_data.write().unwrap(),
-                Some("ConstantData"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 0,
-                    stage: ShaderStage::Compute,
-                    ..Default::default()
-                },
-            )
             .add_storage_buffer(
                 &mut *self.indices.write().unwrap(),
                 Some("Indices"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 1,
+                    binding_index: 0,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Read | BindingFlags::Index,
                 },
             )
             .add_storage_buffer(
-                &mut *self.vertices.write().unwrap(),
-                Some("Vertices"),
+                &mut *self.runtime_vertices.write().unwrap(),
+                Some("Runtime Vertices"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 2,
+                    binding_index: 1,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Read | BindingFlags::Vertex,
-                },
-            )
-            .add_storage_buffer(
-                &mut *self.vertex_positions.write().unwrap(),
-                Some("VertexPositions"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 3,
-                    stage: ShaderStage::Compute,
-                    ..Default::default()
                 },
             )
             .add_storage_buffer(
@@ -147,7 +120,7 @@ impl Pass for ComputeRayTracingVisibilityPass {
                 Some("Meshes"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 4,
+                    binding_index: 2,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -157,17 +130,7 @@ impl Pass for ComputeRayTracingVisibilityPass {
                 Some("Meshlets"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 5,
-                    stage: ShaderStage::Compute,
-                    ..Default::default()
-                },
-            )
-            .add_storage_buffer(
-                &mut *self.meshlets_culling.write().unwrap(),
-                Some("Meshlets Culling"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 6,
+                    binding_index: 3,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -177,7 +140,7 @@ impl Pass for ComputeRayTracingVisibilityPass {
                 Some("Culling Results"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 7,
+                    binding_index: 4,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -186,18 +149,18 @@ impl Pass for ComputeRayTracingVisibilityPass {
                 &mut *self.tlas.write().unwrap(),
                 Some("TLAS"),
                 BindingInfo {
-                    group_index: 1,
-                    binding_index: 0,
+                    group_index: 0,
+                    binding_index: 5,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
             )
             .add_storage_buffer(
-                &mut *self.bhv.write().unwrap(),
-                Some("BHV"),
+                &mut *self.blas.write().unwrap(),
+                Some("BLAS"),
                 BindingInfo {
-                    group_index: 1,
-                    binding_index: 1,
+                    group_index: 0,
+                    binding_index: 6,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -206,8 +169,8 @@ impl Pass for ComputeRayTracingVisibilityPass {
                 &mut *self.meshes_inverse_matrix.write().unwrap(),
                 Some("Meshes Inverse Matrix"),
                 BindingInfo {
-                    group_index: 1,
-                    binding_index: 2,
+                    group_index: 0,
+                    binding_index: 7,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -217,7 +180,7 @@ impl Pass for ComputeRayTracingVisibilityPass {
                 Some("Rays"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 3,
+                    binding_index: 0,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite,
                 },
@@ -227,7 +190,7 @@ impl Pass for ComputeRayTracingVisibilityPass {
                 Some("JobsCount"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 4,
+                    binding_index: 1,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite,
                 },
@@ -235,8 +198,8 @@ impl Pass for ComputeRayTracingVisibilityPass {
             .add_texture(
                 self.render_target.as_ref().unwrap().id(),
                 BindingInfo {
-                    group_index: 2,
-                    binding_index: 0,
+                    group_index: 1,
+                    binding_index: 2,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Write | BindingFlags::Storage,
                 },
@@ -262,7 +225,7 @@ impl Pass for ComputeRayTracingVisibilityPass {
 
         let x_pixels_managed_in_shader = 8;
         let y_pixels_managed_in_shader = 8;
-        let dimensions = self.render_target().as_ref().unwrap().get().dimensions();
+        let dimensions = self.render_target.as_ref().unwrap().get().dimensions();
         let max_cluster_size = x_pixels_managed_in_shader.max(y_pixels_managed_in_shader);
         let x = (max_cluster_size * ((dimensions.0 / 4 + max_cluster_size - 1) / max_cluster_size))
             / x_pixels_managed_in_shader;
@@ -291,16 +254,18 @@ impl OutputPass for ComputeRayTracingVisibilityPass {
 }
 
 impl ComputeRayTracingVisibilityPass {
-    pub fn render_target(&self) -> &Handle<Texture> {
-        &self.render_target
-    }
-    pub fn add_render_target_with_resolution(&mut self, width: u32, height: u32) -> &mut Self {
+    pub fn add_render_target_with_resolution(
+        &mut self,
+        width: u32,
+        height: u32,
+        render_format: TextureFormat,
+    ) -> &mut Self {
         self.render_target = Some(Texture::create_from_format(
             self.context.shared_data(),
             self.context.message_hub(),
             width,
             height,
-            RAYTRACING_TEXTURE_FORMAT,
+            render_format,
             TextureUsage::TextureBinding
                 | TextureUsage::CopySrc
                 | TextureUsage::CopyDst

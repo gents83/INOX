@@ -1,7 +1,6 @@
 use std::num::NonZeroU32;
 
 use inox_bitmask::bitmask;
-use inox_serialize::{Deserialize, Serialize};
 
 use crate::{
     platform::required_gpu_features, AsBinding, BindingDataBufferRc, BufferId, RenderContext,

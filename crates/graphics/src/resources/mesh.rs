@@ -9,10 +9,7 @@ use inox_resources::{
     DataTypeResource, DataTypeResourceEvent, Handle, Resource, ResourceEvent, ResourceId,
     ResourceTrait, SerializableResource, SharedData, SharedDataRc,
 };
-use inox_serialize::{
-    inox_serializable::SerializableRegistryRc, read_from_file, Deserialize, Serialize,
-    SerializeFile,
-};
+use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 
 pub type MeshId = ResourceId;
 

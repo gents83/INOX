@@ -36,9 +36,6 @@ fn decode_snorm(i: u32, n: u32) -> f32 {
 }
 
 
-fn decode_uv(v: u32) -> vec2<f32> {
-    return unpack2x16float(v);
-}
 fn decode_as_vec3(v: u32) -> vec3<f32> {
     let vx = decode_unorm((v >> 20u) & 0x000003FFu, 10u);
     let vy = decode_unorm((v >> 10u) & 0x000003FFu, 10u);
@@ -86,10 +83,25 @@ fn hash( x: u32 ) -> u32 {
     return v;
 }
 
-
 fn swap_f32(ptr_a: ptr<function, f32>, ptr_b: ptr<function, f32>) 
 {
     let c = *ptr_a;
     *ptr_a = *ptr_b;
     *ptr_b = c;
+}
+
+fn has_vertex_attribute(vertex_attribute_layout: u32, attribute_to_check: u32) -> bool {
+    return bool(vertex_attribute_layout & attribute_to_check);
+}
+fn vertex_attribute_offset(vertex_attribute_layout: u32, attribute_to_check: u32) -> i32 
+{
+    if(has_vertex_attribute(vertex_attribute_layout, attribute_to_check)) {
+        let mask = vertex_attribute_layout & (!attribute_to_check & (attribute_to_check - 1u));
+        return i32(countOneBits(mask));
+    }
+    return -1;
+}
+fn vertex_layout_stride(vertex_attribute_layout: u32) -> u32 
+{
+    return countOneBits(vertex_attribute_layout);
 }
