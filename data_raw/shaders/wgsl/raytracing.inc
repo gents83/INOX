@@ -59,7 +59,7 @@ fn intersect_triangle(ray: ptr<function, Ray>, v0: vec3<f32>, v1: vec3<f32>, v2:
 fn is_meshlet_visible(meshlet_id: u32) -> bool
 {
     let bits = atomicLoad(&culling_result[meshlet_id / 32u]);
-    return (bits & 1u << (meshlet_id % 32u)) > 0u;
+    return (bits & (1u << (meshlet_id % 32u))) > 0u;
 }
 
 fn intersect_meshlet_primitive(ray: ptr<function, Ray>, position_offset: u32, meshlet_id: u32, index_offset: u32) -> f32 {
