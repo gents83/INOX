@@ -7,6 +7,7 @@ struct VertexOutput {
 };
 
 struct FragmentOutput {
+    @builtin(frag_depth) depth_buffer: f32,     
     @location(0) gbuffer_1: vec4<f32>,  //albedo        
     @location(1) gbuffer_2: vec4<f32>,  //normal       
     @location(2) gbuffer_3: vec4<f32>,  //meshlet_id   
@@ -153,6 +154,9 @@ fn fs_main(
         uvs.w = uv.y;
     }
     fragment_out.gbuffer_4 = uvs;
+
+    let z = barycentrics.x * p1.z + barycentrics.y * p2.z + barycentrics.z * p3.z;  
+    fragment_out.depth_buffer = z;
     
     return fragment_out;
 }

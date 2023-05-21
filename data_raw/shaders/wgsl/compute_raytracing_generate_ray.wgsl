@@ -14,7 +14,12 @@ var<uniform> data: Data;
 @group(1) @binding(0)
 var<storage, read_write> rays: Rays;
 
-#import "matrix_utils.inc"
+fn unproject(ncd_pos: vec2<f32>, depth: f32) -> vec3<f32> 
+{    
+    var world_pos = constant_data.inverse_view_proj * vec4<f32>(ncd_pos, depth, 1. );
+    world_pos /= world_pos.w;
+    return world_pos.xyz;
+}
 
 fn compute_ray(image_pixel: vec2<u32>, image_size: vec2<u32>) -> Ray {
     var clip_coords = 2. * (vec2<f32>(image_pixel) / vec2<f32>(image_size)) - vec2<f32>(1., 1.);
