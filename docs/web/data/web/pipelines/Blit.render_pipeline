@@ -2,7 +2,7 @@
     "vertex_shader": "shaders/wgsl/blit.shader",
     "fragment_shader": "shaders/wgsl/blit.shader",
     "front_face": "Clockwise",
-    "culling": "None",
+    "culling": "Back",
     "mode": "Fill",
     "depth_write_enabled": false,
     "depth_compare": "Less",
