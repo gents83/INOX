@@ -58,21 +58,21 @@ impl BufferData {
     }
     #[inline]
     pub fn is_adjacent(&self, buffer: &BufferData) -> bool {
-        if buffer.range.start > 0 && self.range.end == (buffer.range.start - 1) {
+        if buffer.range.start > 0 && self.range.end == buffer.range.start {
             return true;
         }
-        if self.range.start > 0 && buffer.range.end == (self.range.start - 1) {
+        if self.range.start > 0 && buffer.range.end == self.range.start {
             return true;
         }
         false
     }
     #[inline]
     pub fn combine(&mut self, buffer: &BufferData) -> bool {
-        if buffer.range.start > 0 && self.range.end == (buffer.range.start - 1) {
+        if buffer.range.start > 0 && self.range.end == buffer.range.start {
             self.range.end = buffer.range.end;
             return true;
         }
-        if self.range.start > 0 && buffer.range.end == (self.range.start - 1) {
+        if self.range.start > 0 && buffer.range.end == self.range.start {
             self.range.start = buffer.range.start;
             return true;
         }
