@@ -1,10 +1,11 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, LightsBuffer,
-    MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer, OutputRenderPass, Pass,
-    RenderContext, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage,
-    StoreOperation, TextureId, TextureView, TexturesBuffer,
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
+    IndicesBuffer, LightsBuffer, MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer,
+    OutputRenderPass, Pass, RenderContext, RenderPass, RenderPassBeginData, RenderPassData,
+    RenderTarget, RuntimeVerticesBuffer, ShaderStage, StoreOperation, TextureId, TextureView,
+    TexturesBuffer, VertexAttributesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -18,13 +19,15 @@ pub struct PBRPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
+    indices: IndicesBuffer,
+    runtime_vertices: RuntimeVerticesBuffer,
+    vertices_attributes: VertexAttributesBuffer,
+    meshes: MeshesBuffer,
+    meshlets: MeshletsBuffer,
     textures: TexturesBuffer,
     materials: MaterialsBuffer,
     lights: LightsBuffer,
-    meshes: MeshesBuffer,
-    meshlets: MeshletsBuffer,
-    gbuffer_textures: Vec<TextureId>,
-    depth_texture: TextureId,
+    visibility_texture: TextureId,
 }
 unsafe impl Send for PBRPass {}
 unsafe impl Sync for PBRPass {}
@@ -68,23 +71,23 @@ impl Pass for PBRPass {
                 &data,
                 None,
             ),
+            binding_data: BindingData::new(render_context, PBR_PASS_NAME),
             constant_data: render_context.constant_data.clone(),
+            indices: render_context.render_buffers.indices.clone(),
+            runtime_vertices: render_context.render_buffers.runtime_vertices.clone(),
+            vertices_attributes: render_context.render_buffers.vertex_attributes.clone(),
+            meshes: render_context.render_buffers.meshes.clone(),
+            meshlets: render_context.render_buffers.meshlets.clone(),
             textures: render_context.render_buffers.textures.clone(),
             materials: render_context.render_buffers.materials.clone(),
             lights: render_context.render_buffers.lights.clone(),
-            meshes: render_context.render_buffers.meshes.clone(),
-            meshlets: render_context.render_buffers.meshlets.clone(),
-            binding_data: BindingData::new(render_context, PBR_PASS_NAME),
-            gbuffer_textures: Vec::new(),
-            depth_texture: INVALID_UID,
+            visibility_texture: INVALID_UID,
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("pbr_pass::init");
 
-        if self.gbuffer_textures.iter().any(|t| t.is_nil())
-            || self.gbuffer_textures.is_empty()
-            || self.depth_texture.is_nil()
+        if self.visibility_texture.is_nil()
             || self.textures.read().unwrap().is_empty()
             || self.meshes.read().unwrap().is_empty()
             || self.meshlets.read().unwrap().is_empty()
@@ -107,11 +110,41 @@ impl Pass for PBRPass {
                 },
             )
             .add_storage_buffer(
+                &mut *self.indices.write().unwrap(),
+                Some("Indices"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 1,
+                    stage: ShaderStage::Fragment,
+                    flags: BindingFlags::Read | BindingFlags::Index,
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.runtime_vertices.write().unwrap(),
+                Some("Runtime Vertices"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 2,
+                    stage: ShaderStage::Fragment,
+                    flags: BindingFlags::Read | BindingFlags::Vertex,
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.vertices_attributes.write().unwrap(),
+                Some("Vertices Attributes"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 3,
+                    stage: ShaderStage::Fragment,
+                    flags: BindingFlags::Read,
+                },
+            )
+            .add_storage_buffer(
                 &mut *self.meshes.write().unwrap(),
                 Some("Meshes"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 1,
+                    binding_index: 4,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
@@ -121,7 +154,7 @@ impl Pass for PBRPass {
                 Some("Meshlets"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 2,
+                    binding_index: 5,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
@@ -130,8 +163,8 @@ impl Pass for PBRPass {
                 &mut *self.materials.write().unwrap(),
                 Some("Materials"),
                 BindingInfo {
-                    group_index: 0,
-                    binding_index: 3,
+                    group_index: 1,
+                    binding_index: 0,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
@@ -140,8 +173,8 @@ impl Pass for PBRPass {
                 &mut *self.textures.write().unwrap(),
                 Some("Textures"),
                 BindingInfo {
-                    group_index: 0,
-                    binding_index: 4,
+                    group_index: 1,
+                    binding_index: 1,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
@@ -150,36 +183,21 @@ impl Pass for PBRPass {
                 &mut *self.lights.write().unwrap(),
                 Some("Lights"),
                 BindingInfo {
-                    group_index: 0,
-                    binding_index: 5,
+                    group_index: 1,
+                    binding_index: 2,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+            )
+            .add_texture(
+                &self.visibility_texture,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 3,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
             );
-
-        self.gbuffer_textures
-            .iter()
-            .enumerate()
-            .for_each(|(i, id)| {
-                self.binding_data.add_texture(
-                    id,
-                    BindingInfo {
-                        group_index: 1,
-                        binding_index: i,
-                        stage: ShaderStage::Fragment,
-                        ..Default::default()
-                    },
-                );
-            });
-        self.binding_data.add_texture(
-            &self.depth_texture,
-            BindingInfo {
-                group_index: 1,
-                binding_index: self.gbuffer_textures.len(),
-                stage: ShaderStage::Fragment,
-                ..Default::default()
-            },
-        );
 
         self.binding_data
             .add_default_sampler(BindingInfo {
@@ -205,9 +223,7 @@ impl Pass for PBRPass {
     ) {
         inox_profiler::scoped_profile!("pbr_pass::update");
 
-        if self.gbuffer_textures.iter().any(|t| t.is_nil())
-            || self.gbuffer_textures.is_empty()
-            || self.depth_texture.is_nil()
+        if self.visibility_texture.is_nil()
             || self.textures.read().unwrap().is_empty()
             || self.meshes.read().unwrap().is_empty()
             || self.meshlets.read().unwrap().is_empty()
@@ -249,12 +265,8 @@ impl OutputRenderPass for PBRPass {
 }
 
 impl PBRPass {
-    pub fn set_gbuffers_textures(&mut self, textures: &[TextureId]) -> &mut Self {
-        self.gbuffer_textures = textures.to_vec();
-        self
-    }
-    pub fn set_depth_texture(&mut self, texture_id: &TextureId) -> &mut Self {
-        self.depth_texture = *texture_id;
+    pub fn set_visibility_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.visibility_texture = *texture_id;
         self
     }
 }

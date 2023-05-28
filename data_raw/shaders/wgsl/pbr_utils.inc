@@ -24,37 +24,18 @@ const MIN_ROUGHNESS = 0.04;
 const Fdielectric: vec3<f32> = vec3<f32>(0.04, 0.04, 0.04);
 const Epsilon: f32 = 0.00001;
 
-fn compute_alpha(material_index: u32, vertex_color_alpha: f32) -> f32 {
-    let material = &materials.data[material_index];
-    // NOTE: the spec mandates to ignore any alpha value in 'OPAQUE' mode
-    var alpha = 1.;
-    if ((*material).alpha_mode == MATERIAL_ALPHA_BLEND_OPAQUE) {
-        alpha = 1.;
-    } else if ((*material).alpha_mode == MATERIAL_ALPHA_BLEND_MASK) {
-        if (alpha >= (*material).alpha_cutoff) {
-            // NOTE: If rendering as masked alpha and >= the cutoff, render as fully opaque
-            alpha = 1.;
-        } else {
-            // NOTE: output_color.a < material.alpha_cutoff should not is not rendered
-            // NOTE: This and any other discards mean that early-z testing cannot be done!
-            alpha = -1.;
-        }
-    } else if ((*material).alpha_mode == MATERIAL_ALPHA_BLEND_BLEND) {
-        alpha = min((*material).base_color.a, vertex_color_alpha);
-    }
-    return alpha;
-}
-
-fn compute_normal(material_id: u32, normal: vec3<f32>, position: vec3<f32>, uv_set: vec4<f32>) -> vec3<f32> {
+fn compute_normal(material_id: u32, pixel_data: ptr<function, PixelData>) -> vec3<f32> {
     let material = &materials.data[material_id];
-    var n = normal;
+    var n = (*pixel_data).normal;
+    /*
     if (has_texture(material_id, TEXTURE_TYPE_NORMAL)) {    
-        let uv = compute_uvs(material_id, TEXTURE_TYPE_NORMAL, uv_set);    
+        let texture_coords_set = material_texture_coord_set(material_id, TEXTURE_TYPE_NORMAL);  
+        let uv = (*pixel_data).uv_set[texture_coords_set]; 
         //// get edge vectors of the pixel triangle 
-        let dp1 = dpdx( position ); 
-        let dp2 = dpdy( position ); 
-        let duv1 = dpdx( uv.xy ); 
-        let duv2 = dpdy( uv.xy );   
+        let dp1 = dpdx( (*pixel_data).world_pos ); 
+        let dp2 = dpdy( (*pixel_data).world_pos ); 
+        let duv1 = dpdx( uv ); 
+        let duv2 = dpdy( uv );   
         // solve the linear system 
         let dp2perp = cross( dp2, n ); 
         let dp1perp = cross( n, dp1 ); 
@@ -67,6 +48,7 @@ fn compute_normal(material_id: u32, normal: vec3<f32>, position: vec3<f32>, uv_s
         n = tbn * (2.0 * tn.rgb - vec3<f32>(1.));
         n = normalize(n);
     }
+    */
     return n;
 }
 
@@ -125,14 +107,15 @@ fn microfacet_distribution(alpha_roughness: f32, NdotH: f32) -> f32 {
     return roughnessSq / (PI * f * f);
 }
 
-fn compute_brdf(world_pos: vec3<f32>, normal: vec3<f32>, material_id: u32, color: vec4<f32>, uv_set: vec4<f32>) -> vec4<f32> {
+fn compute_brdf(material_id: u32, pixel_data: ptr<function, PixelData>) -> vec4<f32> {
     let material = &materials.data[material_id];
+
     var perceptual_roughness = (*material).roughness_factor;
     var metallic = (*material).metallic_factor;
     if (has_texture(material_id, TEXTURE_TYPE_METALLIC_ROUGHNESS)) {        
         // Roughness is stored in the 'g' channel, metallic is stored in the 'b' channel.
         // This layout intentionally reserves the 'r' channel for (optional) occlusion map data
-        let t = sample_material_texture(material_id, TEXTURE_TYPE_METALLIC_ROUGHNESS, uv_set);
+        let t = material_texture_uv(pixel_data, TEXTURE_TYPE_METALLIC_ROUGHNESS);
         perceptual_roughness = perceptual_roughness * t.g;
         metallic = metallic * t.b;
     }
@@ -145,20 +128,20 @@ fn compute_brdf(world_pos: vec3<f32>, normal: vec3<f32>, material_id: u32, color
     var ao = 1.0;
     var occlusion_strength = 1.;
     if (has_texture(material_id, TEXTURE_TYPE_OCCLUSION)) {
-        let t = sample_material_texture(material_id, TEXTURE_TYPE_OCCLUSION, uv_set);
+        let t = material_texture_uv(pixel_data, TEXTURE_TYPE_OCCLUSION);
         ao = ao * t.r;
         occlusion_strength = (*material).occlusion_strength;
     }
     var emissive_color = vec3<f32>(0.);
     if (has_texture(material_id, TEXTURE_TYPE_EMISSIVE)) {
-        let t = sample_material_texture(material_id, TEXTURE_TYPE_EMISSIVE, uv_set);
+        let t = material_texture_uv(pixel_data, TEXTURE_TYPE_EMISSIVE);
         emissive_color = t.rgb * (*material).emissive_color;
     }
 
     let f0 = vec3<f32>(0.04);
-    var diffuse_color = color.rgb * (vec3<f32>(1.) - f0);
+    var diffuse_color = (*pixel_data).color.rgb * (vec3<f32>(1.) - f0);
     diffuse_color = diffuse_color * (1. - metallic);
-    let specular_color = mix(f0, color.rgb, metallic);        
+    let specular_color = mix(f0, (*pixel_data).color.rgb, metallic);  
 
     // Compute reflectance.
     let reflectance = max(max(specular_color.r, specular_color.g), specular_color.b);
@@ -169,16 +152,18 @@ fn compute_brdf(world_pos: vec3<f32>, normal: vec3<f32>, material_id: u32, color
     let specular_environmentR0 = specular_color.rgb;
     let specular_environmentR90 = vec3<f32>(1., 1., 1.) * reflectance90;
 
-    let n = compute_normal(material_id, normal, world_pos, uv_set);     // normal at surface point
+    let n = compute_normal(material_id, pixel_data);     // normal at surface point
     let view_pos = constant_data.view[3].xyz;
-    let v = normalize(view_pos-world_pos);                      // Vector from surface point to camera
+    let v = normalize(view_pos-(*pixel_data).world_pos);                      // Vector from surface point to camera
+
 
     let NdotV = clamp(abs(dot(n, v)), 0.0001, 1.0);
     let reflection = reflect(-v, n);
     
-    var ambient_color = color.rgb * AMBIENT_COLOR * AMBIENT_INTENSITY;
+    var ambient_color = diffuse_color.rgb * AMBIENT_COLOR * AMBIENT_INTENSITY;
     ambient_color = mix(ambient_color, ambient_color * ao, occlusion_strength);
-    var final_color = ambient_color + emissive_color;
+    var final_color = ambient_color;// + emissive_color;
+
 
     let num_lights = arrayLength(&lights.data);
     for (var i = 0u; i < num_lights; i++ ) {
@@ -187,14 +172,14 @@ fn compute_brdf(world_pos: vec3<f32>, normal: vec3<f32>, material_id: u32, color
             break;
         }
 
-        let dir = (*light).position - world_pos;
+        let dir = (*light).position - (*pixel_data).world_pos;
         let d = length(dir);
         let l = normalize(dir);                             // Vector from surface point to light
         let h = normalize(l + v);                           // Half vector between both l and v
 
         let linear_att = 0.5 * d;
         let quad_att = 0.5 * d * d;
-        let light_intensity = (*light).intensity * 1. / (linear_att * quad_att);
+        let light_intensity = (*light).intensity * 1000. / (linear_att * quad_att);
         let light_contrib = light_intensity * (max((*light).range - d, (*light).range) / (*light).range);
         
         let NdotL = clamp(dot(n, l), 0.0001, 1.0);
@@ -214,5 +199,5 @@ fn compute_brdf(world_pos: vec3<f32>, normal: vec3<f32>, material_id: u32, color
         final_color = final_color + light_color * light_contrib;
     }
     
-    return vec4<f32>(final_color, color.a);
+    return vec4<f32>(final_color, (*pixel_data).color.a);
 }

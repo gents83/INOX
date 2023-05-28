@@ -14,63 +14,31 @@ struct FragmentOutput {
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
-var<storage, read> meshes: Meshes;
+var<storage, read> indices: Indices;
 @group(0) @binding(2)
-var<storage, read> meshlets: Meshlets;
+var<storage, read> runtime_vertices: RuntimeVertices;
 @group(0) @binding(3)
-var<storage, read> materials: Materials;
+var<storage, read> vertices_attributes: VerticesAttributes;
 @group(0) @binding(4)
-var<storage, read> textures: Textures;
+var<storage, read> meshes: Meshes;
 @group(0) @binding(5)
-var<storage, read> lights: Lights;
+var<storage, read> meshlets: Meshlets;
 
 @group(1) @binding(0)
-var gbuffer_1_texture: texture_2d<f32>;
+var<storage, read> materials: Materials;
 @group(1) @binding(1)
-var gbuffer_2_texture: texture_2d<f32>;
+var<storage, read> textures: Textures;
 @group(1) @binding(2)
-var gbuffer_3_texture: texture_2d<f32>;
+var<storage, read> lights: Lights;
 @group(1) @binding(3)
-var gbuffer_4_texture: texture_2d<f32>;
-@group(1) @binding(4)
-var depth_texture: texture_depth_2d;
+var visibility_buffer_texture: texture_2d<f32>;
 
+#import "matrix_utils.inc"
+#import "geom_utils.inc"
+#import "visibility_utils.inc"
 #import "texture_utils.inc"
 #import "material_utils.inc"
-#import "matrix_utils.inc"
 #import "pbr_utils.inc"
-
-
-
-
-fn sample_gbuffer(i: u32, pixel_coords: vec2<i32>) -> vec4<f32> {
-    var v = vec4<f32>(0.);
-    switch (i) {
-        case 0u: { 
-            v = textureLoad(gbuffer_1_texture, pixel_coords, 0); 
-        }
-        case 1u: { 
-            v = textureLoad(gbuffer_2_texture, pixel_coords, 0); 
-        }
-        case 2u: { 
-            v = textureLoad(gbuffer_3_texture, pixel_coords, 0); 
-        }
-        case 3u: { 
-            v = textureLoad(gbuffer_4_texture, pixel_coords, 0); 
-        }
-        default: { 
-            v = vec4<f32>(textureLoad(depth_texture, pixel_coords, 0)); 
-        }
-    }
-    return v;
-}
-
-fn compute_world_position_from_depth(pixel_coords: vec2<i32>, uv: vec2<f32>) -> vec3<f32> {
-    let z = sample_gbuffer(4u, pixel_coords).r;
-    let clip_position = vec4<f32>(uv * 2. - 1., z * 2. - 1., 1.);
-    let homogeneous = constant_data.inverse_view_proj * clip_position;
-    return homogeneous.xyz / homogeneous.w;
-}
 
 @vertex
 fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
@@ -84,54 +52,45 @@ fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
     return vertex_out;
 }
 
-
 @fragment
 fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
-    var color = vec4<f32>(0., 0., 0., 0.);
+    var color = vec4<f32>(0.);
     if v_in.uv.x < 0. || v_in.uv.x > 1. || v_in.uv.y < 0. || v_in.uv.y > 1. {
-        return color;
+        discard;
     }
-    let d = vec2<f32>(textureDimensions(depth_texture));
+    let d = vec2<f32>(textureDimensions(visibility_buffer_texture));
     let pixel_coords = vec2<i32>(v_in.uv * d);
     
-    let vertex_color = sample_gbuffer(0u, pixel_coords);
-    let meshlet_id = pack4x8unorm(sample_gbuffer(2u, pixel_coords));
-    let num_meshlets = arrayLength(&meshlets.data);
-    if meshlet_id == 0u || meshlet_id > num_meshlets {
+    let visibility_output = textureLoad(visibility_buffer_texture, pixel_coords.xy, 0);
+    let visibility_id = pack4x8unorm(visibility_output);
+    if (visibility_id == 0u || (visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
         return color;
     }
-
+    
     let display_meshlets = constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS;
-    if (display_meshlets != 0u) {
+    if (display_meshlets != 0u) 
+    {
+        let meshlet_id = (visibility_id >> 8u) - 1u; 
         let meshlet_color = hash(meshlet_id);
         color = vec4<f32>(vec3<f32>(
             f32(meshlet_color & 255u),
             f32((meshlet_color >> 8u) & 255u),
             f32((meshlet_color >> 16u) & 255u)
         ) / 255., 1.);
-    } else {
-        let uv_set = sample_gbuffer(3u, pixel_coords);
-
-        let mesh_id = meshlets.data[meshlet_id - 1u].mesh_index;
-        let mesh = &meshes.data[mesh_id];
-        let material_id = u32((*mesh).material_index);
-        let texture_color = sample_material_texture(material_id, TEXTURE_TYPE_BASE_COLOR, uv_set);
-
-        let alpha = compute_alpha(material_id, vertex_color.a);
-        if alpha < 0. {
+    }
+    else 
+    {
+        var pixel_data = visibility_to_gbuffer(visibility_id, v_in.uv.xy);
+        let material_id = pixel_data.material_id;
+        let uv = material_texture_uv(&pixel_data, TEXTURE_TYPE_BASE_COLOR);
+     
+        let texture_color = sample_texture(uv);
+        pixel_data.color *= texture_color;
+        let alpha = material_alpha(material_id, pixel_data.color.a);
+        if (alpha < 0.) {
             discard;
         }
-
-        color = vec4<f32>(vertex_color.rgb * texture_color.rgb, alpha);
-
-        let packed_normal = unpack2x16float(pack4x8unorm(sample_gbuffer(1u, pixel_coords)));
-        let n = unpack_normal(packed_normal);
-        let normal = rotate_vector(n, (*mesh).orientation);
-        var screen_pixel = v_in.uv.xy;
-        screen_pixel.y = 1. - screen_pixel.y;
-        let world_pos = compute_world_position_from_depth(pixel_coords, screen_pixel);
-        color = compute_brdf(world_pos, normal, material_id, color, uv_set);
+        color = compute_brdf(material_id, &pixel_data);
     }
-
     return color;
 }

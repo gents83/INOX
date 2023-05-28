@@ -57,9 +57,9 @@ dependencies = [
 
 [[package]]
 name = "aho-corasick"
-version = "0.7.20"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc936419f96fa211c1b9166887b38e5e40b19958e5b895be7c1f93adec7071ac"
+checksum = "67fc08ce920c31afb70f013dcce1bfc3a3195de6a228474e45e1f145b36f8d04"
 dependencies = [
  "memchr",
 ]
@@ -283,11 +283,11 @@ version = "1.2.0"
 
 [[package]]
 name = "ecolor"
-version = "0.21.0"
+version = "0.22.0"
 
 [[package]]
 name = "egui"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "ahash 0.8.3",
  "epaint",
@@ -296,11 +296,11 @@ dependencies = [
 
 [[package]]
 name = "emath"
-version = "0.21.0"
+version = "0.22.0"
 
 [[package]]
 name = "epaint"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "ab_glyph",
  "ahash 0.8.3",
@@ -817,7 +817,7 @@ dependencies = [
  "inox_serialize",
  "inox_uid",
  "js-sys",
- "ttf-parser 0.18.1",
+ "ttf-parser 0.19.0",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -1116,9 +1116,9 @@ checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
 
 [[package]]
 name = "memoffset"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d61c719bcfbcf5d62b3a09efa6088de8c54bc0bfcd3ea7ae39fcc186108b8de1"
+checksum = "5a634b1c61a95585bd15607c6ab0c4e5b226e695ff2800ba0cdccddf208c406c"
 dependencies = [
  "autocfg",
 ]
@@ -1281,7 +1281,7 @@ version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a5f3c7ca08b6879e7965fb25e24d1f5eeb32ea73f9ad99b3854778a38c57e93"
 dependencies = [
- "ttf-parser 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ttf-parser 0.18.1",
 ]
 
 [[package]]
@@ -1496,7 +1496,7 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.7.1"
+version = "1.8.3"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -1505,7 +1505,7 @@ dependencies = [
 
 [[package]]
 name = "regex-syntax"
-version = "0.6.28"
+version = "0.7.2"
 
 [[package]]
 name = "renderdoc-sys"
@@ -1716,12 +1716,12 @@ dependencies = [
 [[package]]
 name = "ttf-parser"
 version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0609f771ad9c6155384897e1df4d948e692667cc0588548b68eb44d052b27633"
 
 [[package]]
 name = "ttf-parser"
-version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0609f771ad9c6155384897e1df4d948e692667cc0588548b68eb44d052b27633"
+version = "0.19.0"
 
 [[package]]
 name = "unicode-ident"
