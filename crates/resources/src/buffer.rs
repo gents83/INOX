@@ -8,7 +8,7 @@ pub fn to_slice_mut<T: Sized, U: Sized>(a: &mut [T]) -> &mut [U] {
         inox_log::debug_log!("to_chunk_slice: empty slice");
     }
     unsafe {
-        let len = a.len() * ::std::mem::size_of::<T>() / ::std::mem::size_of::<U>();
+        let len = ::std::mem::size_of_val(a) / ::std::mem::size_of::<U>();
         ::std::slice::from_raw_parts_mut((&a[0] as *const T) as *mut U, len)
     }
 }
@@ -18,18 +18,14 @@ pub fn to_slice<T: Sized, U: Sized>(a: &[T]) -> &[U] {
         inox_log::debug_log!("to_chunk_slice: empty slice");
     }
     unsafe {
-        let size_of_t = ::std::mem::size_of::<T>();
-        let size_of_u = ::std::mem::size_of::<U>();
-        let len = a.len() * size_of_t / size_of_u;
+        let len = ::std::mem::size_of_val(a) / ::std::mem::size_of::<U>();
         ::std::slice::from_raw_parts((&a[0] as *const T) as *const U, len)
     }
 }
 
 pub fn as_slice<T: Sized, U: Sized>(a: &T) -> &[U] {
     unsafe {
-        let size_of_t = ::std::mem::size_of::<T>();
-        let size_of_u = ::std::mem::size_of::<U>();
-        let len = size_of_t / size_of_u;
+        let len = ::std::mem::size_of::<T>() / ::std::mem::size_of::<U>();
         ::std::slice::from_raw_parts((a as *const T) as *const U, len)
     }
 }
