@@ -95,13 +95,10 @@ impl RenderContext {
             });
             let surface = Self::create_surface(&instance, &handle);
 
-            let adapter = wgpu::util::initialize_adapter_from_env_or_default(
-                &instance,
-                backends,
-                Some(&surface),
-            )
-            .await
-            .expect("No suitable GPU adapters found on the system!");
+            let adapter =
+                wgpu::util::initialize_adapter_from_env_or_default(&instance, Some(&surface))
+                    .await
+                    .expect("No suitable GPU adapters found on the system!");
             if let Ok((device, queue)) = adapter
                 .request_device(
                     &wgpu::DeviceDescriptor {
@@ -127,7 +124,6 @@ impl RenderContext {
 
                 let vulkan_adapter = wgpu::util::initialize_adapter_from_env_or_default(
                     &vulkan_instance,
-                    vulkan_backend,
                     Some(&vulkan_surface),
                 )
                 .await
@@ -158,7 +154,7 @@ impl RenderContext {
         inox_log::debug_log!("Using {:?} adapter", adapter.get_info().backend);
 
         let capabilities = surface.get_capabilities(&adapter);
-        let format = wgpu::TextureFormat::Rgba8Unorm;
+        let format = wgpu::TextureFormat::Bgra8Unorm;
 
         inox_log::debug_log!("Format {:?}", format);
 
