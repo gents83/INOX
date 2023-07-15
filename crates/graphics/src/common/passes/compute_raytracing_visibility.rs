@@ -223,10 +223,6 @@ impl Pass for ComputeRayTracingVisibilityPass {
 
         let pass = self.compute_pass.get();
 
-        let dimensions = self.render_target.as_ref().unwrap().get().dimensions();
-        let workgroup_size = 256;
-        let count = (dimensions.0 * dimensions.1 + workgroup_size - 1) / workgroup_size;
-
         let mut compute_pass = pass.begin(render_context, &mut self.binding_data, command_buffer);
         {
             inox_profiler::gpu_scoped_profile!(
@@ -234,7 +230,7 @@ impl Pass for ComputeRayTracingVisibilityPass {
                 &render_context.core.device,
                 "raytracing_visibility_pass",
             );
-            pass.dispatch(render_context, compute_pass, count, 1, 1);
+            pass.dispatch(render_context, compute_pass, 16, 16, 1);
         }
     }
 }
