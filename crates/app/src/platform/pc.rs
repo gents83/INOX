@@ -32,11 +32,24 @@ pub fn load_plugins(launcher: &Arc<Launcher>) {
     }
 }
 
+#[cfg(feature = "dhat-heap")]
+#[global_allocator]
+static ALLOC: dhat::Alloc = dhat::Alloc;
+
 pub fn main_update(launcher: Arc<Launcher>) {
+    #[cfg(feature = "dhat-heap")]
+    println!("DHAT profiler enabled");
+    
+    #[cfg(feature = "dhat-heap")]
+    let profiler = dhat::Profiler::new_heap();
+
     loop {
         let can_continue = launcher.update();
         if !can_continue {
             break;
         }
     }
+
+    #[cfg(feature = "dhat-heap")]
+    drop(profiler);
 }

@@ -179,6 +179,7 @@
 				"build",
 				"--manifest-path",
 				"./crates/Cargo.toml",
+				"--features=dhat-heap",
 			],
 			"command": "cargo",
 			"problemMatcher": [

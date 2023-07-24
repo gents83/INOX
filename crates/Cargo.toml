@@ -27,6 +27,9 @@ members = [
     "uid",
 ]
 
+[profile.release]
+debug = 1
+
 [workspace.package]
 edition = "2021"
 version = "0.1.0"

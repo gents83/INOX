@@ -3,6 +3,7 @@
 /data
 /data_raw/blender_export
 /data_raw/models/Sponza
+dhat-heap.json
 *.gfxr
 *.foz
 *.inox_profile
