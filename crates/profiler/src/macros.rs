@@ -1,7 +1,7 @@
 #[macro_export]
 macro_rules! load_profiler_lib {
     () => {
-        #[cfg(all(not(target_arch = "wasm32")))]
+        #[cfg(not(target_arch = "wasm32"))]
         {
             use inox_filesystem::*;
             use std::path::PathBuf;
@@ -22,7 +22,7 @@ macro_rules! load_profiler_lib {
 #[macro_export]
 macro_rules! get_gpu_profiler {
     () => {
-        #[cfg(all(not(target_arch = "wasm32")))]
+        #[cfg(not(target_arch = "wasm32"))]
         unsafe {
             use $crate::gpu_profiler::*;
             use $crate::*;
@@ -45,7 +45,7 @@ macro_rules! get_gpu_profiler {
 #[macro_export]
 macro_rules! create_gpu_profiler {
     ($device: expr, $queue: expr, $start: expr) => {
-        #[cfg(all(not(target_arch = "wasm32")))]
+        #[cfg(not(target_arch = "wasm32"))]
         unsafe {
             use $crate::*;
 
@@ -65,7 +65,7 @@ macro_rules! create_gpu_profiler {
 #[macro_export]
 macro_rules! gpu_profiler_pre_submit {
     ($encoder: expr) => {
-        #[cfg(all(not(target_arch = "wasm32")))]
+        #[cfg(not(target_arch = "wasm32"))]
         unsafe {
             use $crate::gpu_profiler::*;
 
@@ -90,7 +90,7 @@ macro_rules! gpu_profiler_pre_submit {
 #[macro_export]
 macro_rules! gpu_scoped_profile {
     ($encoder_or_pass:expr, $device:expr, $($t:tt)*) => {
-        #[cfg(all(not(target_arch = "wasm32")))]
+        #[cfg(not(target_arch = "wasm32"))]
         unsafe {
             use $crate::gpu_profiler::*;
 

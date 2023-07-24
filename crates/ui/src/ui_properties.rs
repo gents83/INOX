@@ -68,7 +68,7 @@ impl UIPropertiesRegistry {
         T: UIProperties + ResourceTrait + 'static,
     {
         self.registry.push(Box::new(UIPropertiesData {
-            _marker: PhantomData::<T>::default(),
+            _marker: PhantomData::<T>,
         }));
         self
     }

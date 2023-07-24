@@ -21,14 +21,14 @@ macro_rules! stop_profiler {
 #[macro_export]
 macro_rules! register_profiler_thread {
     () => {
-        #[cfg(all(not(target_arch = "wasm32")))]
+        #[cfg(not(target_arch = "wasm32"))]
         {
             let name = String::from(thread::current().name().unwrap_or("main"));
             $crate::register_profiler_thread!(&name);
         }
     };
     ($name:expr) => {
-        #[cfg(all(not(target_arch = "wasm32")))]
+        #[cfg(not(target_arch = "wasm32"))]
         {
             use $crate::*;
 
@@ -47,7 +47,7 @@ macro_rules! scoped_profile {
     ($($t:tt)*) => {
         use $crate::*;
 
-        #[cfg(all(not(target_arch = "wasm32")))]
+        #[cfg(not(target_arch = "wasm32"))]
         let _profile_scope = {
                 let string = format!("{}", &format_args!($($t)*).to_string());
                 let scoped_profiler =

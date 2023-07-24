@@ -1,4 +1,4 @@
-#![cfg(all(not(target_arch = "wasm32")))]
+#![cfg(not(target_arch = "wasm32"))]
 
 pub fn required_gpu_features() -> wgpu::Features {
     wgpu::Features::default()

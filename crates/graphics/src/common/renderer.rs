@@ -78,7 +78,7 @@ impl Renderer {
             on_create_func,
         ));
 
-        #[cfg(all(not(target_arch = "wasm32")))]
+        #[cfg(not(target_arch = "wasm32"))]
         futures::executor::block_on(RenderContext::create_render_context(
             handle.clone(),
             renderer.clone(),

@@ -162,7 +162,7 @@ impl PhaseWithSystems {
     fn execute(&mut self, is_focused: bool, job_handler: &JobHandlerRw) -> bool {
         #[cfg(target_arch = "wasm32")]
         let execute_in_parallel = false;
-        #[cfg(all(not(target_arch = "wasm32")))]
+        #[cfg(not(target_arch = "wasm32"))]
         let execute_in_parallel = self.systems_running.len() > 1;
         self.execute_systems(is_focused, execute_in_parallel, job_handler)
     }

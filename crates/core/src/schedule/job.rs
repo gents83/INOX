@@ -13,7 +13,7 @@ use crate::Worker;
 
 #[cfg(target_arch = "wasm32")]
 const NUM_WORKER_THREADS: usize = 0;
-#[cfg(all(not(target_arch = "wasm32")))]
+#[cfg(not(target_arch = "wasm32"))]
 const NUM_WORKER_THREADS: usize = 5;
 
 pub type JobId = Uid;

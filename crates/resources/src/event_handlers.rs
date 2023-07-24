@@ -30,7 +30,7 @@ where
 {
     pub fn new(_message_hub: &MessageHubRc) -> Self {
         ResourceEventHandler {
-            marker: PhantomData::<T>::default(),
+            marker: PhantomData::<T>,
         }
     }
 }
@@ -84,7 +84,7 @@ where
         message_hub.register_type::<SerializableResourceEvent<T>>();
         listener.register::<SerializableResourceEvent<T>>();
         Self {
-            marker: PhantomData::<T>::default(),
+            marker: PhantomData::<T>,
             listener,
         }
     }

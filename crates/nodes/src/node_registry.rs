@@ -101,7 +101,7 @@ impl LogicNodeRegistry {
             n,
             category: String::from(N::category()),
             description: String::from(N::description()),
-            marker: std::marker::PhantomData::<N>::default(),
+            marker: std::marker::PhantomData::<N>,
         }));
 
         N::register_as_serializable(&self.serializable_registry);

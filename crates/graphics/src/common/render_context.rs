@@ -99,7 +99,7 @@ impl RenderContext {
             let all_adapters = instance.enumerate_adapters(backends);
             let mut available_adapters: Vec<Adapter> = Vec::new();
             all_adapters.into_iter().for_each(|a| {
-                if available_adapters.iter().find(|ad| ad.get_info().name == a.get_info().name).is_none() {
+                if !available_adapters.iter().any(|ad| ad.get_info().name == a.get_info().name) {
                     available_adapters.push(a);
                 }
             });
