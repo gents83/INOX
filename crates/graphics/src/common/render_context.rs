@@ -6,6 +6,7 @@ use std::{
 use inox_math::{Degrees, Matrix4, Vector2};
 use inox_platform::Handle;
 use inox_resources::Resource;
+use wgpu::Adapter;
 
 use crate::{
     platform::{platform_limits, required_gpu_features},
@@ -15,7 +16,7 @@ use crate::{
     DEFAULT_WIDTH,
 };
 
-const USE_VULKAN: bool = false;
+const USE_FORCED_VULKAN: bool = false;
 
 pub struct CommandBuffer {
     pub encoder: wgpu::CommandEncoder,
@@ -84,7 +85,7 @@ impl RenderContext {
         let (instance, surface, adapter, device, queue) = {
             let dx12_shader_compiler =
                 wgpu::util::dx12_shader_compiler_from_env().unwrap_or_default();
-            let backends = if USE_VULKAN {
+            let backends = if USE_FORCED_VULKAN {
                 wgpu::Backends::VULKAN
             } else {
                 wgpu::Backends::all()
@@ -95,11 +96,23 @@ impl RenderContext {
             });
             let surface = Self::create_surface(&instance, &handle);
 
+            let all_adapters = instance.enumerate_adapters(backends);
+            let mut available_adapters: Vec<Adapter> = Vec::new();
+            all_adapters.into_iter().for_each(|a| {
+                if available_adapters.iter().find(|ad| ad.get_info().name == a.get_info().name).is_none() {
+                    available_adapters.push(a);
+                }
+            });
+            inox_log::debug_log!("Available adapters:");
+            available_adapters.into_iter().for_each(|a| {
+                inox_log::debug_log!("{}", a.get_info().name);
+            });
+
             let adapter =
                 wgpu::util::initialize_adapter_from_env_or_default(&instance, Some(&surface))
                     .await
                     .expect("No suitable GPU adapters found on the system!");
-            if let Ok((device, queue)) = adapter
+            let (device, queue) = adapter
                 .request_device(
                     &wgpu::DeviceDescriptor {
                         label: None,
@@ -109,49 +122,12 @@ impl RenderContext {
                     // Some(&std::path::Path::new("trace")), // Trace path
                     None,
                 )
-                .await
-            {
-                (instance, surface, adapter, device, queue)
-            } else {
-                let dx12_shader_compiler =
-                    wgpu::util::dx12_shader_compiler_from_env().unwrap_or_default();
-                let vulkan_backend = wgpu::Backends::VULKAN;
-                let vulkan_instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-                    backends: vulkan_backend,
-                    dx12_shader_compiler,
-                });
-                let vulkan_surface = Self::create_surface(&vulkan_instance, &handle);
-
-                let vulkan_adapter = wgpu::util::initialize_adapter_from_env_or_default(
-                    &vulkan_instance,
-                    Some(&vulkan_surface),
-                )
-                .await
-                .expect("No suitable VULKAN GPU adapter found on the system!");
-                let (vulkan_device, vulkan_queue) = vulkan_adapter
-                    .request_device(
-                        &wgpu::DeviceDescriptor {
-                            label: None,
-                            features: required_gpu_features(),
-                            limits: platform_limits(),
-                        },
-                        // Some(&std::path::Path::new("trace")), // Trace path
-                        None,
-                    )
-                    .await
-                    .expect("Failed to create device");
-
-                (
-                    vulkan_instance,
-                    vulkan_surface,
-                    vulkan_adapter,
-                    vulkan_device,
-                    vulkan_queue,
-                )
-            }
+                .await.unwrap();
+            
+            (instance, surface, adapter, device, queue)            
         };
 
-        inox_log::debug_log!("Using {:?} adapter", adapter.get_info().backend);
+        inox_log::debug_log!("Using {:?}", adapter.get_info());
 
         let capabilities = surface.get_capabilities(&adapter);
         let format = wgpu::TextureFormat::Bgra8Unorm;
