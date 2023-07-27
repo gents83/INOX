@@ -61,7 +61,7 @@ serde_derive = {version = "1.0"}
 
 # wasm32
 js-sys = "0.3.63"
-wasm-bindgen = "0.2.86"
+wasm-bindgen = "0.2.87"
 wasm-bindgen-futures = "0.4.36"
 wasm-bindgen-test = "0.3"
 web-sys = "0.3.63"
