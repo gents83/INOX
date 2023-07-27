@@ -51,7 +51,7 @@ ttf-parser = {path = "../extern/ttf-parser" }
 superluminal-perf =  { path = "../extern/superluminal-perf-rs" }
 uuid = { path = "../extern/uuid", features = ["serde", "v4", "v5", "js"] }
 
-wgpu = { path = "../extern/wgpu/wgpu", features = ["spirv", "glsl", "wgsl"] }
+wgpu = { path = "../extern/wgpu/wgpu", features = ["spirv", "glsl", "wgsl", "fragile-send-sync-non-atomic-wasm"] }
 wgpu-profiler = { path = "../extern/wgpu-profiler" }
 
 futures = { version = "0.3", features = ["std", "thread-pool"] }
@@ -60,7 +60,8 @@ serde = {version = "1.0", features = ["derive", "rc"]}
 serde_derive = {version = "1.0"}
 
 # wasm32
+js-sys = "0.3.63"
 wasm-bindgen = "0.2.86"
 wasm-bindgen-futures = "0.4.36"
-web-sys = { version = "0.3.63" }
-js-sys = "0.3.63"
+wasm-bindgen-test = "0.3"
+web-sys = "0.3.63"

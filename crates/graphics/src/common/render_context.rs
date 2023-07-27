@@ -6,7 +6,6 @@ use std::{
 use inox_math::{Degrees, Matrix4, Vector2};
 use inox_platform::Handle;
 use inox_resources::Resource;
-use wgpu::Adapter;
 
 use crate::{
     platform::{platform_limits, required_gpu_features},
@@ -75,6 +74,24 @@ impl RenderContext {
     fn create_surface(instance: &wgpu::Instance, handle: &Handle) -> wgpu::Surface {
         unsafe { instance.create_surface(&handle).unwrap() }
     }
+    
+    #[cfg(not(target_arch = "wasm32"))]
+    fn log_adapters(instance: &wgpu::Instance, backends:&wgpu::Backends) 
+    {
+        use wgpu::Adapter;
+
+        let all_adapters = instance.enumerate_adapters(*backends);
+        let mut available_adapters: Vec<Adapter> = Vec::new();
+        all_adapters.into_iter().for_each(|a| {
+            if !available_adapters.iter().any(|ad| ad.get_info().name == a.get_info().name) {
+                available_adapters.push(a);
+            }
+        });
+        inox_log::debug_log!("Available adapters:");
+        available_adapters.into_iter().for_each(|a| {
+            inox_log::debug_log!("{}", a.get_info().name);
+        });
+    }
 
     pub async fn create_render_context<F>(handle: Handle, renderer: RendererRw, on_create_func: F)
     where
@@ -96,17 +113,8 @@ impl RenderContext {
             });
             let surface = Self::create_surface(&instance, &handle);
 
-            let all_adapters = instance.enumerate_adapters(backends);
-            let mut available_adapters: Vec<Adapter> = Vec::new();
-            all_adapters.into_iter().for_each(|a| {
-                if !available_adapters.iter().any(|ad| ad.get_info().name == a.get_info().name) {
-                    available_adapters.push(a);
-                }
-            });
-            inox_log::debug_log!("Available adapters:");
-            available_adapters.into_iter().for_each(|a| {
-                inox_log::debug_log!("{}", a.get_info().name);
-            });
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::log_adapters(&instance, &backends); 
 
             let adapter =
                 wgpu::util::initialize_adapter_from_env_or_default(&instance, Some(&surface))
