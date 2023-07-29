@@ -99,6 +99,11 @@ impl RenderContext {
     {
         inox_profiler::scoped_profile!("render_context::create_render_context");
 
+        let wgpu_power_pref = std::env::var("WGPU_POWER_PREF");
+        if wgpu_power_pref.is_err() {
+            std::env::set_var("WGPU_POWER_PREF", "high");
+        }
+
         let (instance, surface, adapter, device, queue) = {
             let dx12_shader_compiler =
                 wgpu::util::dx12_shader_compiler_from_env().unwrap_or_default();

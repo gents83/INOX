@@ -130,7 +130,7 @@ impl App {
             .update_workers(&self.is_enabled, is_enabled);
     }
 
-    pub fn run(&mut self) -> bool {
+    fn run_once(&mut self) -> bool {
         inox_profiler::scoped_profile!("app::run_frame");
 
         self.context.global_timer_mut().update();
@@ -156,10 +156,16 @@ impl App {
             .shared_data()
             .flush_resources(self.context.message_hub());
 
+        can_continue
+    }
+
+    pub fn run(&mut self, only_one_frame: bool) -> bool {
+        let mut can_continue = !only_one_frame;
+        can_continue &= self.run_once();
+
         if !can_continue {
             self.is_enabled.store(false, Ordering::SeqCst);
         }
-
         can_continue
     }
 

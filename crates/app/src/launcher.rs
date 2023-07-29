@@ -67,6 +67,6 @@ impl Launcher {
     }
 
     pub fn update(&self) -> bool {
-        self.app.write().unwrap().run()
+        self.app.write().unwrap().run(false)
     }
 }

@@ -41,15 +41,18 @@ pub fn main_update(launcher: Arc<Launcher>) {
     println!("DHAT profiler enabled");
     
     #[cfg(feature = "dhat-heap")]
-    let profiler = dhat::Profiler::new_heap();
-
+    let profiler = dhat::Profiler::new_heap();    
+    
     loop {
         let can_continue = launcher.update();
         if !can_continue {
             break;
         }
     }
+    
+    drop(launcher);
 
     #[cfg(feature = "dhat-heap")]
     drop(profiler);
+    
 }

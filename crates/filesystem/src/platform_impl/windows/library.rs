@@ -64,8 +64,12 @@ impl Library {
     #[inline]
     pub fn get<T>(&self, symbol: &str) -> Option<T> {
         unsafe {
-            let fn_name = CString::new(symbol).unwrap();
-            let ret = GetProcAddress(self.0, fn_name.as_ptr());
+            let symbol_in_bytes = symbol.as_bytes();
+            let mut name = Vec::with_capacity(symbol_in_bytes.len() + 1);
+            name.resize(symbol_in_bytes.len(), 0);
+            name.copy_from_slice(symbol_in_bytes);
+            name.push(0);
+            let ret = GetProcAddress(self.0, name.as_ptr() as *const i8);
             if ret.is_null() {
                 return None;
             }

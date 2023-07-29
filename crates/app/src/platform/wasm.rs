@@ -54,7 +54,7 @@ pub fn load_plugins(launcher: &Arc<Launcher>) {
         "inox_viewer",
         &context,
         Some(|context| inox_viewer::static_plugin::create_plugin(context)),
-        Some(|context| inox_common_script::static_plugin::load_config_plugin(context)),
+        Some(|context| inox_viewer::static_plugin::load_config_plugin(context)),
         Some(|context| inox_viewer::static_plugin::prepare_plugin(context)),
         Some(|context| inox_viewer::static_plugin::unprepare_plugin(context)),
         Some(|| inox_viewer::static_plugin::destroy_plugin()),

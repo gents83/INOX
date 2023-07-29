@@ -64,10 +64,8 @@ impl Worker {
 
     pub fn stop(&mut self) {
         self.wakeup();
-        if self.thread_handle.is_some() {
-            let t = self.thread_handle.take().unwrap();
+        if let Some(t) = self.thread_handle.take() {
             t.join().unwrap();
-
             self.thread_handle = None;
         }
     }

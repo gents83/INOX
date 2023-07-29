@@ -20,7 +20,7 @@ pub type JobId = Uid;
 pub const INDEPENDENT_JOB_ID: JobId = inox_uid::generate_static_uid_from_string("IndependentJob");
 
 pub struct Job {
-    func: Box<dyn FnOnce() + Send + Sync>,
+    func: Option<Box<dyn FnOnce() + Send + Sync>>,
     pending_jobs: Arc<AtomicUsize>,
     name: String,
 }
@@ -41,7 +41,7 @@ impl Job {
             pending_jobs.load(Ordering::SeqCst)
         );*/
         Self {
-            func: Box::new(func),
+            func: Some(Box::new(func)),
             pending_jobs,
             name: String::from(name),
         }
@@ -51,7 +51,7 @@ impl Job {
         self.name.as_str()
     }
 
-    pub fn execute(self) {
+    pub fn execute(mut self) {
         inox_profiler::scoped_profile!("Job {}", self.name);
         /*
         debug_log(
@@ -60,10 +60,11 @@ impl Job {
             self.pending_jobs.load(Ordering::SeqCst)
         );
         */
-
-        (self.func)();
+        let f = self.func.take().unwrap();
+        (f)();
 
         self.pending_jobs.fetch_sub(1, Ordering::SeqCst);
+        self.name.clear();
         /*
         debug_log(
             "Ending {:?} - remaining {:?}",
@@ -178,6 +179,14 @@ impl JobHandler {
             pending_jobs.store(0, Ordering::SeqCst);
         });
         self.pending_jobs.clear();
+
+        self.channel.iter_mut().for_each(|c|
+        {
+            while let Some(j) = c.receiver.get_job()
+            {
+                drop(j);
+            }
+        });
     }
 
     fn add_job<F>(

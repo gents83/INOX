@@ -73,16 +73,6 @@
                 "-load_file",
                 "models/craftman/craftman.scene"
             ],
-            "environment": [                
-                {
-                    "name": "WGPU_POWER_PREF",
-                    "value": "high",
-                },
-                { 
-                    "name": "WGPU_ADAPTER_NAME",
-                    "value": "NVIDIA GeForce RTX 4070 Laptop GPU",
-                },
-            ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
             "requireExactSource": false,

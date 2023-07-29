@@ -13,7 +13,7 @@ use crate::{JobHandlerRw, JobHandlerTrait, JobId, System, SystemId, SystemRunner
 pub trait Phase: Downcast + Send + Sync {
     fn get_name(&self) -> &str;
     fn should_run_when_not_focused(&self) -> bool;
-    fn get_jobs_id_to_wait(&self) -> Vec<JobId>;
+    fn get_jobs_id_to_wait(&self) -> &[JobId];
     fn init(&mut self);
     fn run(&mut self, is_focused: bool, job_handler: &JobHandlerRw) -> bool;
     fn uninit(&mut self);
@@ -168,15 +168,14 @@ impl PhaseWithSystems {
     }
 
     fn remove_pending_systems_from_execution(&mut self) -> &mut Self {
-        for id in self.systems_to_remove.iter() {
-            if let Some(index) = self.systems_running.iter().position(|s| s == id) {
+        for id in self.systems_to_remove.drain(..) {
+            if let Some(index) = self.systems_running.iter().position(|s| *s == id) {
                 self.systems_running.remove(index);
             }
-            if let Some(mut system_runner) = self.systems_runners.remove(id) {
+            if let Some(mut system_runner) = self.systems_runners.remove(&id) {
                 system_runner.uninit();
             }
         }
-        self.systems_to_remove.clear();
         self
     }
 
@@ -223,8 +222,8 @@ impl Phase for PhaseWithSystems {
         self.systems_running.clear();
     }
 
-    fn get_jobs_id_to_wait(&self) -> Vec<JobId> {
-        self.systems_running.clone()
+    fn get_jobs_id_to_wait(&self) -> &[JobId] {
+        &self.systems_running
     }
 }
 
