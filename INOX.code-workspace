@@ -18,6 +18,7 @@
 		]
 	},
 	"settings": {
-		"git.detectSubmodulesLimit": 1000
+		"git.detectSubmodulesLimit": 1000,
+		"rust-analyzer.showUnlinkedFileNotification": false
 	},
 }
