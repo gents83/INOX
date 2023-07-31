@@ -264,6 +264,7 @@ impl Renderer {
             true
         } else {
             inox_log::debug_log!("Unable to retrieve surface texture");
+            self.recreate();
             false
         }
     }

@@ -3,6 +3,9 @@
 		{
 			"path": "."
 		},
+		{
+			"path": "./extern"
+		},
 	],
 	"extensions": {
 		"recommendations": [
@@ -13,5 +16,8 @@
 			"rust-lang.rust-analyzer",
 			"PolyMeilex.wgsl"
 		]
+	},
+	"settings": {
+		"git.detectSubmodulesLimit": 1000
 	},
 }

@@ -9,11 +9,13 @@ pub fn required_gpu_features() -> wgpu::Features {
         | wgpu::Features::TEXTURE_BINDING_ARRAY
         | wgpu::Features::BUFFER_BINDING_ARRAY
         | wgpu::Features::SAMPLED_TEXTURE_AND_STORAGE_BUFFER_ARRAY_NON_UNIFORM_INDEXING
+        | wgpu::Features::UNIFORM_BUFFER_AND_STORAGE_TEXTURE_ARRAY_NON_UNIFORM_INDEXING
         | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
         | wgpu::Features::SHADER_PRIMITIVE_INDEX
         | wgpu::Features::PIPELINE_STATISTICS_QUERY
         | wgpu::Features::TIMESTAMP_QUERY
         | wgpu::Features::PUSH_CONSTANTS
+        | wgpu::Features::DEPTH32FLOAT_STENCIL8
         | wgpu::Features::VERTEX_WRITABLE_STORAGE
         | wgpu::Features::CLEAR_TEXTURE
 }

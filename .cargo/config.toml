@@ -11,6 +11,7 @@ incremental = true
 
 [env]
 RUST_BACKTRACE = "full" 
+RUST_LOG = "info"
 
 [profile.dev]
 # Optional: Uncommenting the following improves compile times, but reduces the amount of debug info to 'line number tables only'

@@ -74,6 +74,12 @@
                 "models/craftman/craftman.scene"
             ],
             "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "RUST_LOG",
+                    "value": "info",
+                },
+            ],
             "stopAtEntry": false,
             "requireExactSource": false,
             "preLaunchTask": "COMPILE DEBUG",
