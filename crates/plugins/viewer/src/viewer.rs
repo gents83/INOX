@@ -18,7 +18,7 @@ use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
 
 use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
-const FORCE_RAYTRACING_PIPELINE: bool = false;
+const FORCE_COMPUTE_RAYTRACING_PIPELINE: bool = true;
 const ADD_CULLING_PASS: bool = true;
 const ADD_WIREFRAME_PASS: bool = true;
 const ADD_UI_PASS: bool = true;
@@ -145,7 +145,7 @@ impl Viewer {
 
         Self::create_compute_runtime_vertices_pass(context, renderer, true);
         Self::create_culling_pass(context, renderer, ADD_CULLING_PASS);
-        let visibility_texture_id = if has_primitive_index_support() && !FORCE_RAYTRACING_PIPELINE {
+        let visibility_texture_id = if has_primitive_index_support() && !FORCE_COMPUTE_RAYTRACING_PIPELINE {
             Self::create_visibility_pass(context, renderer, half_dimension.0, half_dimension.1)
         } else {
             Self::create_compute_ray_generation_pass(

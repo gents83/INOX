@@ -153,12 +153,13 @@ impl RenderContext {
             view_formats: vec![format],
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
-            present_mode: wgpu::PresentMode::AutoNoVsync,
+            present_mode: wgpu::PresentMode::Fifo,
             alpha_mode: *capabilities.alpha_modes.first().unwrap(),
         };
 
         //debug_log!("Surface format: {:?}", config.format);
         surface.configure(&device, &config);
+        let _ = surface.get_current_texture();
 
         inox_profiler::create_gpu_profiler!(&device, &queue, false);
 

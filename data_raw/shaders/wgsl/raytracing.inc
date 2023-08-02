@@ -56,12 +56,6 @@ fn intersect_triangle(ray: ptr<function, Ray>, v0: vec3<f32>, v1: vec3<f32>, v2:
     return t2;
 }
 
-fn is_meshlet_visible(meshlet_id: u32) -> bool
-{
-    let bits = atomicLoad(&culling_result[meshlet_id / 32u]);
-    return (bits & (1u << (meshlet_id % 32u))) > 0u;
-}
-
 fn intersect_meshlet_primitive(ray: ptr<function, Ray>, position_offset: u32, meshlet_id: u32, index_offset: u32) -> f32 {
     let vert_indices = vec3<u32>(indices.data[index_offset], indices.data[index_offset + 1u], indices.data[index_offset + 2u]);
     let pos_indices = vert_indices + vec3<u32>(position_offset, position_offset, position_offset);
@@ -112,8 +106,14 @@ fn traverse_bhv_of_meshlets(world_ray: ptr<function, Ray>, local_ray: ptr<functi
             continue;  
         }
         //leaf node
-        let meshlet_id = (*mesh).meshlets_offset + u32((*node).reference);             
-        if (!is_meshlet_visible(meshlet_id)) {
+        let meshlet_id = (*mesh).meshlets_offset + u32((*node).reference);   
+        
+        let index = meshlet_id / 32u;
+        let offset = meshlet_id - (index * 32u);
+        let bits = culling_result[index];
+        let is_meshlet_visible =  (bits & (1u << offset)) > 0u;   
+
+        if (!is_meshlet_visible) {
             blas_index = select((*node).miss, (*node).miss + mesh_blas_index, (*node).miss >= 0);
             continue;
         }

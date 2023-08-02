@@ -142,7 +142,7 @@ impl Pass for ComputeRayTracingVisibilityPass {
                     group_index: 0,
                     binding_index: 4,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite | BindingFlags::Indirect,
+                    flags: BindingFlags::Read | BindingFlags::Indirect,
                 },
             )
             .add_storage_buffer(

@@ -18,7 +18,7 @@ var<storage, read> meshes: Meshes;
 @group(0) @binding(3)
 var<storage, read> meshlets: Meshlets;
 @group(0) @binding(4)
-var<storage, read_write> culling_result: array<atomic<u32>>;
+var<storage, read> culling_result: array<u32>;
 @group(0) @binding(5)
 var<storage, read> tlas: BHV;
 @group(0) @binding(6)
