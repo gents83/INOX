@@ -22,10 +22,10 @@ fn intersect_aabb(ray: ptr<function, Ray>, aabb_min: vec3<f32>, aabb_max: vec3<f
         return MAX_FLOAT; 
     }
     if (t_near > (*ray).t_min) {
-        (*ray).t_max = t_far;
+        (*ray).t_max = min((*ray).t_max, t_far);
         return t_near;
     } else if (t_far < (*ray).t_max) {
-        (*ray).t_max = t_far;
+        (*ray).t_max = min((*ray).t_max, t_far);
         return t_far;
     } 
     return MAX_FLOAT; 
@@ -51,8 +51,8 @@ fn intersect_triangle(ray: ptr<function, Ray>, v0: vec3<f32>, v1: vec3<f32>, v2:
     let v = dot((*ray).direction, q) * inv_det;
     if (v < 0. || u + v > 1.) { return MAX_FLOAT; }
 
-    let t2 = dot(e2, q) * inv_det;
-    if (t2 < 0.) { return MAX_FLOAT; }
+    var t2 = dot(e2, q) * inv_det;
+    t2 = select(t2, MAX_FLOAT, t2 < 0.);
     return t2;
 }
 
