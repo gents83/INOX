@@ -91,13 +91,19 @@ impl ComputePass {
         self.is_initialized = is_initialized;
     }
 
-    pub fn begin<'a>(
+    pub fn dispatch<'a>(
         &'a self,
         render_context: &RenderContext,
         binding_data: &'a mut BindingData,
         command_buffer: &'a mut CommandBuffer,
-    ) -> wgpu::ComputePass<'a> {
+        x: u32,
+        y: u32,
+        z: u32,
+    ) {        
+        let mut is_ready = true;
+
         let label = format!("ComputePass {}", self.name);
+        let pipelines = self.pipelines().iter().map(|h| h.get()).collect::<Vec<_>>();
         let mut compute_pass = {
             inox_profiler::gpu_scoped_profile!(
                 &mut command_buffer.encoder,
@@ -111,6 +117,22 @@ impl ComputePass {
                     ..Default::default()
                 })
         };
+                
+        pipelines.iter().for_each(|pipeline| {
+            is_ready &= pipeline.is_initialized();
+            if is_ready {
+                inox_profiler::gpu_scoped_profile!(
+                    &mut compute_pass,
+                    &render_context.core.device,
+                    "compute_pass::set_pipeline",
+                );
+                compute_pass.set_pipeline(pipeline.compute_pipeline());
+            }
+        });
+
+        if !is_ready {
+            return;
+        }
 
         binding_data.set_bind_groups();
 
@@ -127,40 +149,13 @@ impl ComputePass {
                 compute_pass.set_bind_group(index as _, bind_group, &[]);
             });
 
-        compute_pass
-    }
+        inox_profiler::gpu_scoped_profile!(
+            &mut compute_pass,
+            &render_context.core.device,
+            "compute_pass::dispatch_workgroups",
+        );
+        compute_pass.dispatch_workgroups(x, y, z);
+        drop(compute_pass);
 
-    pub fn dispatch(
-        &self,
-        render_context: &RenderContext,
-        compute_pass: wgpu::ComputePass,
-        x: u32,
-        y: u32,
-        z: u32,
-    ) {
-        let pipelines = self.pipelines().iter().map(|h| h.get()).collect::<Vec<_>>();
-        {
-            let mut is_ready = false;
-            let mut compute_pass = compute_pass;
-            pipelines.iter().for_each(|pipeline| {
-                if pipeline.is_initialized() {
-                    inox_profiler::gpu_scoped_profile!(
-                        &mut compute_pass,
-                        &render_context.core.device,
-                        "compute_pass::set_pipeline",
-                    );
-                    compute_pass.set_pipeline(pipeline.compute_pipeline());
-                    is_ready = true;
-                }
-            });
-            if is_ready {
-                inox_profiler::gpu_scoped_profile!(
-                    &mut compute_pass,
-                    &render_context.core.device,
-                    "compute_pass::dispatch_workgroups",
-                );
-                compute_pass.dispatch_workgroups(x, y, z);
-            }
-        }
     }
 }

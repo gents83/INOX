@@ -333,6 +333,14 @@ impl RenderPass {
                 })
         };
         {
+            inox_profiler::gpu_scoped_profile!(
+                &mut render_pass,
+                &render_pass_begin_data.render_core_context.device,
+                "render_pass::set_pipeline",
+            );
+            render_pass.set_pipeline(pipeline.render_pipeline());
+        }
+        {
             binding_data.set_bind_groups();
 
             binding_data
@@ -348,14 +356,6 @@ impl RenderPass {
                     );
                     render_pass.set_bind_group(index as _, bind_group, &[]);
                 });
-        }
-        {
-            inox_profiler::gpu_scoped_profile!(
-                &mut render_pass,
-                &render_pass_begin_data.render_core_context.device,
-                "render_pass::set_pipeline",
-            );
-            render_pass.set_pipeline(pipeline.render_pipeline());
         }
 
         let num_vertex_buffers = binding_data.vertex_buffers_count();

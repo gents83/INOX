@@ -8,7 +8,7 @@ use inox_platform::Handle;
 use inox_resources::Resource;
 
 use crate::{
-    platform::{platform_limits, required_gpu_features},
+    platform::{platform_limits, required_gpu_features, setup_env},
     BindingDataBuffer, BindingDataBufferRc, BufferId, ConstantData, ConstantDataRw,
     DrawCommandType, GpuBuffer, MeshFlags, RenderBuffers, Renderer, RendererRw, Texture,
     TextureHandler, TextureHandlerRc, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, DEFAULT_HEIGHT,
@@ -101,10 +101,7 @@ impl RenderContext {
     {
         inox_profiler::scoped_profile!("render_context::create_render_context");
 
-        let wgpu_power_pref = std::env::var("WGPU_POWER_PREF");
-        if wgpu_power_pref.is_err() {
-            std::env::set_var("WGPU_POWER_PREF", "high");
-        }
+        setup_env();
 
         let (instance, surface, adapter, device, queue) = {
             let backends = if USE_FORCED_VULKAN {

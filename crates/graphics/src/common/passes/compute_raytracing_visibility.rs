@@ -223,15 +223,7 @@ impl Pass for ComputeRayTracingVisibilityPass {
 
         let pass = self.compute_pass.get();
 
-        let mut compute_pass = pass.begin(render_context, &mut self.binding_data, command_buffer);
-        {
-            inox_profiler::gpu_scoped_profile!(
-                &mut compute_pass,
-                &render_context.core.device,
-                "raytracing_visibility_pass",
-            );
-            pass.dispatch(render_context, compute_pass, 16, 16, 1);
-        }
+        pass.dispatch(render_context, &mut self.binding_data, command_buffer, 16, 16, 1);
     }
 }
 

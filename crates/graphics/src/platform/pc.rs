@@ -23,3 +23,10 @@ pub fn required_gpu_features() -> wgpu::Features {
 pub fn platform_limits() -> wgpu::Limits {
     wgpu::Limits::default()
 }
+
+pub fn setup_env() {
+    let wgpu_power_pref = std::env::var("WGPU_POWER_PREF");
+    if wgpu_power_pref.is_err() {
+        std::env::set_var("WGPU_POWER_PREF", "high");
+    }
+}
