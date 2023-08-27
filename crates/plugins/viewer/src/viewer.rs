@@ -145,22 +145,23 @@ impl Viewer {
 
         Self::create_compute_runtime_vertices_pass(context, renderer, true);
         Self::create_culling_pass(context, renderer, ADD_CULLING_PASS);
-        let visibility_texture_id = if has_primitive_index_support() && !FORCE_COMPUTE_RAYTRACING_PIPELINE {
-            Self::create_visibility_pass(context, renderer, half_dimension.0, half_dimension.1)
-        } else {
-            Self::create_compute_ray_generation_pass(
-                context,
-                renderer,
-                half_dimension.0,
-                half_dimension.1,
-            );
-            Self::create_compute_raytracing_visibility_pass(
-                context,
-                renderer,
-                half_dimension.0,
-                half_dimension.1,
-            )
-        };
+        let visibility_texture_id =
+            if has_primitive_index_support() && !FORCE_COMPUTE_RAYTRACING_PIPELINE {
+                Self::create_visibility_pass(context, renderer, half_dimension.0, half_dimension.1)
+            } else {
+                Self::create_compute_ray_generation_pass(
+                    context,
+                    renderer,
+                    half_dimension.0,
+                    half_dimension.1,
+                );
+                Self::create_compute_raytracing_visibility_pass(
+                    context,
+                    renderer,
+                    half_dimension.0,
+                    half_dimension.1,
+                )
+            };
         Self::create_pbr_pass(context, renderer, visibility_texture_id);
         Self::create_wireframe_pass(context, renderer, ADD_WIREFRAME_PASS);
         Self::create_ui_pass(context, renderer, width, height, ADD_UI_PASS);

@@ -1,4 +1,4 @@
-use inox_math::{Vector3};
+use inox_math::Vector3;
 
 use crate::{AABB, AXIS_COUNT};
 

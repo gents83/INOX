@@ -98,7 +98,7 @@ macro_rules! gpu_scoped_profile {
 
             let mut gpu_profiler = GLOBAL_GPU_PROFILER.as_ref().unwrap().write().unwrap();
             let string = format!("{}", &format_args!($($t)*).to_string());
-            let _scoped_profiler = Box::new($crate::scope::Scope::start(string.as_str(), &mut gpu_profiler, $encoder_or_pass, $device));
+            let _scoped_profiler = gpu_profiler.profile(string.as_str(), $encoder_or_pass, $device);
         }
     };
 }

@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use inox_math::{matrix4_to_array, Mat4Ops, Matrix4, Radians, Vector2, Degrees};
+use inox_math::{matrix4_to_array, Degrees, Mat4Ops, Matrix4, Radians, Vector2};
 
 use crate::{AsBinding, GpuBuffer, RenderCoreContext};
 

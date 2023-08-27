@@ -1,9 +1,6 @@
 #![warn(clippy::all)]
 #![allow(dead_code)]
 
-#[cfg(feature = "gpu")]
-pub use wgpu_profiler::*;
-
 #[cfg(feature = "superluminal")]
 pub use self::superluminal::*;
 pub mod superluminal;

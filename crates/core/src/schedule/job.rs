@@ -180,10 +180,8 @@ impl JobHandler {
         });
         self.pending_jobs.clear();
 
-        self.channel.iter_mut().for_each(|c|
-        {
-            while let Some(j) = c.receiver.get_job()
-            {
+        self.channel.iter_mut().for_each(|c| {
+            while let Some(j) = c.receiver.get_job() {
                 drop(j);
             }
         });

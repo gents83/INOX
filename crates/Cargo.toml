@@ -39,29 +39,41 @@ keywords = ["engine", "graphics", "blender", "gamedev", "plugin", "game engine",
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-cgmath = { path = "../extern/cgmath", features = ["serde", "swizzle"] }
-downcast-rs = { path = "../extern/downcast-rs" }
-egui = { path = "../extern/egui/crates/egui" }
-erased-serde = {path = "../extern/erased-serde"}
-image = { path = "../extern/image", default-features = false, features = [ "gif","jpeg","ico","png","pnm","tga","tiff","webp","bmp","hdr","dxt","dds"] }
-pyo3 = { path = "../extern/pyo3", features = ["macros", "extension-module", "auto-initialize", "abi3-py310", "generate-import-lib"] }
-rand = { path = "../extern/rand", features = ["std"] }
-serde_json = { path = "../extern/json"}
-ttf-parser = {path = "../extern/ttf-parser" }
-superluminal-perf =  { path = "../extern/superluminal-perf-rs" }
-uuid = { path = "../extern/uuid", features = ["serde", "v4", "v5", "js"] }
+cgmath = { git = "https://github.com/rustgd/cgmath", features = ["serde", "swizzle"] }
+downcast-rs = { git = "https://github.com/marcianx/downcast-rs" }
+egui = { git = "https://github.com/emilk/egui" }
+image = { git = "https://github.com/image-rs/image", default-features = false, features = [ "gif","jpeg","ico","png","pnm","tga","tiff","webp","bmp","hdr","dxt","dds"] }
+pyo3 = { git = "https://github.com/PyO3/pyo3", features = ["macros", "extension-module", "auto-initialize", "abi3-py310", "generate-import-lib"] }
+rand = { git = "https://github.com/rust-random/rand", features = ["std"] }
+serde_json = { git = "https://github.com/serde-rs/json"}
+ttf-parser = { git = "https://github.com/RazrFalcon/ttf-parser" }
+superluminal-perf =  { git = "https://github.com/EmbarkStudios/superluminal-perf-rs" }
+uuid = { git = "https://github.com/uuid-rs/uuid", features = ["serde", "v4", "v5", "js"] }
 
-wgpu = { path = "../extern/wgpu/wgpu", features = ["spirv", "glsl", "wgsl", "fragile-send-sync-non-atomic-wasm"] }
-wgpu-profiler = { path = "../extern/wgpu-profiler" }
+wgpu = { git = "https://github.com/gfx-rs/wgpu", features = ["spirv", "glsl", "wgsl", "fragile-send-sync-non-atomic-wasm"] }
+wgpu-profiler = { git = "https://github.com/Wumpf/wgpu-profiler" }
+naga = { git = "https://github.com/gfx-rs/naga", features = ["validate", "wgsl-in", "spv-out", "serialize", "deserialize"] }
+regex = { git = "https://github.com/rust-lang/regex" }
+gltf = { git = "https://github.com/gltf-rs/gltf", features = ["extras", "names", "KHR_lights_punctual", "KHR_materials_pbrSpecularGlossiness"] }
+meshopt = { git = "https://github.com/gwihlidal/meshopt-rs" }
 
-futures = { version = "0.3", features = ["std", "thread-pool"] }
+futures = { git = "https://github.com/rust-lang/futures-rs", features = ["std", "thread-pool"] }
 raw-window-handle = { version = "0.5" }
-serde = {version = "1.0", features = ["derive", "rc"]}
-serde_derive = {version = "1.0"}
+serde = { version = "1.0", features = ["derive", "rc"]}
+serde_derive = { version = "1.0"}
+erased-serde = { version = "0.3" }
+rspirv = { version = "0.11" }
 
 # wasm32
-js-sys = "0.3.63"
-wasm-bindgen = "0.2.87"
-wasm-bindgen-futures = "0.4.36"
-wasm-bindgen-test = "0.3"
-web-sys = "0.3.63"
+js-sys = { version = "0.3.63" }
+wasm-bindgen = { version = "0.2.87" }
+wasm-bindgen-futures = { version = "0.4.36" }
+wasm-bindgen-test = { version = "0.3" }
+web-sys = { version = "0.3.63" }
+
+[patch.crates-io]
+wgpu = { git = "https://github.com/gents83/wgpu" }
+meshopt = { git = "https://github.com/gents83/meshopt-rs" }
+
+[patch."https://github.com/gfx-rs/wgpu"]
+wgpu = { git = "https://github.com/gents83/wgpu" }

@@ -52,34 +52,19 @@ macro_rules! gpu_profiler_post_present {
 
             $crate::get_cpu_profiler!();
             $crate::get_gpu_profiler!();
-
-            if let Some(gpu_profiler) = &GLOBAL_GPU_PROFILER {
-                let _ = gpu_profiler.write().unwrap().end_frame();
-                if let Some(cpu_profiler) = &GLOBAL_CPU_PROFILER {
-                    let mut wgpu_results = Vec::new();
-                    while let Some(mut results) =
-                        gpu_profiler.write().unwrap().process_finished_frame()
-                    {
-                        wgpu_results.append(&mut results);
-                    }
-                    if !wgpu_results.is_empty() {
-                        let start_time = cpu_profiler.start_time() as f64;
-                        THREAD_PROFILER.with(|profiler| {
-                            if profiler.borrow().is_none() {
-                                let thread_profiler =
-                                    $crate::get_cpu_profiler().current_thread_profiler();
-                                *profiler.borrow_mut() = Some(thread_profiler);
-                            }
-                            wgpu_results.iter().for_each(|r| {
-                                profiler.borrow().as_ref().unwrap().push_sample(
-                                    "GPU".to_string(),
-                                    r.label.to_string(),
-                                    r.cpu_time.start * 1000. - start_time,
-                                    r.cpu_time.end * 1000. - start_time,
-                                );
-                            });
-                        });
-                    }
+            if let Some(cpu_profiler) = &GLOBAL_CPU_PROFILER {
+                if let Some(gpu_profiler) = &GLOBAL_GPU_PROFILER {
+                    THREAD_PROFILER.with(|profiler| {
+                        if profiler.borrow().is_none() {
+                            let thread_profiler =
+                                $crate::get_cpu_profiler().current_thread_profiler();
+                            *profiler.borrow_mut() = Some(thread_profiler);
+                        }
+                        gpu_profiler
+                            .write()
+                            .unwrap()
+                            .end_frame(profiler.borrow().as_ref().unwrap());
+                    });
                 }
             }
         }

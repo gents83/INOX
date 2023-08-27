@@ -52,7 +52,7 @@ impl<'de, T: ?Sized> DeserializeSeed<'de> for FnApply<T> {
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where
-        D: Deserializer<'de>,
+        D: serde::Deserializer<'de>,
     {
         let mut erased = <dyn erased_serde::Deserializer>::erase(deserializer);
         (self.deserialize_fn)(&mut erased).map_err(de::Error::custom)

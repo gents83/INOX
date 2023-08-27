@@ -3,7 +3,7 @@
 
 
 In this page you'll find a list of external dependencies that are required from the _**INOX**_ engine
-and that are referenced as git submodules inside the `/extern/` folder. 
+and that are referenced inside Cargo.toml as git submodules used in the workspace. 
 
 - [**cgmath**](https://github.com/rustgd/cgmath): \
   A linear algebra and mathematics library for computer graphics \

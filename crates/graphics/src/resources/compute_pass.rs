@@ -107,7 +107,8 @@ impl ComputePass {
             command_buffer
                 .encoder
                 .begin_compute_pass(&wgpu::ComputePassDescriptor {
-                    label: Some(label.as_str()),
+                    label: Some(label.as_str()),                    
+                    ..Default::default()
                 })
         };
 

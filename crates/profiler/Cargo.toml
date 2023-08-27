@@ -12,13 +12,13 @@ license.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-serde_json.workspace = true
-inox_filesystem = { path = "../filesystem" }
-inox_log = { path = "../log" }
-inox_platform = { path = "../platform" }
 wgpu = { workspace = true, optional = true }
 wgpu-profiler = { workspace = true, optional = true }
 superluminal-perf = { workspace = true, optional = true }
+serde_json = { workspace = true }
+inox_filesystem = { path = "../filesystem" }
+inox_log = { path = "../log" }
+inox_platform = { path = "../platform" }
 
 [features]
 default = ["gpu", "chrometrace"]

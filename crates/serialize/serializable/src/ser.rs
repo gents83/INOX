@@ -13,7 +13,7 @@ where
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: Serializer,
+        S: serde::Serializer,
     {
         erased_serde::serialize(self.0, serializer)
     }

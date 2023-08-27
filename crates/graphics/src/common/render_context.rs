@@ -74,16 +74,18 @@ impl RenderContext {
     fn create_surface(instance: &wgpu::Instance, handle: &Handle) -> wgpu::Surface {
         unsafe { instance.create_surface(&handle).unwrap() }
     }
-    
+
     #[cfg(not(target_arch = "wasm32"))]
-    fn log_adapters(instance: &wgpu::Instance, backends:&wgpu::Backends) 
-    {
+    fn log_adapters(instance: &wgpu::Instance, backends: &wgpu::Backends) {
         use wgpu::Adapter;
 
         let all_adapters = instance.enumerate_adapters(*backends);
         let mut available_adapters: Vec<Adapter> = Vec::new();
         all_adapters.into_iter().for_each(|a| {
-            if !available_adapters.iter().any(|ad| ad.get_info().name == a.get_info().name) {
+            if !available_adapters
+                .iter()
+                .any(|ad| ad.get_info().name == a.get_info().name)
+            {
                 available_adapters.push(a);
             }
         });
@@ -105,8 +107,6 @@ impl RenderContext {
         }
 
         let (instance, surface, adapter, device, queue) = {
-            let dx12_shader_compiler =
-                wgpu::util::dx12_shader_compiler_from_env().unwrap_or_default();
             let backends = if USE_FORCED_VULKAN {
                 wgpu::Backends::VULKAN
             } else {
@@ -114,12 +114,12 @@ impl RenderContext {
             };
             let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
                 backends,
-                dx12_shader_compiler,
+                ..Default::default()
             });
             let surface = Self::create_surface(&instance, &handle);
 
             #[cfg(not(target_arch = "wasm32"))]
-            Self::log_adapters(&instance, &backends); 
+            Self::log_adapters(&instance, &backends);
 
             let adapter =
                 wgpu::util::initialize_adapter_from_env_or_default(&instance, Some(&surface))
@@ -135,9 +135,10 @@ impl RenderContext {
                     // Some(&std::path::Path::new("trace")), // Trace path
                     None,
                 )
-                .await.unwrap();
-            
-            (instance, surface, adapter, device, queue)            
+                .await
+                .unwrap();
+
+            (instance, surface, adapter, device, queue)
         };
 
         inox_log::debug_log!("Using {:?}", adapter.get_info());
@@ -161,7 +162,7 @@ impl RenderContext {
         surface.configure(&device, &config);
         let _ = surface.get_current_texture();
 
-        inox_profiler::create_gpu_profiler!(&device, &queue, false);
+        inox_profiler::create_gpu_profiler!(&adapter, &device, &queue);
 
         let render_core_context = RenderCoreContext {
             instance,

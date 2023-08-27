@@ -329,6 +329,7 @@ impl RenderPass {
                             stencil_ops: None,
                         }
                     }),
+                    ..Default::default()
                 })
         };
         {

@@ -4,6 +4,8 @@
 /data_raw/blender_export
 /data_raw/models/Sponza
 dhat-heap.json
+/crates/Cargo.lock
+*.lock
 *.gfxr
 *.foz
 *.inox_profile

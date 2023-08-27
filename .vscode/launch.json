@@ -149,6 +149,7 @@
             "console": "integratedTerminal",
             "symbolSearchPath": "${workspaceFolder}/crates/target/release/, https://msdl.microsoft.com/download/symbols",
         },
+        /*
         {
             "name": "RUN NAGA DEBUG",
             "type": "cppvsdbg",
@@ -165,5 +166,6 @@
             "console": "integratedTerminal",
             "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/, https://msdl.microsoft.com/download/symbols",
         },
+        */
     ]
 }

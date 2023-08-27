@@ -1,4 +1,3 @@
-
 use wasm_bindgen::JsCast;
 
 use raw_window_handle::{RawDisplayHandle, RawWindowHandle};

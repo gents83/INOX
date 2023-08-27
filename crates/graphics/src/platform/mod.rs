@@ -23,3 +23,6 @@ pub fn has_primitive_index_support() -> bool {
 pub fn is_indirect_mode_enabled() -> bool {
     required_gpu_features().contains(wgpu::Features::MULTI_DRAW_INDIRECT)
 }
+pub fn has_timestamp_queries() -> bool {
+    required_gpu_features().contains(wgpu::Features::TIMESTAMP_QUERY)
+}

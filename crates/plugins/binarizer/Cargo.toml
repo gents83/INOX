@@ -9,11 +9,11 @@ build = "build.rs"
 crate-type = ["rlib", "cdylib"]
 
 [target.'cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))'.dependencies]
-meshopt = { path = "../../../extern/meshopt-rs" }
-naga = { path = "../../../extern/naga", features = ["validate", "wgsl-in", "spv-out", "serialize", "deserialize"] }
-rspirv = "0.11"
-regex = { path = "../../../extern/regex" }
-gltf = { path = "../../../extern/gltf", features = ["extras", "names", "KHR_lights_punctual", "KHR_materials_pbrSpecularGlossiness"] }
+meshopt = { workspace = true }
+naga = { workspace = true }
+rspirv = { workspace = true }
+regex = { workspace = true }
+gltf = { workspace = true }
 inox_commands = { path = "../../commands" }
 inox_core = { path = "../../core" }
 inox_filesystem = { path = "../../filesystem" }
