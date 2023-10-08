@@ -30,7 +30,6 @@ pub struct ComputeRayTracingVisibilityPass {
     indices: IndicesBuffer,
     runtime_vertices: RuntimeVerticesBuffer,
     rays: RaysBuffer,
-    jobs_count: i32,
 }
 unsafe impl Send for ComputeRayTracingVisibilityPass {}
 unsafe impl Sync for ComputeRayTracingVisibilityPass {}
@@ -80,7 +79,6 @@ impl Pass for ComputeRayTracingVisibilityPass {
             binding_data: BindingData::new(render_context, COMPUTE_RAYTRACING_VISIBILITY_NAME),
             render_target: None,
             rays: render_context.render_buffers.rays.clone(),
-            jobs_count: 0,
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -88,10 +86,6 @@ impl Pass for ComputeRayTracingVisibilityPass {
 
         if self.render_target.is_none() || self.meshlets.read().unwrap().is_empty() {
             return;
-        }
-        {
-            let dimensions = self.render_target.as_ref().unwrap().get().dimensions();
-            self.jobs_count = (dimensions.0 * dimensions.1) as _;
         }
 
         self.binding_data
@@ -185,21 +179,11 @@ impl Pass for ComputeRayTracingVisibilityPass {
                     flags: BindingFlags::ReadWrite,
                 },
             )
-            .add_storage_buffer(
-                &mut self.jobs_count,
-                Some("JobsCount"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 1,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite,
-                },
-            )
             .add_texture(
                 self.render_target.as_ref().unwrap().id(),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 2,
+                    binding_index: 1,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Write | BindingFlags::Storage,
                 },
@@ -223,12 +207,20 @@ impl Pass for ComputeRayTracingVisibilityPass {
 
         let pass = self.compute_pass.get();
 
+        let x_pixels_managed_in_shader = 16;
+        let y_pixels_managed_in_shader = 16;
+        let dimensions = self.render_target.as_ref().unwrap().get().dimensions();
+        let x = (x_pixels_managed_in_shader * ((dimensions.0 + x_pixels_managed_in_shader - 1) / x_pixels_managed_in_shader))
+            / x_pixels_managed_in_shader;
+        let y = (y_pixels_managed_in_shader * ((dimensions.1 + y_pixels_managed_in_shader - 1) / y_pixels_managed_in_shader))
+            / y_pixels_managed_in_shader;
+
         pass.dispatch(
             render_context,
             &mut self.binding_data,
             command_buffer,
-            16,
-            16,
+            x,
+            y,
             1,
         );
     }

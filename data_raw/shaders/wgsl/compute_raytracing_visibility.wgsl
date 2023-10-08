@@ -29,8 +29,6 @@ var<storage, read> meshes_inverse_matrix: Matrices;
 @group(1) @binding(0)
 var<storage, read_write> rays: Rays;
 @group(1) @binding(1)
-var<storage, read_write> jobs_count: atomic<i32>;
-@group(1) @binding(2)
 var render_target: texture_storage_2d<rgba8unorm, write>;
 
 #import "matrix_utils.inc"
@@ -71,21 +69,34 @@ fn execute_job(job_index: u32) -> vec4<f32>  {
     return unpack4x8unorm(visibility_id);
 }
 
+var<workgroup> jobs_count: atomic<i32>;
 
 @compute
-@workgroup_size(256, 1, 1)
+@workgroup_size(16, 16, 1)
 fn main(
     @builtin(local_invocation_id) local_invocation_id: vec3<u32>, 
     @builtin(workgroup_id) workgroup_id: vec3<u32>
 ) {
-    let dimensions = vec2<u32>(textureDimensions(render_target));
-    var job_index = atomicSub(&jobs_count, 1) - 1;
-    while(job_index >= 0)
+    let max_jobs = 16 * 16;
+    let group = vec2<i32>(i32(workgroup_id.x), i32(workgroup_id.y));
+    let dimensions = vec2<i32>(textureDimensions(render_target));
+    atomicStore(&jobs_count, max_jobs);
+    workgroupBarrier();
+    
+    let initial_offset = (group.y * 16 * dimensions.x) + (group.x * 16);
+
+    var job_index = 0;
+    while(job_index < max_jobs)
     {
-        let v = execute_job(u32(job_index));
-        let x = job_index % i32(dimensions.x);
-        let y = job_index / i32(dimensions.x);
-        textureStore(render_target, vec2<i32>(x, y), v);
-        job_index = atomicSub(&jobs_count, 1) - 1;
+        let pixel = vec2<i32>(group.x * 16 + job_index % 16, 
+                              group.y * 16 + job_index / 16);
+        if (pixel.x >= dimensions.x || pixel.y >= dimensions.y) {
+            job_index = max_jobs - atomicSub(&jobs_count, 1);
+            continue;
+        }    
+        
+        let v = execute_job(u32(pixel.y * dimensions.x + pixel.x));
+        textureStore(render_target, pixel, v);
+        job_index = max_jobs - atomicSub(&jobs_count, 1);
     }
 }
