@@ -12,7 +12,8 @@ fn visibility_to_gbuffer(visibility_id: u32, screen_uv: vec2<f32>) -> PixelData
     let meshlet = &meshlets.data[meshlet_id];
     let index_offset = (*meshlet).indices_offset + (primitive_id * 3u);
 
-    let mesh = &meshes.data[(*meshlet).mesh_index];
+    let mesh_id = u32((*meshlet).mesh_index);
+    let mesh = &meshes.data[mesh_id];
     let material_id = u32((*mesh).material_index);
     let position_offset = (*mesh).vertices_position_offset;
     let attributes_offset = (*mesh).vertices_attribute_offset;
