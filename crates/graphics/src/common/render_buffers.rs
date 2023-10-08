@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock},
+    sync::{Arc, RwLock, atomic::{AtomicU32, Ordering}},
 };
 
 use inox_bhv::{BHVTree, AABB};
@@ -51,14 +51,14 @@ pub struct RenderBuffers {
     pub meshes_inverse_matrix: MeshesInverseMatrixBuffer,
     pub meshlets: MeshletsBuffer,
     pub meshlets_culling: MeshletsCullingBuffer,
-    pub blas: BHVBuffer,
-    pub tlas: BHVBuffer,
+    pub bhv: BHVBuffer,
     pub indices: IndicesBuffer,
     pub vertex_positions: VertexPositionsBuffer,
     pub vertex_attributes: VertexAttributesBuffer,
     pub runtime_vertices: RuntimeVerticesBuffer,
     pub rays: RaysBuffer,
     pub culling_result: CullingResults,
+    pub tlas_start_index: AtomicU32,
 }
 
 impl RenderBuffers {
@@ -110,7 +110,7 @@ impl RenderBuffers {
         let bhv = BHVTree::new(&meshlets_aabbs);
         let linearized_bhv = create_linearized_bhv(&bhv);
         let mesh_bhv_range = self
-            .blas
+            .bhv
             .write()
             .unwrap()
             .allocate(mesh_id, &linearized_bhv)
@@ -230,7 +230,7 @@ impl RenderBuffers {
         let mut meshes_aabbs = Vec::new();
         {
             let meshes = self.meshes.write().unwrap();
-            let bhv = self.blas.read().unwrap();
+            let bhv = self.bhv.read().unwrap();
             let bhv = bhv.data();
             meshes.for_each_entry(|i, mesh| {
                 let node = &bhv[mesh.blas_index as usize];
@@ -247,8 +247,9 @@ impl RenderBuffers {
         }
         let bhv = BHVTree::new(&meshes_aabbs);
         let linearized_bhv = create_linearized_bhv(&bhv);
-        let mut tlas = self.tlas.write().unwrap();
-        tlas.allocate(&TLAS_UID, &linearized_bhv);
+        let mut bhv = self.bhv.write().unwrap();
+        let tlas = bhv.allocate(&TLAS_UID, &linearized_bhv).1.start as _;
+        self.tlas_start_index.store(tlas, Ordering::SeqCst); 
     }
     fn update_transform(&self, mesh: &mut Mesh, m: &mut GPUMesh) -> bool {
         inox_profiler::scoped_profile!("render_buffers::update_transform");
@@ -335,7 +336,7 @@ impl RenderBuffers {
             self.meshes_inverse_matrix.write().unwrap().remove(mesh_id);
             self.meshlets.write().unwrap().remove(mesh_id);
             self.meshlets_culling.write().unwrap().remove(mesh_id);
-            self.blas.write().unwrap().remove(mesh_id);
+            self.bhv.write().unwrap().remove(mesh_id);
 
             self.indices.write().unwrap().remove(mesh_id);
             self.vertex_positions.write().unwrap().remove(mesh_id);

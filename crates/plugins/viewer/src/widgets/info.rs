@@ -78,8 +78,7 @@ struct Data {
     params: InfoParams,
     hierarchy: (bool, Option<Hierarchy>),
     graphics: (bool, Option<Gfx>),
-    show_tlas: bool,
-    show_blas: bool,
+    show_bhv: bool,
     show_frustum: bool,
     show_lights: bool,
     freeze_culling_camera: bool,
@@ -113,8 +112,7 @@ impl Info {
             params,
             hierarchy: (false, None),
             graphics: (false, None),
-            show_tlas: false,
-            show_blas: false,
+            show_bhv: false,
             show_frustum: false,
             show_lights: false,
             freeze_culling_camera: false,
@@ -254,24 +252,10 @@ impl Info {
                 );
                 Self::show_frustum(data, &frustum);
             }
-            if data.show_tlas {
+            if data.show_bhv {
                 let renderer = data.params.renderer.read().unwrap();
                 let render_context = renderer.render_context();
-                let tlas = render_context.render_buffers.tlas.read().unwrap();
-                tlas.for_each_data(|_i, _id, n| {
-                    data.context
-                        .message_hub()
-                        .send_event(DrawEvent::BoundingBox(
-                            n.min.into(),
-                            n.max.into(),
-                            [1.0, 1.0, 0.0, 1.0].into(),
-                        ));
-                });
-            }
-            if data.show_blas {
-                let renderer = data.params.renderer.read().unwrap();
-                let render_context = renderer.render_context();
-                let bhv = render_context.render_buffers.blas.read().unwrap();
+                let bhv = render_context.render_buffers.bhv.read().unwrap();
                 bhv.for_each_data(|_i_, _id, n| {
                     data.context
                         .message_hub()
@@ -308,7 +292,7 @@ impl Info {
             } else {
                 let renderer = data.params.renderer.read().unwrap();
                 let render_context = renderer.render_context();
-                let bhv = render_context.render_buffers.blas.read().unwrap();
+                let bhv = render_context.render_buffers.bhv.read().unwrap();
                 meshes.iter().for_each(|mesh| {
                     if let Some(nodes) = bhv.items(mesh.id()) {
                         nodes.iter().for_each(|n| {
@@ -483,8 +467,7 @@ impl Info {
                         ui.checkbox(&mut data.hierarchy.0, "Hierarchy");
                         ui.checkbox(&mut data.graphics.0, "Graphics");
                         ui.checkbox(&mut data.show_lights, "Show Lights");
-                        ui.checkbox(&mut data.show_tlas, "Show BHV TLAS");
-                        ui.checkbox(&mut data.show_blas, "Show BHV BLAS");
+                        ui.checkbox(&mut data.show_bhv, "Show BHVs");
                         ui.checkbox(&mut data.show_frustum, "Show Frustum");
                         let is_freezed = data.freeze_culling_camera;
                         ui.checkbox(&mut data.freeze_culling_camera, "Freeze Culling Camera");

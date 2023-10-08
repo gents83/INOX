@@ -18,7 +18,7 @@ pub struct ComputeRuntimeVerticesPass {
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    blas: BHVBuffer,
+    bhv: BHVBuffer,
     meshes: MeshesBuffer,
     vertices_positions: VertexPositionsBuffer,
     runtime_vertices: RuntimeVerticesBuffer,
@@ -61,7 +61,7 @@ impl Pass for ComputeRuntimeVerticesPass {
             ),
             binding_data: BindingData::new(render_context, COMPUTE_RUNTIME_VERTICES_PASS_NAME),
             constant_data: render_context.constant_data.clone(),
-            blas: render_context.render_buffers.blas.clone(),
+            bhv: render_context.render_buffers.bhv.clone(),
             meshes: render_context.render_buffers.meshes.clone(),
             vertices_positions: render_context.render_buffers.vertex_positions.clone(),
             runtime_vertices: render_context.render_buffers.runtime_vertices.clone(),
@@ -85,8 +85,8 @@ impl Pass for ComputeRuntimeVerticesPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.blas.write().unwrap(),
-                Some("BLAS BHV"),
+                &mut *self.bhv.write().unwrap(),
+                Some("BHV"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,

@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::atomic::Ordering};
 
 use crate::{
     BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
@@ -25,8 +25,7 @@ pub struct ComputeRayTracingVisibilityPass {
     meshes_inverse_matrix: MeshesInverseMatrixBuffer,
     meshlets: MeshletsBuffer,
     culling_result: CullingResults,
-    tlas: BHVBuffer,
-    blas: BHVBuffer,
+    bhv: BHVBuffer,
     indices: IndicesBuffer,
     runtime_vertices: RuntimeVerticesBuffer,
     rays: RaysBuffer,
@@ -72,8 +71,7 @@ impl Pass for ComputeRayTracingVisibilityPass {
             meshes_inverse_matrix: render_context.render_buffers.meshes_inverse_matrix.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
             culling_result: render_context.render_buffers.culling_result.clone(),
-            tlas: render_context.render_buffers.tlas.clone(),
-            blas: render_context.render_buffers.blas.clone(),
+            bhv: render_context.render_buffers.bhv.clone(),
             indices: render_context.render_buffers.indices.clone(),
             runtime_vertices: render_context.render_buffers.runtime_vertices.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_RAYTRACING_VISIBILITY_NAME),
@@ -87,6 +85,8 @@ impl Pass for ComputeRayTracingVisibilityPass {
         if self.render_target.is_none() || self.meshlets.read().unwrap().is_empty() {
             return;
         }
+
+        let mut tlas_starting_index = render_context.render_buffers.tlas_start_index.load(Ordering::SeqCst);
 
         self.binding_data
             .add_storage_buffer(
@@ -140,21 +140,11 @@ impl Pass for ComputeRayTracingVisibilityPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.tlas.write().unwrap(),
-                Some("TLAS"),
+                &mut *self.bhv.write().unwrap(),
+                Some("BHV"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 5,
-                    stage: ShaderStage::Compute,
-                    ..Default::default()
-                },
-            )
-            .add_storage_buffer(
-                &mut *self.blas.write().unwrap(),
-                Some("BLAS"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 6,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -164,7 +154,17 @@ impl Pass for ComputeRayTracingVisibilityPass {
                 Some("Meshes Inverse Matrix"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 7,
+                    binding_index: 6,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_uniform_buffer(
+                &mut tlas_starting_index,
+                Some("TLAS index"),
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 0,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -174,7 +174,7 @@ impl Pass for ComputeRayTracingVisibilityPass {
                 Some("Rays"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 0,
+                    binding_index: 1,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite,
                 },
@@ -183,7 +183,7 @@ impl Pass for ComputeRayTracingVisibilityPass {
                 self.render_target.as_ref().unwrap().id(),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 1,
+                    binding_index: 2,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Write | BindingFlags::Storage,
                 },

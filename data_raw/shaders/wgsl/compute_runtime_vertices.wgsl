@@ -4,7 +4,7 @@
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
-var<storage, read> blas: BHV;
+var<storage, read> bhv: BHV;
 @group(0) @binding(2)
 var<storage, read> meshes: Meshes;
 @group(0) @binding(3)
@@ -29,7 +29,7 @@ fn main(
     let mesh_id = runtime_vertices.data[vertex_id].mesh_index;
     let mesh = &meshes.data[mesh_id];
     let bhv_id = (*mesh).blas_index;
-    let bhv_node = &blas.data[bhv_id];
+    let bhv_node = &bhv.data[bhv_id];
     let size = (*bhv_node).max - (*bhv_node).min;
     let p = (*bhv_node).min + decode_as_vec3(vertices_positions.data[vertex_id]) * size;
 

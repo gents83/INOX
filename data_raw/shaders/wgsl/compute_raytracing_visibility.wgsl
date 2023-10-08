@@ -20,15 +20,15 @@ var<storage, read> meshlets: Meshlets;
 @group(0) @binding(4)
 var<storage, read> culling_result: array<u32>;
 @group(0) @binding(5)
-var<storage, read> tlas: BHV;
+var<storage, read> bhv: BHV;
 @group(0) @binding(6)
-var<storage, read> blas: BHV;
-@group(0) @binding(7)
 var<storage, read> meshes_inverse_matrix: Matrices;
 
 @group(1) @binding(0)
-var<storage, read_write> rays: Rays;
+var<uniform> tlas_starting_index: u32;
 @group(1) @binding(1)
+var<storage, read_write> rays: Rays;
+@group(1) @binding(2)
 var render_target: texture_storage_2d<rgba8unorm, write>;
 
 #import "matrix_utils.inc"
@@ -44,7 +44,7 @@ fn execute_job(job_index: u32) -> vec4<f32>  {
     
     while (tlas_index >= 0)
     {
-        let node = &tlas.data[u32(tlas_index)];    
+        let node = &bhv.data[tlas_starting_index + u32(tlas_index)];    
         let intersection = intersect_aabb(&ray, (*node).min, (*node).max);
         if (intersection >= nearest) {
             tlas_index = (*node).miss;
