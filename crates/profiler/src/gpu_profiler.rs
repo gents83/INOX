@@ -47,9 +47,15 @@ impl GpuProfiler {
         self.is_enabled = enabled;
         self
     }
-    pub fn profile<'a, P>(&'a mut self, label: &str, recorder: &'a mut P, device: &wgpu::Device) -> wgpu_profiler::scope::Scope<P>
-    where 
-    P: wgpu_profiler::ProfilerCommandRecorder {
+    pub fn profile<'a, P>(
+        &'a mut self,
+        label: &str,
+        recorder: &'a mut P,
+        device: &wgpu::Device,
+    ) -> wgpu_profiler::scope::Scope<P>
+    where
+        P: wgpu_profiler::ProfilerCommandRecorder,
+    {
         wgpu_profiler::scope::Scope::start(label, &mut self.wgpu_profiler, recorder, device)
     }
     pub fn resolve_queries(&mut self, encoder: &mut wgpu::CommandEncoder) {
@@ -61,7 +67,7 @@ impl GpuProfiler {
             while let Some(mut results) = self.wgpu_profiler.process_finished_frame() {
                 wgpu_results.append(&mut results);
             }
-            if self.is_enabled  && !wgpu_results.is_empty() {
+            if self.is_enabled && !wgpu_results.is_empty() {
                 wgpu_results.iter().for_each(|r| {
                     profiler.push_sample(
                         "GPU".to_string(),

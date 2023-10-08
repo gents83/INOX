@@ -318,8 +318,22 @@ impl Pass for CullingPass {
             let count = (num_meshlets as u32 + ATOMIC_SIZE - 1) / ATOMIC_SIZE;
 
             let pass = self.compute_pass.get();
-            pass.dispatch(render_context, &mut self.binding_data, command_buffer, count, 1, 1);
-            pass.dispatch(render_context, &mut self.binding_data, command_buffer, count, 1, 1);
+            pass.dispatch(
+                render_context,
+                &mut self.binding_data,
+                command_buffer,
+                count,
+                1,
+                1,
+            );
+            pass.dispatch(
+                render_context,
+                &mut self.binding_data,
+                command_buffer,
+                count,
+                1,
+                1,
+            );
         }
     }
 }

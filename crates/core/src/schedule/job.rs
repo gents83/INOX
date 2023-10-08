@@ -147,7 +147,7 @@ impl JobHandler {
 
     fn add_worker(&mut self, name: &str, can_continue: &Arc<AtomicBool>) -> &mut Worker {
         let key = String::from(name);
-        let w = self.workers.entry(key).or_insert_with(Worker::default);
+        let w = self.workers.entry(key).or_default();
         if !w.is_started() {
             w.start(
                 name,

@@ -41,7 +41,7 @@ impl BindingDataBuffer {
         let mut bind_data_buffer = self.buffers.write().unwrap();
         let buffer = bind_data_buffer
             .entry(id)
-            .or_insert_with(GpuBuffer::default);
+            .or_default();
         if data.is_dirty() || usage != buffer.usage() {
             let is_changed = buffer.bind(label, data, usage, render_core_context);
             if is_changed {

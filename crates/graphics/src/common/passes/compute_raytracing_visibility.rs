@@ -223,7 +223,14 @@ impl Pass for ComputeRayTracingVisibilityPass {
 
         let pass = self.compute_pass.get();
 
-        pass.dispatch(render_context, &mut self.binding_data, command_buffer, 16, 16, 1);
+        pass.dispatch(
+            render_context,
+            &mut self.binding_data,
+            command_buffer,
+            16,
+            16,
+            1,
+        );
     }
 }
 

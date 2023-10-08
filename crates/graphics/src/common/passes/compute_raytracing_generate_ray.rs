@@ -156,7 +156,14 @@ impl Pass for ComputeRayTracingGenerateRayPass {
         let y = (max_cluster_size * ((self.data.height + max_cluster_size - 1) / max_cluster_size))
             / y_pixels_managed_in_shader;
 
-        pass.dispatch(render_context, &mut self.binding_data, command_buffer, x, y, 1);
+        pass.dispatch(
+            render_context,
+            &mut self.binding_data,
+            command_buffer,
+            x,
+            y,
+            1,
+        );
     }
 }
 

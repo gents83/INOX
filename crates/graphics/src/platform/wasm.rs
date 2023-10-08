@@ -12,7 +12,6 @@ pub fn platform_limits() -> wgpu::Limits {
     wgpu::Limits::default()
 }
 
-
 pub fn setup_env() {
     //...
 }

@@ -144,7 +144,14 @@ impl Pass for ComputeRuntimeVerticesPass {
         let count = (num_vertices as u32 + workgroup_size - 1) / workgroup_size;
 
         let pass = self.compute_pass.get();
-        pass.dispatch(render_context, &mut self.binding_data, command_buffer, count, 1, 1);
+        pass.dispatch(
+            render_context,
+            &mut self.binding_data,
+            command_buffer,
+            count,
+            1,
+            1,
+        );
     }
 }
 

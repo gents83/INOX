@@ -99,7 +99,7 @@ impl ComputePass {
         x: u32,
         y: u32,
         z: u32,
-    ) {        
+    ) {
         let mut is_ready = true;
 
         let label = format!("ComputePass {}", self.name);
@@ -113,11 +113,11 @@ impl ComputePass {
             command_buffer
                 .encoder
                 .begin_compute_pass(&wgpu::ComputePassDescriptor {
-                    label: Some(label.as_str()),                    
+                    label: Some(label.as_str()),
                     ..Default::default()
                 })
         };
-                
+
         pipelines.iter().for_each(|pipeline| {
             is_ready &= pipeline.is_initialized();
             if is_ready {
@@ -156,6 +156,5 @@ impl ComputePass {
         );
         compute_pass.dispatch_workgroups(x, y, z);
         drop(compute_pass);
-
     }
 }

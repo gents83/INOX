@@ -77,7 +77,7 @@
             "environment": [
                 {
                     "name": "RUST_LOG",
-                    "value": "info",
+                    "value": "debug",
                 },
             ],
             "stopAtEntry": false,

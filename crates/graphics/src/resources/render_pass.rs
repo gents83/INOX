@@ -237,7 +237,10 @@ impl RenderPass {
                 LoadOperation::Load => wgpu::LoadOp::Load,
                 _ => wgpu::LoadOp::Clear(wgpu::Color::BLACK),
             },
-            store: matches!(&self.store_color, StoreOperation::Store),
+            store: match &self.store_color {
+                StoreOperation::Store => wgpu::StoreOp::Store,
+                _ => wgpu::StoreOp::Discard,
+            },
         }
     }
 
@@ -247,7 +250,10 @@ impl RenderPass {
                 LoadOperation::Load => wgpu::LoadOp::Load,
                 _ => wgpu::LoadOp::Clear(1.),
             },
-            store: matches!(&self.store_depth, StoreOperation::Store),
+            store: match &self.store_depth {
+                StoreOperation::Store => wgpu::StoreOp::Store,
+                _ => wgpu::StoreOp::Discard,
+            },
         }
     }
 
