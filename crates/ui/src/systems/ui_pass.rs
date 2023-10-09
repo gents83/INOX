@@ -134,7 +134,7 @@ impl Pass for UIPass {
             textures: render_context.render_buffers.textures.clone(),
             binding_data: BindingData::new(render_context, UI_PASS_NAME),
             custom_data: UIPassData {
-                ui_scale: 2.,
+                ui_scale: 1.,
                 is_dirty: true,
             },
             vertices: VecUIVertex::default(),

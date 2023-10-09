@@ -573,6 +573,7 @@ extern "system" {
     pub fn SetProcessDPIAware() -> BOOL;
     pub fn SetProcessDpiAwareness(value: PROCESS_DPI_AWARENESS) -> HRESULT;
     pub fn GetProcessDpiAwareness(hProcess: HANDLE, value: *mut PROCESS_DPI_AWARENESS) -> HRESULT;
+    pub fn GetDpiForWindow(hwnd: HWND) -> HRESULT;
     pub fn GetDpiForMonitor(
         hmonitor: HMONITOR,
         dpiType: MONITOR_DPI_TYPE,

@@ -63,7 +63,7 @@ impl UISystem {
             ui_input: RawInput::default(),
             ui_input_modifiers: Modifiers::default(),
             ui_clipboard: None,
-            ui_scale: 2.,
+            ui_scale: 1.,
         }
     }
 
@@ -146,9 +146,13 @@ impl UISystem {
                         Default::default(),
                         [width as f32, height as f32].into(),
                     ));
+                    if width < 1 || height < 1
+                    {
+                        self.ui_input.screen_rect = None;
+                    }
                 }
                 WindowEvent::ScaleFactorChanged(v) => {
-                    self.ui_input.pixels_per_point = Some(v);
+                    self.ui_input.pixels_per_point = Some(v * self.config.ui_scale);
                     self.ui_scale = v * self.config.ui_scale;
                     self.message_hub.send_event(UIEvent::Scale(self.ui_scale));
                 }
