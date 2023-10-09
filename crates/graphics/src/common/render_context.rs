@@ -159,7 +159,7 @@ impl RenderContext {
         surface.configure(&device, &config);
         let _ = surface.get_current_texture();
 
-        inox_profiler::create_gpu_profiler!(&adapter, &device, &queue);
+        inox_profiler::create_gpu_profiler!();
 
         let render_core_context = RenderCoreContext {
             instance,

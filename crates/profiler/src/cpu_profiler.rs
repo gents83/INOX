@@ -213,17 +213,9 @@ impl CpuProfiler {
                         "tid": thread_id,
                         "cat": sample.category,
                         "name": sample.name,
-                        "ph": "B",
+                        "ph": "X",
                         "ts": sample.time_start,
-                    }));
-                    data.push(serde_json::json!({
-                        "pid": process::id(),
-                        "id": thread.index,
-                        "tid": thread_id,
-                        "cat": sample.category,
-                        "name": sample.name,
-                        "ph": "E",
-                        "ts": sample.time_end,
+                        "dur": sample.time_end - sample.time_start,
                     }));
                 } else {
                     panic!("Invalid thread id {:?}", sample.tid);

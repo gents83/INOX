@@ -326,7 +326,7 @@ impl Renderer {
         self.surface_view = None;
         if let Some(surface_texture) = self.surface_texture.take() {
             surface_texture.present();
-            inox_profiler::gpu_profiler_post_present!();
+            inox_profiler::gpu_profiler_post_present!(&self.render_context().core.queue);
         }
     }
 }

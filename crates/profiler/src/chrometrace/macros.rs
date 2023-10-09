@@ -42,7 +42,7 @@ macro_rules! create_cpu_profiler {
 
 #[macro_export]
 macro_rules! gpu_profiler_post_present {
-    () => {
+    ($queue: expr) => {
         #[cfg(not(target_arch = "wasm32"))]
         unsafe {
             use $crate::gpu_profiler::*;
@@ -63,7 +63,7 @@ macro_rules! gpu_profiler_post_present {
                         gpu_profiler
                             .write()
                             .unwrap()
-                            .end_frame(profiler.borrow().as_ref().unwrap());
+                            .end_frame(profiler.borrow().as_ref().unwrap(), $queue);
                     });
                 }
             }

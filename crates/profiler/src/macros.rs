@@ -44,7 +44,7 @@ macro_rules! get_gpu_profiler {
 
 #[macro_export]
 macro_rules! create_gpu_profiler {
-    ($device: expr, $queue: expr, $start: expr) => {
+    () => {
         #[cfg(not(target_arch = "wasm32"))]
         unsafe {
             use $crate::*;
@@ -56,7 +56,7 @@ macro_rules! create_gpu_profiler {
                 .unwrap()
                 .get::<PfnCreateGpuProfiler>(CREATE_GPU_PROFILER_FUNCTION_NAME)
             {
-                unsafe { create_fn.unwrap()($device, $queue, $start) };
+                unsafe { create_fn.unwrap()() };
             }
         }
     };
