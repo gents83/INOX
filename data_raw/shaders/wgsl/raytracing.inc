@@ -8,6 +8,8 @@ struct Result {
 
 fn intersect_aabb(ray: ptr<function, Ray>, aabb_min: vec3<f32>, aabb_max: vec3<f32>) -> f32 
 {     
+    let r_min = (*ray).t_min;
+    let r_max = (*ray).t_max;
     let inverse_dir = 1. / (*ray).direction;
     let v_min = (aabb_min - (*ray).origin) * inverse_dir;
     let v_max = (aabb_max - (*ray).origin) * inverse_dir;
@@ -17,18 +19,11 @@ fn intersect_aabb(ray: ptr<function, Ray>, aabb_min: vec3<f32>, aabb_max: vec3<f
 
     let t_near = max(max(t_min.x, t_min.y), max(t_min.x, t_min.z));
     let t_far = min(min(t_max.x, t_max.y), min(t_max.x, t_max.z));
-
-    if (t_near > t_far || t_far < 0.) { 
-        return MAX_FLOAT; 
-    }
-    if (t_near > (*ray).t_min) {
-        (*ray).t_max = min((*ray).t_max, t_far);
-        return t_near;
-    } else if (t_far < (*ray).t_max) {
-        (*ray).t_max = min((*ray).t_max, t_far);
-        return t_far;
-    } 
-    return MAX_FLOAT; 
+    
+    var r = select(MAX_FLOAT, t_far, t_far < r_max);
+    r = select(MAX_FLOAT, t_near, t_near > r_min);
+    r = select(r, MAX_FLOAT, t_near > t_far || t_far < 0.);
+    return r; 
 }
 
 fn intersect_triangle(ray: ptr<function, Ray>, v0: vec3<f32>, v1: vec3<f32>, v2: vec3<f32>) -> f32
