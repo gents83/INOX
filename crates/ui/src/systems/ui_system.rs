@@ -136,6 +136,7 @@ impl UISystem {
                     if filename == self.config.get_filename() {
                         self.config = config.clone();
                         self.ui_scale = self.config.ui_scale;
+                        self.ui_input.pixels_per_point = Some(self.ui_scale);
                         self.message_hub.send_event(UIEvent::Scale(self.ui_scale));
                     }
                 }
