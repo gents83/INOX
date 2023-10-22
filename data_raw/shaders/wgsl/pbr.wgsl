@@ -70,7 +70,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     let display_meshlets = constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS;
     if (display_meshlets != 0u) 
     {
-        let meshlet_id = (visibility_id >> 8u) - 1u; 
+        let meshlet_id = (visibility_id >> 8u) + 1u; 
         let meshlet_color = hash(meshlet_id);
         color = vec4<f32>(vec3<f32>(
             f32(meshlet_color & 255u),
@@ -82,10 +82,11 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     {
         var pixel_data = visibility_to_gbuffer(visibility_id, v_in.uv.xy);
         let material_id = pixel_data.material_id;
-        let uv = material_texture_uv(&pixel_data, TEXTURE_TYPE_BASE_COLOR);
-     
-        let texture_color = sample_texture(uv);
-        pixel_data.color *= texture_color;
+        if (has_texture(material_id, TEXTURE_TYPE_BASE_COLOR)) {  
+            let uv = material_texture_uv(&pixel_data, TEXTURE_TYPE_BASE_COLOR);
+            let texture_color = sample_texture(uv);
+            pixel_data.color *= texture_color;
+        }
         let alpha = material_alpha(material_id, pixel_data.color.a);
         if (alpha < 0.) {
             discard;
