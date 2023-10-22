@@ -7,6 +7,9 @@ repository.workspace = true
 keywords.workspace = true
 license.workspace = true
 
+[lib]
+crate-type = ["bin"]
+
 [features]
 dhat-heap = []    # if you are doing heap profiling
 

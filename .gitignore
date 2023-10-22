@@ -13,3 +13,5 @@ dhat-heap.json
 *.exe
 *.pyd
 *.spv
+*.wasm
+*.js

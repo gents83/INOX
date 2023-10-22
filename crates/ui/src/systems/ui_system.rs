@@ -153,8 +153,8 @@ impl UISystem {
                     }
                 }
                 WindowEvent::ScaleFactorChanged(v) => {
-                    self.ui_input.pixels_per_point = Some(v * self.config.ui_scale);
-                    self.ui_scale = v * self.config.ui_scale;
+                    self.ui_scale = v.max(1.) * self.config.ui_scale.max(1.);
+                    self.ui_input.pixels_per_point = Some(self.ui_scale);
                     self.message_hub.send_event(UIEvent::Scale(self.ui_scale));
                 }
                 _ => {}

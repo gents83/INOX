@@ -317,7 +317,7 @@
 				"COMPILE RELEASE WASM",
 			],
 			"isBackground": true,
-			"command": "New-Item -ItemType \"directory\" -Path \"${workspaceFolder}\\web\" -Force \n Copy-Item -Path ${workspaceFolder}\\crates\\target\\wasm32-unknown-unknown\\release\\inox_launcher.wasm -Destination ${workspaceFolder}\\web\\ -Force",
+			"command": "New-Item -ItemType \"directory\" -Path \"${workspaceFolder}\\web\" -Force \n Copy-Item -Path ${workspaceFolder}\\crates\\target\\wasm32-unknown-unknown\\release\\*.wasm -Destination ${workspaceFolder}\\web\\ -Force",
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -330,7 +330,7 @@
 				"PREPARE WASM IN WEB FOLDER",
 			],
 			"isBackground": true,
-			"command": "cd ${workspaceFolder}\\web\\ \n wasm-bindgen inox_launcher.wasm --out-dir ./ --target web --no-typescript",
+			"command": "cd ${workspaceFolder}\\web\\ \n Get-ChildItem './../crates/target/wasm32-unknown-unknown/release/' -Filter *.wasm | Foreach-Object { wasm-bindgen $_ --out-dir ./ --web --no-typescript --debug --no-demangle; }",
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)

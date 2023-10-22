@@ -65,17 +65,17 @@ erased-serde = { version = "0.3" }
 rspirv = { version = "0.11" }
 
 # wasm32
-js-sys = { version = "0.3.63" }
+js-sys = { version = "0.3.64" }
 wasm-bindgen = { version = "0.2.87" }
-wasm-bindgen-futures = { version = "0.4.36" }
-wasm-bindgen-test = { version = "0.3" }
-web-sys = { version = "0.3.63" }
+wasm-bindgen-futures = { version = "0.4.37" }
+wasm-bindgen-test = { version = "0.3.37" }
+web-sys = { version = "0.3.64" }
 
 [patch.crates-io]
-#wgpu = { path = "../../wgpu/wgpu" }
-wgpu = { git = "https://github.com/gents83/wgpu" }
+wgpu = { path = "../../wgpu/wgpu" }
+#wgpu = { git = "https://github.com/gents83/wgpu" }
 meshopt = { git = "https://github.com/gents83/meshopt-rs" }
 
 [patch."https://github.com/gfx-rs/wgpu"]
-#wgpu = { path = "../../wgpu/wgpu" }
-wgpu = { git = "https://github.com/gents83/wgpu" }
+wgpu = { path = "../../wgpu/wgpu" }
+#wgpu = { git = "https://github.com/gents83/wgpu" }
