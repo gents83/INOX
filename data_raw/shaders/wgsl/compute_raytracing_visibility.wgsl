@@ -83,8 +83,6 @@ fn main(
     atomicStore(&jobs_count, max_jobs);
     workgroupBarrier();
     
-    let initial_offset = (group.y * 16 * dimensions.x) + (group.x * 16);
-
     var job_index = 0;
     while(job_index < max_jobs)
     {
@@ -95,7 +93,9 @@ fn main(
             continue;
         }    
         
+        workgroupBarrier();
         let v = execute_job(u32(pixel.y * dimensions.x + pixel.x));
+        workgroupBarrier();
         textureStore(render_target, pixel, v);
         job_index = max_jobs - atomicSub(&jobs_count, 1);
     }
