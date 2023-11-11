@@ -81,7 +81,6 @@ fn main(
     let group = vec2<i32>(i32(workgroup_id.x), i32(workgroup_id.y));
     let dimensions = vec2<i32>(textureDimensions(render_target));
     atomicStore(&jobs_count, max_jobs);
-    workgroupBarrier();
     
     var job_index = 0;
     while(job_index < max_jobs)
@@ -93,9 +92,7 @@ fn main(
             continue;
         }    
         
-        workgroupBarrier();
         let v = execute_job(u32(pixel.y * dimensions.x + pixel.x));
-        workgroupBarrier();
         textureStore(render_target, pixel, v);
         job_index = max_jobs - atomicSub(&jobs_count, 1);
     }

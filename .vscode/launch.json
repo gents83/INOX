@@ -71,10 +71,15 @@
                 "-plugin inox_common_script",
                 "-plugin inox_viewer",
                 "-load_file",
+                //"models/cornell_box/cornell_box.scene"
                 "models/craftman/craftman.scene"
             ],
             "cwd": "${workspaceFolder}",
             "environment": [
+                {
+                    "name": "RUST_BACKTRACE",
+                    "value": "full",
+                },
                 {
                     "name": "RUST_LOG",
                     "value": "debug",

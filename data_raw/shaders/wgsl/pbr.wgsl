@@ -70,8 +70,8 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     let display_meshlets = constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS;
     if (display_meshlets != 0u) 
     {
-        let meshlet_id = (visibility_id >> 8u) + 1u; 
-        let meshlet_color = hash(meshlet_id);
+        let meshlet_id = (visibility_id >> 8u); 
+        let meshlet_color = hash(meshlet_id + 1u);
         color = vec4<f32>(vec3<f32>(
             f32(meshlet_color & 255u),
             f32((meshlet_color >> 8u) & 255u),

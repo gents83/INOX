@@ -20,9 +20,9 @@ fn intersect_aabb(ray: ptr<function, Ray>, aabb_min: vec3<f32>, aabb_max: vec3<f
     let t_near = max(max(t_min.x, t_min.y), max(t_min.x, t_min.z));
     let t_far = min(min(t_max.x, t_max.y), min(t_max.x, t_max.z));
     
-    var r = select(MAX_FLOAT, t_far, t_far < r_max);
-    r = select(MAX_FLOAT, t_near, t_near > r_min);
-    r = select(r, MAX_FLOAT, t_near > t_far || t_far < 0.);
+    var r = select(r_max, t_far, t_far <= r_max);
+    r = select(r_max, t_near, t_near >= r_min);
+    r = select(r, r_max, t_near > t_far || t_far < 0.);
     return r; 
 }
 
@@ -30,24 +30,25 @@ fn intersect_triangle(ray: ptr<function, Ray>, v0: vec3<f32>, v1: vec3<f32>, v2:
 {
     let e1 = v1 - v0;
     let e2 = v2 - v0;
+    let far = (*ray).t_max;
 
     let p = cross((*ray).direction, e2);
     let det = dot(e1, p);
     
-    if (abs(det) < HIT_EPSILON) { return MAX_FLOAT; }
+    if (abs(det) < HIT_EPSILON) { return far; }
 
     // Computes Barycentric coordinates.
     let inv_det = 1. / det;
     let t1 = (*ray).origin - v0;    
     let u = dot(t1, p) * inv_det;
-    if (u < 0. || u > 1.) { return MAX_FLOAT; }
+    if (u < 0. || u > 1.) { return far; }
     
     let q = cross(t1, e1);
     let v = dot((*ray).direction, q) * inv_det;
-    if (v < 0. || u + v > 1.) { return MAX_FLOAT; }
+    if (v < 0. || u + v > 1.) { return far; }
 
     var t2 = dot(e2, q) * inv_det;
-    t2 = select(t2, MAX_FLOAT, t2 < 0.);
+    t2 = select(t2, far, t2 < 0.);
     return t2;
 }
 

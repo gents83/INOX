@@ -30,7 +30,7 @@ pub struct ViewerSystem {
 
 const USE_CORNELL_BOX: bool = false;
 const FORCE_USE_DEFAULT_CAMERA: bool = false;
-const CAMERA_SPEED: f32 = 20.;
+const CAMERA_SPEED: f32 = 200.;
 const CAMERA_ROTATION_SPEED: f32 = 200.;
 
 impl Drop for ViewerSystem {
