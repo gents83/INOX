@@ -1,4 +1,4 @@
-use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
+use raw_window_handle::{DisplayHandle, WindowHandle, URawWindowHandle, RawDisplayHandle, iKitDisplayHandle, UiKitWindowHandle };
 
 use super::super::handle::*;
 use core::ffi::c_void;
@@ -11,17 +11,16 @@ pub struct HandleImpl {
     pub ui_view_controller: *mut c_void,
 }
 
-impl HandleImpl {
-    pub fn as_raw_window_handle(&self) -> RawWindowHandle {
-        let mut handle = raw_window_handle::UiKitWindowHandle::empty();
-        handle.ui_window = self.window as _;
-        handle.ui_view = self.view as _;
-        handle.ui_view_controller = self.view_controller as _;
-        RawWindowHandle::UiKit(handle)
+impl HandleImpl {    
+    pub fn as_window_handle(&self) -> WindowHandle {
+        let view = NonNull::from(self.ui_view as _).cast();
+        let handle = UiKitWindowHandle ::new(view);
+        unsafe { WindowHandle::borrow_raw(RawWindowHandle::UiKit(handle)) }
     }
     #[inline]
-    pub fn as_raw_display_handle(&self) -> RawDisplayHandle {
-        RawDisplayHandle::UiKit(raw_window_handle::UiKitDisplayHandle::empty())
+    pub fn as_display_handle(&self) -> DisplayHandle {
+        let handle = UiKitDisplayHandle::new();
+        unsafe { DisplayHandle::borrow_raw(RawDisplayHandle::UiKit(handle)) }
     }
     pub fn is_valid(&self) -> bool {
         !self.ui_window.is_null()

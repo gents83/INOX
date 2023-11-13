@@ -1,6 +1,6 @@
 use wasm_bindgen::JsCast;
 
-use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
+use raw_window_handle::{DisplayHandle, WindowHandle, RawWindowHandle, RawDisplayHandle, WebWindowHandle, WebDisplayHandle};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HandleImpl {
@@ -14,14 +14,13 @@ pub struct HandleImpl {
 }
 
 impl HandleImpl {
-    pub fn as_raw_window_handle(&self) -> RawWindowHandle {
-        let mut handle = raw_window_handle::WebWindowHandle::empty();
-        handle.id = self.id;
-        RawWindowHandle::Web(handle)
+    pub fn as_window_handle(&self) -> WindowHandle {
+        let handle = WebWindowHandle::new(self.id);
+        unsafe { WindowHandle::borrow_raw(RawWindowHandle::Web(handle)) }
     }
     #[inline]
-    pub fn as_raw_display_handle(&self) -> RawDisplayHandle {
-        RawDisplayHandle::Web(raw_window_handle::WebDisplayHandle::empty())
+    pub fn as_display_handle(&self) -> DisplayHandle {
+        unsafe { DisplayHandle::borrow_raw(RawDisplayHandle::Web(WebDisplayHandle::new())) }
     }
     pub fn is_valid(&self) -> bool {
         self.id != 0

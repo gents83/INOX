@@ -1,4 +1,6 @@
-use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
+use std::num::NonZeroIsize;
+
+use raw_window_handle::{DisplayHandle, WindowHandle, RawWindowHandle, RawDisplayHandle, WindowsDisplayHandle, Win32WindowHandle};
 
 use super::types::*;
 
@@ -11,14 +13,15 @@ pub struct HandleImpl {
 }
 
 impl HandleImpl {
-    pub fn as_raw_window_handle(&self) -> RawWindowHandle {
-        let mut handle = raw_window_handle::Win32WindowHandle::empty();
-        handle.hwnd = self.hwnd as *mut _;
-        handle.hinstance = self.hinstance as *mut _;
-        RawWindowHandle::Win32(handle)
+    pub fn as_window_handle(&self) -> WindowHandle {
+        let mut handle = Win32WindowHandle::new(NonZeroIsize::new(self.hwnd as _).unwrap());
+        // Optionally set the GWLP_HINSTANCE.
+        let hinstance = NonZeroIsize::new(self.hinstance as _).unwrap();
+        handle.hinstance = Some(hinstance);
+        unsafe { WindowHandle::borrow_raw(RawWindowHandle::Win32(handle)) }
     }
     #[inline]
-    pub fn as_raw_display_handle(&self) -> RawDisplayHandle {
-        RawDisplayHandle::Windows(raw_window_handle::WindowsDisplayHandle::empty())
+    pub fn as_display_handle(&self) -> DisplayHandle {
+        unsafe { DisplayHandle::borrow_raw(RawDisplayHandle::Windows(WindowsDisplayHandle::new())) }
     }
 }

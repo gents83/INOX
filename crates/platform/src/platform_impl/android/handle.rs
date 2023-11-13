@@ -1,4 +1,4 @@
-use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
+use raw_window_handle::{DisplayHandle, WindowHandle, RawWindowHandle, RawDisplayHandle, AndroidDisplayHandle, AndroidNdkWindowHandle};
 
 use super::super::handle::*;
 use core::ffi::c_void;
@@ -11,18 +11,32 @@ pub struct HandleImpl {
 }
 
 impl HandleImpl {
-    pub fn as_raw_window_handle(&self) -> RawWindowHandle {
+    pub fn as_window_handle(&self) -> WindowHandle {
+        if let Some(native_window) = ndk_glue::native_window().as_ref() {
+            let view = NonNull::from(unsafe { native_window.ptr().as_mut() as *mut _ as _ }).cast();
+            let handle = AndroidNdkWindowHandle::new(view);
+            unsafe { WindowHandle::borrow_raw(RawWindowHandle::AndroidNdk(handle)) }
+        }
+        panic!("Cannot get the native window");
+    }
+    #[inline]
+    pub fn as_display_handle(&self) -> DisplayHandle {
+        let handle = AndroidDisplayHandle::new();
+        unsafe { DisplayHandle::borrow_raw(RawDisplayHandle::AndroidNdk(handle)) }
+    }
+
+    pub fn as_window_handle(&self) -> WindowHandle {
         let mut handle = raw_window_handle::AndroidWindowHandle::empty();
         if let Some(native_window) = ndk_glue::native_window().as_ref() {
             handle.a_native_window = unsafe { native_window.ptr().as_mut() as *mut _ as *mut _ }
         } else {
             panic!("Cannot get the native window");
         };
-        RawWindowHandle::AndroidNdk(handle)
+        WindowHandle::AndroidNdk(handle)
     }
     #[inline]
-    pub fn as_raw_display_handle(&self) -> RawDisplayHandle {
-        RawDisplayHandle::Android(raw_window_handle::AndroidDisplayHandle::empty())
+    pub fn as_display_handle(&self) -> DisplayHandle {
+        DisplayHandle::Android(raw_window_handle::AndroidDisplayHandle::empty())
     }
     pub fn is_valid(&self) -> bool {
         !self.a_native_window.is_null()

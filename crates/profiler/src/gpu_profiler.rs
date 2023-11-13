@@ -50,15 +50,15 @@ impl GpuProfiler {
         self
     }
     pub fn profile<'a, P>(
-        &'a mut self,
+        &'a self,
         label: &str,
         recorder: &'a mut P,
         device: &wgpu::Device,
-    ) -> wgpu_profiler::scope::Scope<P>
+    ) -> wgpu_profiler::Scope<P>
     where
         P: wgpu_profiler::ProfilerCommandRecorder,
     {
-        wgpu_profiler::scope::Scope::start(label, &mut self.wgpu_profiler, recorder, device)
+        wgpu_profiler::Scope::start(label, &self.wgpu_profiler, recorder, device)
     }
     pub fn resolve_queries(&mut self, encoder: &mut wgpu::CommandEncoder) {
         self.wgpu_profiler.resolve_queries(encoder);

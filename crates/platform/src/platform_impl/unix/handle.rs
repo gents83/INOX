@@ -1,4 +1,4 @@
-use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
+use raw_window_handle::{DisplayHandle, WindowHandle, RawWindowHandle, RawDisplayHandle, XlibWindowHandle, XlibDisplayHandle};
 
 use super::super::handle::*;
 use core::ffi::c_void;
@@ -13,18 +13,15 @@ pub struct HandleImpl {
 }
 
 impl HandleImpl {
-    pub fn as_raw_window_handle(&self) -> RawWindowHandle {
-        let mut handle = raw_window_handle::XlibWindowHandle::empty();
-        handle.window = self.window;
-        handle.display = self.display;
-        RawWindowHandle::Xlib(handle)
+    pub fn as_window_handle(&self) -> WindowHandle {
+        let mut window = XlibWindowHandle::new(self.window);
+        unsafe { WindowHandle::borrow_raw(RawWindowHandle::Xlib(handle as _)) }
     }
-    pub fn as_raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
-        let mut display_handle = XlibDisplayHandle::empty();
-        display_handle.display = self.xconn.display as *mut _;
-        display_handle.screen =
-            unsafe { (self.xconn.xlib.XDefaultScreen)(self.xconn.display as *mut _) };
-        RawDisplayHandle::Xlib(display_handle)
+    #[inline]
+    pub fn as_display_handle(&self) -> DisplayHandle {
+        let display = NonNull::from(self.xconn.display as _).cast();
+        let handle = XlibDisplayHandle::new(Some(display), 0 as _);
+        unsafe { DisplayHandle::borrow_raw(RawDisplayHandle::Xlib(handle)) }
     }
     pub fn is_valid(&self) -> bool {
         !self.display.is_null()
