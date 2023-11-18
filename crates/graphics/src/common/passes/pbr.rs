@@ -88,10 +88,8 @@ impl Pass for PBRPass {
         inox_profiler::scoped_profile!("pbr_pass::init");
 
         if self.visibility_texture.is_nil()
-            || self.textures.read().unwrap().is_empty()
             || self.meshes.read().unwrap().is_empty()
             || self.meshlets.read().unwrap().is_empty()
-            || self.lights.read().unwrap().is_empty()
         {
             return;
         }
@@ -224,7 +222,6 @@ impl Pass for PBRPass {
         inox_profiler::scoped_profile!("pbr_pass::update");
 
         if self.visibility_texture.is_nil()
-            || self.textures.read().unwrap().is_empty()
             || self.meshes.read().unwrap().is_empty()
             || self.meshlets.read().unwrap().is_empty()
         {
