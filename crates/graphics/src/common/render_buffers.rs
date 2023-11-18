@@ -229,7 +229,7 @@ impl RenderBuffers {
         inox_profiler::scoped_profile!("render_buffers::recreate_tlas");
         let mut meshes_aabbs = Vec::new();
         {
-            let meshes = self.meshes.write().unwrap();
+            let meshes = self.meshes.read().unwrap();
             let bhv = self.bhv.read().unwrap();
             let bhv = bhv.data();
             meshes.for_each_entry(|i, mesh| {

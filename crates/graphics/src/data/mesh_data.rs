@@ -91,10 +91,6 @@ impl MeshData {
 
     pub fn insert_position(&mut self, p: Vector3) {
         let size = self.aabb_max - self.aabb_min;
-        debug_assert!(
-            size.x > 0. || size.y > 0. || size.z > 0. || self.aabb_max == self.aabb_min,
-            "Invalid AABB size for this mesh AABB - min and max should be set before adding positions"
-        );
         let mut v = p - self.aabb_min;
         v.x /= size.x;
         v.y /= size.y;

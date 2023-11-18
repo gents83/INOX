@@ -1,3 +1,5 @@
+use std::sync::atomic::Ordering;
+
 use inox_core::ContextRc;
 use inox_graphics::{
     CullingEvent, DrawEvent, Light, Mesh, MeshFlags, MeshId, RendererRw,
@@ -78,7 +80,8 @@ struct Data {
     params: InfoParams,
     hierarchy: (bool, Option<Hierarchy>),
     graphics: (bool, Option<Gfx>),
-    show_bhv: bool,
+    show_tlas: bool,
+    show_blas: bool,
     show_frustum: bool,
     show_lights: bool,
     freeze_culling_camera: bool,
@@ -112,7 +115,8 @@ impl Info {
             params,
             hierarchy: (false, None),
             graphics: (false, None),
-            show_bhv: false,
+            show_tlas: false,
+            show_blas: false,
             show_frustum: false,
             show_lights: false,
             freeze_culling_camera: false,
@@ -252,17 +256,44 @@ impl Info {
                 );
                 Self::show_frustum(data, &frustum);
             }
-            if data.show_bhv {
+            if data.show_tlas {
+                let renderer = data.params.renderer.read().unwrap();
+                let render_context = renderer.render_context();
+                let tlas_index = render_context.render_buffers.tlas_start_index.load(Ordering::Relaxed);
+                let bhv = render_context.render_buffers.bhv.read().unwrap();
+                bhv.for_each_data(|i, _id, n| {
+                    if i >= tlas_index as _ {
+                        data.context
+                            .message_hub()
+                            .send_event(DrawEvent::BoundingBox(
+                                n.min.into(),
+                                n.max.into(),
+                                [0.5, 1.0, 0.5, 1.0].into(),
+                            ));
+                    }
+                });
+            }
+            if data.show_blas {
                 let renderer = data.params.renderer.read().unwrap();
                 let render_context = renderer.render_context();
                 let bhv = render_context.render_buffers.bhv.read().unwrap();
-                bhv.for_each_data(|_i_, _id, n| {
+                let bhv_data = bhv.data();
+                let meshes = render_context.render_buffers.meshes.read().unwrap();
+                meshes.for_each_entry(|_, mesh| {
+                    let node = &bhv_data[mesh.blas_index as usize];
+                    let matrix = Matrix4::from_translation_orientation_scale(
+                        mesh.position.into(),
+                        mesh.orientation.into(),
+                        mesh.scale.into(),
+                    );
+                    let min = matrix.rotate_point(node.min.into());
+                    let max = matrix.rotate_point(node.max.into());
                     data.context
                         .message_hub()
                         .send_event(DrawEvent::BoundingBox(
-                            n.min.into(),
-                            n.max.into(),
-                            [1.0, 1.0, 0.0, 1.0].into(),
+                            min,
+                            max,
+                            [1.0, 0.8, 0.2, 1.0].into(),
                         ));
                 });
             }
@@ -467,7 +498,8 @@ impl Info {
                         ui.checkbox(&mut data.hierarchy.0, "Hierarchy");
                         ui.checkbox(&mut data.graphics.0, "Graphics");
                         ui.checkbox(&mut data.show_lights, "Show Lights");
-                        ui.checkbox(&mut data.show_bhv, "Show BHVs");
+                        ui.checkbox(&mut data.show_tlas, "Show TLAS BHV");
+                        ui.checkbox(&mut data.show_blas, "Show BLAS BHVs");
                         ui.checkbox(&mut data.show_frustum, "Show Frustum");
                         let is_freezed = data.freeze_culling_camera;
                         ui.checkbox(&mut data.freeze_culling_camera, "Freeze Culling Camera");
