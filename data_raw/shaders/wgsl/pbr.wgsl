@@ -91,7 +91,8 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         if (alpha < 0.) {
             discard;
         }
-        color = compute_brdf(material_id, &pixel_data);
+        let pbr_data = compute_color(material_id, &pixel_data);
+        color = compute_brdf(pbr_data);
     }
     return color;
 }

@@ -375,6 +375,26 @@ impl Object {
         result
     }
 
+    pub fn has_component<C>(&self) -> bool
+    where
+        C: ResourceTrait + 'static,
+    {
+        self.components.get(&TypeId::of::<C>()).is_some()
+    }
+
+    pub fn has_component_recursive<C>(&self) -> bool
+    where
+        C: ResourceTrait + 'static,
+    {
+        let mut has_component = self.has_component::<C>();
+        if !has_component {
+            self.children.iter().for_each(|c| {
+                has_component |= c.get().has_component_recursive::<C>();
+            });
+        }
+        has_component
+    }
+
     pub fn update_transform(&mut self, parent_transform: Option<Matrix4>) {
         if self.is_dirty() {
             self.is_transform_dirty = false;

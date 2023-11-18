@@ -138,6 +138,30 @@ impl ViewerSystem {
                 self.create_default_scene();
             }
         }
+        let mut has_lights = false;
+        self.scene.get().objects().iter().for_each(|o| {
+            has_lights |= o.get().has_component_recursive::<Light>();
+
+        });
+
+        if !has_lights {
+            //Add default light
+            let light_id = generate_random_uid();
+            let light_object = self.context.shared_data().add_resource::<Object>(
+                self.context.message_hub(),
+                light_id,
+                Object::new(
+                    light_id,
+                    self.context.shared_data(),
+                    self.context.message_hub(),
+                ),
+            );
+            let light = light_object
+                .get_mut()
+                .add_default_component::<Light>(self.context.shared_data(), self.context.message_hub());
+            light.get_mut().set_active(true);
+            self.scene.get_mut().add_object(light_object);
+        }
         self
     }
 
@@ -391,23 +415,6 @@ impl ViewerSystem {
             .set_parent(&camera_object)
             .set_active(false);
         self.scene.get_mut().add_object(camera_object);
-
-        //Add light
-        let light_id = generate_random_uid();
-        let light_object = self.context.shared_data().add_resource::<Object>(
-            self.context.message_hub(),
-            light_id,
-            Object::new(
-                light_id,
-                self.context.shared_data(),
-                self.context.message_hub(),
-            ),
-        );
-        let light = light_object
-            .get_mut()
-            .add_default_component::<Light>(self.context.shared_data(), self.context.message_hub());
-        light.get_mut().set_active(true);
-        self.scene.get_mut().add_object(light_object);
     }
 
     fn create_default_scene(&mut self) {
@@ -543,22 +550,6 @@ impl ViewerSystem {
             .set_parent(&camera_object)
             .set_active(false);
         self.scene.get_mut().add_object(camera_object);
-
-        let light_id = generate_random_uid();
-        let light_object = self.context.shared_data().add_resource::<Object>(
-            self.context.message_hub(),
-            light_id,
-            Object::new(
-                light_id,
-                self.context.shared_data(),
-                self.context.message_hub(),
-            ),
-        );
-        let light = light_object
-            .get_mut()
-            .add_default_component::<Light>(self.context.shared_data(), self.context.message_hub());
-        light.get_mut().set_active(true);
-        self.scene.get_mut().add_object(light_object);
     }
 
     fn load_scene(&mut self, filename: &str) {

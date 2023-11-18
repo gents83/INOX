@@ -20,8 +20,8 @@ fn intersect_aabb(ray: ptr<function, Ray>, aabb_min: vec3<f32>, aabb_max: vec3<f
     let t_near = max(max(t_min.x, t_min.y), max(t_min.x, t_min.z));
     let t_far = min(min(t_max.x, t_max.y), min(t_max.x, t_max.z));
     
-    var r = select(r_max, t_far, t_far <= r_max);
-    r = select(r_max, t_near, t_near >= r_min);
+    var r = select(r_max, t_far, t_far < r_max);
+    r = select(r_max, t_near, t_near > r_min);
     r = select(r, r_max, t_near > t_far || t_far < 0.);
     return r; 
 }
