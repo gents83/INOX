@@ -4,11 +4,11 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
     platform::has_primitive_index_support, rendering_system::RenderingSystem,
-    update_system::UpdateSystem, BlitPass, ComputeRayTracingGenerateRayPass,
-    ComputeRayTracingVisibilityPass, ComputeRuntimeVerticesPass, CullingPass, LoadOperation,
-    OutputPass, OutputRenderPass, PBRPass, Pass, RenderPass, RenderTarget, Renderer, RendererRw,
-    TextureFormat, TextureId, VisibilityBufferPass, WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH,
-    WIREFRAME_PASS_NAME, ComputePathTracingPass,
+    update_system::UpdateSystem, BlitPass, ComputePathTracingPass,
+    ComputeRayTracingGenerateRayPass, ComputeRayTracingVisibilityPass, ComputeRuntimeVerticesPass,
+    CullingPass, LoadOperation, OutputPass, OutputRenderPass, PBRPass, Pass, RenderPass,
+    RenderTarget, Renderer, RendererRw, TextureFormat, TextureId, VisibilityBufferPass,
+    WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -161,23 +161,24 @@ impl Viewer {
             );
             Self::create_blit_pass(context, renderer, &output_texture_id);
         } else {
-            let visibility_texture_id =
-                if has_primitive_index_support() && !FORCE_COMPUTE_RAYTRACING_PIPELINE {
-                    Self::create_visibility_pass(context, renderer, half_dimension.0, half_dimension.1)
-                } else {
-                    Self::create_compute_ray_generation_pass(
-                        context,
-                        renderer,
-                        half_dimension.0,
-                        half_dimension.1,
-                    );
-                    Self::create_compute_raytracing_visibility_pass(
-                        context,
-                        renderer,
-                        half_dimension.0,
-                        half_dimension.1,
-                    )
-                };
+            let visibility_texture_id = if has_primitive_index_support()
+                && !FORCE_COMPUTE_RAYTRACING_PIPELINE
+            {
+                Self::create_visibility_pass(context, renderer, half_dimension.0, half_dimension.1)
+            } else {
+                Self::create_compute_ray_generation_pass(
+                    context,
+                    renderer,
+                    half_dimension.0,
+                    half_dimension.1,
+                );
+                Self::create_compute_raytracing_visibility_pass(
+                    context,
+                    renderer,
+                    half_dimension.0,
+                    half_dimension.1,
+                )
+            };
             Self::create_pbr_pass(context, renderer, visibility_texture_id);
         }
         Self::create_wireframe_pass(context, renderer, ADD_WIREFRAME_PASS);
@@ -221,7 +222,7 @@ impl Viewer {
     ) -> TextureId {
         let mut compute_pathtracing_pass =
             ComputePathTracingPass::create(context, &renderer.render_context());
-            compute_pathtracing_pass.add_render_target_with_resolution(
+        compute_pathtracing_pass.add_render_target_with_resolution(
             width,
             height,
             TextureFormat::Rgba8Unorm,
@@ -322,11 +323,7 @@ impl Viewer {
         }
         renderer.add_pass(ui_pass, is_enabled);
     }
-    fn create_blit_pass(
-        context: &ContextRc,
-        renderer: &mut Renderer,
-        texture: &TextureId,
-    ) {
+    fn create_blit_pass(context: &ContextRc, renderer: &mut Renderer, texture: &TextureId) {
         let mut blit_pass = BlitPass::create(context, &renderer.render_context());
         blit_pass.set_source(texture);
         renderer.add_pass(blit_pass, true);

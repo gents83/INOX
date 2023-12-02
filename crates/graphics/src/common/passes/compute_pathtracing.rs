@@ -12,8 +12,7 @@ use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Handle, Resource};
 use inox_uid::generate_random_uid;
 
-pub const COMPUTE_PATHTRACING_PIPELINE: &str =
-    "pipelines/ComputePathTracing.compute_pipeline";
+pub const COMPUTE_PATHTRACING_PIPELINE: &str = "pipelines/ComputePathTracing.compute_pipeline";
 pub const COMPUTE_PATHTRACING_NAME: &str = "ComputePathTracingPass";
 
 pub struct ComputePathTracingPass {
