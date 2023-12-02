@@ -163,7 +163,12 @@
 					1
 				],
 				"metallicFactor":0
-			}
+			},
+			"emissiveFactor":[
+				1.0,
+				1.0,
+				1.0
+			]
 		},
 		{
 			"doubleSided":true,
