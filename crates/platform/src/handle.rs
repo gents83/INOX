@@ -1,4 +1,4 @@
-use raw_window_handle::{DisplayHandle, WindowHandle, HandleError};
+use raw_window_handle::{DisplayHandle, HandleError, WindowHandle};
 
 use super::platform_impl::platform::handle::*;
 

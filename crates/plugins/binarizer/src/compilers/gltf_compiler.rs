@@ -391,8 +391,7 @@ impl GltfCompiler {
     }
 
     fn compute_meshlets(&self, mesh_data: &mut MeshData) {
-        let mut positions = Vec::new();
-        positions.reserve(mesh_data.vertex_count());
+        let mut positions = Vec::with_capacity(mesh_data.vertex_count());
         for i in 0..mesh_data.vertex_count() {
             positions.push(mesh_data.position(i));
         }

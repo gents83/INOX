@@ -23,7 +23,7 @@ pub struct CommandBuffer {
 
 pub struct RenderCoreContext {
     pub instance: wgpu::Instance,
-    pub surface: wgpu::Surface,
+    pub surface: wgpu::Surface<'static>,
     pub adapter: wgpu::Adapter,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
@@ -71,8 +71,8 @@ pub struct RenderContext {
 pub type RenderContextRw = Arc<RwLock<RenderContext>>;
 
 impl RenderContext {
-    fn create_surface(instance: &wgpu::Instance, handle: &Handle) -> wgpu::Surface {
-        unsafe { instance.create_surface(&handle).unwrap() }
+    fn create_surface(instance: &wgpu::Instance, handle: Handle) -> wgpu::Surface<'static> {
+        instance.create_surface(handle).unwrap()
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -114,7 +114,7 @@ impl RenderContext {
                 flags: wgpu::InstanceFlags::all(),
                 ..Default::default()
             });
-            let surface = Self::create_surface(&instance, &handle);
+            let surface = Self::create_surface(&instance, handle.clone());
 
             #[cfg(not(target_arch = "wasm32"))]
             Self::log_adapters(&instance, &backends);
@@ -127,8 +127,8 @@ impl RenderContext {
                 .request_device(
                     &wgpu::DeviceDescriptor {
                         label: None,
-                        features: required_gpu_features(),
-                        limits: platform_limits(),
+                        required_features: required_gpu_features(),
+                        required_limits: platform_limits(),
                     },
                     // Some(&std::path::Path::new("trace")), // Trace path
                     None,

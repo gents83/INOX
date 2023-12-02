@@ -19,24 +19,4 @@ raw-window-handle = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { workspace = true }
-web-sys = { workspace = true, features = ["console", 
-    "AddEventListenerOptions",
-    "CssStyleDeclaration",
-    "BeforeUnloadEvent",
-    "Document",
-    "DomRect",
-    "Element",
-    "Event",
-    "EventTarget",
-    "FocusEvent",
-    "HtmlCanvasElement",
-    "HtmlElement",
-    "KeyboardEvent",
-    "MediaQueryList",
-    "MediaQueryListEvent",
-    "MouseEvent",
-    "Node",
-    "PointerEvent",
-    "Window",
-    "WheelEvent"
-] }
+web-sys = { workspace = true }

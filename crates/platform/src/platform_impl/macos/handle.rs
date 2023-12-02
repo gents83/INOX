@@ -1,4 +1,7 @@
-use raw_window_handle::{DisplayHandle, WindowHandle, RawWindowHandle, RawDisplayHandle, AppKitDisplayHandle, AppKitWindowHandle};
+use raw_window_handle::{
+    AppKitDisplayHandle, AppKitWindowHandle, DisplayHandle, RawDisplayHandle, RawWindowHandle,
+    WindowHandle,
+};
 
 use super::super::handle::*;
 use core::ffi::c_void;

@@ -86,7 +86,10 @@ impl Pass for ComputeRayTracingVisibilityPass {
             return;
         }
 
-        let mut tlas_starting_index = render_context.render_buffers.tlas_start_index.load(Ordering::SeqCst);
+        let mut tlas_starting_index = render_context
+            .render_buffers
+            .tlas_start_index
+            .load(Ordering::SeqCst);
 
         self.binding_data
             .add_storage_buffer(
@@ -210,9 +213,11 @@ impl Pass for ComputeRayTracingVisibilityPass {
         let x_pixels_managed_in_shader = 16;
         let y_pixels_managed_in_shader = 16;
         let dimensions = self.render_target.as_ref().unwrap().get().dimensions();
-        let x = (x_pixels_managed_in_shader * ((dimensions.0 + x_pixels_managed_in_shader - 1) / x_pixels_managed_in_shader))
+        let x = (x_pixels_managed_in_shader
+            * ((dimensions.0 + x_pixels_managed_in_shader - 1) / x_pixels_managed_in_shader))
             / x_pixels_managed_in_shader;
-        let y = (y_pixels_managed_in_shader * ((dimensions.1 + y_pixels_managed_in_shader - 1) / y_pixels_managed_in_shader))
+        let y = (y_pixels_managed_in_shader
+            * ((dimensions.1 + y_pixels_managed_in_shader - 1) / y_pixels_managed_in_shader))
             / y_pixels_managed_in_shader;
 
         pass.dispatch(

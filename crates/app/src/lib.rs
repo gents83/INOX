@@ -4,10 +4,9 @@
 pub mod launcher;
 pub mod platform;
 
-
 pub fn main() {
-    use std::sync::Arc;
     use crate::{launcher::Launcher, platform::*};
+    use std::sync::Arc;
 
     setup_env();
 

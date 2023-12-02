@@ -1,4 +1,7 @@
-use raw_window_handle::{DisplayHandle, WindowHandle, RawWindowHandle, RawDisplayHandle, XlibWindowHandle, XlibDisplayHandle};
+use raw_window_handle::{
+    DisplayHandle, RawDisplayHandle, RawWindowHandle, WindowHandle, XlibDisplayHandle,
+    XlibWindowHandle,
+};
 
 use super::super::handle::*;
 use core::ffi::c_void;

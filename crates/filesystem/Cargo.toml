@@ -13,6 +13,6 @@ crate-type = ["lib"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { workspace = true }
-web-sys = { workspace = true, features = ["Request", "Window", "Response"] }
+web-sys = { workspace = true }
 js-sys = { workspace = true }
 wasm-bindgen-futures = { workspace = true }

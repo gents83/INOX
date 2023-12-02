@@ -39,9 +39,7 @@ impl BindingDataBuffer {
     {
         let id = data.id();
         let mut bind_data_buffer = self.buffers.write().unwrap();
-        let buffer = bind_data_buffer
-            .entry(id)
-            .or_default();
+        let buffer = bind_data_buffer.entry(id).or_default();
         if data.is_dirty() || usage != buffer.usage() {
             let is_changed = buffer.bind(label, data, usage, render_core_context);
             if is_changed {

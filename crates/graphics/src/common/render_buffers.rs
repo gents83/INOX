@@ -1,6 +1,9 @@
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock, atomic::{AtomicU32, Ordering}},
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc, RwLock,
+    },
 };
 
 use inox_bhv::{BHVTree, AABB};
@@ -249,7 +252,7 @@ impl RenderBuffers {
         let linearized_bhv = create_linearized_bhv(&bhv);
         let mut bhv = self.bhv.write().unwrap();
         let tlas = bhv.allocate(&TLAS_UID, &linearized_bhv).1.start as _;
-        self.tlas_start_index.store(tlas, Ordering::SeqCst); 
+        self.tlas_start_index.store(tlas, Ordering::SeqCst);
     }
     fn update_transform(&self, mesh: &mut Mesh, m: &mut GPUMesh) -> bool {
         inox_profiler::scoped_profile!("render_buffers::update_transform");

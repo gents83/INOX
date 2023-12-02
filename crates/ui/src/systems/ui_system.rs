@@ -136,7 +136,7 @@ impl UISystem {
                     if filename == self.config.get_filename() {
                         self.config = config.clone();
                         self.ui_scale = self.config.ui_scale;
-                        self.ui_input.pixels_per_point = Some(self.ui_scale);
+                        self.ui_context.set_zoom_factor(self.ui_scale);
                         self.message_hub.send_event(UIEvent::Scale(self.ui_scale));
                     }
                 }
@@ -147,14 +147,13 @@ impl UISystem {
                         Default::default(),
                         [width as f32, height as f32].into(),
                     ));
-                    if width < 1 || height < 1
-                    {
+                    if width < 1 || height < 1 {
                         self.ui_input.screen_rect = None;
                     }
                 }
                 WindowEvent::ScaleFactorChanged(v) => {
                     self.ui_scale = v.max(1.) * self.config.ui_scale.max(1.);
-                    self.ui_input.pixels_per_point = Some(self.ui_scale);
+                    self.ui_context.set_zoom_factor(self.ui_scale);
                     self.message_hub.send_event(UIEvent::Scale(self.ui_scale));
                 }
                 _ => {}
@@ -347,7 +346,7 @@ impl System for UISystem {
 
         let clipped_meshes = {
             inox_profiler::scoped_profile!("ui_context::tessellate");
-            self.ui_context.tessellate(output.shapes)
+            self.ui_context.tessellate(output.shapes, self.ui_scale)
         };
         self.handle_output(output.platform_output, output.textures_delta)
             .compute_mesh_data(clipped_meshes);

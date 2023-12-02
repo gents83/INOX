@@ -1,4 +1,7 @@
-use raw_window_handle::{DisplayHandle, WindowHandle, RawWindowHandle, RawDisplayHandle, AndroidDisplayHandle, AndroidNdkWindowHandle};
+use raw_window_handle::{
+    AndroidDisplayHandle, AndroidNdkWindowHandle, DisplayHandle, RawDisplayHandle, RawWindowHandle,
+    WindowHandle,
+};
 
 use super::super::handle::*;
 use core::ffi::c_void;

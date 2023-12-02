@@ -1,4 +1,7 @@
-use raw_window_handle::{DisplayHandle, WindowHandle, URawWindowHandle, RawDisplayHandle, iKitDisplayHandle, UiKitWindowHandle };
+use raw_window_handle::{
+    iKitDisplayHandle, DisplayHandle, RawDisplayHandle, URawWindowHandle, UiKitWindowHandle,
+    WindowHandle,
+};
 
 use super::super::handle::*;
 use core::ffi::c_void;
@@ -11,10 +14,10 @@ pub struct HandleImpl {
     pub ui_view_controller: *mut c_void,
 }
 
-impl HandleImpl {    
+impl HandleImpl {
     pub fn as_window_handle(&self) -> WindowHandle {
         let view = NonNull::from(self.ui_view as _).cast();
-        let handle = UiKitWindowHandle ::new(view);
+        let handle = UiKitWindowHandle::new(view);
         unsafe { WindowHandle::borrow_raw(RawWindowHandle::UiKit(handle)) }
     }
     #[inline]

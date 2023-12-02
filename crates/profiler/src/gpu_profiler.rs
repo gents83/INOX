@@ -16,15 +16,14 @@ pub const GET_GPU_PROFILER_FUNCTION_NAME: &str = "get_gpu_profiler";
 pub type PfnGetGpuProfiler = ::std::option::Option<unsafe extern "C" fn() -> GlobalGpuProfiler>;
 
 pub const CREATE_GPU_PROFILER_FUNCTION_NAME: &str = "create_gpu_profiler";
-pub type PfnCreateGpuProfiler =
-    ::std::option::Option<unsafe extern "C" fn()>;
+pub type PfnCreateGpuProfiler = ::std::option::Option<unsafe extern "C" fn()>;
 
 pub static mut GLOBAL_GPU_PROFILER: Option<GlobalGpuProfiler> = None;
 
 #[no_mangle]
 pub extern "C" fn create_gpu_profiler() {
     unsafe {
-        if GLOBAL_GPU_PROFILER.is_none() {            
+        if GLOBAL_GPU_PROFILER.is_none() {
             let settings = wgpu_profiler::GpuProfilerSettings {
                 enable_timer_scopes: false,
                 ..Default::default()
@@ -46,7 +45,9 @@ pub extern "C" fn get_gpu_profiler() -> GlobalGpuProfiler {
 impl GpuProfiler {
     pub fn enable(&mut self, enabled: bool) -> &mut Self {
         self.settings.enable_timer_scopes = enabled;
-        self.wgpu_profiler.change_settings(self.settings.clone()).ok();
+        self.wgpu_profiler
+            .change_settings(self.settings.clone())
+            .ok();
         self
     }
     pub fn profile<'a, P>(
@@ -66,7 +67,10 @@ impl GpuProfiler {
     pub fn end_frame(&mut self, profiler: &ThreadProfiler, queue: &wgpu::Queue) -> &mut Self {
         if self.wgpu_profiler.end_frame().is_ok() {
             let mut wgpu_results = Vec::new();
-            while let Some(mut results) = self.wgpu_profiler.process_finished_frame(queue.get_timestamp_period()) {
+            while let Some(mut results) = self
+                .wgpu_profiler
+                .process_finished_frame(queue.get_timestamp_period())
+            {
                 wgpu_results.append(&mut results);
             }
             if self.settings.enable_timer_scopes && !wgpu_results.is_empty() {

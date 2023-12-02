@@ -1,6 +1,9 @@
 use std::num::NonZeroIsize;
 
-use raw_window_handle::{DisplayHandle, WindowHandle, RawWindowHandle, RawDisplayHandle, WindowsDisplayHandle, Win32WindowHandle};
+use raw_window_handle::{
+    DisplayHandle, RawDisplayHandle, RawWindowHandle, Win32WindowHandle, WindowHandle,
+    WindowsDisplayHandle,
+};
 
 use super::types::*;
 

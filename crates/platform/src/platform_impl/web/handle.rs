@@ -1,6 +1,9 @@
 use wasm_bindgen::JsCast;
 
-use raw_window_handle::{DisplayHandle, WindowHandle, RawWindowHandle, RawDisplayHandle, WebWindowHandle, WebDisplayHandle};
+use raw_window_handle::{
+    DisplayHandle, RawDisplayHandle, RawWindowHandle, WebDisplayHandle, WebWindowHandle,
+    WindowHandle,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HandleImpl {

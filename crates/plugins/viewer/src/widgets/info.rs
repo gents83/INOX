@@ -259,7 +259,10 @@ impl Info {
             if data.show_tlas {
                 let renderer = data.params.renderer.read().unwrap();
                 let render_context = renderer.render_context();
-                let tlas_index = render_context.render_buffers.tlas_start_index.load(Ordering::Relaxed);
+                let tlas_index = render_context
+                    .render_buffers
+                    .tlas_start_index
+                    .load(Ordering::Relaxed);
                 let bhv = render_context.render_buffers.bhv.read().unwrap();
                 bhv.for_each_data(|i, _id, n| {
                     if i >= tlas_index as _ {

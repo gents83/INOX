@@ -1,11 +1,11 @@
 use inox_commands::CommandParser;
 use inox_core::{implement_unique_system_uid, ContextRc, System};
 use inox_graphics::{
-    create_quad, Light, Material, MaterialData, Mesh, MeshData, MeshFlags, RendererRw, Texture,
-    VertexAttributeLayout, View, create_cube_from_min_max, create_sphere,
+    create_cube_from_min_max, create_quad, create_sphere, Light, Material, MaterialData, Mesh,
+    MeshData, MeshFlags, RendererRw, Texture, VertexAttributeLayout, View,
 };
 use inox_log::debug_log;
-use inox_math::{Mat4Ops, Matrix4, VecBase, Vector2, Vector3, Radians, Degrees, NewAngle};
+use inox_math::{Degrees, Mat4Ops, Matrix4, NewAngle, Radians, VecBase, Vector2, Vector3};
 use inox_messenger::Listener;
 use inox_platform::{InputState, Key, KeyEvent, MouseEvent, MouseState, WindowEvent};
 use inox_resources::{DataTypeResource, Resource, SerializableResource, SerializableResourceEvent};
@@ -141,7 +141,6 @@ impl ViewerSystem {
         let mut has_lights = false;
         self.scene.get().objects().iter().for_each(|o| {
             has_lights |= o.get().has_component_recursive::<Light>();
-
         });
 
         if !has_lights {
@@ -156,16 +155,17 @@ impl ViewerSystem {
                     self.context.message_hub(),
                 ),
             );
-            let light = light_object
-                .get_mut()
-                .add_default_component::<Light>(self.context.shared_data(), self.context.message_hub());
+            let light = light_object.get_mut().add_default_component::<Light>(
+                self.context.shared_data(),
+                self.context.message_hub(),
+            );
             light.get_mut().set_active(true);
             self.scene.get_mut().add_object(light_object);
         }
         self
     }
 
-    fn generate_quad_with_color(&self, r: f32, g:f32, b:f32) -> Resource<Mesh>{
+    fn generate_quad_with_color(&self, r: f32, g: f32, b: f32) -> Resource<Mesh> {
         let mesh_id = generate_random_uid();
 
         let flat_mesh = self.context.shared_data().add_resource(
@@ -199,9 +199,8 @@ impl ViewerSystem {
         flat_mesh.get_mut().set_mesh_data(mesh_data);
         flat_mesh
     }
-    
-    fn create_cornell_scene(&mut self) {
 
+    fn create_cornell_scene(&mut self) {
         let back_wall = {
             let object_id = generate_random_uid();
             let object = self.context.shared_data().add_resource(
@@ -232,7 +231,9 @@ impl ViewerSystem {
             let mesh = self.generate_quad_with_color(1., 0., 0.);
             object.get_mut().add_component(mesh);
             object.get_mut().set_position([-1., 0., -4.].into());
-            object.get_mut().rotate([0., Radians::from(Degrees::new(90.)).0, 0.].into());
+            object
+                .get_mut()
+                .rotate([0., Radians::from(Degrees::new(90.)).0, 0.].into());
             object
         };
         let right_wall = {
@@ -249,7 +250,9 @@ impl ViewerSystem {
             let mesh = self.generate_quad_with_color(0., 1., 0.);
             object.get_mut().add_component(mesh);
             object.get_mut().set_position([1., 0., -4.].into());
-            object.get_mut().rotate([0., Radians::from(Degrees::new(90.)).0, 0.].into());
+            object
+                .get_mut()
+                .rotate([0., Radians::from(Degrees::new(90.)).0, 0.].into());
             object
         };
         let top_wall = {
@@ -266,7 +269,9 @@ impl ViewerSystem {
             let mesh = self.generate_quad_with_color(1., 1., 1.);
             object.get_mut().add_component(mesh);
             object.get_mut().set_position([0., 1., -4.].into());
-            object.get_mut().rotate([Radians::from(Degrees::new(90.)).0, 0., 0.].into());
+            object
+                .get_mut()
+                .rotate([Radians::from(Degrees::new(90.)).0, 0., 0.].into());
             object
         };
         let bottom_wall = {
@@ -283,10 +288,12 @@ impl ViewerSystem {
             let mesh = self.generate_quad_with_color(1., 1., 1.);
             object.get_mut().add_component(mesh);
             object.get_mut().set_position([0., -1., -4.].into());
-            object.get_mut().rotate([Radians::from(Degrees::new(90.)).0, 0., 0.].into());
+            object
+                .get_mut()
+                .rotate([Radians::from(Degrees::new(90.)).0, 0., 0.].into());
             object
         };
-        
+
         let left_cube = {
             let object_id = generate_random_uid();
             let object = self.context.shared_data().add_resource(
@@ -299,7 +306,7 @@ impl ViewerSystem {
                 ),
             );
             let mesh_id = generate_random_uid();
-    
+
             let mesh = self.context.shared_data().add_resource(
                 self.context.message_hub(),
                 mesh_id,
@@ -316,16 +323,19 @@ impl ViewerSystem {
                 &MaterialData::default(),
                 None,
             );
-            mesh
-                .get_mut()
+            mesh.get_mut()
                 .set_material(flat_material)
                 .set_flags(MeshFlags::Visible | MeshFlags::Opaque);
-    
+
             let mut mesh_data = MeshData {
                 vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
                 ..Default::default()
             };
-            let cube = create_cube_from_min_max([-1., -1., -1.].into(), [1., 1., 1.].into(), [0., 0., 1., 1.].into());
+            let cube = create_cube_from_min_max(
+                [-1., -1., -1.].into(),
+                [1., 1., 1.].into(),
+                [0., 0., 1., 1.].into(),
+            );
             mesh_data.append_mesh_data(cube, false);
             mesh.get_mut().set_mesh_data(mesh_data);
 
@@ -334,7 +344,7 @@ impl ViewerSystem {
             object.get_mut().scale([0.35, 0.6, 0.35].into());
             object
         };
-                
+
         let right_sphere = {
             let object_id = generate_random_uid();
             let object = self.context.shared_data().add_resource(
@@ -347,7 +357,7 @@ impl ViewerSystem {
                 ),
             );
             let mesh_id = generate_random_uid();
-    
+
             let mesh = self.context.shared_data().add_resource(
                 self.context.message_hub(),
                 mesh_id,
@@ -364,16 +374,21 @@ impl ViewerSystem {
                 &MaterialData::default(),
                 None,
             );
-            mesh
-                .get_mut()
+            mesh.get_mut()
                 .set_material(flat_material)
                 .set_flags(MeshFlags::Visible | MeshFlags::Opaque);
-    
+
             let mut mesh_data = MeshData {
                 vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
                 ..Default::default()
             };
-            let cube = create_sphere([0., 0., 0.].into(), 0.35, 64, 32, [0.5, 0.5, 0.5, 1.].into());
+            let cube = create_sphere(
+                [0., 0., 0.].into(),
+                0.35,
+                64,
+                32,
+                [0.5, 0.5, 0.5, 1.].into(),
+            );
             mesh_data.append_mesh_data(cube, false);
             mesh.get_mut().set_mesh_data(mesh_data);
 
@@ -405,7 +420,9 @@ impl ViewerSystem {
         camera_object
             .get_mut()
             .set_position(Vector3::new(0., 0., -0.5));
-        camera_object.get_mut().look_at(Vector3::new(0.0, 0.0, -1.0));
+        camera_object
+            .get_mut()
+            .look_at(Vector3::new(0.0, 0.0, -1.0));
         let camera = camera_object.get_mut().add_default_component::<Camera>(
             self.context.shared_data(),
             self.context.message_hub(),
