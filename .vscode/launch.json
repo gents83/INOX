@@ -37,7 +37,7 @@
             "preLaunchTask": "COMPILE DEBUG",
             "postDebugTask": "CLEANUP",
             "console": "integratedTerminal",
-            "symbolSearchPath": "${workspaceFolder}/crates/target//debug/, https://msdl.microsoft.com/download/symbols",
+            "symbolSearchPath": "${workspaceFolder}/crates/target//debug/",
         },
         {
             "name": "RUN VIEWER RELEASE",
@@ -58,7 +58,7 @@
             "preLaunchTask": "COMPILE RELEASE",
             "postDebugTask": "CLEANUP",
             "console": "integratedTerminal",
-            "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/, https://msdl.microsoft.com/download/symbols",
+            "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/",
         },
         {
             "name": "RUN VIEWER DEBUG",
@@ -90,7 +90,7 @@
             "preLaunchTask": "COMPILE DEBUG",
             "postDebugTask": "CLEANUP",
             "console": "integratedTerminal",
-            "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/, https://msdl.microsoft.com/download/symbols",
+            "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/",
         },
         {
             "name": "RUN BINARIZER DEBUG",
@@ -106,7 +106,7 @@
             "preLaunchTask": "COMPILE DEBUG",
             "postDebugTask": "CLEANUP",
             "console": "integratedTerminal",
-            "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/, https://msdl.microsoft.com/download/symbols",
+            "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/",
         },
         {
             "name": "RUN BINARIZER RELEASE",
@@ -122,7 +122,7 @@
             "preLaunchTask": "COMPILE RELEASE",
             "postDebugTask": "CLEANUP",
             "console": "integratedTerminal",
-            "symbolSearchPath": "${workspaceFolder}/crates/target/release/in_use/, ${workspaceFolder}/crates/target/release/, https://msdl.microsoft.com/download/symbols",
+            "symbolSearchPath": "${workspaceFolder}/crates/target/release/in_use/, ${workspaceFolder}/crates/target/release/",
         },
         {
             "name": "RUN BINARIZER RELEASE FOR WEB",
@@ -139,7 +139,7 @@
             "preLaunchTask": "COMPILE RELEASE",
             "postDebugTask": "CLEANUP",
             "console": "integratedTerminal",
-            "symbolSearchPath": "${workspaceFolder}/crates/target/release/in_use/, ${workspaceFolder}/crates/target/release/, https://msdl.microsoft.com/download/symbols",
+            "symbolSearchPath": "${workspaceFolder}/crates/target/release/in_use/, ${workspaceFolder}/crates/target/release/",
         },
         {
             "name": "RUN LAUNCHER RELEASE",
@@ -152,7 +152,7 @@
             "preLaunchTask": "COMPILE RELEASE",
             "postDebugTask": "CLEANUP",
             "console": "integratedTerminal",
-            "symbolSearchPath": "${workspaceFolder}/crates/target/release/, https://msdl.microsoft.com/download/symbols",
+            "symbolSearchPath": "${workspaceFolder}/crates/target/release/",
         },
         /*
         {
@@ -169,7 +169,7 @@
             "requireExactSource": false,
             "postDebugTask": "CLEANUP",
             "console": "integratedTerminal",
-            "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/, https://msdl.microsoft.com/download/symbols",
+            "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/",
         },
         */
     ]

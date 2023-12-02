@@ -29,6 +29,7 @@ const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 2u;
 const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE: u32 = 4u;
 const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 8u;
 
+const PI: f32 = 3.141592653589793;
 const MAX_FLOAT: f32 = 3.402823466e+38;
 
 const VERTEX_ATTRIBUTE_HAS_POSITION: u32 = 0u;
@@ -204,13 +205,6 @@ struct Ray {
 
 struct Rays {
     data: array<Ray>,
-};
-
-struct RayPayload {
-    origin: vec3<f32>,
-    pixel_x: u32,
-    direction: vec3<f32>,
-    pixel_y: u32,
 };
 
 struct RayJob {

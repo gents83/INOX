@@ -5,7 +5,7 @@ use crate::{
     CullingResults, DrawCommandType, IndicesBuffer, MeshFlags, MeshesBuffer,
     MeshesInverseMatrixBuffer, MeshletsBuffer, OutputPass, Pass, RaysBuffer, RenderContext,
     RuntimeVerticesBuffer, ShaderStage, Texture, TextureFormat, TextureId, TextureUsage,
-    TextureView,
+    TextureView, ConstantDataRw, VertexAttributesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -19,6 +19,7 @@ pub struct ComputePathTracingPass {
     context: ContextRc,
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
+    constant_data: ConstantDataRw,
     render_target: Handle<Texture>,
     meshes: MeshesBuffer,
     meshes_inverse_matrix: MeshesInverseMatrixBuffer,
@@ -27,6 +28,7 @@ pub struct ComputePathTracingPass {
     bhv: BHVBuffer,
     indices: IndicesBuffer,
     runtime_vertices: RuntimeVerticesBuffer,
+    vertices_attributes: VertexAttributesBuffer,
     rays: RaysBuffer,
 }
 unsafe impl Send for ComputePathTracingPass {}
@@ -66,6 +68,7 @@ impl Pass for ComputePathTracingPass {
                 &data,
                 None,
             ),
+            constant_data: render_context.constant_data.clone(),
             meshes: render_context.render_buffers.meshes.clone(),
             meshes_inverse_matrix: render_context.render_buffers.meshes_inverse_matrix.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
@@ -73,6 +76,7 @@ impl Pass for ComputePathTracingPass {
             bhv: render_context.render_buffers.bhv.clone(),
             indices: render_context.render_buffers.indices.clone(),
             runtime_vertices: render_context.render_buffers.runtime_vertices.clone(),
+            vertices_attributes: render_context.render_buffers.vertex_attributes.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_NAME),
             render_target: None,
             rays: render_context.render_buffers.rays.clone(),
@@ -91,12 +95,22 @@ impl Pass for ComputePathTracingPass {
             .load(Ordering::SeqCst);
 
         self.binding_data
+        .add_uniform_buffer(
+            &mut *self.constant_data.write().unwrap(),
+            Some("ConstantData"),
+            BindingInfo {
+                group_index: 0,
+                binding_index: 0,
+                stage: ShaderStage::Compute,
+                ..Default::default()
+            },
+        )
             .add_storage_buffer(
                 &mut *self.indices.write().unwrap(),
                 Some("Indices"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 0,
+                    binding_index: 1,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Read | BindingFlags::Index,
                 },
@@ -106,9 +120,19 @@ impl Pass for ComputePathTracingPass {
                 Some("Runtime Vertices"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 1,
+                    binding_index: 2,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Read | BindingFlags::Vertex,
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.vertices_attributes.write().unwrap(),
+                Some("Vertices Attributes"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 3,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
                 },
             )
             .add_storage_buffer(
@@ -116,7 +140,7 @@ impl Pass for ComputePathTracingPass {
                 Some("Meshes"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 2,
+                    binding_index: 4,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -126,7 +150,7 @@ impl Pass for ComputePathTracingPass {
                 Some("Meshlets"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 3,
+                    binding_index: 5,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -136,7 +160,7 @@ impl Pass for ComputePathTracingPass {
                 Some("Culling Results"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 4,
+                    binding_index: 6,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Read | BindingFlags::Indirect,
                 },
@@ -145,8 +169,8 @@ impl Pass for ComputePathTracingPass {
                 &mut *self.bhv.write().unwrap(),
                 Some("BHV"),
                 BindingInfo {
-                    group_index: 0,
-                    binding_index: 5,
+                    group_index: 1,
+                    binding_index: 0,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -155,8 +179,8 @@ impl Pass for ComputePathTracingPass {
                 &mut *self.meshes_inverse_matrix.write().unwrap(),
                 Some("Meshes Inverse Matrix"),
                 BindingInfo {
-                    group_index: 0,
-                    binding_index: 6,
+                    group_index: 1,
+                    binding_index: 1,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -166,7 +190,7 @@ impl Pass for ComputePathTracingPass {
                 Some("TLAS index"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 0,
+                    binding_index: 2,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -176,7 +200,7 @@ impl Pass for ComputePathTracingPass {
                 Some("Rays"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 1,
+                    binding_index: 3,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite,
                 },
@@ -185,7 +209,7 @@ impl Pass for ComputePathTracingPass {
                 self.render_target.as_ref().unwrap().id(),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 2,
+                    binding_index: 4,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Write | BindingFlags::Storage,
                 },

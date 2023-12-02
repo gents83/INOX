@@ -1,11 +1,34 @@
+const MAX_PATH_BOUNCES: u32 = 8u;
+const NUM_SAMPLES_PER_PIXEL: u32 = 4u;
+
+
+struct RadianceData {
+    radiance: vec3<f32>, 
+    throughput_weight: vec3<f32>, 
+    seed: vec2<u32>,
+    ray: Ray,
+}
+
+fn sample_sphere(random_numbers: vec2<f32>) -> vec3<f32> {
+    let z = 2. * random_numbers.y - 1.;
+    let phi = 2. * PI * random_numbers.x;
+    let s = sqrt(1. - z * z);
+    let x = cos(phi) * s;
+    let y = sin(phi) * s;
+    return vec3<f32>(x, y, z);
+}
+
+fn sample_hemisphere(random_numbers: vec2<f32>, normal: vec3<f32>) -> vec3<f32> {
+    var direction = sample_sphere(random_numbers);
+    let d = dot(normal, direction);
+    if (d < 0.) {
+        direction -= 2. * d * normal;
+    }
+    return direction;
+}
+
 // Need constant_data, meshlets, meshes, indices, runtime_vertices, vertices_attributes
-
-fn visibility_to_gbuffer(visibility_id: u32, screen_uv: vec2<f32>) -> PixelData 
-{     
-    var uv_set: array<vec2<f32>, 4>;
-    var normal = vec3<f32>(0.);
-    var color = vec4<f32>(1.);
-
+fn compute_radiance_from_visibility(visibility_id: u32, screen_uv: vec2<f32>, data: RadianceData) -> RadianceData { 
     let meshlet_id = (visibility_id >> 8u) - 1u; 
     let primitive_id = visibility_id & 255u;
     
@@ -14,17 +37,16 @@ fn visibility_to_gbuffer(visibility_id: u32, screen_uv: vec2<f32>) -> PixelData
 
     let mesh_id = u32((*meshlet).mesh_index);
     let mesh = &meshes.data[mesh_id];
-    let material_id = u32((*mesh).material_index);
     let position_offset = (*mesh).vertices_position_offset;
     let attributes_offset = (*mesh).vertices_attribute_offset;
     let vertex_layout = (*mesh).vertices_attribute_layout;
     let vertex_attribute_stride = vertex_layout_stride(vertex_layout);   
     let offset_color = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_COLOR);
     let offset_normal = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_NORMAL);
-    let offset_uv0 = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_UV1);
-    let offset_uv1 = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_UV2);
-    let offset_uv2 = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_UV3);
-    let offset_uv3 = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_UV4); 
+        
+    var normal = vec3<f32>(0.);
+    var emissive_color = vec3<f32>(0.25);
+    var color = vec4<f32>(1.);
 
     let vert_indices = vec3<u32>(indices.data[index_offset], indices.data[index_offset + 1u], indices.data[index_offset + 2u]);
     let pos_indices = vert_indices + vec3<u32>(position_offset, position_offset, position_offset);
@@ -35,7 +57,6 @@ fn visibility_to_gbuffer(visibility_id: u32, screen_uv: vec2<f32>) -> PixelData
     let v1 = runtime_vertices.data[pos_indices.x].world_pos;
     let v2 = runtime_vertices.data[pos_indices.y].world_pos;
     let v3 = runtime_vertices.data[pos_indices.z].world_pos;
-    
     let mvp = constant_data.proj * constant_data.view;
     var p1 = mvp * vec4<f32>(v1, 1.);
     var p2 = mvp * vec4<f32>(v2, 1.);
@@ -50,13 +71,8 @@ fn visibility_to_gbuffer(visibility_id: u32, screen_uv: vec2<f32>) -> PixelData
     // Get delta vector that describes current screen point relative to vertex 0
     var screen_pixel = screen_uv.xy;
     screen_pixel.y = 1. - screen_pixel.y;
-    let delta = screen_pixel + -p1.xy;
     let barycentrics = compute_barycentrics(p1.xy, p2.xy, p3.xy, screen_pixel);
-    let deriv = compute_partial_derivatives(p1.xy, p2.xy, p3.xy);   
-
-    let world_pos = barycentrics.x * v1 + barycentrics.y * v2 + barycentrics.z * v3; 
-    let depth = barycentrics.x * p1.z + barycentrics.y * p2.z + barycentrics.z * p3.z;  
-
+    
     if (offset_color >= 0) {
         let a1 = vertices_attributes.data[attr_indices.x + u32(offset_color)];
         let a2 = vertices_attributes.data[attr_indices.y + u32(offset_color)];
@@ -76,42 +92,14 @@ fn visibility_to_gbuffer(visibility_id: u32, screen_uv: vec2<f32>) -> PixelData
         normal = barycentrics.x * n1 + barycentrics.y * n2 + barycentrics.z * n3;
         normal = rotate_vector(normal, (*mesh).orientation); 
     }
-    if(offset_uv0 >= 0) {
-        let a1 = vertices_attributes.data[attr_indices.x + u32(offset_uv0)];
-        let a2 = vertices_attributes.data[attr_indices.y + u32(offset_uv0)];
-        let a3 = vertices_attributes.data[attr_indices.z + u32(offset_uv0)];
-        let uv1 = unpack2x16float(a1);
-        let uv2 = unpack2x16float(a2);
-        let uv3 = unpack2x16float(a3);
-        uv_set[0] = interpolate_2d_attribute(uv1, uv2, uv3, deriv, delta);
-    }
-    if(offset_uv1 >= 0) {
-        let a1 = vertices_attributes.data[attr_indices.x + u32(offset_uv1)];
-        let a2 = vertices_attributes.data[attr_indices.y + u32(offset_uv1)];
-        let a3 = vertices_attributes.data[attr_indices.z + u32(offset_uv1)];
-        let uv1 = unpack2x16float(a1);
-        let uv2 = unpack2x16float(a2);
-        let uv3 = unpack2x16float(a3);
-        uv_set[1] = interpolate_2d_attribute(uv1, uv2, uv3, deriv, delta);
-    }
-    if(offset_uv2 >= 0) {
-        let a1 = vertices_attributes.data[attr_indices.x + u32(offset_uv2)];
-        let a2 = vertices_attributes.data[attr_indices.y + u32(offset_uv2)];
-        let a3 = vertices_attributes.data[attr_indices.z + u32(offset_uv2)];
-        let uv1 = unpack2x16float(a1);
-        let uv2 = unpack2x16float(a2);
-        let uv3 = unpack2x16float(a3);
-        uv_set[2] = interpolate_2d_attribute(uv1, uv2, uv3, deriv, delta);
-    }
-    if(offset_uv3 >= 0) {
-        let a1 = vertices_attributes.data[attr_indices.x + u32(offset_uv3)];
-        let a2 = vertices_attributes.data[attr_indices.y + u32(offset_uv3)];
-        let a3 = vertices_attributes.data[attr_indices.z + u32(offset_uv3)];
-        let uv1 = unpack2x16float(a1);
-        let uv2 = unpack2x16float(a2);
-        let uv3 = unpack2x16float(a3);
-        uv_set[3] = interpolate_2d_attribute(uv1, uv2, uv3, deriv, delta);
-    }    
 
-    return PixelData(world_pos, depth, normal, material_id, color, uv_set);
+    let seed = get_random_numbers(data.seed);    
+    let rnd = vec2<f32>(seed) * 2.32830643654e-10;
+    let direction = sample_hemisphere(rnd, normal);
+    let d = dot(normal, direction);
+
+    let new_ray = Ray(data.ray.origin + (data.ray.direction * data.ray.t_max) + (normal * HIT_EPSILON), 0., direction, MAX_FLOAT);
+    let rad = data.radiance + data.throughput_weight * emissive_color;
+    let weight = data.throughput_weight * (color.rgb * 2. * d);
+    return RadianceData(rad, weight, seed, new_ray);
 }

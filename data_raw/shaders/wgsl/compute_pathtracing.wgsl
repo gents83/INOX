@@ -1,51 +1,47 @@
 #import "common.inc"
 #import "utils.inc"
 
-struct Job {
-    state: u32,
-    tlas_index: i32,
-    blas_index: i32,
-    nearest: f32,
-    visibility_id: u32,
-};
-
 @group(0) @binding(0)
-var<storage, read> indices: Indices;
+var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
-var<storage, read> runtime_vertices: RuntimeVertices;
+var<storage, read> indices: Indices;
 @group(0) @binding(2)
-var<storage, read> meshes: Meshes;
+var<storage, read> runtime_vertices: RuntimeVertices;
 @group(0) @binding(3)
-var<storage, read> meshlets: Meshlets;
+var<storage, read> vertices_attributes: VerticesAttributes;
 @group(0) @binding(4)
-var<storage, read> culling_result: array<u32>;
+var<storage, read> meshes: Meshes;
 @group(0) @binding(5)
-var<storage, read> bhv: BHV;
+var<storage, read> meshlets: Meshlets;
 @group(0) @binding(6)
-var<storage, read> meshes_inverse_matrix: Matrices;
+var<storage, read> culling_result: array<u32>;
 
 @group(1) @binding(0)
-var<uniform> tlas_starting_index: u32;
+var<storage, read> bhv: BHV;
 @group(1) @binding(1)
-var<storage, read_write> rays: Rays;
+var<storage, read> meshes_inverse_matrix: Matrices;
 @group(1) @binding(2)
+var<uniform> tlas_starting_index: u32;
+@group(1) @binding(3)
+var<storage, read_write> rays: Rays;
+@group(1) @binding(4)
 var render_target: texture_storage_2d<rgba8unorm, write>;
 
 #import "matrix_utils.inc"
+#import "geom_utils.inc"
 #import "raytracing.inc"
+#import "pathtracing.inc"
 
-
-fn execute_job(job_index: u32) -> vec4<f32>  {    
-    var ray = rays.data[job_index];
+fn compute_visibility(ray: ptr<function, Ray>) -> u32 
+{
     var nearest = MAX_FLOAT;  
-    var visibility_id = 0u;
-    
+    var visibility_id = 0u;        
     var tlas_index = 0;
-    
+
     while (tlas_index >= 0)
     {
         let node = &bhv.data[tlas_starting_index + u32(tlas_index)];    
-        let intersection = intersect_aabb(&ray, (*node).min, (*node).max);
+        let intersection = intersect_aabb(ray, (*node).min, (*node).max);
         if (intersection >= nearest) {
             tlas_index = (*node).miss;
             continue;
@@ -58,15 +54,47 @@ fn execute_job(job_index: u32) -> vec4<f32>  {
         //leaf node
         let mesh_id = u32((*node).reference);
         let inverse_matrix = &meshes_inverse_matrix.data[mesh_id];    
-        let transformed_origin = (*inverse_matrix) * vec4<f32>(ray.origin, 1.);
-        let transformed_direction = (*inverse_matrix) * vec4<f32>(ray.direction, 0.);
-        var transformed_ray = Ray(transformed_origin.xyz, ray.t_min, transformed_direction.xyz, ray.t_max);
-        let result = traverse_bhv_of_meshlets(&ray, &transformed_ray, mesh_id, nearest);
+        let transformed_origin = (*inverse_matrix) * vec4<f32>((*ray).origin, 1.);
+        let transformed_direction = (*inverse_matrix) * vec4<f32>((*ray).direction, 0.);
+        var transformed_ray = Ray(transformed_origin.xyz, (*ray).t_min, transformed_direction.xyz, (*ray).t_max);
+        let result = traverse_bhv_of_meshlets(ray, &transformed_ray, mesh_id, nearest);
         visibility_id = select(visibility_id, result.visibility_id, result.distance < nearest);
-        nearest = result.distance;
+        nearest = min(nearest, result.distance);
         tlas_index = (*node).miss;
     } 
-    return unpack4x8unorm(visibility_id);
+    (*ray).t_max = nearest;
+    return visibility_id;
+}
+
+
+fn execute_job(job_index: u32, uv_coords: vec2<f32>) -> vec4<f32>  
+{    
+    var ray = rays.data[job_index];
+
+    var pixel_color = vec3<f32>(0.);
+    var data = RadianceData(vec3<f32>(0.), vec3<f32>(1.), vec2<u32>(uv_coords), ray);
+
+    var sample = 0u;
+    while(sample < NUM_SAMPLES_PER_PIXEL)
+    {
+        data.radiance = vec3<f32>(0.);
+        data.throughput_weight = vec3<f32>(1.);
+        var bounce = 0u;
+        while(bounce < MAX_PATH_BOUNCES)
+        {
+            let visibility_id = compute_visibility(&ray);
+            if(visibility_id == 0u) {
+                break;
+            }
+            data.ray = ray;
+            data = compute_radiance_from_visibility(visibility_id, uv_coords, data);
+            bounce = bounce + 1u;
+        }
+        pixel_color += data.radiance;
+        sample = sample + 1u;
+    }
+    pixel_color /= f32(NUM_SAMPLES_PER_PIXEL);
+    return vec4<f32>(pixel_color, 1.);
 }
 
 var<workgroup> jobs_count: atomic<i32>;
@@ -92,7 +120,11 @@ fn main(
             continue;
         }    
         
-        let v = execute_job(u32(pixel.y * dimensions.x + pixel.x));
+        let index = u32(pixel.y * dimensions.x + pixel.x);
+        var uv_coords = 2. * (vec2<f32>(pixel) / vec2<f32>(dimensions)) - vec2<f32>(1., 1.);
+        uv_coords.y = -uv_coords.y;
+
+        let v = execute_job(index, uv_coords);
         textureStore(render_target, pixel, v);
         job_index = max_jobs - atomicSub(&jobs_count, 1);
     }

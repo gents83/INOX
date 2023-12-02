@@ -14,7 +14,6 @@
 // [4] "An Inexpensive BRDF Model for Physically based Rendering" by Christophe Schlick
 //     https://www.cs.virginia.edu/~jdl/bib/appearance/analytic%20models/schlick94b.pdf
 
-const PI: f32 = 3.141592653589793;
 const AMBIENT_COLOR: vec3<f32> = vec3<f32>(1., 1., 1.);
 const AMBIENT_INTENSITY = 1.;
 const NULL_VEC4: vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);
