@@ -235,7 +235,7 @@ impl Pass for ComputePathTracingPass {
                     group_index: 1,
                     binding_index: 6,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::Write | BindingFlags::Storage,
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
             );
 

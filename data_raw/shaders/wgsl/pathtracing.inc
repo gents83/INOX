@@ -1,5 +1,5 @@
 const MAX_PATH_BOUNCES: u32 = 8u;
-const NUM_SAMPLES_PER_PIXEL: u32 = 4u;
+const NUM_SAMPLES_PER_PIXEL: u32 = 1u;
 const ADDITIONAL_EMISSIVE: f32 = 0.2;
 
 

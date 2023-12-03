@@ -29,7 +29,7 @@ var<uniform> tlas_starting_index: u32;
 @group(1) @binding(5)
 var<storage, read_write> rays: Rays;
 @group(1) @binding(6)
-var render_target: texture_storage_2d<rgba8unorm, write>;
+var render_target: texture_storage_2d<rgba8unorm, read_write>;
 
 #import "texture_utils.inc"
 #import "matrix_utils.inc"
@@ -78,7 +78,7 @@ fn execute_job(job_index: u32, pixel: vec2<f32>, dimensions: vec2<f32>) -> vec4<
 {    
     var ray = rays.data[job_index];
     var sample = 0u;
-    var seed = vec2<u32>(pixel * dimensions);
+    var seed = vec2<u32>(pixel * dimensions) ^ vec2<u32>(constant_data.frame_index << 16u);
     var uv_coords = 2. * (pixel / dimensions) - vec2<f32>(1., 1.);
     uv_coords.y = -uv_coords.y;
     var pixel_color = vec3<f32>(0.);
@@ -130,8 +130,13 @@ fn main(
         
         let index = u32(pixel.y * dimensions.x + pixel.x);
 
-        let v = execute_job(index, vec2<f32>(pixel), vec2<f32>(dimensions));
-        textureStore(render_target, pixel, v);
+        var out_color = execute_job(index, vec2<f32>(pixel), vec2<f32>(dimensions));
+        if(constant_data.frame_index > 0u) {
+            var prev_value = textureLoad(render_target, pixel);
+            let weight = 1. / f32(constant_data.frame_index + 1u);
+            out_color = vec4<f32>((1. - weight) * prev_value.rgb + weight * out_color.rgb, 1.);
+        } 
+        textureStore(render_target, pixel, out_color);
         job_index = max_jobs - atomicSub(&jobs_count, 1);
     }
 }

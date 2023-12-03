@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use inox_math::{matrix4_to_array, Degrees, Mat4Ops, Matrix4, Radians, Vector2};
+use inox_math::{matrix4_to_array, Mat4Ops, Matrix4, Vector2};
 
 use crate::{AsBinding, GpuBuffer, RenderCoreContext};
 
@@ -21,7 +21,7 @@ struct Data {
     pub inverse_view_proj: [[f32; 4]; 4],
     pub screen_width: f32,
     pub screen_height: f32,
-    pub cam_fov: f32,
+    pub frame_index: u32,
     pub flags: u32,
 }
 
@@ -80,7 +80,6 @@ impl ConstantData {
         view: Matrix4,
         proj: Matrix4,
         screen_size: Vector2,
-        fov_in_degrees: Degrees,
     ) -> bool {
         let v = matrix4_to_array(view);
         let p = matrix4_to_array(proj);
@@ -89,15 +88,16 @@ impl ConstantData {
             || self.data.screen_width != screen_size.x
             || self.data.screen_height != screen_size.y
         {
-            let fov_in_radians: Radians = fov_in_degrees.into();
             self.data.view = v;
             self.data.proj = p;
-            self.data.cam_fov = fov_in_radians.0;
+            self.data.frame_index = 0;
             self.data.inverse_view_proj = matrix4_to_array((proj * view).inverse());
             self.data.screen_width = screen_size.x;
             self.data.screen_height = screen_size.y;
             self.set_dirty(true);
         }
+        self.data.frame_index += 1;
+        self.set_dirty(true);
         self.is_dirty()
     }
     pub fn view(&self) -> [[f32; 4]; 4] {

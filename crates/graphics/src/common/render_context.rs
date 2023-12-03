@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
-use inox_math::{Degrees, Matrix4, Vector2};
+use inox_math::{Matrix4, Vector2};
 use inox_platform::Handle;
 use inox_resources::Resource;
 
@@ -190,14 +190,13 @@ impl RenderContext {
         &self,
         view: Matrix4,
         proj: Matrix4,
-        screen_size: Vector2,
-        fov_in_degrees: Degrees,
+        screen_size: Vector2
     ) {
         inox_profiler::scoped_profile!("render_context::update_constant_data");
         self.constant_data
             .write()
             .unwrap()
-            .update(view, proj, screen_size, fov_in_degrees);
+            .update(view, proj, screen_size);
         if self.core.config.read().unwrap().format.is_srgb() {
             self.constant_data
                 .write()
