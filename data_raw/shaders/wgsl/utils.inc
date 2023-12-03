@@ -78,6 +78,18 @@ fn unpack_unorm_to_4_f32(v: u32) -> vec4<f32> {
     return vec4<f32>(r,g,b,a);
 }
 
+fn iq_hash(v: vec2<f32>) -> f32 {
+    return fract(sin(dot(v, vec2(11.9898, 78.233))) * 43758.5453);
+}
+fn blue_noise(in: vec2<f32>) -> f32 {
+    var v =  iq_hash( in + vec2<f32>(-1., 0.) )
+             + iq_hash( in + vec2<f32>( 1., 0.) )
+             + iq_hash( in + vec2<f32>( 0., 1.) )
+             + iq_hash( in + vec2<f32>( 0.,-1.) ); 
+    v /= 4.;
+    return (iq_hash(in) - v + .5);
+}
+
 // A single iteration of Bob Jenkins' One-At-A-Time hashing algorithm.
 fn hash( x: u32 ) -> u32 {
     var v = x;

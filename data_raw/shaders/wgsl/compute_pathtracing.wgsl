@@ -77,19 +77,13 @@ fn compute_visibility_from_traversal(ray: ptr<function, Ray>) -> u32
 fn execute_job(job_index: u32, pixel: vec2<f32>, dimensions: vec2<f32>) -> vec4<f32>  
 {    
     var ray = rays.data[job_index];
-    var sample = 0u;
     var seed = vec2<u32>(pixel * dimensions) ^ vec2<u32>(constant_data.frame_index << 16u);
     var uv_coords = 2. * (pixel / dimensions) - vec2<f32>(1., 1.);
     uv_coords.y = -uv_coords.y;
     var pixel_color = vec3<f32>(0.);
-    while(sample < NUM_SAMPLES_PER_PIXEL)
-    {
-        sample = sample + 1u;
+    for (var sample = 0u; sample < NUM_SAMPLES_PER_PIXEL; sample++) {
         var radiance_data = RadianceData(ray, seed, vec3<f32>(0.), vec3<f32>(1.));
-        var bounce = 0u;
-        while(bounce < MAX_PATH_BOUNCES)
-        {
-            bounce = bounce + 1u;
+        for (var bounce = 0u; bounce < MAX_PATH_BOUNCES; bounce++) {
             var r = radiance_data.ray;
             let visibility_id = compute_visibility_from_traversal(&r);
             if (visibility_id == 0u) {

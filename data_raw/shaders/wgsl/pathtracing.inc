@@ -1,6 +1,6 @@
 const MAX_PATH_BOUNCES: u32 = 8u;
 const NUM_SAMPLES_PER_PIXEL: u32 = 1u;
-const ADDITIONAL_EMISSIVE: f32 = 0.2;
+const ADDITIONAL_EMISSIVE: f32 = 0.25;
 
 
 struct RadianceData {
@@ -22,10 +22,7 @@ fn sample_sphere(random_numbers: vec2<f32>) -> vec3<f32> {
 fn sample_hemisphere(random_numbers: vec2<f32>, normal: vec3<f32>) -> vec3<f32> {
     var direction = sample_sphere(random_numbers);
     let d = dot(normal, direction);
-    if (d < 0.) {
-        direction -= 2. * d * normal;
-    }
-    return direction;
+    return select(direction, direction - 2. * d * normal, d < 0.);
 }
 
 // Need constant_data, meshlets, meshes, indices, runtime_vertices, vertices_attributes
