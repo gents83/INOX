@@ -49,7 +49,7 @@ fn compute_visibility_from_traversal(ray: ptr<function, Ray>) -> u32
     {
         let node = &bhv.data[tlas_starting_index + u32(tlas_index)];    
         let intersection = intersect_aabb(ray, (*node).min, (*node).max);
-        if (intersection >= nearest) {
+        if (intersection > nearest) {
             tlas_index = (*node).miss;
             continue;
         }
@@ -74,32 +74,32 @@ fn compute_visibility_from_traversal(ray: ptr<function, Ray>) -> u32
 }
 
 
-fn execute_job(job_index: u32, uv_coords: vec2<f32>) -> vec4<f32>  
+fn execute_job(job_index: u32, pixel: vec2<f32>, dimensions: vec2<f32>) -> vec4<f32>  
 {    
     var ray = rays.data[job_index];
-
-    var pixel_color = vec3<f32>(0.);
-
     var sample = 0u;
+    var seed = vec2<u32>(pixel * dimensions);
+    var uv_coords = 2. * (pixel / dimensions) - vec2<f32>(1., 1.);
+    uv_coords.y = -uv_coords.y;
+    var pixel_color = vec3<f32>(0.);
     while(sample < NUM_SAMPLES_PER_PIXEL)
     {
-        var data = RadianceData(ray.origin, ray.direction, MAX_FLOAT, vec2<u32>(uv_coords), vec3<f32>(0.), vec3<f32>(1.));
+        sample = sample + 1u;
+        var radiance_data = RadianceData(ray, seed, vec3<f32>(0.), vec3<f32>(1.));
         var bounce = 0u;
         while(bounce < MAX_PATH_BOUNCES)
         {
-            var r = Ray(data.origin, 0., data.direction, MAX_FLOAT);
+            bounce = bounce + 1u;
+            var r = radiance_data.ray;
             let visibility_id = compute_visibility_from_traversal(&r);
-            if(visibility_id == 0u) {
+            if (visibility_id == 0u) {
                 break;
             }
-            data.origin = r.origin;
-            data.direction = r.direction;
-            data.t = r.t_max;
-            data = compute_radiance_from_visibility(visibility_id, uv_coords, data);
-            bounce = bounce + 1u;
+            radiance_data.ray = r;
+            radiance_data = compute_radiance_from_visibility(visibility_id, uv_coords, radiance_data);
+            seed = radiance_data.seed;
         }
-        pixel_color += data.radiance;
-        sample = sample + 1u;
+        pixel_color += radiance_data.radiance;
     }
     pixel_color /= f32(NUM_SAMPLES_PER_PIXEL);
     return vec4<f32>(pixel_color, 1.);
@@ -129,10 +129,8 @@ fn main(
         }    
         
         let index = u32(pixel.y * dimensions.x + pixel.x);
-        var uv_coords = 2. * (vec2<f32>(pixel) / vec2<f32>(dimensions)) - vec2<f32>(1., 1.);
-        uv_coords.y = -uv_coords.y;
 
-        let v = execute_job(index, uv_coords);
+        let v = execute_job(index, vec2<f32>(pixel), vec2<f32>(dimensions));
         textureStore(render_target, pixel, v);
         job_index = max_jobs - atomicSub(&jobs_count, 1);
     }

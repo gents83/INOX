@@ -90,7 +90,7 @@ fn traverse_bhv_of_meshlets(world_ray: ptr<function, Ray>, local_ray: ptr<functi
     { 
         let node = &bhv.data[u32(blas_index)];   
         let intersection = intersect_aabb(local_ray, (*node).min, (*node).max);
-        if (intersection >= nearest) {
+        if (intersection > nearest) {
             blas_index = select((*node).miss, (*node).miss + mesh_blas_index, (*node).miss >= 0);
             continue;
         }

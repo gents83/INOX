@@ -64,7 +64,7 @@ fn visibility_to_gbuffer(visibility_id: u32, screen_uv: vec2<f32>) -> PixelData
         let c1 = unpack_unorm_to_4_f32(a1);
         let c2 = unpack_unorm_to_4_f32(a2);
         let c3 = unpack_unorm_to_4_f32(a3);
-        color = barycentrics.x * c1 + barycentrics.y * c2 + barycentrics.z * c3;    
+        color *= barycentrics.x * c1 + barycentrics.y * c2 + barycentrics.z * c3;    
     }
     if (offset_normal >= 0) {
         let a1 = vertices_attributes.data[attr_indices.x + u32(offset_normal)];

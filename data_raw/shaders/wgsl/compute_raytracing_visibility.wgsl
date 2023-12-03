@@ -46,7 +46,7 @@ fn execute_job(job_index: u32) -> vec4<f32>  {
     {
         let node = &bhv.data[tlas_starting_index + u32(tlas_index)];    
         let intersection = intersect_aabb(&ray, (*node).min, (*node).max);
-        if (intersection >= nearest) {
+        if (intersection > nearest) {
             tlas_index = (*node).miss;
             continue;
         }

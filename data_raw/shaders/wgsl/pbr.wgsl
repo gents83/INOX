@@ -82,10 +82,12 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     {
         var pixel_data = visibility_to_gbuffer(visibility_id, v_in.uv.xy);
         let material_id = pixel_data.material_id;
+        let material = &materials.data[material_id];
+        pixel_data.color *= (*material).base_color;
         if (has_texture(material_id, TEXTURE_TYPE_BASE_COLOR)) {  
             let uv = material_texture_uv(&pixel_data, TEXTURE_TYPE_BASE_COLOR);
             let texture_color = sample_texture(uv);
-            pixel_data.color *= texture_color;
+            pixel_data.color *= texture_color * (*material).diffuse_color;
         }
         let alpha = material_alpha(material_id, pixel_data.color.a);
         if (alpha < 0.) {

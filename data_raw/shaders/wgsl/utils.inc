@@ -89,18 +89,18 @@ fn hash( x: u32 ) -> u32 {
     return v;
 }
 
+// This is PCG
 fn get_random_numbers(seed: vec2<u32>) -> vec2<u32> {
-    // This is PCG2D: https://jcgt.org/published/0009/03/02/
     var new_seed = seed;
     new_seed = 1664525u * new_seed + 1013904223u;
-    new_seed.x = new_seed.x + 1664525u * new_seed.y;
-    new_seed.y = new_seed.y + 1664525u * new_seed.x;
+    new_seed.x += 1664525u * new_seed.y;
+    new_seed.y += 1664525u * new_seed.x;
     new_seed.x = new_seed.x ^ (new_seed.x >> 16u);
-    new_seed.y = new_seed.y ^ (new_seed.x >> 16u);
-    new_seed.x = new_seed.x + 1664525u * new_seed.y;
-    new_seed.y = new_seed.y + 1664525u * new_seed.x;
+    new_seed.y = new_seed.y ^ (new_seed.y >> 16u);
+    new_seed.x += 1664525u * new_seed.y;
+    new_seed.y += 1664525u * new_seed.x;
     new_seed.x = new_seed.x ^ (new_seed.x >> 16u);
-    new_seed.y = new_seed.y ^ (new_seed.x >> 16u);
+    new_seed.y = new_seed.y ^ (new_seed.y >> 16u);
     return new_seed;
 }
 
