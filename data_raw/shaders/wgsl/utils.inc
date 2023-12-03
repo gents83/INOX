@@ -35,11 +35,17 @@ fn decode_snorm(i: u32, n: u32) -> f32 {
     }
 }
 
-
-fn decode_as_vec3(v: u32) -> vec3<f32> {
+fn unpack_unorm_to_3_f32(v: u32) -> vec3<f32> {
     let vx = decode_unorm((v >> 20u) & 0x000003FFu, 10u);
     let vy = decode_unorm((v >> 10u) & 0x000003FFu, 10u);
     let vz = decode_unorm(v & 0x000003FFu, 10u);
+    return vec3<f32>(vx, vy, vz);
+}
+
+fn unpack_snorm_to_3_f32(v: u32) -> vec3<f32> {
+    let vx = decode_snorm((v >> 20u) & 0x000003FFu, 10u);
+    let vy = decode_snorm((v >> 10u) & 0x000003FFu, 10u);
+    let vz = decode_snorm(v & 0x000003FFu, 10u);
     return vec3<f32>(vx, vy, vz);
 }
 

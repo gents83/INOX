@@ -70,9 +70,9 @@ fn visibility_to_gbuffer(visibility_id: u32, screen_uv: vec2<f32>) -> PixelData
         let a1 = vertices_attributes.data[attr_indices.x + u32(offset_normal)];
         let a2 = vertices_attributes.data[attr_indices.y + u32(offset_normal)];
         let a3 = vertices_attributes.data[attr_indices.z + u32(offset_normal)];
-        let n1 = decode_as_vec3(a1);
-        let n2 = decode_as_vec3(a2);
-        let n3 = decode_as_vec3(a3);
+        let n1 = unpack_snorm_to_3_f32(a1);
+        let n2 = unpack_snorm_to_3_f32(a2);
+        let n3 = unpack_snorm_to_3_f32(a3);
         normal = barycentrics.x * n1 + barycentrics.y * n2 + barycentrics.z * n3;
         normal = rotate_vector(normal, (*mesh).orientation); 
     }

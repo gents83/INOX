@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use inox_math::{decode_unorm, quantize_half, quantize_unorm, VecBase, Vector2, Vector3, Vector4};
+use inox_math::{decode_unorm, quantize_half, quantize_unorm, VecBase, Vector2, Vector3, Vector4, quantize_snorm};
 
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
@@ -103,9 +103,9 @@ impl MeshData {
     }
 
     pub fn insert_normal(&mut self, n: Vector3) {
-        let nx = quantize_unorm(n.x, 10);
-        let ny = quantize_unorm(n.y, 10);
-        let nz = quantize_unorm(n.z, 10);
+        let nx = quantize_snorm(n.x, 10);
+        let ny = quantize_snorm(n.y, 10);
+        let nz = quantize_snorm(n.z, 10);
         self.vertex_attributes.push(nx << 20 | ny << 10 | nz);
     }
 

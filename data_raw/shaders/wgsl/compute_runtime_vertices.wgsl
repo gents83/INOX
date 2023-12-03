@@ -31,7 +31,7 @@ fn main(
     let bhv_id = (*mesh).blas_index;
     let bhv_node = &bhv.data[bhv_id];
     let size = (*bhv_node).max - (*bhv_node).min;
-    let p = (*bhv_node).min + decode_as_vec3(vertices_positions.data[vertex_id]) * size;
+    let p = (*bhv_node).min + unpack_unorm_to_3_f32(vertices_positions.data[vertex_id]) * size;
 
     runtime_vertices.data[vertex_id].world_pos = transform_vector(p, (*mesh).position, (*mesh).orientation, (*mesh).scale);
 }
