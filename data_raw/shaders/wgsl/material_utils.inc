@@ -20,7 +20,7 @@ fn material_texture_coord_set(material_id: u32, texture_type: u32) -> u32 {
     return (*material).textures_coord_set[texture_type];
 }
 
-fn material_texture_uv(pixel_data: ptr<function, PixelData>, texture_type: u32, ) -> vec3<f32> {
+fn material_texture_uv(pixel_data: ptr<function, PixelData>, texture_type: u32) -> vec3<f32> {
     let texture_coords_set = material_texture_coord_set((*pixel_data).material_id, texture_type);  
     let texture_id = material_texture_index((*pixel_data).material_id, texture_type);
     let uv = vec3<f32>((*pixel_data).uv_set[texture_coords_set], f32(texture_id));
@@ -47,4 +47,28 @@ fn material_alpha(material_id: u32, vertex_color_alpha: f32) -> f32 {
         alpha = min((*material).base_color.a, vertex_color_alpha);
     }
     return alpha;
+}
+
+fn compute_normal(pixel_data: ptr<function, PixelData>) -> vec3<f32> {
+    var n = (*pixel_data).normal;
+    if (has_texture((*pixel_data).material_id, TEXTURE_TYPE_NORMAL)) {    
+        let uv = material_texture_uv(pixel_data, TEXTURE_TYPE_NORMAL);
+        // get edge vectors of the pixel triangle 
+        let dp1 = dpdx( (*pixel_data).world_pos ); 
+        let dp2 = dpdy( (*pixel_data).world_pos ); 
+        let duv1 = dpdx( uv.xy ); 
+        let duv2 = dpdy( uv.xy );   
+        // solve the linear system 
+        let dp2perp = cross( dp2, n ); 
+        let dp1perp = cross( n, dp1 ); 
+        let tangent = dp2perp * duv1.x + dp1perp * duv2.x; 
+        let bitangent = dp2perp * duv1.y + dp1perp * duv2.y;
+        let t = normalize(tangent);
+        let b = normalize(bitangent); 
+        let tbn = mat3x3<f32>(t, b, n);
+        let tn = sample_texture(uv);
+        n = tbn * (2. * tn.rgb - vec3<f32>(1.));
+        n = normalize(n);
+    }
+    return n;
 }

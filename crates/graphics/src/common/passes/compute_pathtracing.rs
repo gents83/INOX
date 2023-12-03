@@ -5,7 +5,7 @@ use crate::{
     CullingResults, DrawCommandType, IndicesBuffer, MeshFlags, MeshesBuffer,
     MeshesInverseMatrixBuffer, MeshletsBuffer, OutputPass, Pass, RaysBuffer, RenderContext,
     RuntimeVerticesBuffer, ShaderStage, Texture, TextureFormat, TextureId, TextureUsage,
-    TextureView, ConstantDataRw, VertexAttributesBuffer,
+    TextureView, ConstantDataRw, VertexAttributesBuffer, TexturesBuffer, MaterialsBuffer,
 };
 
 use inox_core::ContextRc;
@@ -29,6 +29,8 @@ pub struct ComputePathTracingPass {
     indices: IndicesBuffer,
     runtime_vertices: RuntimeVerticesBuffer,
     vertices_attributes: VertexAttributesBuffer,
+    textures: TexturesBuffer,
+    materials: MaterialsBuffer,
     rays: RaysBuffer,
 }
 unsafe impl Send for ComputePathTracingPass {}
@@ -77,6 +79,8 @@ impl Pass for ComputePathTracingPass {
             indices: render_context.render_buffers.indices.clone(),
             runtime_vertices: render_context.render_buffers.runtime_vertices.clone(),
             vertices_attributes: render_context.render_buffers.vertex_attributes.clone(),
+            textures: render_context.render_buffers.textures.clone(),
+            materials: render_context.render_buffers.materials.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_NAME),
             render_target: None,
             rays: render_context.render_buffers.rays.clone(),
@@ -166,8 +170,8 @@ impl Pass for ComputePathTracingPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.bhv.write().unwrap(),
-                Some("BHV"),
+                &mut *self.meshes_inverse_matrix.write().unwrap(),
+                Some("Meshes Inverse Matrix"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 0,
@@ -176,11 +180,31 @@ impl Pass for ComputePathTracingPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.meshes_inverse_matrix.write().unwrap(),
-                Some("Meshes Inverse Matrix"),
+                &mut *self.materials.write().unwrap(),
+                Some("Materials"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 1,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.textures.write().unwrap(),
+                Some("Textures"),
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 2,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.bhv.write().unwrap(),
+                Some("BHV"),
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 3,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -190,7 +214,7 @@ impl Pass for ComputePathTracingPass {
                 Some("TLAS index"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 2,
+                    binding_index: 4,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -200,7 +224,7 @@ impl Pass for ComputePathTracingPass {
                 Some("Rays"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 3,
+                    binding_index: 5,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite,
                 },
@@ -209,11 +233,25 @@ impl Pass for ComputePathTracingPass {
                 self.render_target.as_ref().unwrap().id(),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 4,
+                    binding_index: 6,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Write | BindingFlags::Storage,
                 },
             );
+
+            self.binding_data
+                .add_default_sampler(BindingInfo {
+                    group_index: 2,
+                    binding_index: 0,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                })
+                .add_material_textures(BindingInfo {
+                    group_index: 2,
+                    binding_index: 1,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                });
 
         let mut pass = self.compute_pass.get_mut();
         pass.init(render_context, &mut self.binding_data);

@@ -17,24 +17,31 @@ var<storage, read> meshlets: Meshlets;
 var<storage, read> culling_result: array<u32>;
 
 @group(1) @binding(0)
-var<storage, read> bhv: BHV;
-@group(1) @binding(1)
 var<storage, read> meshes_inverse_matrix: Matrices;
+@group(1) @binding(1)
+var<storage, read> materials: Materials;
 @group(1) @binding(2)
-var<uniform> tlas_starting_index: u32;
+var<storage, read> textures: Textures;
 @group(1) @binding(3)
-var<storage, read_write> rays: Rays;
+var<storage, read> bhv: BHV;
 @group(1) @binding(4)
+var<uniform> tlas_starting_index: u32;
+@group(1) @binding(5)
+var<storage, read_write> rays: Rays;
+@group(1) @binding(6)
 var render_target: texture_storage_2d<rgba8unorm, write>;
 
+#import "texture_utils.inc"
 #import "matrix_utils.inc"
 #import "geom_utils.inc"
+#import "material_utils.inc"
+#import "visibility_utils.inc"
 #import "raytracing.inc"
 #import "pathtracing.inc"
 
-fn compute_visibility(ray: ptr<function, Ray>) -> u32 
+fn compute_visibility_from_traversal(ray: ptr<function, Ray>) -> u32 
 {
-    var nearest = MAX_FLOAT;  
+    var nearest = (*ray).t_max;  
     var visibility_id = 0u;        
     var tlas_index = 0;
 
@@ -72,21 +79,22 @@ fn execute_job(job_index: u32, uv_coords: vec2<f32>) -> vec4<f32>
     var ray = rays.data[job_index];
 
     var pixel_color = vec3<f32>(0.);
-    var data = RadianceData(vec3<f32>(0.), vec3<f32>(1.), vec2<u32>(uv_coords), ray);
 
     var sample = 0u;
     while(sample < NUM_SAMPLES_PER_PIXEL)
     {
-        data.radiance = vec3<f32>(0.);
-        data.throughput_weight = vec3<f32>(1.);
+        var data = RadianceData(ray.origin, ray.direction, MAX_FLOAT, vec2<u32>(uv_coords), vec3<f32>(0.), vec3<f32>(1.));
         var bounce = 0u;
         while(bounce < MAX_PATH_BOUNCES)
         {
-            let visibility_id = compute_visibility(&ray);
+            var r = Ray(data.origin, 0., data.direction, MAX_FLOAT);
+            let visibility_id = compute_visibility_from_traversal(&r);
             if(visibility_id == 0u) {
                 break;
             }
-            data.ray = ray;
+            data.origin = r.origin;
+            data.direction = r.direction;
+            data.t = r.t_max;
             data = compute_radiance_from_visibility(visibility_id, uv_coords, data);
             bounce = bounce + 1u;
         }

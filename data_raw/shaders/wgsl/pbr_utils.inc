@@ -34,34 +34,6 @@ struct PBRData {
     final_color: vec4<f32>,
 };
 
-fn compute_normal(material_id: u32, pixel_data: ptr<function, PixelData>) -> vec3<f32> {
-    let material = &materials.data[material_id];
-    var n = (*pixel_data).normal;
-    /*
-    if (has_texture(material_id, TEXTURE_TYPE_NORMAL)) {    
-        let texture_coords_set = material_texture_coord_set(material_id, TEXTURE_TYPE_NORMAL);  
-        let uv = (*pixel_data).uv_set[texture_coords_set]; 
-        //// get edge vectors of the pixel triangle 
-        let dp1 = dpdx( (*pixel_data).world_pos ); 
-        let dp2 = dpdy( (*pixel_data).world_pos ); 
-        let duv1 = dpdx( uv ); 
-        let duv2 = dpdy( uv );   
-        // solve the linear system 
-        let dp2perp = cross( dp2, n ); 
-        let dp1perp = cross( n, dp1 ); 
-        let tangent = dp2perp * duv1.x + dp1perp * duv2.x; 
-        let bitangent = dp2perp * duv1.y + dp1perp * duv2.y;
-        let t = normalize(tangent);
-        let b = normalize(bitangent); 
-        let tbn = mat3x3<f32>(t, b, n);
-        let tn = sample_texture(uv);
-        n = tbn * (2.0 * tn.rgb - vec3<f32>(1.));
-        n = normalize(n);
-    }
-    */
-    return n;
-}
-
 // GGX/Towbridge-Reitz normal distribution function.
 // Uses Disney's reparametrization of alpha = roughness^2.
 fn ndfGGX(cosLh: f32, roughness: f32) -> f32
@@ -130,10 +102,10 @@ fn compute_color(material_id: u32, pixel_data: ptr<function, PixelData>) -> PBRD
         occlusion_strength = (*material).occlusion_strength;
     }
 
-    var emissive_color = vec3<f32>(0.);
+    var emissive_color = (*material).emissive_color;
     if (has_texture(material_id, TEXTURE_TYPE_EMISSIVE)) {
         let t = material_texture_uv(pixel_data, TEXTURE_TYPE_EMISSIVE);
-        emissive_color = t.rgb * (*material).emissive_color;
+        emissive_color *= t.rgb;
     }
 
     var perceptual_roughness = (*material).roughness_factor;
@@ -171,7 +143,7 @@ fn compute_color(material_id: u32, pixel_data: ptr<function, PixelData>) -> PBRD
     let final_color = vec4<f32>(color, (*pixel_data).color.a);
 
     let p = (*pixel_data).world_pos;
-    let n = compute_normal(material_id, pixel_data);     // normal at surface point
+    let n = compute_normal(pixel_data);     // normal at surface point
     let view_pos = constant_data.view[3].xyz;
     let v = normalize(view_pos-(*pixel_data).world_pos); // Vector from surface point to camera
 
