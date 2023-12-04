@@ -69,7 +69,7 @@ fn intersect_meshlet(ray: ptr<function, Ray>, position_offset: u32, meshlet_id: 
     for(var index = 0u; index < index_count; index = index + 3u)
     {       
         let hit = intersect_meshlet_primitive(ray, position_offset, meshlet_id, index_offset + index);
-        visibility_id = select(visibility_id, ((meshlet_id + 1u) << 8u) | index / 3u, hit < nearest);
+        visibility_id = select(visibility_id, ((meshlet_id + 1u) << 8u) | (index / 3u), hit < nearest);
         nearest = min(nearest, hit);
     }
     return Result(nearest, visibility_id);
