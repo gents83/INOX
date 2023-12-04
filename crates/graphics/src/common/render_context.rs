@@ -186,12 +186,7 @@ impl RenderContext {
         on_create_func(&mut renderer);
     }
 
-    pub fn update_constant_data(
-        &self,
-        view: Matrix4,
-        proj: Matrix4,
-        screen_size: Vector2
-    ) {
+    pub fn update_constant_data(&self, view: Matrix4, proj: Matrix4, screen_size: Vector2) {
         inox_profiler::scoped_profile!("render_context::update_constant_data");
         self.constant_data
             .write()

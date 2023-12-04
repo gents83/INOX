@@ -2,10 +2,10 @@ use std::{path::PathBuf, sync::atomic::Ordering};
 
 use crate::{
     BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    CullingResults, DrawCommandType, IndicesBuffer, MeshFlags, MeshesBuffer,
-    MeshesInverseMatrixBuffer, MeshletsBuffer, OutputPass, Pass, RaysBuffer, RenderContext,
-    RuntimeVerticesBuffer, ShaderStage, Texture, TextureFormat, TextureId, TextureUsage,
-    TextureView, ConstantDataRw, VertexAttributesBuffer, TexturesBuffer, MaterialsBuffer,
+    ConstantDataRw, CullingResults, DrawCommandType, IndicesBuffer, MaterialsBuffer, MeshFlags,
+    MeshesBuffer, MeshesInverseMatrixBuffer, MeshletsBuffer, OutputPass, Pass, RaysBuffer,
+    RenderContext, RuntimeVerticesBuffer, ShaderStage, Texture, TextureFormat, TextureId,
+    TextureUsage, TextureView, TexturesBuffer, VertexAttributesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -99,16 +99,16 @@ impl Pass for ComputePathTracingPass {
             .load(Ordering::SeqCst);
 
         self.binding_data
-        .add_uniform_buffer(
-            &mut *self.constant_data.write().unwrap(),
-            Some("ConstantData"),
-            BindingInfo {
-                group_index: 0,
-                binding_index: 0,
-                stage: ShaderStage::Compute,
-                ..Default::default()
-            },
-        )
+            .add_uniform_buffer(
+                &mut *self.constant_data.write().unwrap(),
+                Some("ConstantData"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 0,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
             .add_storage_buffer(
                 &mut *self.indices.write().unwrap(),
                 Some("Indices"),
@@ -239,19 +239,19 @@ impl Pass for ComputePathTracingPass {
                 },
             );
 
-            self.binding_data
-                .add_default_sampler(BindingInfo {
-                    group_index: 2,
-                    binding_index: 0,
-                    stage: ShaderStage::Compute,
-                    ..Default::default()
-                })
-                .add_material_textures(BindingInfo {
-                    group_index: 2,
-                    binding_index: 1,
-                    stage: ShaderStage::Compute,
-                    ..Default::default()
-                });
+        self.binding_data
+            .add_default_sampler(BindingInfo {
+                group_index: 2,
+                binding_index: 0,
+                stage: ShaderStage::Compute,
+                ..Default::default()
+            })
+            .add_material_textures(BindingInfo {
+                group_index: 2,
+                binding_index: 1,
+                stage: ShaderStage::Compute,
+                ..Default::default()
+            });
 
         let mut pass = self.compute_pass.get_mut();
         pass.init(render_context, &mut self.binding_data);

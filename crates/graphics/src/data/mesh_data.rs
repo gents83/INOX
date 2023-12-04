@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use inox_math::{decode_unorm, quantize_half, quantize_unorm, VecBase, Vector2, Vector3, Vector4, quantize_snorm};
+use inox_math::{
+    decode_unorm, quantize_half, quantize_snorm, quantize_unorm, VecBase, Vector2, Vector3, Vector4,
+};
 
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 

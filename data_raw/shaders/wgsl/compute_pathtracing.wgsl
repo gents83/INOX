@@ -98,8 +98,13 @@ fn execute_job(job_index: u32, pixel: vec2<f32>, dimensions: vec2<f32>) -> vec4<
     pixel_color /= f32(NUM_SAMPLES_PER_PIXEL);
     return vec4<f32>(pixel_color, 1.);
 }
+const MAX_WORKGROUP_SIZE: i32 = 16*16;
+const MAX_SIZE: u32 = u32(MAX_WORKGROUP_SIZE);
 
 var<workgroup> jobs_count: atomic<i32>;
+//var<workgroup> rays_data: array<Ray, MAX_SIZE>;
+//var<workgroup> visibility_data: array<u32, MAX_SIZE>;
+//var<workgroup> radiance_data: array<RadianceData, MAX_SIZE>;
 
 @compute
 @workgroup_size(16, 16, 1)
@@ -113,7 +118,7 @@ fn main(
     atomicStore(&jobs_count, max_jobs);
     
     var job_index = 0;
-    while(job_index < max_jobs)
+    while(job_index < MAX_WORKGROUP_SIZE)
     {
         let pixel = vec2<i32>(group.x * 16 + job_index % 16, 
                               group.y * 16 + job_index / 16);
@@ -127,7 +132,7 @@ fn main(
         var out_color = execute_job(index, vec2<f32>(pixel), vec2<f32>(dimensions));
         if(constant_data.frame_index > 0u) {
             var prev_value = textureLoad(render_target, pixel);
-            let weight = 1. / f32(constant_data.frame_index + 1u);
+            let weight = 1. / f32(min(constant_data.frame_index, 4096u) + 1u);
             out_color = vec4<f32>((1. - weight) * prev_value.rgb + weight * out_color.rgb, 1.);
         } 
         textureStore(render_target, pixel, out_color);
