@@ -51,6 +51,6 @@ fn compute_radiance_from_visibility(visibility_id: u32, screen_uv: vec2<f32>, da
     let d = dot(pixel_data.normal, direction);
     let weight = data.throughput_weight * (pixel_data.color.rgb * 2. * d);
     let origin = data.ray.origin + (data.ray.direction * data.ray.t_max) + direction * HIT_EPSILON;
-    let ray = Ray(origin, 0., direction, MAX_FLOAT);
+    let ray = Ray(origin, 0., direction, MAX_FLOAT - HIT_EPSILON);
     return RadianceData(ray, seed, rad, weight);
 }

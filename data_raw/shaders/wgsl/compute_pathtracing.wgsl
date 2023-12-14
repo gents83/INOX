@@ -39,6 +39,7 @@ var render_target: texture_storage_2d<rgba8unorm, read_write>;
 #import "raytracing.inc"
 #import "pathtracing.inc"
 
+
 fn compute_visibility_from_traversal(ray: ptr<function, Ray>) -> u32 
 {
     var nearest = (*ray).t_max;  
@@ -73,7 +74,6 @@ fn compute_visibility_from_traversal(ray: ptr<function, Ray>) -> u32
     return visibility_id;
 }
 
-
 fn execute_job(job_index: u32, pixel: vec2<f32>, dimensions: vec2<f32>) -> vec4<f32>  
 {    
     var ray = rays.data[job_index];
@@ -84,13 +84,12 @@ fn execute_job(job_index: u32, pixel: vec2<f32>, dimensions: vec2<f32>) -> vec4<
     for (var sample = 0u; sample < NUM_SAMPLES_PER_PIXEL; sample++) {
         var radiance_data = RadianceData(ray, seed, vec3<f32>(0.), vec3<f32>(1.));
         for (var bounce = 0u; bounce < MAX_PATH_BOUNCES; bounce++) {
-            var r = radiance_data.ray;
-            let visibility_id = compute_visibility_from_traversal(&r);
-            if (visibility_id == 0u) {
+            let result = traverse_bvh(radiance_data.ray, i32(tlas_starting_index));
+            if (result.visibility_id == 0u) {
                 break;
             }
-            radiance_data.ray = r;
-            radiance_data = compute_radiance_from_visibility(visibility_id, uv_coords, radiance_data);
+            radiance_data.ray.t_max = result.distance;
+            radiance_data = compute_radiance_from_visibility(result.visibility_id, uv_coords, radiance_data);
             seed = radiance_data.seed;
         }
         pixel_color += radiance_data.radiance;
@@ -98,6 +97,8 @@ fn execute_job(job_index: u32, pixel: vec2<f32>, dimensions: vec2<f32>) -> vec4<
     pixel_color /= f32(NUM_SAMPLES_PER_PIXEL);
     return vec4<f32>(pixel_color, 1.);
 }
+
+
 const MAX_WORKGROUP_SIZE: i32 = 16*16;
 const MAX_SIZE: u32 = u32(MAX_WORKGROUP_SIZE);
 

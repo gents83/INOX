@@ -88,7 +88,7 @@ pub struct GPUMeshlet {
     pub mesh_index: u32,
     pub indices_offset: u32,
     pub indices_count: u32,
-    pub blas_index: u32,
+    pub triangles_bhv_index: u32,
 }
 
 impl GPUMeshlet {

@@ -7,9 +7,9 @@ use std::{
 };
 
 use inox_bhv::{BHVTree, AABB};
-use inox_math::{quantize_snorm, InnerSpace, Mat4Ops, MatBase, Matrix4};
-use inox_resources::{to_slice, Buffer, HashBuffer};
-use inox_uid::{generate_static_uid_from_string, Uid};
+use inox_math::{quantize_snorm, InnerSpace, Mat4Ops, MatBase, Matrix4, VecBase};
+use inox_resources::{to_slice, Buffer, HashBuffer, ResourceId};
+use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
 use crate::{
     declare_as_binding_vector, utils::create_linearized_bhv, AsBinding, BindingDataBuffer,
@@ -55,6 +55,7 @@ pub struct RenderBuffers {
     pub meshlets: MeshletsBuffer,
     pub meshlets_culling: MeshletsCullingBuffer,
     pub bhv: BHVBuffer,
+    pub triangles_ids: RwLock<HashMap<MeshId, Vec<ResourceId>>>,
     pub indices: IndicesBuffer,
     pub vertex_positions: VertexPositionsBuffer,
     pub vertex_attributes: VertexAttributesBuffer,
@@ -85,11 +86,48 @@ impl RenderBuffers {
             .iter()
             .enumerate()
             .for_each(|(i, meshlet_data)| {
+                let mut triangles_aabbs = Vec::new();
+                triangles_aabbs.resize_with(meshlet_data.indices_count as usize / 3, AABB::empty);
+                let mut v = 0;
+                let offset = meshlet_data.indices_offset;
+                while v < meshlet_data.indices_count {
+                    let triangle_index = v / 3;
+                    let v1 = mesh_data.position((offset + triangle_index) as _);
+                    let v2 = mesh_data.position((offset + triangle_index + 1) as _);
+                    let v3 = mesh_data.position((offset + triangle_index + 2) as _);
+                    let min = v1.min(v2).min(v3);
+                    let max = v1.max(v2).max(v3);
+                    triangles_aabbs[triangle_index as usize] = AABB::create(min, max, triangle_index as _);
+                    v += 3;
+                }
+                let bhv = BHVTree::new(&triangles_aabbs);
+                let linearized_bhv = create_linearized_bhv(&bhv);
+                let triangle_id = generate_random_uid();
+                self.triangles_ids
+                    .write()
+                    .unwrap()
+                    .entry(*mesh_id)
+                    .or_default()
+                    .push(triangle_id);
+                let triangle_bhv_range = self
+                    .bhv
+                    .write()
+                    .unwrap()
+                    .allocate(&triangle_id, &linearized_bhv)
+                    .1;
+                let triangles_bhv_index = triangle_bhv_range.start as _;
+                self.bhv.write().unwrap().data_mut()[triangle_bhv_range]
+                    .iter_mut()
+                    .for_each(|n| {
+                        if n.miss >= 0 {
+                            n.miss += triangles_bhv_index as i32;
+                        }
+                    });
                 let meshlet = GPUMeshlet {
                     mesh_index,
                     indices_offset: (indices_offset + meshlet_data.indices_offset) as _,
                     indices_count: meshlet_data.indices_count,
-                    blas_index: i as _,
+                    triangles_bhv_index,
                 };
                 meshlets[i] = meshlet;
                 let cone_axis = meshlet_data.cone_axis.normalize();
@@ -118,6 +156,14 @@ impl RenderBuffers {
             .unwrap()
             .allocate(mesh_id, &linearized_bhv)
             .1;
+        let blas_index = mesh_bhv_range.start as _;
+        self.bhv.write().unwrap().data_mut()[mesh_bhv_range]
+            .iter_mut()
+            .for_each(|n| {
+                if n.miss >= 0 {
+                    n.miss += blas_index as i32;
+                }
+            });
         self.meshlets_culling
             .write()
             .unwrap()
@@ -128,7 +174,7 @@ impl RenderBuffers {
             .unwrap()
             .allocate(mesh_id, meshlets.as_slice())
             .1;
-        (mesh_bhv_range.start, meshlet_range.start)
+        (blas_index, meshlet_range.start)
     }
     fn add_vertex_data(
         &self,
@@ -251,8 +297,15 @@ impl RenderBuffers {
         let bhv = BHVTree::new(&meshes_aabbs);
         let linearized_bhv = create_linearized_bhv(&bhv);
         let mut bhv = self.bhv.write().unwrap();
-        let tlas = bhv.allocate(&TLAS_UID, &linearized_bhv).1.start as _;
-        self.tlas_start_index.store(tlas, Ordering::SeqCst);
+        let tlas_range = bhv.allocate(&TLAS_UID, &linearized_bhv).1;
+        let tlas_starting_index = tlas_range.start as _;
+        self.tlas_start_index
+            .store(tlas_starting_index, Ordering::SeqCst);
+        bhv.data_mut()[tlas_range].iter_mut().for_each(|n| {
+            if n.miss >= 0 {
+                n.miss += tlas_starting_index as i32;
+            }
+        });
     }
     fn update_transform(&self, mesh: &mut Mesh, m: &mut GPUMesh) -> bool {
         inox_profiler::scoped_profile!("render_buffers::update_transform");
@@ -339,8 +392,15 @@ impl RenderBuffers {
             self.meshes_inverse_matrix.write().unwrap().remove(mesh_id);
             self.meshlets.write().unwrap().remove(mesh_id);
             self.meshlets_culling.write().unwrap().remove(mesh_id);
-            self.bhv.write().unwrap().remove(mesh_id);
-
+            {
+                let mut bhv = self.bhv.write().unwrap();
+                bhv.remove(mesh_id);
+                let mut triangle_ids = self.triangles_ids.write().unwrap();
+                triangle_ids.get(mesh_id).unwrap().iter().for_each(|id| {
+                    bhv.remove(id);
+                });
+                triangle_ids.remove(mesh_id);
+            }
             self.indices.write().unwrap().remove(mesh_id);
             self.vertex_positions.write().unwrap().remove(mesh_id);
             self.runtime_vertices.write().unwrap().remove(mesh_id);

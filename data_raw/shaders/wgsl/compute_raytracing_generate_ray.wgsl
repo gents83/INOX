@@ -29,7 +29,7 @@ fn compute_ray(image_pixel: vec2<u32>, image_size: vec2<u32>) -> Ray {
     let far = unproject(clip_coords.xy, 1.);
     let direction = normalize(far - origin);
     
-    return Ray(origin, 0., direction, MAX_FLOAT);
+    return Ray(origin, 0., direction, MAX_FLOAT - HIT_EPSILON);
 }
 
 

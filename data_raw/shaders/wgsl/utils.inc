@@ -1,5 +1,5 @@
 fn quantize_unorm(v: f32, n: u32) -> u32 {
-    let scale = f32((1 << n) - 1);
+    let scale = f32((1u << n) - 1u);
     return u32(0.5 + (v * scale));
 }
 fn quantize_snorm(v: f32, n: u32) -> u32 {
@@ -13,7 +13,7 @@ fn quantize_snorm(v: f32, n: u32) -> u32 {
 }
 
 fn decode_unorm(i: u32, n: u32) -> f32 {    
-    let scale = f32((1 << n) - 1);
+    let scale = f32((1u << n) - 1u);
     if (i == 0u) {
         return 0.;
     } else if (i == u32(scale)) {

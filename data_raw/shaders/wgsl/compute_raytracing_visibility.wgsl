@@ -1,14 +1,6 @@
 #import "common.inc"
 #import "utils.inc"
 
-struct Job {
-    state: u32,
-    tlas_index: i32,
-    blas_index: i32,
-    nearest: f32,
-    visibility_id: u32,
-};
-
 @group(0) @binding(0)
 var<storage, read> indices: Indices;
 @group(0) @binding(1)
@@ -37,7 +29,7 @@ var render_target: texture_storage_2d<rgba8unorm, write>;
 
 fn execute_job(job_index: u32) -> vec4<f32>  {    
     var ray = rays.data[job_index];
-    var nearest = MAX_FLOAT;  
+    var nearest = MAX_FLOAT - HIT_EPSILON;  
     var visibility_id = 0u;
     
     var tlas_index = 0;

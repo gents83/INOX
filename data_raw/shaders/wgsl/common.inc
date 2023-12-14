@@ -31,6 +31,8 @@ const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 8u;
 
 const PI: f32 = 3.141592653589793238462643;
 const MAX_FLOAT: f32 = 3.402823466e+38;
+const HIT_EPSILON: f32 = 0.0001;
+const INVALID_NODE: i32 = -1;
 
 const VERTEX_ATTRIBUTE_HAS_POSITION: u32 = 0u;
 const VERTEX_ATTRIBUTE_HAS_COLOR: u32 = 1u;
@@ -91,7 +93,7 @@ struct Meshlet {
     @location(5) mesh_index: u32,
     @location(6) indices_offset: u32,
     @location(7) indices_count: u32,
-    @location(8) blas_index: u32,
+    @location(8) triangles_bhv_index: u32,
 };
 
 struct BHVNode {

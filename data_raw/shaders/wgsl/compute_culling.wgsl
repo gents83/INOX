@@ -99,7 +99,8 @@ fn main(
     }
 
     let mesh = &meshes.data[mesh_id];
-    let bb_id = (*mesh).blas_index + (*meshlet).blas_index;
+    let meshlet_index = (*mesh).meshlets_offset - meshlet_id;
+    let bb_id = (*mesh).blas_index + meshlet_index;
     let bb = &bhv.data[bb_id];
     let max = transform_vector((*bb).max, (*mesh).position, (*mesh).orientation, (*mesh).scale);
     let min = transform_vector((*bb).min, (*mesh).position, (*mesh).orientation, (*mesh).scale);
