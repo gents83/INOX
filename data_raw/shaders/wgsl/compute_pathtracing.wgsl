@@ -40,16 +40,6 @@ var render_target: texture_storage_2d<rgba8unorm, read_write>;
 #import "raytracing.inc"
 #import "pathtracing.inc"
 
-const MAX_CANDIDATES: i32 = 32;
-var<workgroup> candidate_triangles: array<CandidateTriangleData, MAX_CANDIDATES>;
-
-struct CandidateTriangleData {
-    triangle_id: u32,
-    meshlet_id: u32,
-    meshlet_indices_offset: u32,
-    vertices_position_offset: u32,
-};
-
 //starting index = tlas_starting_index
 fn traverse_bvh(r: Ray, tlas_starting_index: i32) -> Result {
     var world_ray = r;
@@ -64,7 +54,6 @@ fn traverse_bvh(r: Ray, tlas_starting_index: i32) -> Result {
     var blas_sibling = 0;
     var tlas_sibling = 0;
     var hit_distance = MAX_FLOAT;
-    var candidate_triangles_index = 0;
     
     while(hit_type != HIT_DATA_MISS)
     {
@@ -91,9 +80,16 @@ fn traverse_bvh(r: Ray, tlas_starting_index: i32) -> Result {
         }
         //leaf node
         if(hit_type == HIT_DATA_TRIANGLE) {     
-            node_index = node.miss;                   
-            candidate_triangles[candidate_triangles_index] = CandidateTriangleData(u32(node.reference), meshlet_id, meshlet_indices_offset, vertices_position_offset);
-            candidate_triangles_index += 1;
+            node_index = node.miss;        
+            
+            let triangle_id = u32(node.reference);
+            let index_offset = meshlet_indices_offset + (triangle_id * 3u);
+            let v1 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset]].world_pos;
+            let v2 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset + 1u]].world_pos;
+            let v3 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset + 2u]].world_pos;
+            let distance = intersect_triangle(world_ray, v1, v2, v3);
+            visibility_id = select(visibility_id, ((meshlet_id + 1u) << 8u) | triangle_id, distance < hit_distance);
+            hit_distance = min(hit_distance, distance);
         }
         else if(hit_type == HIT_DATA_BLAS) {  
             hit_type = HIT_DATA_TRIANGLE;
@@ -122,20 +118,8 @@ fn traverse_bvh(r: Ray, tlas_starting_index: i32) -> Result {
             ray.direction = local_ray_direction.xyz;
         }
     }
-    
-    for(var i: i32 = 0; i < candidate_triangles_index; i++) {
-        let triangle_id = u32(candidate_triangles[i].triangle_id);
-        let index_offset = candidate_triangles[i].meshlet_indices_offset + (triangle_id * 3u);
-        let v1 = runtime_vertices.data[candidate_triangles[i].vertices_position_offset + indices.data[index_offset]].world_pos;
-        let v2 = runtime_vertices.data[candidate_triangles[i].vertices_position_offset + indices.data[index_offset + 1u]].world_pos;
-        let v3 = runtime_vertices.data[candidate_triangles[i].vertices_position_offset + indices.data[index_offset + 2u]].world_pos;
-        let distance = intersect_triangle(world_ray, v1, v2, v3);
-        visibility_id = select(visibility_id, ((candidate_triangles[i].meshlet_id + 1u) << 8u) | triangle_id, distance < hit_distance);
-        hit_distance = min(hit_distance, distance);
-    }
     return Result(hit_distance, visibility_id);
 }
-
 
 fn execute_job(job_index: u32, pixel: vec2<f32>, dimensions: vec2<f32>, mvp: mat4x4<f32>) -> vec4<f32>  
 {    
@@ -144,20 +128,19 @@ fn execute_job(job_index: u32, pixel: vec2<f32>, dimensions: vec2<f32>, mvp: mat
     var uv_coords = 2. * (pixel / dimensions) - vec2<f32>(1., 1.);
     uv_coords.y = -uv_coords.y;
     var pixel_color = vec3<f32>(0.);
-    for (var sample = 0u; sample < NUM_SAMPLES_PER_PIXEL; sample++) {
-        var radiance_data = RadianceData(ray, seed, vec3<f32>(0.), vec3<f32>(1.));
-        for (var bounce = 0u; bounce < MAX_PATH_BOUNCES; bounce++) {
-            let result = traverse_bvh(radiance_data.ray, i32(tlas_starting_index));            
-            if (result.visibility_id == 0u) {
-                break;
-            }
-            radiance_data.ray.t_max = result.distance;  
-            radiance_data = compute_radiance_from_visibility(result.visibility_id, uv_coords, radiance_data, mvp); 
-            seed = radiance_data.seed;
+    
+    var radiance_data = RadianceData(ray, seed, vec3<f32>(0.), vec3<f32>(1.));
+    for (var bounce = 0u; bounce < MAX_PATH_BOUNCES; bounce++) {
+        let result = traverse_bvh(radiance_data.ray, i32(tlas_starting_index));            
+        if (result.visibility_id == 0u) {
+            break;
         }
-        pixel_color += radiance_data.radiance;
+        radiance_data.ray.t_max = result.distance;  
+        radiance_data = compute_radiance_from_visibility(result.visibility_id, uv_coords, radiance_data, mvp); 
+        seed = radiance_data.seed;
     }
-    pixel_color /= f32(NUM_SAMPLES_PER_PIXEL);
+    pixel_color += radiance_data.radiance;
+        
     return vec4<f32>(pixel_color, 1.);
 }
 
