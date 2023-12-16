@@ -35,6 +35,7 @@ var render_target: texture_storage_2d<rgba8unorm, read_write>;
 #import "matrix_utils.inc"
 #import "geom_utils.inc"
 #import "material_utils.inc"
+#import "pbr_utils.inc"
 #import "visibility_utils.inc"
 #import "raytracing.inc"
 #import "pathtracing.inc"

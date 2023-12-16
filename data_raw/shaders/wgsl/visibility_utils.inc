@@ -18,6 +18,7 @@ fn visibility_to_gbuffer(visibility_id: u32, screen_uv: vec2<f32>, mvp: mat4x4<f
     let position_offset = (*mesh).vertices_position_offset;
     let attributes_offset = (*mesh).vertices_attribute_offset;
     let vertex_layout = (*mesh).vertices_attribute_layout;
+    let orientation = (*mesh).orientation;
     let vertex_attribute_stride = vertex_layout_stride(vertex_layout);   
     let offset_color = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_COLOR);
     let offset_normal = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_NORMAL);
@@ -72,7 +73,7 @@ fn visibility_to_gbuffer(visibility_id: u32, screen_uv: vec2<f32>, mvp: mat4x4<f
         let n2 = unpack_snorm_to_3_f32(a2);
         let n3 = unpack_snorm_to_3_f32(a3);
         normal = barycentrics.x * n1 + barycentrics.y * n2 + barycentrics.z * n3;
-        normal = rotate_vector(normal, (*mesh).orientation); 
+        normal = rotate_vector(normal, orientation); 
     }
     if(offset_uv0 >= 0) {
         let a1 = vertices_attributes.data[attr_indices.x + u32(offset_uv0)];

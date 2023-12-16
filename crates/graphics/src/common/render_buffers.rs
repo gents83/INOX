@@ -91,10 +91,10 @@ impl RenderBuffers {
                 let mut v = 0;
                 let offset = meshlet_data.indices_offset;
                 while v < meshlet_data.indices_count {
-                    let triangle_index = v / 3;
-                    let v1 = mesh_data.position((offset + triangle_index) as _);
-                    let v2 = mesh_data.position((offset + triangle_index + 1) as _);
-                    let v3 = mesh_data.position((offset + triangle_index + 2) as _);
+                    let triangle_index = v / 3;                    
+                    let v1 = mesh_data.position(mesh_data.indices[(offset + triangle_index) as usize] as _);
+                    let v2 = mesh_data.position(mesh_data.indices[(offset + triangle_index + 1) as usize] as _);
+                    let v3 = mesh_data.position(mesh_data.indices[(offset + triangle_index + 2) as usize] as _);
                     let min = v1.min(v2).min(v3);
                     let max = v1.max(v2).max(v3);
                     triangles_aabbs[triangle_index as usize] = AABB::create(min, max, triangle_index as _);

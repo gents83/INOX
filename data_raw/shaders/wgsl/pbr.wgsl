@@ -40,6 +40,47 @@ var visibility_buffer_texture: texture_2d<f32>;
 #import "material_utils.inc"
 #import "pbr_utils.inc"
 
+
+
+fn compute_brdf(pbr: PBRData) -> vec4<f32> {
+    var final_color = pbr.final_color;
+    let NdotV = clamp(abs(dot(pbr.n, pbr.v)), 0.0001, 1.0);
+    let num_lights = arrayLength(&lights.data);
+    for (var i = 0u; i < num_lights; i++ ) {
+        let light = &lights.data[i];
+        if ((*light).light_type == 0u) {
+            break;
+        }
+        
+        let dir = (*light).position - pbr.p;
+        let d = length(dir);
+        let l = normalize(dir);                             // Vector from surface point to light
+        let h = normalize(l + pbr.v);                           // Half vector between both l and v
+        
+        let linear_att = 0.5 * d;
+        let quad_att = 0.5 * d * d;
+        let light_intensity = (*light).intensity * 1000. / (linear_att * quad_att);
+        let light_contrib = light_intensity * (max((*light).range - d, (*light).range) / (*light).range);
+        
+        let NdotL = clamp(dot(pbr.n, l), 0.0001, 1.0);
+        let NdotH = clamp(dot(pbr.n, h), 0.0, 1.0);
+        let LdotH = clamp(dot(l, h), 0.0, 1.0);
+        let VdotH = clamp(dot(pbr.v, h), 0.0, 1.0);
+        
+        // Calculate the shading terms for the microfacet specular shading model
+        let F = specular_reflection(pbr.specular_environmentR0, pbr.specular_environmentR90, VdotH);
+        let G = geometric_occlusion(pbr.alpha_roughness, NdotL, NdotV);
+        let D = microfacet_distribution(pbr.alpha_roughness, NdotH);
+        
+        let diffuse_contrib = (1. - F) * pbr.diffuse_color / PI;
+        let spec_contrib = F * G * D / (4.0 * NdotL * NdotV);
+        var light_color = NdotL * (*light).color.rgb * (diffuse_contrib + spec_contrib);
+        
+        final_color = vec4<f32>(final_color.rgb + light_color * light_contrib, final_color.a);
+    }
+    return final_color;
+}
+
 @vertex
 fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
     //only one triangle, exceeding the viewport size
@@ -80,15 +121,9 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     }
     else 
     {
-        var pixel_data = visibility_to_gbuffer(visibility_id, v_in.uv.xy);
+        let mvp = constant_data.proj * constant_data.view;
+        var pixel_data = visibility_to_gbuffer(visibility_id, v_in.uv.xy, mvp);
         let material_id = pixel_data.material_id;
-        let material = &materials.data[material_id];
-        pixel_data.color *= (*material).base_color;
-        if (has_texture(material_id, TEXTURE_TYPE_BASE_COLOR)) {  
-            let uv = material_texture_uv(&pixel_data, TEXTURE_TYPE_BASE_COLOR);
-            let texture_color = sample_texture(uv);
-            pixel_data.color *= texture_color * (*material).diffuse_color;
-        }
         let alpha = material_alpha(material_id, pixel_data.color.a);
         if (alpha < 0.) {
             discard;

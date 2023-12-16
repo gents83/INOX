@@ -30,6 +30,7 @@ struct PBRData {
     specular_environmentR0: vec3<f32>,
     specular_environmentR90: vec3<f32>,
     diffuse_color: vec3<f32>,
+    emissive_color: vec3<f32>,
     alpha_roughness: f32,
     final_color: vec4<f32>,
 };
@@ -91,6 +92,14 @@ fn microfacet_distribution(alpha_roughness: f32, NdotH: f32) -> f32 {
 
 fn compute_color(material_id: u32, pixel_data: ptr<function, PixelData>) -> PBRData {
     let material = &materials.data[material_id];
+
+    var diffuse_color = (*pixel_data).color;
+    diffuse_color *= (*material).base_color;
+    if (has_texture(material_id, TEXTURE_TYPE_BASE_COLOR)) {  
+        let uv = material_texture_uv(pixel_data, TEXTURE_TYPE_BASE_COLOR);
+        let texture_color = sample_texture(uv);
+        diffuse_color *= texture_color;
+    }
         
     let f0 = vec3<f32>(0.04);
     var ao = 1.0;
@@ -124,7 +133,7 @@ fn compute_color(material_id: u32, pixel_data: ptr<function, PixelData>) -> PBRD
     let alpha_roughness = perceptual_roughness * perceptual_roughness;
     
     // Compute reflectance.
-    let specular_color = mix(f0, (*pixel_data).color.rgb, metallic);  
+    let specular_color = mix(f0, diffuse_color.rgb, metallic);  
     let reflectance = max(max(specular_color.r, specular_color.g), specular_color.b);
 
     // For typical incident reflectance range (between 4% to 100%) set the grazing reflectance to 100% for typical fresnel effect.
@@ -133,58 +142,19 @@ fn compute_color(material_id: u32, pixel_data: ptr<function, PixelData>) -> PBRD
     let specular_environmentR0 = specular_color.rgb;
     let specular_environmentR90 = vec3<f32>(1., 1., 1.) * reflectance90;
     
-    var diffuse_color = (*pixel_data).color.rgb * (vec3<f32>(1.) - f0);
-    diffuse_color = diffuse_color * (1. - metallic);
+    diffuse_color = vec4<f32>(diffuse_color.rgb * (vec3<f32>(1.) - f0), diffuse_color.a);
+    diffuse_color *= (1. - metallic);
         
     var ambient_color = diffuse_color.rgb * AMBIENT_COLOR * AMBIENT_INTENSITY;
     ambient_color = mix(ambient_color, ambient_color * ao, occlusion_strength);
     let color = ambient_color;// + emissive_color;
         
-    let final_color = vec4<f32>(color, (*pixel_data).color.a);
+    let final_color = vec4<f32>(color, diffuse_color.a);
 
     let p = (*pixel_data).world_pos;
     let n = compute_normal(pixel_data);     // normal at surface point
     let view_pos = constant_data.view[3].xyz;
     let v = normalize(view_pos-(*pixel_data).world_pos); // Vector from surface point to camera
 
-    return PBRData(p, n, v, specular_environmentR0, specular_environmentR90, diffuse_color, alpha_roughness, final_color);
-}
-
-fn compute_brdf(pbr: PBRData) -> vec4<f32> {
-    var final_color = pbr.final_color;
-    let NdotV = clamp(abs(dot(pbr.n, pbr.v)), 0.0001, 1.0);
-    let num_lights = arrayLength(&lights.data);
-    for (var i = 0u; i < num_lights; i++ ) {
-        let light = &lights.data[i];
-        if ((*light).light_type == 0u) {
-            break;
-        }
-        
-        let dir = (*light).position - pbr.p;
-        let d = length(dir);
-        let l = normalize(dir);                             // Vector from surface point to light
-        let h = normalize(l + pbr.v);                           // Half vector between both l and v
-        
-        let linear_att = 0.5 * d;
-        let quad_att = 0.5 * d * d;
-        let light_intensity = (*light).intensity * 1000. / (linear_att * quad_att);
-        let light_contrib = light_intensity * (max((*light).range - d, (*light).range) / (*light).range);
-        
-        let NdotL = clamp(dot(pbr.n, l), 0.0001, 1.0);
-        let NdotH = clamp(dot(pbr.n, h), 0.0, 1.0);
-        let LdotH = clamp(dot(l, h), 0.0, 1.0);
-        let VdotH = clamp(dot(pbr.v, h), 0.0, 1.0);
-        
-        // Calculate the shading terms for the microfacet specular shading model
-        let F = specular_reflection(pbr.specular_environmentR0, pbr.specular_environmentR90, VdotH);
-        let G = geometric_occlusion(pbr.alpha_roughness, NdotL, NdotV);
-        let D = microfacet_distribution(pbr.alpha_roughness, NdotH);
-        
-        let diffuse_contrib = (1. - F) * pbr.diffuse_color / PI;
-        let spec_contrib = F * G * D / (4.0 * NdotL * NdotV);
-        var light_color = NdotL * (*light).color.rgb * (diffuse_contrib + spec_contrib);
-        
-        final_color = vec4<f32>(final_color.rgb + light_color * light_contrib, final_color.a);
-    }
-    return final_color;
+    return PBRData(p, n, v, specular_environmentR0, specular_environmentR90, diffuse_color.rgb, emissive_color, alpha_roughness, final_color);
 }
