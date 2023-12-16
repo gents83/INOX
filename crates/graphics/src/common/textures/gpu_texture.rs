@@ -65,7 +65,6 @@ impl GpuTexture {
             mip_level_count: Some(1),
             base_array_layer: 0,
             array_layer_count: Some(layers_count),
-            ..Default::default()
         });
         Self {
             id,

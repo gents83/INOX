@@ -29,10 +29,7 @@ fn compute_partial_derivatives(v0: vec2<f32>, v1: vec2<f32>, v2: vec2<f32>) -> D
 {
     let d = 1. / determinant(mat2x2<f32>(v2-v1, v0-v1));
     
-    var deriv: Derivatives;
-    deriv.dx = vec3<f32>(v1.y - v2.y, v2.y - v0.y, v0.y - v1.y) * d;
-    deriv.dy = vec3<f32>(v2.x - v1.x, v0.x - v2.x, v1.x - v0.x) * d;
-    return deriv;
+    return Derivatives(vec3<f32>(v1.y - v2.y, v2.y - v0.y, v0.y - v1.y) * d, vec3<f32>(v2.x - v1.x, v0.x - v2.x, v1.x - v0.x) * d);
 }
 
 // Interpolate 2D attributes using the partial derivatives and generates dx and dy for texture sampling.
