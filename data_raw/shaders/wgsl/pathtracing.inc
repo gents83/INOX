@@ -1,4 +1,4 @@
-const MAX_PATH_BOUNCES: u32 = 5u;
+const MAX_PATH_BOUNCES: u32 = 4u;
 
 struct RadianceData {
     direction: vec3<f32>,

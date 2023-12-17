@@ -142,24 +142,24 @@ impl Plugin for Viewer {
 
 impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &mut Renderer, width: u32, height: u32) {
-        let half_dimension = (width / 2, height / 2);
+        let reduced_dimensions = (width / 4, height / 4);
 
         Self::create_compute_runtime_vertices_pass(context, renderer, true);
         Self::create_culling_pass(context, renderer, ADD_CULLING_PASS);
         if FORCE_COMPUTE_PATHTRACING {
             let (visibility_texture_id, depth_texture) =
-                Self::create_visibility_pass(context, renderer, half_dimension.0, half_dimension.1);
+                Self::create_visibility_pass(context, renderer, reduced_dimensions.0, reduced_dimensions.1);
             Self::create_compute_ray_generation_pass(
                 context,
                 renderer,
-                half_dimension.0,
-                half_dimension.1,
+                reduced_dimensions.0,
+                reduced_dimensions.1,
             );
             let output_texture_id = Self::create_compute_pathtracing_pass(
                 context,
                 renderer,
-                half_dimension.0,
-                half_dimension.1,
+                reduced_dimensions.0,
+                reduced_dimensions.1,
                 &visibility_texture_id,
                 &depth_texture,
             );
@@ -168,20 +168,20 @@ impl Viewer {
             let visibility_texture_id = if has_primitive_index_support()
                 && !FORCE_COMPUTE_RAYTRACING_PIPELINE
             {
-                let (visibility_texture_id, _depth_texture_id) = Self::create_visibility_pass(context, renderer, half_dimension.0, half_dimension.1);
+                let (visibility_texture_id, _depth_texture_id) = Self::create_visibility_pass(context, renderer, reduced_dimensions.0, reduced_dimensions.1);
                 visibility_texture_id
             } else {
                 Self::create_compute_ray_generation_pass(
                     context,
                     renderer,
-                    half_dimension.0,
-                    half_dimension.1,
+                    reduced_dimensions.0,
+                    reduced_dimensions.1,
                 );
                 Self::create_compute_raytracing_visibility_pass(
                     context,
                     renderer,
-                    half_dimension.0,
-                    half_dimension.1,
+                    reduced_dimensions.0,
+                    reduced_dimensions.1,
                 )
             };
             Self::create_pbr_pass(context, renderer, visibility_texture_id);
