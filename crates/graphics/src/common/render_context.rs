@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
+    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, atomic::Ordering},
 };
 
 use inox_math::{Matrix4, Vector2};
@@ -191,7 +191,7 @@ impl RenderContext {
         self.constant_data
             .write()
             .unwrap()
-            .update(view, proj, screen_size);
+            .update(view, proj, screen_size, self.render_buffers.tlas_start_index.load(Ordering::Relaxed));
         if self.core.config.read().unwrap().format.is_srgb() {
             self.constant_data
                 .write()

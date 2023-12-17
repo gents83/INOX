@@ -25,14 +25,12 @@ var<storage, read> textures: Textures;
 @group(1) @binding(3)
 var<storage, read> bhv: BHV;
 @group(1) @binding(4)
-var<uniform> tlas_starting_index: u32;
-@group(1) @binding(5)
 var<storage, read_write> rays: Rays;
-@group(1) @binding(6)
+@group(1) @binding(5)
 var render_target: texture_storage_2d<rgba8unorm, read_write>;
-@group(1) @binding(7)
+@group(1) @binding(6)
 var visibility_texture: texture_2d<f32>;
-@group(1) @binding(8)
+@group(1) @binding(7)
 var depth_texture: texture_depth_2d;
 
 #import "texture_utils.inc"
@@ -133,7 +131,13 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>, mvp: mat
     var radiance_data = RadianceData(ray.direction, vec3<f32>(0.), vec3<f32>(1.));
     
     let visibility_value = textureLoad(visibility_texture, pixel, 0);
+    if((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER) != 0) {
+        return visibility_value;
+    }
     let depth_value = textureLoad(depth_texture, pixel, 0);
+    if((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER) != 0) {
+        return vec4<f32>(1. - depth_value);
+    }
     
     let visibility_id = pack4x8unorm(visibility_value);
     if (visibility_id == 0u || (visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
@@ -145,7 +149,7 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>, mvp: mat
     ray = Ray(hit_point + radiance_data.direction * HIT_EPSILON, HIT_EPSILON, radiance_data.direction, MAX_FLOAT);
 
     for (var bounce = 0u; bounce < MAX_PATH_BOUNCES; bounce++) {
-        let result = traverse_bvh(ray, i32(tlas_starting_index));  
+        let result = traverse_bvh(ray, i32(constant_data.tlas_starting_index));  
         if (result.visibility_id == 0u || (result.visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
             break;
         }
@@ -158,8 +162,6 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>, mvp: mat
         
     return vec4<f32>(pixel_color, 1.);
 }
-
-
 
 
 

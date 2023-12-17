@@ -2,25 +2,25 @@
 #import "utils.inc"
 
 @group(0) @binding(0)
-var<storage, read> indices: Indices;
+var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
-var<storage, read> runtime_vertices: RuntimeVertices;
+var<storage, read> indices: Indices;
 @group(0) @binding(2)
-var<storage, read> meshes: Meshes;
+var<storage, read> runtime_vertices: RuntimeVertices;
 @group(0) @binding(3)
-var<storage, read> meshlets: Meshlets;
+var<storage, read> meshes: Meshes;
 @group(0) @binding(4)
-var<storage, read> culling_result: array<u32>;
+var<storage, read> meshlets: Meshlets;
 @group(0) @binding(5)
-var<storage, read> bhv: BHV;
+var<storage, read> culling_result: array<u32>;
 @group(0) @binding(6)
+var<storage, read> bhv: BHV;
+@group(0) @binding(7)
 var<storage, read> meshes_inverse_matrix: Matrices;
 
 @group(1) @binding(0)
-var<uniform> tlas_starting_index: u32;
-@group(1) @binding(1)
 var<storage, read_write> rays: Rays;
-@group(1) @binding(2)
+@group(1) @binding(1)
 var render_target: texture_storage_2d<rgba8unorm, write>;
 
 #import "matrix_utils.inc"
@@ -36,7 +36,7 @@ fn execute_job(job_index: u32) -> vec4<f32>  {
     
     while (tlas_index >= 0)
     {
-        let node = &bhv.data[tlas_starting_index + u32(tlas_index)];    
+        let node = &bhv.data[constant_data.tlas_starting_index + u32(tlas_index)];    
         let intersection = intersect_aabb(&ray, (*node).min, (*node).max);
         if (intersection > nearest) {
             tlas_index = (*node).miss;

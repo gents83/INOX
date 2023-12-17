@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::atomic::Ordering};
+use std::path::PathBuf;
 
 use crate::{
     BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
@@ -96,11 +96,6 @@ impl Pass for ComputePathTracingPass {
         if self.render_target.is_none() || self.meshlets.read().unwrap().is_empty() {
             return;
         }
-
-        let mut tlas_starting_index = render_context
-            .render_buffers
-            .tlas_start_index
-            .load(Ordering::SeqCst);
 
         self.binding_data
             .add_uniform_buffer(
@@ -213,22 +208,12 @@ impl Pass for ComputePathTracingPass {
                     ..Default::default()
                 },
             )
-            .add_uniform_buffer(
-                &mut tlas_starting_index,
-                Some("TLAS index"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 4,
-                    stage: ShaderStage::Compute,
-                    ..Default::default()
-                },
-            )
             .add_storage_buffer(
                 &mut *self.rays.write().unwrap(),
                 Some("Rays"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 5,
+                    binding_index: 4,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite,
                 },
@@ -237,7 +222,7 @@ impl Pass for ComputePathTracingPass {
                 self.render_target.as_ref().unwrap().id(),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 6,
+                    binding_index: 5,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
@@ -246,7 +231,7 @@ impl Pass for ComputePathTracingPass {
                 &self.visibility_texture,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 7,
+                    binding_index: 6,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -255,7 +240,7 @@ impl Pass for ComputePathTracingPass {
                 &self.depth_texture,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 8,
+                    binding_index: 7,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },

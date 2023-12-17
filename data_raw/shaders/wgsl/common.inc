@@ -25,9 +25,10 @@ const MESH_FLAGS_UI: u32 = 32u; // 1 << 5
 
 const CONSTANT_DATA_FLAGS_NONE: u32 = 0u;
 const CONSTANT_DATA_FLAGS_SUPPORT_SRGB: u32 = 1u;
-const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 2u;
-const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE: u32 = 4u;
-const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 8u;
+const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 1u << 1u;
+const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 1u << 2u;
+const CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER: u32 = 1u << 3u;
+const CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER: u32 = 1u << 4u;
 
 const PI: f32 = 3.141592653589793238462643;
 const MAX_FLOAT: f32 = 3.402823466e+38;
@@ -50,6 +51,8 @@ struct ConstantData {
     screen_height: f32,
     frame_index: u32,
     flags: u32,
+    padding: vec3<f32>,
+    tlas_starting_index: u32,
 };
 
 struct RuntimeVertexData {
