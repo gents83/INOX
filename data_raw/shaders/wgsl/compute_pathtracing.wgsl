@@ -62,12 +62,11 @@ fn traverse_bvh(r: Ray, tlas_starting_index: i32) -> Result {
     while(hit_type != HIT_DATA_MISS)
     {
         if(node_index < 0) {
-            if(hit_type == HIT_DATA_TLAS) {
-                break;
-            }
+            let is_tlas = hit_type == HIT_DATA_TLAS;
             let is_triangle = hit_type == HIT_DATA_TRIANGLE;
             node_index = select(tlas_sibling, blas_sibling, is_triangle);
             hit_type = select(HIT_DATA_TLAS, HIT_DATA_BLAS, is_triangle);
+            hit_type = select(hit_type, HIT_DATA_MISS, is_tlas);
             ray.origin = select(world_ray.origin, ray.origin, is_triangle);
             ray.direction = select(world_ray.direction, ray.direction, is_triangle);
             continue;
@@ -133,10 +132,8 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>, mvp: mat
     var seed = (pixel * dimensions) ^ vec2<u32>(constant_data.frame_index * 0xFFFFu);
     var radiance_data = RadianceData(ray.direction, vec3<f32>(0.), vec3<f32>(1.));
     
-    var visibility_value = textureLoad(visibility_texture, pixel, 0);
-    var depth_value = textureLoad(depth_texture, pixel, 0);
-    //return visibility_value;
-    //return vec4<f32>(f32(depth_value) - 0.95);
+    let visibility_value = textureLoad(visibility_texture, pixel, 0);
+    let depth_value = textureLoad(depth_texture, pixel, 0);
     
     let visibility_id = pack4x8unorm(visibility_value);
     if (visibility_id == 0u || (visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
@@ -145,17 +142,17 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>, mvp: mat
     seed = get_random_numbers(seed);    
     radiance_data = compute_radiance_from_visibility(visibility_id, clip_coords, seed, radiance_data, mvp);     
     let hit_point = clip_to_world(clip_coords, depth_value);
-    ray = Ray(hit_point + radiance_data.direction * HIT_EPSILON, 0., radiance_data.direction, MAX_FLOAT - HIT_EPSILON);
+    ray = Ray(hit_point + radiance_data.direction * HIT_EPSILON, HIT_EPSILON, radiance_data.direction, MAX_FLOAT);
 
-    for (var bounce = 1u; bounce < MAX_PATH_BOUNCES; bounce++) {
-        let result = traverse_bvh(ray, i32(tlas_starting_index));            
-        if (result.visibility_id == 0u) {
+    for (var bounce = 0u; bounce < MAX_PATH_BOUNCES; bounce++) {
+        let result = traverse_bvh(ray, i32(tlas_starting_index));  
+        if (result.visibility_id == 0u || (result.visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
             break;
         }
         seed = get_random_numbers(seed);    
         radiance_data = compute_radiance_from_visibility(result.visibility_id, clip_coords, seed, radiance_data, mvp); 
         let hit_point = ray.origin + (ray.direction * result.distance);
-        ray = Ray(hit_point + radiance_data.direction * HIT_EPSILON, 0., radiance_data.direction, MAX_FLOAT - HIT_EPSILON);
+        ray = Ray(hit_point + radiance_data.direction * HIT_EPSILON, HIT_EPSILON, radiance_data.direction, MAX_FLOAT);
     }
     pixel_color += radiance_data.radiance;
         
