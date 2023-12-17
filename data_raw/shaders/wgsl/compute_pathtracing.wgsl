@@ -30,6 +30,10 @@ var<uniform> tlas_starting_index: u32;
 var<storage, read_write> rays: Rays;
 @group(1) @binding(6)
 var render_target: texture_storage_2d<rgba8unorm, read_write>;
+@group(1) @binding(7)
+var visibility_texture: texture_2d<f32>;
+@group(1) @binding(8)
+var depth_texture: texture_depth_2d;
 
 #import "texture_utils.inc"
 #import "matrix_utils.inc"
@@ -121,23 +125,37 @@ fn traverse_bvh(r: Ray, tlas_starting_index: i32) -> Result {
     return Result(hit_distance, visibility_id);
 }
 
-fn execute_job(job_index: u32, pixel: vec2<f32>, dimensions: vec2<f32>, mvp: mat4x4<f32>) -> vec4<f32>  
+fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>, mvp: mat4x4<f32>) -> vec4<f32>  
 {    
     var ray = rays.data[job_index];
-    var seed = vec2<u32>(pixel * dimensions) ^ vec2<u32>(constant_data.frame_index << 16u);
-    var uv_coords = 2. * (pixel / dimensions) - vec2<f32>(1., 1.);
-    uv_coords.y = -uv_coords.y;
+    var clip_coords = pixel_to_clip(pixel, dimensions);
     var pixel_color = vec3<f32>(0.);
+    var seed = (pixel * dimensions) ^ vec2<u32>(constant_data.frame_index << 16u);
+    var radiance_data = RadianceData(ray.direction, vec3<f32>(0.), vec3<f32>(1.));
     
-    var radiance_data = RadianceData(ray, seed, vec3<f32>(0.), vec3<f32>(1.));
-    for (var bounce = 0u; bounce < MAX_PATH_BOUNCES; bounce++) {
-        let result = traverse_bvh(radiance_data.ray, i32(tlas_starting_index));            
+    var visibility_value = textureLoad(visibility_texture, pixel, 0);
+    var depth_value = textureLoad(depth_texture, pixel, 0);
+    //return visibility_value;
+    //return vec4<f32>(f32(depth_value) - 0.95);
+    
+    let visibility_id = pack4x8unorm(visibility_value);
+    if (visibility_id == 0u || (visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
+        return vec4<f32>(pixel_color, 1.);
+    }
+    seed = get_random_numbers(seed);    
+    radiance_data = compute_radiance_from_visibility(visibility_id, clip_coords, seed, radiance_data, mvp);     
+    let hit_point = clip_to_world(clip_coords, depth_value);
+    ray = Ray(hit_point + radiance_data.direction * HIT_EPSILON, 0., radiance_data.direction, MAX_FLOAT - HIT_EPSILON);
+
+    for (var bounce = 1u; bounce < MAX_PATH_BOUNCES; bounce++) {
+        let result = traverse_bvh(ray, i32(tlas_starting_index));            
         if (result.visibility_id == 0u) {
             break;
         }
-        radiance_data.ray.t_max = result.distance;  
-        radiance_data = compute_radiance_from_visibility(result.visibility_id, uv_coords, radiance_data, mvp); 
-        seed = radiance_data.seed;
+        seed = get_random_numbers(seed);    
+        radiance_data = compute_radiance_from_visibility(result.visibility_id, clip_coords, seed, radiance_data, mvp); 
+        let hit_point = ray.origin + (ray.direction * result.distance);
+        ray = Ray(hit_point + radiance_data.direction * HIT_EPSILON, 0., radiance_data.direction, MAX_FLOAT - HIT_EPSILON);
     }
     pixel_color += radiance_data.radiance;
         
@@ -145,29 +163,11 @@ fn execute_job(job_index: u32, pixel: vec2<f32>, dimensions: vec2<f32>, mvp: mat
 }
 
 
-const MAX_WORKGROUP_SIZE: i32 = 16*16;
-const MAX_SIZE: u32 = u32(MAX_WORKGROUP_SIZE);
 
-var<workgroup> jobs_count: atomic<i32>;
 
-const GAMMA:f32 = 2.2;
 
-fn Uncharted2ToneMapping(color: vec3<f32>) -> vec3<f32> {
-	let A = 0.15;
-	let B = 0.50;
-	let C = 0.10;
-	let D = 0.20;
-	let E = 0.02;
-	let F = 0.30;
-	let W = 11.2;
-	let exposure = 2.;
-	var result = color * exposure;
-	result = ((result * (A * result + C * B) + D * E) / (result * (A * result + B) + D * F)) - E / F;
-	let white = ((W * (A * W + C * B) + D * E) / (W * (A * W + B) + D * F)) - E / F;
-	result /= white;
-	result = pow(result, vec3<f32>(1. / GAMMA));
-	return result;
-}
+const MAX_WORKGROUP_SIZE: u32 = 16u*16u;
+var<workgroup> jobs_count: atomic<u32>;
 
 @compute
 @workgroup_size(16, 16, 1)
@@ -175,25 +175,23 @@ fn main(
     @builtin(local_invocation_id) local_invocation_id: vec3<u32>, 
     @builtin(workgroup_id) workgroup_id: vec3<u32>
 ) {
-    let max_jobs = 16 * 16;
-    let group = vec2<i32>(i32(workgroup_id.x), i32(workgroup_id.y));
-    let dimensions = vec2<i32>(textureDimensions(render_target));
-    atomicStore(&jobs_count, max_jobs);
+    let dimensions = textureDimensions(render_target);
+    atomicStore(&jobs_count, MAX_WORKGROUP_SIZE);
     
     let mvp = constant_data.proj * constant_data.view;
-    var job_index = 0;
+    var job_index = 0u;
     while(job_index < MAX_WORKGROUP_SIZE)
     {
-        let pixel = vec2<i32>(group.x * 16 + job_index % 16, 
-                              group.y * 16 + job_index / 16);
+        let pixel = vec2<u32>(workgroup_id.x * 16u + job_index % 16u, 
+                              workgroup_id.y * 16u + job_index / 16u);
         if (pixel.x >= dimensions.x || pixel.y >= dimensions.y) {
-            job_index = max_jobs - atomicSub(&jobs_count, 1);
+            job_index = MAX_WORKGROUP_SIZE - atomicSub(&jobs_count, 1u);
             continue;
         }    
         
         let index = u32(pixel.y * dimensions.x + pixel.x);
 
-        var out_color = execute_job(index, vec2<f32>(pixel), vec2<f32>(dimensions), mvp);
+        var out_color = execute_job(index, pixel, dimensions, mvp);
         out_color = vec4<f32>(Uncharted2ToneMapping(out_color.rgb), 1.);
         if(constant_data.frame_index > 0u) {
             var prev_value = textureLoad(render_target, pixel);
@@ -201,6 +199,6 @@ fn main(
             out_color = mix(prev_value, out_color, weight);
         } 
         textureStore(render_target, pixel, out_color);
-        job_index = max_jobs - atomicSub(&jobs_count, 1);
+        job_index = MAX_WORKGROUP_SIZE - atomicSub(&jobs_count, 1u);
     }
 }

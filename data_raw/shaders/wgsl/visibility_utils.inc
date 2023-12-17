@@ -1,6 +1,6 @@
 // Need constant_data, meshlets, meshes, indices, runtime_vertices, vertices_attributes
 
-fn visibility_to_gbuffer(visibility_id: u32, screen_uv: vec2<f32>, mvp: mat4x4<f32>) -> PixelData 
+fn visibility_to_gbuffer(visibility_id: u32, clip_coords: vec2<f32>, mvp: mat4x4<f32>) -> PixelData 
 {     
     var uv_set: array<vec2<f32>, 4>;
     var normal = vec3<f32>(0.);
@@ -47,7 +47,7 @@ fn visibility_to_gbuffer(visibility_id: u32, screen_uv: vec2<f32>, mvp: mat4x4<f
     p3 = (p3 * one_over_w.z + 1.) * 0.5;
     
     // Get delta vector that describes current screen point relative to vertex 0
-    var screen_pixel = screen_uv.xy;
+    var screen_pixel = clip_coords.xy;
     screen_pixel.y = 1. - screen_pixel.y;
     let delta = screen_pixel + -p1.xy;
     let barycentrics = compute_barycentrics(p1.xy, p2.xy, p3.xy, screen_pixel);

@@ -4,6 +4,24 @@ struct Derivatives {
     dy: vec3<f32>,
 }
 
+fn pixel_to_clip(image_pixel: vec2<u32>, image_size: vec2<u32>) -> vec2<f32> {
+    var clip_coords = 2. * (vec2<f32>(image_pixel) / vec2<f32>(image_size)) - vec2<f32>(1., 1.);
+    clip_coords.y = -clip_coords.y;
+    return clip_coords;
+}
+
+fn pixel_to_world(image_pixel: vec2<u32>, image_size: vec2<u32>, depth: f32) -> vec3<f32> {
+    let clip_coords = pixel_to_clip(image_pixel, image_size);
+    let world_pos = clip_to_world(clip_coords, depth);
+    return world_pos;
+}
+
+fn clip_to_world(clip_coords: vec2<f32>, depth: f32) -> vec3<f32> {    
+    var world_pos = constant_data.inverse_view_proj * vec4<f32>(clip_coords, depth, 1.);
+    world_pos /= world_pos.w;
+    return world_pos.xyz;
+}
+
 fn compute_barycentrics(a: vec2<f32>, b: vec2<f32>, c: vec2<f32>, p: vec2<f32>) -> vec3<f32> {
     let v0 = b - a;
     let v1 = c - a;

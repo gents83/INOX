@@ -13,8 +13,6 @@ struct FragmentOutput {
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
 
-#import "matrix_utils.inc"
-
 @vertex
 fn vs_main(
     @builtin(instance_index) meshlet_id: u32,

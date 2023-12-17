@@ -1,8 +1,7 @@
-const MAX_PATH_BOUNCES: u32 = 8u;
+const MAX_PATH_BOUNCES: u32 = 6u;
 
 struct RadianceData {
-    ray: Ray,
-    seed: vec2<u32>,
+    direction: vec3<f32>,
     radiance: vec3<f32>, 
     throughput_weight: vec3<f32>, 
 }
@@ -23,11 +22,10 @@ fn sample_hemisphere(random_numbers: vec2<f32>, normal: vec3<f32>) -> vec3<f32> 
 }
 
 // Need constant_data, meshlets, meshes, indices, runtime_vertices, vertices_attributes
-fn compute_radiance_from_visibility(visibility_id: u32, screen_uv: vec2<f32>, data: RadianceData, mvp: mat4x4<f32>) -> RadianceData { 
-    var pixel_data = visibility_to_gbuffer(visibility_id, screen_uv, mvp);
+fn compute_radiance_from_visibility(visibility_id: u32, clip_coords: vec2<f32>, seed: vec2<u32>, data: RadianceData, mvp: mat4x4<f32>) -> RadianceData { 
+    var pixel_data = visibility_to_gbuffer(visibility_id, clip_coords, mvp);
     let pbr_data = compute_color(pixel_data.material_id, &pixel_data);
 
-    let seed = get_random_numbers(data.seed);    
     let rnd = vec2<f32>(seed) * 2.32830643654e-10;
     let direction = sample_hemisphere(rnd, pixel_data.normal);
 
@@ -35,7 +33,5 @@ fn compute_radiance_from_visibility(visibility_id: u32, screen_uv: vec2<f32>, da
     let d = dot(pixel_data.normal, direction);
     let weight = data.throughput_weight * (pbr_data.diffuse_color.rgb * 2. * d);
 
-    let origin = data.ray.origin + (data.ray.direction * data.ray.t_max) + direction * HIT_EPSILON;
-    let ray = Ray(origin, 0., direction, MAX_FLOAT - HIT_EPSILON);
-    return RadianceData(ray, seed, rad, weight);
+    return RadianceData(direction, rad, weight);
 }

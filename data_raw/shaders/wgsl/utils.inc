@@ -138,3 +138,22 @@ fn vertex_layout_stride(vertex_attribute_layout: u32) -> u32
 {
     return countOneBits(vertex_attribute_layout);
 }
+
+const GAMMA:f32 = 2.2;
+
+fn Uncharted2ToneMapping(color: vec3<f32>) -> vec3<f32> {
+	let A = 0.15;
+	let B = 0.50;
+	let C = 0.10;
+	let D = 0.20;
+	let E = 0.02;
+	let F = 0.30;
+	let W = 11.2;
+	let exposure = 2.;
+	var result = color * exposure;
+	result = ((result * (A * result + C * B) + D * E) / (result * (A * result + B) + D * F)) - E / F;
+	let white = ((W * (A * W + C * B) + D * E) / (W * (A * W + B) + D * F)) - E / F;
+	result /= white;
+	result = pow(result, vec3<f32>(1. / GAMMA));
+	return result;
+}

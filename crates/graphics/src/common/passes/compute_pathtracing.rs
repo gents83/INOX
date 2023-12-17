@@ -10,7 +10,7 @@ use crate::{
 
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Handle, Resource};
-use inox_uid::generate_random_uid;
+use inox_uid::{generate_random_uid, INVALID_UID};
 
 pub const COMPUTE_PATHTRACING_PIPELINE: &str = "pipelines/ComputePathTracing.compute_pipeline";
 pub const COMPUTE_PATHTRACING_NAME: &str = "ComputePathTracingPass";
@@ -32,6 +32,8 @@ pub struct ComputePathTracingPass {
     textures: TexturesBuffer,
     materials: MaterialsBuffer,
     rays: RaysBuffer,
+    visibility_texture: TextureId,
+    depth_texture: TextureId,
 }
 unsafe impl Send for ComputePathTracingPass {}
 unsafe impl Sync for ComputePathTracingPass {}
@@ -84,6 +86,8 @@ impl Pass for ComputePathTracingPass {
             binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_NAME),
             render_target: None,
             rays: render_context.render_buffers.rays.clone(),
+            visibility_texture: INVALID_UID,
+            depth_texture: INVALID_UID,
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -237,6 +241,24 @@ impl Pass for ComputePathTracingPass {
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
+            )
+            .add_texture(
+                &self.visibility_texture,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 7,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_texture(
+                &self.depth_texture,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 8,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
             );
 
         self.binding_data
@@ -302,6 +324,14 @@ impl OutputPass for ComputePathTracingPass {
 }
 
 impl ComputePathTracingPass {
+    pub fn set_visibility_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.visibility_texture = *texture_id;
+        self
+    }
+    pub fn set_depth_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.depth_texture = *texture_id;
+        self
+    }
     pub fn add_render_target_with_resolution(
         &mut self,
         width: u32,
