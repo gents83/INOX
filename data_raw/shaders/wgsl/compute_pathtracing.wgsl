@@ -130,7 +130,7 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>, mvp: mat
     var ray = rays.data[job_index];
     var clip_coords = pixel_to_clip(pixel, dimensions);
     var pixel_color = vec3<f32>(0.);
-    var seed = (pixel * dimensions) ^ vec2<u32>(constant_data.frame_index << 16u);
+    var seed = (pixel * dimensions) ^ vec2<u32>(constant_data.frame_index * 0xFFFFu);
     var radiance_data = RadianceData(ray.direction, vec3<f32>(0.), vec3<f32>(1.));
     
     var visibility_value = textureLoad(visibility_texture, pixel, 0);
