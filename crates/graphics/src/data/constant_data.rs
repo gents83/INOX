@@ -81,7 +81,13 @@ impl ConstantData {
         self.set_dirty(true);
         self
     }
-    pub fn update(&mut self, view: Matrix4, proj: Matrix4, screen_size: Vector2, tlas_starting_index: u32) -> bool {
+    pub fn update(
+        &mut self,
+        view: Matrix4,
+        proj: Matrix4,
+        screen_size: Vector2,
+        tlas_starting_index: u32,
+    ) -> bool {
         let v = matrix4_to_array(view);
         let p = matrix4_to_array(proj);
         if self.data.view != v

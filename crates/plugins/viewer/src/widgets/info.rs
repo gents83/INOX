@@ -3,11 +3,12 @@ use std::sync::atomic::Ordering;
 use inox_core::ContextRc;
 use inox_graphics::{
     CullingEvent, DrawEvent, Light, Mesh, MeshFlags, MeshId, RendererRw,
-    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX, CONSTANT_DATA_FLAGS_NONE, CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER,
+    CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
+    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
+    CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER, CONSTANT_DATA_FLAGS_NONE,
 };
 use inox_math::{
-    compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle, Quat, VecBase,
-    Vector3,
+    compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle, Quat, VecBase, Vector3,
 };
 use inox_messenger::Listener;
 use inox_resources::{DataTypeResourceEvent, HashBuffer, Resource, ResourceEvent};
@@ -304,7 +305,9 @@ impl Info {
                 Self::show_meshes_of_object(data, &data.selected_object_id);
             }
             match data.visualization_debug {
-                VisualizationDebug::BoundingBox => Self::show_meshlets_bounding_box(data, &self.meshes),
+                VisualizationDebug::BoundingBox => {
+                    Self::show_meshlets_bounding_box(data, &self.meshes)
+                }
                 VisualizationDebug::ConeAxis => Self::show_meshlets_cone_axis(data, &self.meshes),
                 _ => {}
             }

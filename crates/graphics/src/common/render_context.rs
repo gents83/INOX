@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, atomic::Ordering},
+    sync::{atomic::Ordering, Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
 use inox_math::{Matrix4, Vector2};
@@ -188,10 +188,12 @@ impl RenderContext {
 
     pub fn update_constant_data(&self, view: Matrix4, proj: Matrix4, screen_size: Vector2) {
         inox_profiler::scoped_profile!("render_context::update_constant_data");
-        self.constant_data
-            .write()
-            .unwrap()
-            .update(view, proj, screen_size, self.render_buffers.tlas_start_index.load(Ordering::Relaxed));
+        self.constant_data.write().unwrap().update(
+            view,
+            proj,
+            screen_size,
+            self.render_buffers.tlas_start_index.load(Ordering::Relaxed),
+        );
         if self.core.config.read().unwrap().format.is_srgb() {
             self.constant_data
                 .write()
