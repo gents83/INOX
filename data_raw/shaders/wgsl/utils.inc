@@ -123,6 +123,10 @@ fn swap_f32(ptr_a: ptr<function, f32>, ptr_b: ptr<function, f32>)
     *ptr_b = c;
 }
 
+fn clamped_dot(a: vec3<f32>, b: vec3<f32>) -> f32 {
+    return clamp(dot(a,b), 0., 1.);
+}
+
 fn has_vertex_attribute(vertex_attribute_layout: u32, attribute_to_check: u32) -> bool {
     return bool(vertex_attribute_layout & attribute_to_check);
 }

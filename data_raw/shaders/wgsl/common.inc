@@ -225,3 +225,9 @@ struct PixelData {
     color: vec4<f32>,
     uv_set: array<vec2<f32>, 4>,
 };
+
+struct TBN {
+    normal: vec3<f32>,
+    tangent: vec3<f32>,
+    binormal: vec3<f32>,
+}

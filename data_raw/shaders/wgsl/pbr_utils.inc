@@ -90,13 +90,32 @@ fn microfacet_distribution(alpha_roughness: f32, NdotH: f32) -> f32 {
     return roughnessSq / (PI * f * f);
 }
 
+//Inspired from glTF-Sample-Viewer
+fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, PixelData>) {
+    var material = materials.data[material_id];
+
+    let v = normalize(constant_data.view[3].xyz - (*pixel_data).world_pos);
+    let tbn = compute_tbn(&material, pixel_data);
+
+    let NdotV = clamped_dot(tbn.normal,v);
+    let TdotV = clamped_dot(tbn.tangent,v);
+    let BdotV = clamped_dot(tbn.binormal,v);
+
+    var base_color = compute_base_color(&material, pixel_data);
+
+    let ior = 1.5;
+    let f0 = vec3<f32>(0.04);
+    let specular_weight = 1.0;
+}
+
+
 fn compute_color(material_id: u32, pixel_data: ptr<function, PixelData>) -> PBRData {
-    let material = &materials.data[material_id];
+    var material = materials.data[material_id];
 
     var diffuse_color = (*pixel_data).color;
-    diffuse_color *= (*material).base_color;
-    if (has_texture(material_id, TEXTURE_TYPE_BASE_COLOR)) {  
-        let uv = material_texture_uv(pixel_data, TEXTURE_TYPE_BASE_COLOR);
+    diffuse_color *= material.base_color;
+    if (has_texture(&material, TEXTURE_TYPE_BASE_COLOR)) {  
+        let uv = material_texture_uv(&material, pixel_data, TEXTURE_TYPE_BASE_COLOR);
         let texture_color = sample_texture(uv);
         diffuse_color *= texture_color;
     }
@@ -105,24 +124,24 @@ fn compute_color(material_id: u32, pixel_data: ptr<function, PixelData>) -> PBRD
     var ao = 1.0;
     var occlusion_strength = 1.;
 
-    if (has_texture(material_id, TEXTURE_TYPE_OCCLUSION)) {
-        let t = material_texture_uv(pixel_data, TEXTURE_TYPE_OCCLUSION);
+    if (has_texture(&material, TEXTURE_TYPE_OCCLUSION)) {
+        let t = material_texture_uv(&material, pixel_data, TEXTURE_TYPE_OCCLUSION);
         ao = ao * t.r;
-        occlusion_strength = (*material).occlusion_strength;
+        occlusion_strength = material.occlusion_strength;
     }
 
-    var emissive_color = (*material).emissive_color;
-    if (has_texture(material_id, TEXTURE_TYPE_EMISSIVE)) {
-        let t = material_texture_uv(pixel_data, TEXTURE_TYPE_EMISSIVE);
+    var emissive_color = material.emissive_color;
+    if (has_texture(&material, TEXTURE_TYPE_EMISSIVE)) {
+        let t = material_texture_uv(&material, pixel_data, TEXTURE_TYPE_EMISSIVE);
         emissive_color *= t.rgb;
     }
 
-    var perceptual_roughness = (*material).roughness_factor;
-    var metallic = (*material).metallic_factor;
-    if (has_texture(material_id, TEXTURE_TYPE_METALLIC_ROUGHNESS)) {        
+    var perceptual_roughness = material.roughness_factor;
+    var metallic = material.metallic_factor;
+    if (has_texture(&material, TEXTURE_TYPE_METALLIC_ROUGHNESS)) {        
         // Roughness is stored in the 'g' channel, metallic is stored in the 'b' channel.
         // This layout intentionally reserves the 'r' channel for (optional) occlusion map data
-        let t = material_texture_uv(pixel_data, TEXTURE_TYPE_METALLIC_ROUGHNESS);
+        let t = material_texture_uv(&material, pixel_data, TEXTURE_TYPE_METALLIC_ROUGHNESS);
         perceptual_roughness = perceptual_roughness * t.g;
         metallic = metallic * t.b;
     }
@@ -147,12 +166,12 @@ fn compute_color(material_id: u32, pixel_data: ptr<function, PixelData>) -> PBRD
         
     var ambient_color = diffuse_color.rgb * AMBIENT_COLOR * AMBIENT_INTENSITY;
     ambient_color = mix(ambient_color, ambient_color * ao, occlusion_strength);
-    let color = ambient_color;// + emissive_color;
+    let color = diffuse_color .rgb* emissive_color + ambient_color;
         
-    let final_color = vec4<f32>(color, diffuse_color.a);
+    let final_color = vec4<f32>(ambient_color, diffuse_color.a);
 
     let p = (*pixel_data).world_pos;
-    let n = compute_normal(pixel_data);     // normal at surface point
+    let n = compute_normal(&material, pixel_data);     // normal at surface point
     let view_pos = constant_data.view[3].xyz;
     let v = normalize(view_pos-(*pixel_data).world_pos); // Vector from surface point to camera
 
