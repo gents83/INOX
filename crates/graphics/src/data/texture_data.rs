@@ -303,6 +303,19 @@ pub enum TextureFormat {
     },
 }
 
+impl TextureFormat {
+    pub fn aspect(&self) -> wgpu::TextureAspect {
+        let fmt: wgpu::TextureFormat = (*self).into();
+        if fmt.has_depth_aspect() && ! fmt.has_stencil_aspect() {
+            wgpu::TextureAspect::DepthOnly
+        } else if fmt.has_stencil_aspect() && ! fmt.has_depth_aspect() {
+            wgpu::TextureAspect::StencilOnly
+        } else {
+            wgpu::TextureAspect::All
+        }
+    }
+}
+
 impl From<TextureFormat> for wgpu::TextureFormat {
     fn from(format: TextureFormat) -> Self {
         match format {

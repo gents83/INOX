@@ -469,7 +469,7 @@ impl BindingData {
                         wgpu::BindingType::Texture {
                             sample_type: format
                                 .sample_type(
-                                    Some(wgpu::TextureAspect::All),
+                                    Some(texture.format().aspect()),
                                     Some(self.render_core_context.device.features()),
                                 )
                                 .unwrap_or_default(),

@@ -60,7 +60,7 @@ impl GpuTexture {
             } else {
                 Some(wgpu::TextureViewDimension::D2)
             },
-            aspect: wgpu::TextureAspect::default(),
+            aspect: format.aspect(),
             base_mip_level: 0,
             mip_level_count: Some(1),
             base_array_layer: 0,
@@ -109,7 +109,7 @@ impl GpuTexture {
         // multiple of wgpu::COPY_BYTES_PER_ROW_ALIGNMENT.
         let format: wgpu::TextureFormat = self.format.into();
         let pixel_size = format
-            .block_copy_size(Some(wgpu::TextureAspect::All))
+            .block_copy_size(Some(self.format.aspect()))
             .unwrap_or_default();
         let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
         let padding = (align - (pixel_size * area.width) % align) % align;
@@ -155,7 +155,7 @@ impl GpuTexture {
                     y: area.y,
                     z: layer_index,
                 },
-                aspect: wgpu::TextureAspect::default(),
+                aspect: self.format.aspect(),
             },
             extent,
         );
