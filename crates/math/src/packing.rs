@@ -95,11 +95,11 @@ pub fn decode_snorm(i: u32, n: u32) -> f32 {
     let s = i >> (n - 1);
     let c = (1 << (n - 1)) - 1;
     let scale = c as f32;
+    let r = ((i & c) as f32 + 0.5) / scale;
     if s != 0 {
-        let r = (i & c) as f32 / scale;
         return -r;
     }
-    (i & c) as f32 / scale
+    r
 }
 
 // Quantize a f32 into half-precision floating point value (16 bit)
@@ -166,8 +166,6 @@ pub fn quantize_half(v: f32) -> u16 {
 }
 
 pub fn decode_half(i: u16) -> f32 {
-    // Check for signed zero
-    // TODO: Replace mem::transmute with from_bits() once from_bits is const-stabilized
     if i & 0x7FFFu16 == 0 {
         return f32::from_bits((i as u32) << 16);
     }
@@ -211,25 +209,87 @@ pub fn decode_half(i: u16) -> f32 {
 
 #[test]
 fn encode_decode_test() {
-    let v1 = 0.0;
-    let v2 = 0.5;
-    let v3 = 1.0;
-    let a = quantize_unorm(v1, 10);
-    let b = quantize_unorm(v2, 10);
-    let c = quantize_unorm(v3, 10);
-    let composite = a << 20 | b << 10 | c;
-    let composed = /*0 << 20 | */512 << 10 | 1023;
-    debug_assert!(composite == composed, "{} != {}", composite, composed);
-    let ca = (composite >> 20) & 0x000003FF;
-    let cb = (composite >> 10) & 0x000003FF;
-    let cc = composite & 0x000003FF;
-    debug_assert!(a == ca, "{} != {}", a, ca);
-    debug_assert!(b == cb, "{} != {}", b, cb);
-    debug_assert!(c == cc, "{} != {}", c, cc);
-    let cv1 = decode_unorm(ca, 10);
-    let cv2 = decode_unorm(cb, 10);
-    let cv3 = decode_unorm(cc, 10);
-    debug_assert!(v1 == cv1, "{} != {}", v1, cv1);
-    debug_assert!(v2 == cv2, "{} != {}", v2, cv2);
-    debug_assert!(v3 == cv3, "{} != {}", v3, cv3);
+    let max_float = 1.;
+    let epsilon = 0.001;
+    for _ in 0..100 {
+        let v1 = crate::get_random_f32(0., max_float);
+        let v2 = crate::get_random_f32(0., max_float);
+        let v3 = crate::get_random_f32(0., max_float);
+        let a = quantize_unorm(v1, 10);
+        let b = quantize_unorm(v2, 10);
+        let c = quantize_unorm(v3, 10);
+        let cv1 = decode_unorm(a, 10);
+        let cv2 = decode_unorm(b, 10);
+        let cv3 = decode_unorm(c, 10);
+        debug_assert!(
+            v1 >= (cv1 - epsilon) && v1 <= (cv1 + epsilon),
+            "decode a: {} != {}",
+            v1,
+            cv1
+        );
+        debug_assert!(
+            v2 >= (cv2 - epsilon) && v2 <= (cv2 + epsilon),
+            "decode b: {} != {}",
+            v2,
+            cv2
+        );
+        debug_assert!(
+            v3 >= (cv3 - epsilon) && v3 <= (cv3 + epsilon),
+            "decode c: {} != {}",
+            v3,
+            cv3
+        );
+        let composite = a << 20 | b << 10 | c;
+        let ca = (composite >> 20) & 0x000003FF;
+        let cb = (composite >> 10) & 0x000003FF;
+        let cc = composite & 0x000003FF;
+        let cv1 = decode_unorm(ca, 10);
+        let cv2 = decode_unorm(cb, 10);
+        let cv3 = decode_unorm(cc, 10);
+        debug_assert!(
+            v1 >= (cv1 - epsilon) && v1 <= (cv1 + epsilon),
+            "composite decode a: {} != {}",
+            v1,
+            cv1
+        );
+        debug_assert!(
+            v2 >= (cv2 - epsilon) && v2 <= (cv2 + epsilon),
+            "composite decode b: {} != {}",
+            v2,
+            cv2
+        );
+        debug_assert!(
+            v3 >= (cv3 - epsilon) && v3 <= (cv3 + epsilon),
+            "composite decode c: {} != {}",
+            v3,
+            cv3
+        );
+    }
+}
+
+#[test]
+fn encode_decode_f16_test() {
+    let max_float = 1.;
+    let epsilon = 0.001;
+    for _ in 0..100 {
+        let a = crate::get_random_f32(-max_float, max_float);
+        let b = crate::get_random_f32(-max_float, max_float);
+        let ca = quantize_snorm(a, 16);
+        let cb = quantize_snorm(b, 16);
+        let c = (ca << 16) | cb;
+        let na = decode_snorm((c >> 16) & 0x0000FFFF, 16);
+        let nb = decode_snorm(cb & 0x0000FFFF, 16);
+        debug_assert!(
+            a >= (na - epsilon) && a <= (na + epsilon),
+            "composite decode a: {} != {}",
+            a,
+            na
+        );
+        debug_assert!(
+            b >= (nb - epsilon) && b <= (nb + epsilon),
+            "composite decode b: {} != {}",
+            b,
+            nb
+        );
+    }
 }

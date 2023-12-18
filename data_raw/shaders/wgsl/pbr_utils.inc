@@ -101,7 +101,13 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
     let TdotV = clamped_dot(tbn.tangent,v);
     let BdotV = clamped_dot(tbn.binormal,v);
 
-    var base_color = compute_base_color(&material, pixel_data);
+    var material_info: MaterialInfo;
+    compute_base_color(&material, pixel_data, &material_info);
+    compute_ior(&material, &material_info);
+    compute_specular_glossiness(&material, pixel_data, &material_info);
+    compute_metallic_roughness(&material, pixel_data, &material_info);
+    compute_sheen(&material, pixel_data, &material_info);
+    compute_clear_coat(&material, pixel_data, &material_info);
 
     let ior = 1.5;
     let f0 = vec3<f32>(0.04);
@@ -136,8 +142,8 @@ fn compute_color(material_id: u32, pixel_data: ptr<function, PixelData>) -> PBRD
         emissive_color *= t.rgb;
     }
 
-    var perceptual_roughness = material.roughness_factor;
-    var metallic = material.metallic_factor;
+    var perceptual_roughness = decode_snorm((u32(material.roughness_metallic_factor) & 0xFFFF0000u) >> 16u, 16u);
+    var metallic = decode_snorm(u32(material.roughness_metallic_factor) & 0x0000FFFFu, 16u);
     if (has_texture(&material, TEXTURE_TYPE_METALLIC_ROUGHNESS)) {        
         // Roughness is stored in the 'g' channel, metallic is stored in the 'b' channel.
         // This layout intentionally reserves the 'r' channel for (optional) occlusion map data

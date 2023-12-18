@@ -117,8 +117,8 @@ pub struct GPUBHVNode {
 pub struct GPUMaterial {
     pub textures_indices: [i32; TextureType::Count as _],
     pub textures_coord_set: [u32; TextureType::Count as _],
-    pub roughness_factor: f32,
-    pub metallic_factor: f32,
+    pub roughness_metallic_factor: f32,
+    pub ior: f32,
     pub alpha_cutoff: f32,
     pub alpha_mode: u32,
     pub base_color: [f32; 4],
@@ -133,8 +133,8 @@ impl Default for GPUMaterial {
         Self {
             textures_indices: [INVALID_INDEX; TextureType::Count as _],
             textures_coord_set: [0; TextureType::Count as _],
-            roughness_factor: 0.,
-            metallic_factor: 0.,
+            roughness_metallic_factor: 0.,
+            ior: 1.5,
             alpha_cutoff: 1.,
             alpha_mode: MaterialAlphaMode::Opaque.into(),
             base_color: [1.; 4],

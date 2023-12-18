@@ -23,7 +23,8 @@ use inox_graphics::{
 };
 use inox_log::debug_log;
 use inox_math::{
-    Mat4Ops, Matrix4, NewAngle, Parser, Radians, VecBase, Vector2, Vector3, Vector4, Vector4h,
+    quantize_half, Mat4Ops, Matrix4, NewAngle, Parser, Radians, VecBase, Vector2, Vector3, Vector4,
+    Vector4h,
 };
 
 use inox_nodes::LogicData;
@@ -511,8 +512,9 @@ impl GltfCompiler {
 
         let material = primitive.material().pbr_metallic_roughness();
         material_data.base_color = material.base_color_factor().into();
-        material_data.roughness_factor = material.roughness_factor();
-        material_data.metallic_factor = material.metallic_factor();
+        material_data.roughness_metallic_factor =
+            (((quantize_half(material.roughness_factor()) as u32) << 16)
+                | quantize_half(material.metallic_factor()) as u32) as _;
         if let Some(info) = material.base_color_texture() {
             material_data.textures[TextureType::BaseColor as usize] =
                 self.process_texture(path, info.texture());
@@ -557,28 +559,39 @@ impl GltfCompiler {
             primitive.material().emissive_factor()[2],
         ]
         .into();
-        if let Some(material) = material.pbr_specular_glossiness() {
-            if let Some(texture) = material.specular_glossiness_texture() {
+        if let Some(pbr) = material.pbr_specular_glossiness() {
+            if let Some(texture) = pbr.specular_glossiness_texture() {
                 material_data.textures[TextureType::SpecularGlossiness as usize] =
                     self.process_texture(path, texture.texture());
                 material_data.texcoords_set[TextureType::SpecularGlossiness as usize] =
                     texture.tex_coord() as _;
             }
-            if let Some(texture) = material.diffuse_texture() {
+            if let Some(texture) = pbr.diffuse_texture() {
                 material_data.textures[TextureType::Diffuse as usize] =
                     self.process_texture(path, texture.texture());
                 material_data.texcoords_set[TextureType::Diffuse as usize] =
                     texture.tex_coord() as _;
             }
-            material_data.diffuse_color = material.diffuse_factor().into();
-            material_data.specular_color = [
-                material.specular_factor()[0],
-                material.specular_factor()[1],
-                material.specular_factor()[2],
-                1.,
+            material_data.diffuse_factor = pbr.diffuse_factor().into();
+            material_data.specular_glossiness_factor = [
+                pbr.specular_factor()[0],
+                pbr.specular_factor()[1],
+                pbr.specular_factor()[2],
+                pbr.glossiness_factor(),
             ]
             .into();
         }
+
+        material_data.ior = material.ior().unwrap_or(1.5);
+        //if let Some(specular) = material.specular() {
+        //    material_data.specular_factors = [
+        //        specular.specular_color_factor()[0],
+        //        specular.specular_color_factor()[1],
+        //        specular.specular_color_factor()[2],
+        //        specular.specular_factor(),
+        //    ]
+        //    .into();
+        //}
 
         let name = format!("Material_{}", self.material_index);
         self.create_file(

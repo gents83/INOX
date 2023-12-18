@@ -128,8 +128,8 @@ struct TextureData {
 struct Material {
     textures_indices: array<i32, 8>,//TEXTURE_TYPE_COUNT>,
     textures_coord_set: array<u32, 8>,//TEXTURE_TYPE_COUNT>,
-    roughness_factor: f32,
-    metallic_factor: f32,
+    roughness_metallic_factor: f32,
+    ior: f32,
     alpha_cutoff: f32,
     alpha_mode: u32,
     base_color: vec4<f32>,

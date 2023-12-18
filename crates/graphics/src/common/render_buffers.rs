@@ -452,15 +452,14 @@ impl RenderBuffers {
                 textures_coord_set[i] = *t as _;
             }
             material.textures_coord_set = textures_coord_set;
-            material.roughness_factor = material_data.roughness_factor;
-            material.metallic_factor = material_data.metallic_factor;
+            material.roughness_metallic_factor = material_data.roughness_metallic_factor;
             material.alpha_cutoff = material_data.alpha_cutoff;
             material.alpha_mode = material_data.alpha_mode.into();
             material.base_color = material_data.base_color.into();
             material.emissive_color = material_data.emissive_color.into();
             material.occlusion_strength = material_data.occlusion_strength;
-            material.diffuse_color = material_data.diffuse_color.into();
-            material.specular_color = material_data.specular_color.into();
+            material.diffuse_color = material_data.diffuse_factor.into();
+            material.specular_color = material_data.specular_glossiness_factor.into();
             materials.set_dirty(true);
         }
     }

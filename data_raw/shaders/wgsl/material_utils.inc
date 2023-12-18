@@ -72,28 +72,81 @@ fn compute_tbn(material: ptr<function, Material>, pixel_data: ptr<function, Pixe
     return TBN(n, t, b);
 }
 
-fn compute_base_color(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>) -> vec4<f32> {
-    var base_color = (*material).diffuse_color;
-    if (has_texture(material, TEXTURE_TYPE_DIFFUSE)) {  
-        let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_DIFFUSE);
-        let texture_color = sample_texture(uv);
-        base_color *= texture_color;
-    } else {
-        base_color = (*material).base_color;
-        if (has_texture(material, TEXTURE_TYPE_BASE_COLOR)) {  
-            let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_BASE_COLOR);
-            let texture_color = sample_texture(uv);
-            base_color *= texture_color;
-        }
-    }
-    return base_color * (*pixel_data).color;
-}
-
-fn compute_specular_glossiness(material_id: u32, pixel_data: ptr<function, PixelData>) {
-
-}
-
 fn compute_normal(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>) -> vec3<f32> {
     let tbn = compute_tbn(material, pixel_data);
     return tbn.normal;
+}
+
+
+struct MaterialInfo {
+    base_color: vec4<f32>,
+    ior: f32,
+    f0: vec3<f32>,
+    perceptual_roughness: f32,
+    c_diff: vec3<f32>,
+    metallic: f32,
+    specular_weight: f32,
+}
+
+
+fn compute_base_color(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) {
+    (*info).base_color = (*material).diffuse_color;
+    if (has_texture(material, TEXTURE_TYPE_DIFFUSE)) {  
+        let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_DIFFUSE);
+        let texture_color = sample_texture(uv);
+        (*info).base_color *= texture_color;
+    } else {
+        (*info).base_color = (*material).base_color;
+        if (has_texture(material, TEXTURE_TYPE_BASE_COLOR)) {  
+            let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_BASE_COLOR);
+            let texture_color = sample_texture(uv);
+            (*info).base_color *= texture_color;
+        }
+    }
+    (*info).base_color *= (*pixel_data).color;
+}
+
+fn compute_ior(material: ptr<function, Material>, info: ptr<function, MaterialInfo>) {
+    (*info).ior = (*material).ior;
+    (*info).f0 = vec3<f32>(pow(( (*info).ior - 1.) /  ((*info).ior + 1.), 2.));
+}
+
+fn compute_specular_glossiness(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) {
+    (*info).f0 = (*material).specular_color.xyz;
+    (*info).perceptual_roughness = (*material).specular_color.w;
+    if (has_texture(material, TEXTURE_TYPE_SPECULAR_GLOSSINESS)) {  
+        let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_SPECULAR_GLOSSINESS);
+        let texture_color = sample_texture(uv);
+        (*info).f0 *= texture_color.rgb;
+        (*info).perceptual_roughness *= texture_color.a;
+    }
+    (*info).perceptual_roughness = 1. - (*info).perceptual_roughness;
+    (*info).c_diff = (*info).base_color.rgb * (1. - max(max((*info).f0.r, (*info).f0.g), (*info).f0.b));
+}
+
+fn compute_metallic_roughness(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) {    
+    (*info).perceptual_roughness = decode_snorm((u32((*material).roughness_metallic_factor) & 0xFFFF0000u) >> 16u, 16u);
+    (*info).metallic = decode_snorm(u32((*material).roughness_metallic_factor) & 0x0000FFFFu, 16u);
+    if (has_texture(material, TEXTURE_TYPE_METALLIC_ROUGHNESS)) {        
+        // Roughness is stored in the 'g' channel, metallic is stored in the 'b' channel.
+        // This layout intentionally reserves the 'r' channel for (optional) occlusion map data
+        let texture_color = material_texture_uv(material, pixel_data, TEXTURE_TYPE_METALLIC_ROUGHNESS);
+        (*info).perceptual_roughness *= texture_color.g;
+        (*info).metallic *= texture_color.b;
+    }
+    // Achromatic f0 based on IOR.
+    (*info).c_diff = mix((*info).base_color.rgb,  vec3<f32>(0.), (*info).metallic);
+    (*info).f0 = mix((*info).f0, (*info).base_color.rgb, (*info).metallic);
+}
+
+fn compute_sheen(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) {   
+    //NOT SUPPORTED TILL NOW - need gltf-rs support for KHR_materials_sheen
+}
+
+fn compute_clear_coat(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) {   
+    //NOT SUPPORTED TILL NOW - need gltf-rs support for KHR_materials_clearcoat
+}
+
+fn compute_specular(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) {   
+    var texture_color = vec4<f32>(1.0);
 }
