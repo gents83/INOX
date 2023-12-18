@@ -4,7 +4,7 @@ use inox_bitmask::bitmask;
 
 use crate::{
     platform::required_gpu_features, AsBinding, BindingDataBufferRc, BufferId, RenderContext,
-    RenderCoreContextRc, ShaderStage, TextureHandlerRc, TextureId, MAX_TEXTURE_ATLAS_COUNT,
+    RenderCoreContextRc, ShaderStage, TextureHandlerRc, TextureId, MAX_TEXTURE_ATLAS_COUNT, SamplerType,
 };
 
 const DEBUG_BINDINGS: bool = false;
@@ -77,7 +77,7 @@ impl Default for BindingInfo {
 #[derive(Clone)]
 enum BindingType {
     Buffer(usize, BufferId),
-    DefaultSampler(usize),
+    DefaultSampler(usize, SamplerType),
     Texture(usize, TextureId),
     TextureArray(usize, Box<[TextureId; MAX_TEXTURE_ATLAS_COUNT as usize]>),
 }
@@ -327,7 +327,7 @@ impl BindingData {
         self
     }
 
-    pub fn add_default_sampler(&mut self, info: BindingInfo) -> &mut Self {
+    pub fn add_default_sampler(&mut self, info: BindingInfo, sampler_type: SamplerType) -> &mut Self {
         inox_profiler::scoped_profile!("binding_data::add_default_sampler");
 
         self.create_group_and_binding_index(info.group_index);
@@ -343,7 +343,7 @@ impl BindingData {
         }
         if self.binding_types[info.group_index].is_empty() {
             self.binding_types[info.group_index]
-                .push(BindingType::DefaultSampler(info.binding_index));
+                .push(BindingType::DefaultSampler(info.binding_index, sampler_type));
             self.is_data_changed = true;
         }
         self
@@ -632,7 +632,7 @@ impl BindingData {
                                     );
                                 }
                             }
-                            BindingType::DefaultSampler(binding_index) => {
+                            BindingType::DefaultSampler(binding_index, sampler_type) => {
                                 if DEBUG_BINDINGS {
                                     inox_log::debug_log!(
                                         "Binding Default sampler [{}][{}]",
@@ -643,7 +643,7 @@ impl BindingData {
                                 bind_group.push(wgpu::BindGroupEntry {
                                     binding: *binding_index as _,
                                     resource: wgpu::BindingResource::Sampler(
-                                        self.texture_handler.default_sampler(),
+                                        self.texture_handler.sampler(*sampler_type),
                                     ),
                                 });
                             }

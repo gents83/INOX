@@ -6,12 +6,19 @@ use crate::{TextureFormat, TextureId, TextureInfo, TextureUsage};
 
 use super::{gpu_texture::GpuTexture, texture_atlas::TextureAtlas};
 
+#[derive(Debug, Default, Clone, Copy)]
+pub enum SamplerType {
+    #[default]
+    Default = 0,
+    Unfiltered = 1,
+    Depth = 2,
+    Count = 3,
+}
+
 pub struct TextureHandler {
     texture_atlas: RwLock<Vec<TextureAtlas>>,
     render_targets: RwLock<Vec<GpuTexture>>,
-    default_sampler: wgpu::Sampler,
-    unfiltered_sampler: wgpu::Sampler,
-    depth_sampler: wgpu::Sampler,
+    samplers: [wgpu::Sampler; SamplerType::Count as _],
 }
 
 pub type TextureHandlerRc = Arc<TextureHandler>;
@@ -49,19 +56,11 @@ impl TextureHandler {
         Self {
             texture_atlas: RwLock::new(Vec::new()),
             render_targets: RwLock::new(Vec::new()),
-            default_sampler,
-            unfiltered_sampler,
-            depth_sampler,
+            samplers: [default_sampler, unfiltered_sampler, depth_sampler],
         }
     }
-    pub fn default_sampler(&self) -> &wgpu::Sampler {
-        &self.default_sampler
-    }
-    pub fn unfiltered_sampler(&self) -> &wgpu::Sampler {
-        &self.unfiltered_sampler
-    }
-    pub fn depth_sampler(&self) -> &wgpu::Sampler {
-        &self.depth_sampler
+    pub fn sampler(&self, t: SamplerType) -> &wgpu::Sampler {
+        &self.samplers[t as usize]
     }
 
     pub fn textures_atlas(&self) -> RwLockReadGuard<Vec<TextureAtlas>> {
