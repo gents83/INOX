@@ -131,10 +131,12 @@ fn main(
     let cone_culling = &meshlets_culling.data[meshlet_id];
     let cone_axis_cutoff = unpack4x8snorm((*cone_culling).cone_axis_cutoff);
     let cone_axis = rotate_vector(cone_axis_cutoff.xyz, (*mesh).orientation);    
-    if (is_cone_visible((*cone_culling).center, cone_axis, cone_axis_cutoff.w, radius))
+    if (!is_cone_visible((*cone_culling).center, cone_axis, cone_axis_cutoff.w, radius))
     {
-        atomicAdd(&count, 1u);
-        let draw_group_index = workgroup_id.x;
-        atomicOr(&culling_result[draw_group_index], 1u << local_invocation_id.x);
+        return;
     }
+    
+    atomicAdd(&count, 1u);
+    let draw_group_index = workgroup_id.x;
+    atomicOr(&culling_result[draw_group_index], 1u << local_invocation_id.x);
 }

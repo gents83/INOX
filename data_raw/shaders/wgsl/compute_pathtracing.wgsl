@@ -98,7 +98,7 @@ fn traverse_bvh(r: Ray, tlas_starting_index: i32) -> Result {
             meshlet_id = meshlets_offset + u32(node.reference);  
             let index = meshlet_id / 32u;
             let offset = meshlet_id - (index * 32u);
-            let is_meshlet_visible =  (culling_result[index] & (1u << offset)) > 0u;   
+            let is_meshlet_visible =  (culling_result[index] & (1u << offset)) != 0u;   
             let meshlet = meshlets.data[meshlet_id];
             meshlet_indices_offset = meshlet.indices_offset;
             node_index = select(blas_sibling, i32(meshlet.triangles_bhv_index), is_meshlet_visible); 
@@ -142,6 +142,15 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>, mvp: mat
     let visibility_id = pack4x8unorm(visibility_value);
     if (visibility_id == 0u || (visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
         return vec4<f32>(pixel_color, 1.);
+    }
+    if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS) != 0) 
+    {
+        let meshlet_color = hash((visibility_id >> 8u) + 1u);
+        return vec4<f32>(vec3<f32>(
+            f32(meshlet_color & 255u),
+            f32((meshlet_color >> 8u) & 255u),
+            f32((meshlet_color >> 16u) & 255u)
+        ) / 255., 1.);
     }
     seed = get_random_numbers(seed);    
     radiance_data = compute_radiance_from_visibility(visibility_id, clip_coords, seed, radiance_data, mvp);     

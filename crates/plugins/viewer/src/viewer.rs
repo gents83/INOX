@@ -20,7 +20,7 @@ use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
 const FORCE_COMPUTE_PATHTRACING: bool = true;
 const FORCE_COMPUTE_RAYTRACING_PIPELINE: bool = true;
-const ADD_CULLING_PASS: bool = false;
+const ADD_CULLING_PASS: bool = true;
 const ADD_WIREFRAME_PASS: bool = true;
 const ADD_UI_PASS: bool = true;
 const USE_3DVIEW: bool = false;

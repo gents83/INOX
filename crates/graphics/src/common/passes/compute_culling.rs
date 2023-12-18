@@ -326,6 +326,7 @@ impl Pass for CullingPass {
                 1,
                 1,
             );
+            let pass = self.compact_pass.get();
             pass.dispatch(
                 render_context,
                 &mut self.binding_data,
