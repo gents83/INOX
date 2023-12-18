@@ -17,6 +17,9 @@ pub fn shader_preprocessor_defs<const PLATFORM_TYPE: PlatformType>() -> Vec<Stri
     }
 }
 
+pub fn has_wireframe_support() -> bool {
+    required_gpu_features().contains(wgpu::Features::POLYGON_MODE_LINE)
+}
 pub fn has_primitive_index_support() -> bool {
     required_gpu_features().contains(wgpu::Features::SHADER_PRIMITIVE_INDEX)
 }

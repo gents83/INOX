@@ -3,12 +3,14 @@ use std::path::PathBuf;
 use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
-    platform::has_primitive_index_support, rendering_system::RenderingSystem,
-    update_system::UpdateSystem, BlitPass, ComputePathTracingPass,
-    ComputeRayTracingGenerateRayPass, ComputeRayTracingVisibilityPass, ComputeRuntimeVerticesPass,
-    CullingPass, LoadOperation, OutputPass, OutputRenderPass, PBRPass, Pass, RenderPass,
-    RenderTarget, Renderer, RendererRw, TextureFormat, TextureId, VisibilityBufferPass,
-    WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH, WIREFRAME_PASS_NAME,
+    platform::{has_primitive_index_support, has_wireframe_support},
+    rendering_system::RenderingSystem,
+    update_system::UpdateSystem,
+    BlitPass, ComputePathTracingPass, ComputeRayTracingGenerateRayPass,
+    ComputeRayTracingVisibilityPass, ComputeRuntimeVerticesPass, CullingPass, LoadOperation,
+    OutputPass, OutputRenderPass, PBRPass, Pass, RenderPass, RenderTarget, Renderer, RendererRw,
+    TextureFormat, TextureId, VisibilityBufferPass, WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -21,7 +23,6 @@ use crate::{config::Config, systems::viewer_system::ViewerSystem};
 const FORCE_COMPUTE_PATHTRACING: bool = true;
 const FORCE_COMPUTE_RAYTRACING_PIPELINE: bool = true;
 const ADD_CULLING_PASS: bool = true;
-const ADD_WIREFRAME_PASS: bool = true;
 const ADD_UI_PASS: bool = true;
 const USE_3DVIEW: bool = false;
 
@@ -194,7 +195,7 @@ impl Viewer {
                 };
             Self::create_pbr_pass(context, renderer, visibility_texture_id);
         }
-        Self::create_wireframe_pass(context, renderer, ADD_WIREFRAME_PASS);
+        Self::create_wireframe_pass(context, renderer, has_wireframe_support());
         Self::create_ui_pass(context, renderer, width, height, ADD_UI_PASS);
     }
     fn create_compute_runtime_vertices_pass(
