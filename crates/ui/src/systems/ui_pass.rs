@@ -4,8 +4,9 @@ use inox_core::ContextRc;
 use inox_graphics::{
     declare_as_binding_vector, AsBinding, BindingData, BindingInfo, CommandBuffer, ConstantDataRw,
     DrawCommandType, GpuBuffer, MeshFlags, OutputRenderPass, Pass, RenderContext,
-    RenderCoreContext, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage,
-    StoreOperation, TextureView, TexturesBuffer, VertexBufferLayoutBuilder, VertexFormat, SamplerType,
+    RenderCoreContext, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType,
+    ShaderStage, StoreOperation, TextureView, TexturesBuffer, VertexBufferLayoutBuilder,
+    VertexFormat,
 };
 use inox_messenger::Listener;
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
@@ -190,12 +191,15 @@ impl Pass for UIPass {
                     ..Default::default()
                 },
             )
-            .add_default_sampler(BindingInfo {
-                group_index: 2,
-                binding_index: 0,
-                stage: ShaderStage::Fragment,
-                ..Default::default()
-            }, SamplerType::Default)
+            .add_default_sampler(
+                BindingInfo {
+                    group_index: 2,
+                    binding_index: 0,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+                SamplerType::Default,
+            )
             .add_material_textures(BindingInfo {
                 group_index: 2,
                 binding_index: 1,

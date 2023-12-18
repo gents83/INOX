@@ -4,7 +4,8 @@ use inox_bitmask::bitmask;
 
 use crate::{
     platform::required_gpu_features, AsBinding, BindingDataBufferRc, BufferId, RenderContext,
-    RenderCoreContextRc, ShaderStage, TextureHandlerRc, TextureId, MAX_TEXTURE_ATLAS_COUNT, SamplerType,
+    RenderCoreContextRc, SamplerType, ShaderStage, TextureHandlerRc, TextureId,
+    MAX_TEXTURE_ATLAS_COUNT,
 };
 
 const DEBUG_BINDINGS: bool = false;
@@ -327,7 +328,11 @@ impl BindingData {
         self
     }
 
-    pub fn add_default_sampler(&mut self, info: BindingInfo, sampler_type: SamplerType) -> &mut Self {
+    pub fn add_default_sampler(
+        &mut self,
+        info: BindingInfo,
+        sampler_type: SamplerType,
+    ) -> &mut Self {
         inox_profiler::scoped_profile!("binding_data::add_default_sampler");
 
         self.create_group_and_binding_index(info.group_index);
@@ -342,8 +347,10 @@ impl BindingData {
             self.is_layout_changed = true;
         }
         if self.binding_types[info.group_index].is_empty() {
-            self.binding_types[info.group_index]
-                .push(BindingType::DefaultSampler(info.binding_index, sampler_type));
+            self.binding_types[info.group_index].push(BindingType::DefaultSampler(
+                info.binding_index,
+                sampler_type,
+            ));
             self.is_data_changed = true;
         }
         self

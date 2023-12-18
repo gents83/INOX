@@ -4,8 +4,8 @@ use crate::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
     IndicesBuffer, LightsBuffer, MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer,
     OutputRenderPass, Pass, RenderContext, RenderPass, RenderPassBeginData, RenderPassData,
-    RenderTarget, RuntimeVerticesBuffer, ShaderStage, StoreOperation, TextureId, TextureView,
-    TexturesBuffer, VertexAttributesBuffer, SamplerType,
+    RenderTarget, RuntimeVerticesBuffer, SamplerType, ShaderStage, StoreOperation, TextureId,
+    TextureView, TexturesBuffer, VertexAttributesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -198,12 +198,15 @@ impl Pass for PBRPass {
             );
 
         self.binding_data
-            .add_default_sampler(BindingInfo {
-                group_index: 2,
-                binding_index: 0,
-                stage: ShaderStage::Fragment,
-                ..Default::default()
-            }, SamplerType::Default)
+            .add_default_sampler(
+                BindingInfo {
+                    group_index: 2,
+                    binding_index: 0,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+                SamplerType::Default,
+            )
             .add_material_textures(BindingInfo {
                 group_index: 2,
                 binding_index: 1,

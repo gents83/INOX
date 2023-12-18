@@ -4,8 +4,8 @@ use crate::{
     BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
     ConstantDataRw, CullingResults, DrawCommandType, IndicesBuffer, MaterialsBuffer, MeshFlags,
     MeshesBuffer, MeshesInverseMatrixBuffer, MeshletsBuffer, OutputPass, Pass, RaysBuffer,
-    RenderContext, RuntimeVerticesBuffer, ShaderStage, Texture, TextureFormat, TextureId,
-    TextureUsage, TextureView, TexturesBuffer, VertexAttributesBuffer, SamplerType,
+    RenderContext, RuntimeVerticesBuffer, SamplerType, ShaderStage, Texture, TextureFormat,
+    TextureId, TextureUsage, TextureView, TexturesBuffer, VertexAttributesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -247,12 +247,15 @@ impl Pass for ComputePathTracingPass {
             );
 
         self.binding_data
-            .add_default_sampler(BindingInfo {
-                group_index: 2,
-                binding_index: 0,
-                stage: ShaderStage::Compute,
-                ..Default::default()
-            }, SamplerType::Unfiltered)
+            .add_default_sampler(
+                BindingInfo {
+                    group_index: 2,
+                    binding_index: 0,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+                SamplerType::Unfiltered,
+            )
             .add_material_textures(BindingInfo {
                 group_index: 2,
                 binding_index: 1,
