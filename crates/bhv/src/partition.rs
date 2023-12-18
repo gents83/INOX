@@ -41,13 +41,13 @@ impl Partition {
         let mut sorted_aabbs = aabbs.to_vec();
         sorted_aabbs.sort_by(|a, b| a.center()[axis].partial_cmp(&b.center()[axis]).unwrap());
 
-        let mut best_split = 0;
+        let mut best_split = 1;
         let mut best_sah = f32::INFINITY;
-        for i in 0..sorted_aabbs.len() - 1 {
-            let sah = Self::calculate_sah(container, &sorted_aabbs, i + 1);
+        for i in 1..sorted_aabbs.len() - 1 {
+            let sah = Self::calculate_sah(container, &sorted_aabbs, i);
 
             if sah < best_sah {
-                best_split = i + 1;
+                best_split = i;
                 best_sah = sah;
             }
         }
