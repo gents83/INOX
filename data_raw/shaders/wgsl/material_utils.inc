@@ -78,18 +78,6 @@ fn compute_normal(material: ptr<function, Material>, pixel_data: ptr<function, P
     return tbn.normal;
 }
 
-
-struct MaterialInfo {
-    base_color: vec4<f32>,
-    ior: f32,
-    f0: vec3<f32>,
-    perceptual_roughness: f32,
-    c_diff: vec3<f32>,
-    metallic: f32,
-    specular_weight: f32,
-}
-
-
 fn compute_base_color(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) {
     (*info).base_color = (*material).diffuse_color;
     if (has_texture(material, TEXTURE_TYPE_DIFFUSE)) {  
@@ -126,12 +114,13 @@ fn compute_specular_glossiness(material: ptr<function, Material>, pixel_data: pt
 }
 
 fn compute_metallic_roughness(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) {    
-    (*info).perceptual_roughness = decode_snorm((u32((*material).roughness_metallic_factor) & 0xFFFF0000u) >> 16u, 16u);
-    (*info).metallic = decode_snorm(u32((*material).roughness_metallic_factor) & 0x0000FFFFu, 16u);
+    (*info).perceptual_roughness = (*material).roughness_factor;
+    (*info).metallic = (*material).metallic_factor;
     if (has_texture(material, TEXTURE_TYPE_METALLIC_ROUGHNESS)) {        
         // Roughness is stored in the 'g' channel, metallic is stored in the 'b' channel.
         // This layout intentionally reserves the 'r' channel for (optional) occlusion map data
-        let texture_color = material_texture_uv(material, pixel_data, TEXTURE_TYPE_METALLIC_ROUGHNESS);
+        let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_METALLIC_ROUGHNESS);
+        let texture_color = sample_texture(uv);
         (*info).perceptual_roughness *= texture_color.g;
         (*info).metallic *= texture_color.b;
     }
@@ -141,13 +130,73 @@ fn compute_metallic_roughness(material: ptr<function, Material>, pixel_data: ptr
 }
 
 fn compute_sheen(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) {   
+    (*info).sheen_color_and_roughness_factor = vec4<f32>(1.,1.,1.,0.);
+
     //NOT SUPPORTED TILL NOW - need gltf-rs support for KHR_materials_sheen
 }
 
 fn compute_clear_coat(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) {   
+    (*info).clear_coat_factor = 0.;
+    (*info).clear_coat_roughness_factor = 0.;
+    (*info).clear_coat_f0 = vec3<f32>(pow(((*info).ior - 1.0) / ((*info).ior + 1.0), 2.0));
+    (*info).clear_coat_f90 = vec3<f32>(1.0);
+    (*info).clear_coat_normal = (*pixel_data).normal;
+    
     //NOT SUPPORTED TILL NOW - need gltf-rs support for KHR_materials_clearcoat
 }
 
 fn compute_specular(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) {   
-    var texture_color = vec4<f32>(1.0);
+    var specular_texture = vec4<f32>(1.0);
+    if (has_texture(material, TEXTURE_TYPE_SPECULAR)) {        
+        let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_SPECULAR);
+        let texture_color = sample_texture(uv);
+        specular_texture.a = texture_color.a;
+    }
+    if (has_texture(material, TEXTURE_TYPE_SPECULAR_COLOR)) {        
+        let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_SPECULAR_COLOR);
+        let texture_color = sample_texture(uv);
+        specular_texture = vec4<f32>(texture_color.rgb, specular_texture.a);
+    }
+    let dielectric_specular_f0 = min((*info).f0 * (*material).specular_factors.rgb * specular_texture.rgb, vec3<f32>(1.));
+    let anisotropy_strength = unpack2x16float((*info).specular_weight_and_anisotropy_strength).y;
+    (*info).specular_weight_and_anisotropy_strength = pack2x16float(vec2<f32>((*material).specular_factors.a * specular_texture.a, anisotropy_strength));
+    (*info).f0 = mix(dielectric_specular_f0, (*info).base_color.rgb, (*info).metallic);
+    (*info).c_diff = mix((*info).base_color.rgb, vec3<f32>(0.), (*info).metallic);
+}
+
+fn compute_transmission(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) {   
+    (*info).transmission_factor = (*material).transmission_factor;
+    if (has_texture(material, TEXTURE_TYPE_TRANSMISSION)) {        
+        let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_TRANSMISSION);
+        let texture_color = sample_texture(uv);
+        (*info).transmission_factor *= texture_color.r;
+    }
+}
+
+fn compute_volume(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) {   
+    (*info).thickness_factor = (*material).thickness_factor;
+    (*info).attenuation_color_and_distance = (*material).attenuation_color_and_distance;
+    if (has_texture(material, TEXTURE_TYPE_THICKNESS)) {        
+        let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_THICKNESS);
+        let texture_color = sample_texture(uv);
+        (*info).thickness_factor *= texture_color.g;
+    }
+}
+
+fn compute_iridescence(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) {  
+    (*info).iridescence_factor = 0.;
+    (*info).iridescence_ior = (*info).ior;
+    (*info).iridescence_thickness = 0.;
+
+    //NOT SUPPORTED TILL NOW - need gltf-rs support for KHR_materials_iridescence 
+}
+
+fn compute_anisotropy(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) { 
+    let specular_weight = unpack2x16float((*info).specular_weight_and_anisotropy_strength).x;
+    let tbn = compute_tbn(material, pixel_data);
+    (*info).anosotropicT = tbn.tangent;
+    (*info).anosotropicB = tbn.binormal;
+    (*info).specular_weight_and_anisotropy_strength = pack2x16float(vec2<f32>(specular_weight, 0.));
+
+    //NOT SUPPORTED TILL NOW - need gltf-rs support for KHR_materials_anisotropy
 }

@@ -452,14 +452,20 @@ impl RenderBuffers {
             for (i, t) in material_data.texcoords_set.iter().enumerate() {
                 material.textures_index_and_coord_set[i] |= (*t & 0x0000000F) as i32;
             }
-            material.roughness_metallic_factor = material_data.roughness_metallic_factor;
-            material.alpha_cutoff = material_data.alpha_cutoff;
-            material.alpha_mode = material_data.alpha_mode.into();
+            material.roughness_factor = material_data.roughness_factor;
+            material.metallic_factor = material_data.roughness_factor;
+            material.ior = material_data.ior;
+            material.transmission_factor = material_data.transmission_factor;
             material.base_color = material_data.base_color.into();
             material.emissive_color = material_data.emissive_color.into();
             material.occlusion_strength = material_data.occlusion_strength;
             material.diffuse_color = material_data.diffuse_factor.into();
             material.specular_color = material_data.specular_glossiness_factor.into();
+            material.attenuation_color_and_distance =
+                material_data.attenuation_color_and_distance.into();
+            material.thickness_factor = material_data.thickness_factor;
+            material.alpha_cutoff = material_data.alpha_cutoff;
+            material.alpha_mode = material_data.alpha_mode.into();
             materials.set_dirty(true);
         }
     }

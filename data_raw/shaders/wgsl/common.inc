@@ -10,8 +10,8 @@ const TEXTURE_TYPE_SPECULAR_GLOSSINESS: u32 = 5u;
 const TEXTURE_TYPE_DIFFUSE: u32 = 6u;
 const TEXTURE_TYPE_SPECULAR: u32 = 7u;
 const TEXTURE_TYPE_SPECULAR_COLOR: u32 = 8u;
-const TEXTURE_TYPE_EMPTY_FOR_PADDING_1: u32 = 9u;
-const TEXTURE_TYPE_EMPTY_FOR_PADDING_2: u32 = 10u;
+const TEXTURE_TYPE_TRANSMISSION: u32 = 9u;
+const TEXTURE_TYPE_THICKNESS: u32 = 10u;
 const TEXTURE_TYPE_EMPTY_FOR_PADDING_3: u32 = 11u;
 const TEXTURE_TYPE_EMPTY_FOR_PADDING_4: u32 = 12u;
 const TEXTURE_TYPE_EMPTY_FOR_PADDING_5: u32 = 13u;
@@ -38,7 +38,7 @@ const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 1u << 2u;
 const CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER: u32 = 1u << 3u;
 const CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER: u32 = 1u << 4u;
 
-const PI: f32 = 3.141592653589793238462643;
+const MATH_PI: f32 = 3.141592653589793238462643;
 const MAX_FLOAT: f32 = 3.402823466e+38;
 const HIT_EPSILON: f32 = 0.0001;
 const INVALID_NODE: i32 = -1;
@@ -135,15 +135,21 @@ struct TextureData {
 
 struct Material {
     textures_index_and_coord_set: array<i32, TEXTURE_TYPE_COUNT>,
-    roughness_metallic_factor: f32,
+    roughness_factor: f32,
+    metallic_factor: f32,
     ior: f32,
-    alpha_cutoff: f32,
-    alpha_mode: u32,
+    transmission_factor: f32,
     base_color: vec4<f32>,
     emissive_color: vec3<f32>,
     occlusion_strength: f32,
     diffuse_color: vec4<f32>,
     specular_color: vec4<f32>,
+    specular_factors: vec4<f32>,
+    attenuation_color_and_distance: vec4<f32>,
+    thickness_factor: f32,
+    alpha_cutoff: f32,
+    alpha_mode: u32,
+    _padding: u32,
 };
 
 
@@ -237,4 +243,42 @@ struct TBN {
     normal: vec3<f32>,
     tangent: vec3<f32>,
     binormal: vec3<f32>,
+}
+
+struct MaterialInfo {
+    base_color: vec4<f32>,
+
+    f0: vec3<f32>,
+    ior: f32,
+
+    c_diff: vec3<f32>,
+    perceptual_roughness: f32,
+
+    metallic: f32,
+    specular_weight_and_anisotropy_strength: u32,
+    transmission_factor: f32,
+    thickness_factor: f32,
+
+    attenuation_color_and_distance: vec4<f32>,
+    sheen_color_and_roughness_factor: vec4<f32>,
+
+    clear_coat_f0: vec3<f32>,
+    clear_coat_factor: f32,
+
+    clear_coat_f90: vec3<f32>,
+    clear_coat_roughness_factor: f32,
+
+    clear_coat_normal: vec3<f32>,
+    iridescence_factor: f32,
+
+    anosotropicT: vec3<f32>,
+    iridescence_ior: f32,
+
+    anosotropicB: vec3<f32>,
+    iridescence_thickness: f32,
+
+    alpha_roughness: f32,
+    f90: vec3<f32>,
+    
+    emissive_color: vec3<f32>,
 }

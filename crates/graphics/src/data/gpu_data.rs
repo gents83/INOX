@@ -116,30 +116,42 @@ pub struct GPUBHVNode {
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub struct GPUMaterial {
     pub textures_index_and_coord_set: [i32; TextureType::Count as _],
-    pub roughness_metallic_factor: f32,
+    pub roughness_factor: f32,
+    pub metallic_factor: f32,
     pub ior: f32,
-    pub alpha_cutoff: f32,
-    pub alpha_mode: u32,
+    pub transmission_factor: f32,
     pub base_color: [f32; 4],
     pub emissive_color: [f32; 3],
     pub occlusion_strength: f32,
     pub diffuse_color: [f32; 4],
     pub specular_color: [f32; 4],
+    pub specular_factors: [f32; 4],
+    pub attenuation_color_and_distance: [f32; 4],
+    pub thickness_factor: f32,
+    pub alpha_cutoff: f32,
+    pub alpha_mode: u32,
+    pub _padding: u32,
 }
 
 impl Default for GPUMaterial {
     fn default() -> Self {
         Self {
             textures_index_and_coord_set: [INVALID_INDEX; TextureType::Count as _],
-            roughness_metallic_factor: 0.,
+            roughness_factor: 1.0,
+            metallic_factor: 1.0,
             ior: 1.5,
-            alpha_cutoff: 1.,
-            alpha_mode: MaterialAlphaMode::Opaque.into(),
+            transmission_factor: 0.,
             base_color: [1.; 4],
             emissive_color: [1.; 3],
             occlusion_strength: 0.0,
             diffuse_color: [1.; 4],
             specular_color: [1.; 4],
+            specular_factors: [1.; 4],
+            attenuation_color_and_distance: [1., 1., 1., 0.],
+            thickness_factor: 0.,
+            alpha_cutoff: 1.,
+            alpha_mode: MaterialAlphaMode::Opaque.into(),
+            _padding: 0,
         }
     }
 }

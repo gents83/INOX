@@ -39,8 +39,8 @@ pub enum TextureType {
     Diffuse = 6,
     Specular = 7,
     SpecularColor = 8,
-    EmptyForPadding1 = 9,
-    EmptyForPadding2 = 10,
+    Transmission = 9,
+    Thickness = 10,
     EmptyForPadding3 = 11,
     EmptyForPadding4 = 12,
     EmptyForPadding5 = 13,
@@ -66,7 +66,9 @@ impl From<usize> for TextureType {
             6 => TextureType::Diffuse,
             7 => TextureType::Specular,
             8 => TextureType::SpecularColor,
-            9 => TextureType::Count,
+            9 => TextureType::Transmission,
+            10 => TextureType::Thickness,
+            16 => TextureType::Count,
             _ => panic!("Invalid TextureType value: {value}"),
         }
     }
