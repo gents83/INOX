@@ -1,17 +1,18 @@
 fn has_texture(material: ptr<function, Material>, texture_type: u32) -> bool {
-    if ((*material).textures_indices[texture_type] >= 0) {
+    if (sign((*material).textures_index_and_coord_set[texture_type]) >= 0) {
         return true;
     }
     return false;
 }
 
 fn material_texture_index(material: ptr<function, Material>, texture_type: u32) -> u32 {
-    let texture_index = (*material).textures_indices[texture_type];
+    let index = u32((*material).textures_index_and_coord_set[texture_type]) >> 4;
+    let texture_index = (*material).textures_index_and_coord_set[texture_type];
     return u32(max(0, texture_index));
 }
 
 fn material_texture_coord_set(material: ptr<function, Material>, texture_type: u32) -> u32 {
-    return (*material).textures_coord_set[texture_type];
+    return u32((*material).textures_index_and_coord_set[texture_type]) & 0x0000000Fu;
 }
 
 fn material_texture_uv(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, texture_type: u32) -> vec3<f32> {

@@ -112,11 +112,10 @@ pub struct GPUBHVNode {
     pub reference: i32,
 }
 
-#[repr(C, align(4))]
+#[repr(C)]
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub struct GPUMaterial {
-    pub textures_indices: [i32; TextureType::Count as _],
-    pub textures_coord_set: [u32; TextureType::Count as _],
+    pub textures_index_and_coord_set: [i32; TextureType::Count as _],
     pub roughness_metallic_factor: f32,
     pub ior: f32,
     pub alpha_cutoff: f32,
@@ -131,8 +130,7 @@ pub struct GPUMaterial {
 impl Default for GPUMaterial {
     fn default() -> Self {
         Self {
-            textures_indices: [INVALID_INDEX; TextureType::Count as _],
-            textures_coord_set: [0; TextureType::Count as _],
+            textures_index_and_coord_set: [INVALID_INDEX; TextureType::Count as _],
             roughness_metallic_factor: 0.,
             ior: 1.5,
             alpha_cutoff: 1.,

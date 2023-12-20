@@ -418,24 +418,26 @@ impl RenderBuffers {
     pub fn add_material(&self, material_id: &MaterialId, material: &mut Material) {
         inox_profiler::scoped_profile!("render_buffers::add_material");
 
-        let mut textures_indices = [INVALID_INDEX; TextureType::Count as _];
+        let mut textures_index_and_coord_set = [INVALID_INDEX; TextureType::Count as _];
         material
             .textures()
             .iter()
             .enumerate()
             .for_each(|(i, handle_texture)| {
                 if let Some(texture) = handle_texture {
-                    textures_indices[i] = texture.get().texture_index() as _;
+                    textures_index_and_coord_set[i] = texture.get().texture_index() as _;
+                    textures_index_and_coord_set[i] = textures_index_and_coord_set[i].signum()
+                        * (textures_index_and_coord_set[i] << 28);
                 }
             });
         let mut materials = self.materials.write().unwrap();
         if let Some(m) = materials.get_mut(material_id) {
-            m.textures_indices = textures_indices;
+            m.textures_index_and_coord_set = textures_index_and_coord_set;
         } else {
             let index = materials.insert(
                 material_id,
                 GPUMaterial {
-                    textures_indices,
+                    textures_index_and_coord_set,
                     ..Default::default()
                 },
             );
@@ -447,11 +449,9 @@ impl RenderBuffers {
         inox_profiler::scoped_profile!("render_buffers::update_material");
         let mut materials = self.materials.write().unwrap();
         if let Some(material) = materials.get_mut(material_id) {
-            let mut textures_coord_set: [u32; TextureType::Count as _] = Default::default();
             for (i, t) in material_data.texcoords_set.iter().enumerate() {
-                textures_coord_set[i] = *t as _;
+                material.textures_index_and_coord_set[i] |= (*t & 0x0000000F) as i32;
             }
-            material.textures_coord_set = textures_coord_set;
             material.roughness_metallic_factor = material_data.roughness_metallic_factor;
             material.alpha_cutoff = material_data.alpha_cutoff;
             material.alpha_mode = material_data.alpha_mode.into();

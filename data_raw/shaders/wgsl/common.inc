@@ -8,8 +8,16 @@ const TEXTURE_TYPE_EMISSIVE: u32 = 3u;
 const TEXTURE_TYPE_OCCLUSION: u32 = 4u;
 const TEXTURE_TYPE_SPECULAR_GLOSSINESS: u32 = 5u;
 const TEXTURE_TYPE_DIFFUSE: u32 = 6u;
-const TEXTURE_TYPE_EMPTY_FOR_PADDING: u32 = 7u;
-const TEXTURE_TYPE_COUNT: u32 = 8u;
+const TEXTURE_TYPE_SPECULAR: u32 = 7u;
+const TEXTURE_TYPE_SPECULAR_COLOR: u32 = 8u;
+const TEXTURE_TYPE_EMPTY_FOR_PADDING_1: u32 = 9u;
+const TEXTURE_TYPE_EMPTY_FOR_PADDING_2: u32 = 10u;
+const TEXTURE_TYPE_EMPTY_FOR_PADDING_3: u32 = 11u;
+const TEXTURE_TYPE_EMPTY_FOR_PADDING_4: u32 = 12u;
+const TEXTURE_TYPE_EMPTY_FOR_PADDING_5: u32 = 13u;
+const TEXTURE_TYPE_EMPTY_FOR_PADDING_6: u32 = 14u;
+const TEXTURE_TYPE_EMPTY_FOR_PADDING_7: u32 = 15u;
+const TEXTURE_TYPE_COUNT: u32 = 16u;
 
 const MATERIAL_ALPHA_BLEND_OPAQUE = 0u;
 const MATERIAL_ALPHA_BLEND_MASK = 1u;
@@ -126,8 +134,7 @@ struct TextureData {
 };
 
 struct Material {
-    textures_indices: array<i32, 8>,//TEXTURE_TYPE_COUNT>,
-    textures_coord_set: array<u32, 8>,//TEXTURE_TYPE_COUNT>,
+    textures_index_and_coord_set: array<i32, TEXTURE_TYPE_COUNT>,
     roughness_metallic_factor: f32,
     ior: f32,
     alpha_cutoff: f32,

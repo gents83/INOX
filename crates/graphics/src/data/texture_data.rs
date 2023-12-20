@@ -37,8 +37,16 @@ pub enum TextureType {
     Occlusion = 4,
     SpecularGlossiness = 5,
     Diffuse = 6,
-    _EmptyForPadding = 7,
-    Count = 8,
+    Specular = 7,
+    SpecularColor = 8,
+    EmptyForPadding1 = 9,
+    EmptyForPadding2 = 10,
+    EmptyForPadding3 = 11,
+    EmptyForPadding4 = 12,
+    EmptyForPadding5 = 13,
+    EmptyForPadding6 = 14,
+    EmptyForPadding7 = 15,
+    Count = 16,
 }
 
 impl From<TextureType> for usize {
@@ -56,8 +64,9 @@ impl From<usize> for TextureType {
             4 => TextureType::Occlusion,
             5 => TextureType::SpecularGlossiness,
             6 => TextureType::Diffuse,
-            7 => TextureType::_EmptyForPadding,
-            8 => TextureType::Count,
+            7 => TextureType::Specular,
+            8 => TextureType::SpecularColor,
+            9 => TextureType::Count,
             _ => panic!("Invalid TextureType value: {value}"),
         }
     }
