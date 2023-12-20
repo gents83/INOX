@@ -25,11 +25,11 @@ const MATERIAL_ALPHA_BLEND_BLEND = 2u;
 
 const MESH_FLAGS_NONE: u32 = 0u;
 const MESH_FLAGS_VISIBLE: u32 = 1u;
-const MESH_FLAGS_OPAQUE: u32 = 2u; // 1 << 1
-const MESH_FLAGS_TRANSPARENT: u32 = 4u;  // 1 << 2
-const MESH_FLAGS_WIREFRAME: u32 = 8u; // 1 << 3
-const MESH_FLAGS_DEBUG: u32 = 16u; // 1 << 4
-const MESH_FLAGS_UI: u32 = 32u; // 1 << 5
+const MESH_FLAGS_OPAQUE: u32 = 1u << 1u;
+const MESH_FLAGS_TRANSPARENT: u32 = 1u << 2u;
+const MESH_FLAGS_WIREFRAME: u32 = 1u << 3u;
+const MESH_FLAGS_DEBUG: u32 = 1u << 4u;
+const MESH_FLAGS_UI: u32 = 1u << 5u;
 
 const CONSTANT_DATA_FLAGS_NONE: u32 = 0u;
 const CONSTANT_DATA_FLAGS_SUPPORT_SRGB: u32 = 1u;
@@ -45,11 +45,31 @@ const INVALID_NODE: i32 = -1;
 
 const VERTEX_ATTRIBUTE_HAS_POSITION: u32 = 0u;
 const VERTEX_ATTRIBUTE_HAS_COLOR: u32 = 1u;
-const VERTEX_ATTRIBUTE_HAS_NORMAL: u32 = 2u; // 1 << 1
-const VERTEX_ATTRIBUTE_HAS_UV1: u32 = 4u; // 1 << 2
-const VERTEX_ATTRIBUTE_HAS_UV2: u32 = 8u;  // 1 << 3
-const VERTEX_ATTRIBUTE_HAS_UV3: u32 = 16u; // 1 << 4
-const VERTEX_ATTRIBUTE_HAS_UV4: u32 = 32u; // 1 << 5
+const VERTEX_ATTRIBUTE_HAS_NORMAL: u32 = 1u << 1u;
+const VERTEX_ATTRIBUTE_HAS_UV1: u32 = 1u << 2u;
+const VERTEX_ATTRIBUTE_HAS_UV2: u32 = 1u << 3u;
+const VERTEX_ATTRIBUTE_HAS_UV3: u32 = 1u << 4u;
+const VERTEX_ATTRIBUTE_HAS_UV4: u32 = 1u << 5u;
+
+const MATERIAL_FLAGS_NONE: u32 = 0u;
+const MATERIAL_FLAGS_UNLIT: u32 = 1u;
+const MATERIAL_FLAGS_USE_IBL: u32 = 1u << 1u;
+const MATERIAL_FLAGS_USE_PUNCTUAL: u32 = 1u << 2u;
+const MATERIAL_FLAGS_IRIDESCENCE: u32 = 1u << 3u;
+const MATERIAL_FLAGS_ANISOTROPY: u32 = 1u << 4u;
+const MATERIAL_FLAGS_CLEARCOAT: u32 = 1u << 5u;
+const MATERIAL_FLAGS_SHEEN: u32 = 1u << 6u;
+const MATERIAL_FLAGS_TRANSMISSION: u32 = 1u << 7u;
+const MATERIAL_FLAGS_VOLUME: u32 = 1u << 8u;
+const MATERIAL_FLAGS_EMISSIVE_STRENGTH: u32 = 1u << 9u;
+const MATERIAL_FLAGS_METALLICROUGHNESS: u32 = 1u << 10u;
+const MATERIAL_FLAGS_SPECULAR: u32 = 1u << 11u;
+const MATERIAL_FLAGS_SPECULARGLOSSINESS: u32 = 1u << 12u;
+const MATERIAL_FLAGS_IOR: u32 = 1u << 13u;
+const MATERIAL_FLAGS_ALPHAMODE_OPAQUE: u32 = 1u << 14u;
+const MATERIAL_FLAGS_ALPHAMODE_MASK: u32 = 1u << 15u;
+const MATERIAL_FLAGS_ALPHAMODE_BLEND: u32 = 1u << 16u;
+
 
 struct ConstantData {
     view: mat4x4<f32>,
@@ -141,15 +161,15 @@ struct Material {
     transmission_factor: f32,
     base_color: vec4<f32>,
     emissive_color: vec3<f32>,
-    occlusion_strength: f32,
+    emissive_strength: f32,
     diffuse_color: vec4<f32>,
     specular_color: vec4<f32>,
     specular_factors: vec4<f32>,
     attenuation_color_and_distance: vec4<f32>,
     thickness_factor: f32,
     alpha_cutoff: f32,
-    alpha_mode: u32,
-    _padding: u32,
+    occlusion_strength: f32,
+    flags: u32,
 };
 
 

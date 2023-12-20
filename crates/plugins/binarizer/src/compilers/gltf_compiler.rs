@@ -18,7 +18,7 @@ use gltf::{
 };
 
 use inox_graphics::{
-    LightData, LightType, MaterialAlphaMode, MaterialData, MeshData, MeshletData, TextureType,
+    LightData, LightType, MaterialData, MaterialFlags, MeshData, MeshletData, TextureType,
     VertexAttributeLayout, MAX_TEXTURE_COORDS_SETS,
 };
 use inox_log::debug_log;
@@ -510,6 +510,7 @@ impl GltfCompiler {
         let mut material_data = MaterialData::default();
 
         let material = primitive.material().pbr_metallic_roughness();
+        material_data.flags |= MaterialFlags::MetallicRoughness;
         material_data.base_color = material.base_color_factor().into();
         material_data.roughness_factor = material.roughness_factor();
         material_data.metallic_factor = material.metallic_factor();
@@ -526,6 +527,9 @@ impl GltfCompiler {
         }
 
         let material = primitive.material();
+        if material.unlit() {
+            material_data.flags |= MaterialFlags::Unlit;
+        }
         if let Some(texture) = material.normal_texture() {
             material_data.textures[TextureType::Normal as usize] =
                 self.process_texture(path, texture.texture());
@@ -541,14 +545,15 @@ impl GltfCompiler {
                 self.process_texture(path, texture.texture());
             material_data.texcoords_set[TextureType::Occlusion as usize] = texture.tex_coord() as _;
             material_data.occlusion_strength = texture.strength();
-        }
-        material_data.alpha_mode = match material.alpha_mode() {
-            AlphaMode::Opaque => MaterialAlphaMode::Opaque,
+        };
+        material_data.alpha_cutoff = 0.5;
+        match material.alpha_mode() {
+            AlphaMode::Opaque => material_data.flags |= MaterialFlags::AlphaModeOpaque,
             AlphaMode::Mask => {
                 material_data.alpha_cutoff = 0.5;
-                MaterialAlphaMode::Mask
+                material_data.flags |= MaterialFlags::AlphaModeMask;
             }
-            AlphaMode::Blend => MaterialAlphaMode::Blend,
+            AlphaMode::Blend => material_data.flags |= MaterialFlags::AlphaModeBlend,
         };
         material_data.alpha_cutoff = primitive.material().alpha_cutoff().unwrap_or(1.);
         material_data.emissive_color = [
@@ -558,6 +563,7 @@ impl GltfCompiler {
         ]
         .into();
         if let Some(pbr) = material.pbr_specular_glossiness() {
+            material_data.flags |= MaterialFlags::SpecularGlossiness;
             if let Some(texture) = pbr.specular_glossiness_texture() {
                 material_data.textures[TextureType::SpecularGlossiness as usize] =
                     self.process_texture(path, texture.texture());
@@ -580,8 +586,14 @@ impl GltfCompiler {
             .into();
         }
 
-        material_data.ior = material.ior().unwrap_or(1.5);
+        material_data.ior = if let Some(ior) = material.ior() {
+            material_data.flags |= MaterialFlags::Ior;
+            ior
+        } else {
+            1.5
+        };
         if let Some(specular) = material.specular() {
+            material_data.flags |= MaterialFlags::Specular;
             material_data.specular_factors = [
                 specular.specular_color_factor()[0],
                 specular.specular_color_factor()[1],
@@ -603,6 +615,7 @@ impl GltfCompiler {
             }
         }
         if let Some(transmission) = material.transmission() {
+            material_data.flags |= MaterialFlags::Transmission;
             material_data.transmission_factor = transmission.transmission_factor();
             if let Some(texture) = transmission.transmission_texture() {
                 material_data.textures[TextureType::Transmission as usize] =
@@ -612,6 +625,7 @@ impl GltfCompiler {
             }
         }
         if let Some(volume) = material.volume() {
+            material_data.flags |= MaterialFlags::Volume;
             material_data.attenuation_color_and_distance = [
                 volume.attenuation_color()[0],
                 volume.attenuation_color()[1],

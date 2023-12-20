@@ -41,11 +41,12 @@ fn f_schlick_vec3(f0: vec3<f32>, f90: f32, VdotH: f32) -> vec3<f32>
     return f0 + (f90 - f0) * x5;
 }
 
-fn schlick_to_f0_vec3(f: vec3<f32>, f90: vec3<f32>, VdotH: f32) -> vec3<f32>{
+fn schlick_to_f0_vec3(f: vec3<f32>, f90: vec3<f32>, VdotH: f32) -> vec3<f32> {
     let x = clamp(1.0 - VdotH, 0.0, 1.0);
     let x2 = x * x;
     let x5 = clamp(x * x2 * x2, 0.0, 0.9999);
-    return (f - f90 * x5) / (1.0 - x5);
+    let r = (f - (f90 * x5));
+    return (r / (1.0 - x5));
 }
 
 // Fresnel equations for dielectric/dielectric interfaces.
@@ -122,7 +123,7 @@ fn eval_iridescence(outsideIOR: f32, eta2: f32, cosTheta1: f32, thinFilmThicknes
     }
 
     // Since out of gamut colors might be produced, negative color values are clamped to 0.
-    return max(I, vec3(0.0));
+    return max(I, vec3<f32>(0.0));
 }
 
 //Inspired from glTF-Sample-Viewer
@@ -142,16 +143,36 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
 
     var material_info: MaterialInfo;
     compute_base_color(&material, pixel_data, &material_info);
-    compute_ior(&material, &material_info);
-    compute_specular_glossiness(&material, pixel_data, &material_info);
-    compute_metallic_roughness(&material, pixel_data, &material_info);
-    compute_sheen(&material, pixel_data, &material_info);
-    compute_clear_coat(&material, pixel_data, &material_info);
-    compute_specular(&material, pixel_data, &material_info);
-    compute_transmission(&material, pixel_data, &material_info);
-    compute_volume(&material, pixel_data, &material_info);
-    compute_iridescence(&material, pixel_data, &material_info);
-    compute_anisotropy(&material, pixel_data, &material_info);
+    if((material.flags & MATERIAL_FLAGS_IOR) != 0u) {
+        compute_ior(&material, &material_info);
+    }
+    if((material.flags & MATERIAL_FLAGS_SPECULARGLOSSINESS) != 0u) {
+        compute_specular_glossiness(&material, pixel_data, &material_info);
+    }
+    if((material.flags & MATERIAL_FLAGS_METALLICROUGHNESS) != 0u) {
+        compute_metallic_roughness(&material, pixel_data, &material_info);
+    }
+    if((material.flags & MATERIAL_FLAGS_SHEEN) != 0u) {
+        compute_sheen(&material, pixel_data, &material_info);
+    }
+    if((material.flags & MATERIAL_FLAGS_CLEARCOAT) != 0u) {
+        compute_clear_coat(&material, pixel_data, &material_info);
+    }
+    if((material.flags & MATERIAL_FLAGS_SPECULAR) != 0u) {
+        compute_specular(&material, pixel_data, &material_info);
+    }
+    if((material.flags & MATERIAL_FLAGS_TRANSMISSION) != 0u) {
+        compute_transmission(&material, pixel_data, &material_info);
+    }
+    if((material.flags & MATERIAL_FLAGS_VOLUME) != 0u) {
+        compute_volume(&material, pixel_data, &material_info);
+    }
+    if((material.flags & MATERIAL_FLAGS_IRIDESCENCE) != 0u) {
+        compute_iridescence(&material, pixel_data, &material_info);
+    }
+    if((material.flags & MATERIAL_FLAGS_ANISOTROPY) != 0u) {
+        compute_anisotropy(&material, pixel_data, &material_info);
+    }
 
     material_info.perceptual_roughness = clamp(material_info.perceptual_roughness, 0.0, 1.0);
     material_info.metallic = clamp(material_info.metallic, 0.0, 1.0);
@@ -165,23 +186,68 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
     // Anything less than 2% is physically impossible and is instead considered to be shadowing. Compare to "Real-Time-Rendering" 4th editon on page 325.
     material_info.f90 = vec3<f32>(1.);
 
+
+    var iridescence_fresnel = vec3<f32>(0.);
+    var iridescence_f0 = vec3<f32>(0.);
+    if((material.flags & MATERIAL_FLAGS_IRIDESCENCE) != 0u) {
+        iridescence_fresnel = eval_iridescence(1., material_info.iridescence_ior, NdotV, material_info.iridescence_thickness, material_info.f0);
+        iridescence_f0 = schlick_to_f0_vec3(iridescence_fresnel, vec3<f32>(1.), NdotV);
+        if(material_info.iridescence_thickness == 0.) { material_info.iridescence_factor = 0.; }
+    }
+  
     // LIGHTING
-    let f_specular = vec3<f32>(0.0);
-    let f_diffuse = vec3<f32>(0.0);
-    let f_emissive = vec3<f32>(0.0);
-    let f_clearcoat = vec3<f32>(0.0);
-    let f_sheen = vec3<f32>(0.0);
-    let f_transmission = vec3<f32>(0.0);
+    var f_diffuse_ibl = vec3<f32>(0.0);
+    var f_specular_ibl = vec3<f32>(0.0);
+    var f_sheen_ibl = vec3<f32>(0.0);
+    var f_clearcoat_ibl = vec3<f32>(0.0);
+    var f_transmission = vec3<f32>(0.0);
+   
+    // TODO - Calculate lighting contribution from image based lighting source (IBL)
+    
+    var f_diffuse = vec3<f32>(0.0);
+    var f_specular = vec3<f32>(0.0);
+    var f_sheen = vec3<f32>(0.0);
+    var f_clearcoat = vec3<f32>(0.0);
+    var f_emissive = vec3<f32>(0.0);
+   
+    var albedo_sheen_scaling = 1.0;
 
-    let albedo_sheen_scaling = 1.0;
+    //TODO - Use punctual lighting
 
-    let iridescence_fresnel = eval_iridescence(1., material_info.iridescence_ior, NdotV, material_info.iridescence_thickness, material_info.f0);
-    let iridescence_f0 = schlick_to_f0_vec3(iridescence_fresnel, vec3<f32>(1.0), NdotV);
-    if(material_info.iridescence_thickness == 0.) { material_info.iridescence_factor = 0.; }
+    f_emissive = material.emissive_color;
+    if (has_texture(&material, TEXTURE_TYPE_EMISSIVE)) {  
+      let uv = material_texture_uv(&material, pixel_data, TEXTURE_TYPE_EMISSIVE);
+      let texture_color = sample_texture(uv);
+      f_emissive *= texture_color.rgb;
+    }
 
-    //TODO - here we should fill specular and diffuse with lighting contribution calculated from image based lighting source (IBL)
+    //Layer blending
 
+    var clearcoatFactor = 0.0;
+    var clearcoatFresnel = vec3(0.);
+    var diffuse = vec3<f32>(0.0);
+    var specular = vec3<f32>(0.0);
+    var sheen = vec3<f32>(0.0);
+    var clearcoat = vec3<f32>(0.0);
+   
+    //var ao = 1.0;
+    //if (has_texture(&material, TEXTURE_TYPE_OCCLUSION)) {  
+    //    let uv = material_texture_uv(&material, pixel_data, TEXTURE_TYPE_OCCLUSION);
+    //    let texture_color = sample_texture(uv);
+    //    ao = ao * texture_color.r;
+    //    diffuse = f_diffuse + mix(f_diffuse_ibl * ao, material.occlusion_strength);
+    //    // apply ambient occlusion to all lighting that is not punctual
+    //    specular = f_specular + mix(f_specular_ibl, f_specular_ibl * ao, material.occlusion_strength);
+    //    sheen = f_sheen + mix(f_sheen_ibl, f_sheen_ibl * ao, material.occlusion_strength);
+    //    clearcoat = f_clearcoat + mix(f_clearcoat_ibl, f_clearcoat_ibl * ao, material.occlusion_strength);
+    //}
+    //else {
+        diffuse = f_diffuse_ibl + f_diffuse;
+        specular = f_specular_ibl + f_specular;
+        sheen = f_sheen_ibl + f_sheen;
+        clearcoat = f_clearcoat_ibl + f_clearcoat;
+    //}
 
-    material_info.emissive_color = material.emissive_color;
+    material_info.emissive_color = f_emissive;
     return material_info;
 }

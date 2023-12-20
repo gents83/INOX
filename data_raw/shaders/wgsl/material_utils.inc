@@ -22,28 +22,6 @@ fn material_texture_uv(material: ptr<function, Material>, pixel_data: ptr<functi
     return uv;
 } 
 
-fn material_alpha(material_id: u32, vertex_color_alpha: f32) -> f32 {
-    let material = &materials.data[material_id];
-    
-    // NOTE: the spec mandates to ignore any alpha value in 'OPAQUE' mode
-    var alpha = 1.;
-    if ((*material).alpha_mode == MATERIAL_ALPHA_BLEND_OPAQUE) {
-        alpha = 1.;
-    } else if ((*material).alpha_mode == MATERIAL_ALPHA_BLEND_MASK) {
-        if (alpha >= (*material).alpha_cutoff) {
-            // NOTE: If rendering as masked alpha and >= the cutoff, render as fully opaque
-            alpha = 1.;
-        } else {
-            // NOTE: output_color.a < material.alpha_cutoff should not is not rendered
-            // NOTE: This and any other discards mean that early-z testing cannot be done!
-            alpha = -1.;
-        }
-    } else if ((*material).alpha_mode == MATERIAL_ALPHA_BLEND_BLEND) {
-        alpha = min((*material).base_color.a, vertex_color_alpha);
-    }
-    return alpha;
-}
-
 fn compute_tbn(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>) -> TBN {
     var n = normalize((*pixel_data).normal);
     var t = cross(n, vec3(1.,0.,1.));
@@ -93,6 +71,9 @@ fn compute_base_color(material: ptr<function, Material>, pixel_data: ptr<functio
         }
     }
     (*info).base_color *= (*pixel_data).color;
+    if(((*material).flags & MATERIAL_FLAGS_ALPHAMODE_OPAQUE) != 0) {
+        (*info).base_color.a = 1.;
+    }
 }
 
 fn compute_ior(material: ptr<function, Material>, info: ptr<function, MaterialInfo>) {

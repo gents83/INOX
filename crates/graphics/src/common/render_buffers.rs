@@ -14,7 +14,7 @@ use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 use crate::{
     declare_as_binding_vector, utils::create_linearized_bhv, AsBinding, BindingDataBuffer,
     ConeCulling, GPUBHVNode, GPUMaterial, GPUMesh, GPUMeshlet, GPURay, GPURuntimeVertexData, Light,
-    LightData, LightId, Material, MaterialAlphaMode, MaterialData, MaterialId, Mesh, MeshData,
+    LightData, LightId, Material, MaterialData, MaterialFlags, MaterialId, Mesh, MeshData,
     MeshFlags, MeshId, RenderCommandsPerType, RenderCoreContext, TextureId, TextureInfo,
     TextureType, INVALID_INDEX,
 };
@@ -340,8 +340,10 @@ impl RenderBuffers {
                         m.material_index = index as _;
                     }
                     if let Some(material) = self.materials.write().unwrap().get_mut(material.id()) {
-                        let blend_alpha_mode: u32 = MaterialAlphaMode::Blend.into();
-                        if material.alpha_mode == blend_alpha_mode || material.base_color[3] < 1. {
+                        let flags: MaterialFlags = material.flags.into();
+                        if flags.contains(MaterialFlags::AlphaModeBlend)
+                            || material.base_color[3] < 1.
+                        {
                             mesh.remove_flag(MeshFlags::Opaque);
                             mesh.add_flag(MeshFlags::Tranparent);
                         }
@@ -465,7 +467,8 @@ impl RenderBuffers {
                 material_data.attenuation_color_and_distance.into();
             material.thickness_factor = material_data.thickness_factor;
             material.alpha_cutoff = material_data.alpha_cutoff;
-            material.alpha_mode = material_data.alpha_mode.into();
+            material.emissive_strength = material_data.emissive_strength;
+            material.flags = material_data.flags.into();
             materials.set_dirty(true);
         }
     }

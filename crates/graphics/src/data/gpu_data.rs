@@ -1,9 +1,7 @@
 use inox_bitmask::bitmask;
 use inox_math::{Mat4Ops, Matrix4};
 
-use crate::{
-    MaterialAlphaMode, TextureType, VertexBufferLayoutBuilder, VertexFormat, INVALID_INDEX,
-};
+use crate::{MaterialFlags, TextureType, VertexBufferLayoutBuilder, VertexFormat, INVALID_INDEX};
 
 // Pipeline has a list of meshes to process
 // Meshes can switch pipeline at runtime
@@ -122,15 +120,15 @@ pub struct GPUMaterial {
     pub transmission_factor: f32,
     pub base_color: [f32; 4],
     pub emissive_color: [f32; 3],
-    pub occlusion_strength: f32,
+    pub emissive_strength: f32,
     pub diffuse_color: [f32; 4],
     pub specular_color: [f32; 4],
     pub specular_factors: [f32; 4],
     pub attenuation_color_and_distance: [f32; 4],
     pub thickness_factor: f32,
     pub alpha_cutoff: f32,
-    pub alpha_mode: u32,
-    pub _padding: u32,
+    pub occlusion_strength: f32,
+    pub flags: u32,
 }
 
 impl Default for GPUMaterial {
@@ -143,15 +141,15 @@ impl Default for GPUMaterial {
             transmission_factor: 0.,
             base_color: [1.; 4],
             emissive_color: [1.; 3],
-            occlusion_strength: 0.0,
+            emissive_strength: 0.0,
             diffuse_color: [1.; 4],
             specular_color: [1.; 4],
             specular_factors: [1.; 4],
             attenuation_color_and_distance: [1., 1., 1., 0.],
             thickness_factor: 0.,
             alpha_cutoff: 1.,
-            alpha_mode: MaterialAlphaMode::Opaque.into(),
-            _padding: 0,
+            occlusion_strength: 0.0,
+            flags: MaterialFlags::None.into(),
         }
     }
 }
