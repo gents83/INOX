@@ -57,12 +57,15 @@ fn compute_normal(material: ptr<function, Material>, pixel_data: ptr<function, P
 }
 
 fn compute_base_color(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) {
-    (*info).base_color = (*material).diffuse_color;
-    if (has_texture(material, TEXTURE_TYPE_DIFFUSE)) {  
-        let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_DIFFUSE);
-        let texture_color = sample_texture(uv);
-        (*info).base_color *= texture_color;
-    } else {
+    
+    if(((*material).flags & MATERIAL_FLAGS_SPECULARGLOSSINESS) != 0u) {
+        (*info).base_color = (*material).diffuse_color;
+        if (has_texture(material, TEXTURE_TYPE_DIFFUSE)) {  
+            let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_DIFFUSE);
+            let texture_color = sample_texture(uv);
+            (*info).base_color *= texture_color;
+        }
+    } else if(((*material).flags & MATERIAL_FLAGS_METALLICROUGHNESS) != 0u) {
         (*info).base_color = (*material).base_color;
         if (has_texture(material, TEXTURE_TYPE_BASE_COLOR)) {  
             let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_BASE_COLOR);
@@ -70,6 +73,7 @@ fn compute_base_color(material: ptr<function, Material>, pixel_data: ptr<functio
             (*info).base_color *= texture_color;
         }
     }
+    
     (*info).base_color *= (*pixel_data).color;
     if(((*material).flags & MATERIAL_FLAGS_ALPHAMODE_OPAQUE) != 0) {
         (*info).base_color.a = 1.;

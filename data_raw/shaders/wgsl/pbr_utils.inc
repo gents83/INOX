@@ -33,12 +33,17 @@ fn f_schlick_f32(f0: f32, f90: f32, VdotH: f32) -> f32 {
     return f0 + (f90 - f0) * x5;
 }
 
-fn f_schlick_vec3(f0: vec3<f32>, f90: f32, VdotH: f32) -> vec3<f32>
+fn f_schlick_vec3_f32(f0: vec3<f32>, f90: f32, VdotH: f32) -> vec3<f32>
 {
     let x = clamp(1.0 - VdotH, 0.0, 1.0);
     let x2 = x * x;
     let x5 = x * x2 * x2;
     return f0 + (f90 - f0) * x5;
+}
+
+fn f_schlick_vec3_vec3(f0: vec3<f32>, f90: vec3<f32>, VdotH: f32) -> vec3<f32>
+{
+    return f0 + (f90 - f0) * pow(clamp(1.0 - VdotH, 0.0, 1.0), 5.0);
 }
 
 fn schlick_to_f0_vec3(f: vec3<f32>, f90: vec3<f32>, VdotH: f32) -> vec3<f32> {
@@ -95,7 +100,7 @@ fn eval_iridescence(outsideIOR: f32, eta2: f32, cosTheta1: f32, thinFilmThicknes
     // Second interface
     let baseIOR = fresnel0_to_ior(clamp(baseF0, vec3<f32>(0.0), vec3<f32>(0.9999))); // guard against 1.0
     let R1 = ior_to_fresnel0_vec3(baseIOR, iridescenceIor);
-    let R23 = f_schlick_vec3(R1, 1.0, cosTheta2);
+    let R23 = f_schlick_vec3_f32(R1, 1.0, cosTheta2);
     var phi23 = vec3<f32>(0.0);
     if (baseIOR[0] < iridescenceIor) { phi23[0] = MATH_PI; }
     if (baseIOR[1] < iridescenceIor) { phi23[1] = MATH_PI; }
@@ -204,11 +209,11 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
    
     // TODO - Calculate lighting contribution from image based lighting source (IBL)
     
-    var f_diffuse = vec3<f32>(0.0);
+    var f_diffuse = material_info.base_color.rgb;
     var f_specular = vec3<f32>(0.0);
     var f_sheen = vec3<f32>(0.0);
     var f_clearcoat = vec3<f32>(0.0);
-    var f_emissive = vec3<f32>(0.0);
+    var f_emissive = material_info.emissive_color.rgb;
    
     var albedo_sheen_scaling = 1.0;
 
@@ -230,24 +235,44 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
     var sheen = vec3<f32>(0.0);
     var clearcoat = vec3<f32>(0.0);
    
-    //var ao = 1.0;
-    //if (has_texture(&material, TEXTURE_TYPE_OCCLUSION)) {  
-    //    let uv = material_texture_uv(&material, pixel_data, TEXTURE_TYPE_OCCLUSION);
-    //    let texture_color = sample_texture(uv);
-    //    ao = ao * texture_color.r;
-    //    diffuse = f_diffuse + mix(f_diffuse_ibl * ao, material.occlusion_strength);
-    //    // apply ambient occlusion to all lighting that is not punctual
-    //    specular = f_specular + mix(f_specular_ibl, f_specular_ibl * ao, material.occlusion_strength);
-    //    sheen = f_sheen + mix(f_sheen_ibl, f_sheen_ibl * ao, material.occlusion_strength);
-    //    clearcoat = f_clearcoat + mix(f_clearcoat_ibl, f_clearcoat_ibl * ao, material.occlusion_strength);
-    //}
-    //else {
+    var ao = 1.0;
+    if (has_texture(&material, TEXTURE_TYPE_OCCLUSION)) {  
+        let uv = material_texture_uv(&material, pixel_data, TEXTURE_TYPE_OCCLUSION);
+        let texture_color = sample_texture(uv);
+        ao = ao * texture_color.r;
+        diffuse = f_diffuse + mix(f_diffuse_ibl, f_diffuse_ibl * ao, material.occlusion_strength);
+        // apply ambient occlusion to all lighting that is not punctual
+        specular = f_specular + mix(f_specular_ibl, f_specular_ibl * ao, material.occlusion_strength);
+        sheen = f_sheen + mix(f_sheen_ibl, f_sheen_ibl * ao, material.occlusion_strength);
+        clearcoat = f_clearcoat + mix(f_clearcoat_ibl, f_clearcoat_ibl * ao, material.occlusion_strength);
+    }
+    else {
         diffuse = f_diffuse_ibl + f_diffuse;
         specular = f_specular_ibl + f_specular;
         sheen = f_sheen_ibl + f_sheen;
         clearcoat = f_clearcoat_ibl + f_clearcoat;
-    //}
+    }
+    
+    if((material.flags & MATERIAL_FLAGS_CLEARCOAT) != 0u) {
+        clearcoatFactor = material_info.clear_coat_factor;
+        clearcoatFresnel = f_schlick_vec3_vec3(material_info.clear_coat_f0, material_info.clear_coat_f90, clamped_dot(material_info.clear_coat_normal, v));
+        clearcoat *= clearcoatFactor;
+    }
+    
+    if((material.flags & MATERIAL_FLAGS_TRANSMISSION) != 0u) {
+        diffuse = mix(diffuse, f_transmission, material_info.transmission_factor);
+    }
 
+    var color = vec3<f32>(0.);
+    if((material.flags & MATERIAL_FLAGS_UNLIT) != 0u) {
+        color = material_info.base_color.rgb;
+    } else {
+        color = f_emissive + diffuse + specular;
+        color = sheen + color * albedo_sheen_scaling;
+        color = color * (1.0 - clearcoatFactor * clearcoatFresnel) + clearcoat;
+    }
+
+    material_info.base_color = vec4<f32>(color, material_info.base_color.a);
     material_info.emissive_color = f_emissive;
     return material_info;
 }

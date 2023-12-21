@@ -5,7 +5,8 @@ use inox_graphics::{
     CullingEvent, DrawEvent, Light, Mesh, MeshFlags, MeshId, RendererRw,
     CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
-    CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER, CONSTANT_DATA_FLAGS_NONE,
+    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS, CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER,
+    CONSTANT_DATA_FLAGS_NONE, CONSTANT_DATA_FLAGS_USE_IBL,
 };
 use inox_math::{
     compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle, Quat, VecBase, Vector3,
@@ -67,12 +68,13 @@ pub struct InfoParams {
 #[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
 enum VisualizationDebug {
     #[default]
-    None,
-    Color,
-    BoundingBox,
-    ConeAxis,
-    VisibilityBuffer,
-    DepthBuffer,
+    None = 0,
+    UseIBL = CONSTANT_DATA_FLAGS_USE_IBL as _,
+    Color = CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS as _,
+    BoundingBox = CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX as _,
+    ConeAxis = CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS as _,
+    VisibilityBuffer = CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER as _,
+    DepthBuffer = CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER as _,
 }
 
 #[derive(Clone)]
@@ -490,13 +492,17 @@ impl Info {
                         ui.checkbox(&mut data.freeze_culling_camera, "Freeze Culling Camera");
                         if is_freezed != data.freeze_culling_camera {
                             if data.freeze_culling_camera {
-                                data.context.message_hub().send_event(CullingEvent::FreezeCamera);
+                                data.context
+                                    .message_hub()
+                                    .send_event(CullingEvent::FreezeCamera);
                             } else {
-                                data.context.message_hub().send_event(CullingEvent::UnfreezeCamera);
+                                data.context
+                                    .message_hub()
+                                    .send_event(CullingEvent::UnfreezeCamera);
                             }
                         }
                         ui.horizontal(|ui| {
-                            ui.label("Show Meshlets");
+                            ui.label("Debug mode:");
                             let combo_box = ComboBox::from_id_source("Meshlet Debug")
                                 .selected_text(format!("{:?}", data.visualization_debug))
                                 .show_ui(ui, |ui| {
@@ -536,68 +542,71 @@ impl Info {
                                             "Bounding Box",
                                         )
                                         .changed();
-                                        is_changed |= ui
-                                            .selectable_value(
-                                                &mut data.visualization_debug,
-                                                VisualizationDebug::ConeAxis,
-                                                "Cone Axis",
-                                            )
-                                            .changed();
+                                    is_changed |= ui
+                                        .selectable_value(
+                                            &mut data.visualization_debug,
+                                            VisualizationDebug::ConeAxis,
+                                            "Cone Axis",
+                                        )
+                                        .changed();
+                                    is_changed |= ui
+                                        .selectable_value(
+                                            &mut data.visualization_debug,
+                                            VisualizationDebug::UseIBL,
+                                            "Use IBL",
+                                        )
+                                        .changed();
                                     is_changed
                                 });
                             if let Some(is_changed) = combo_box.inner {
                                 if is_changed {
-
                                     let renderer = data.params.renderer.read().unwrap();
                                     let render_context = renderer.render_context();
+                                    render_context
+                                        .constant_data
+                                        .write()
+                                        .unwrap()
+                                        .set_flags(CONSTANT_DATA_FLAGS_NONE)
+                                        .set_frame_index(0);
                                     match &data.visualization_debug {
-                                        VisualizationDebug::None => {
+                                        VisualizationDebug::UseIBL => {
                                             render_context
                                                 .constant_data
                                                 .write()
                                                 .unwrap()
-                                                .set_flags(CONSTANT_DATA_FLAGS_NONE)
-                                                .set_frame_index(0);
+                                                .add_flag(CONSTANT_DATA_FLAGS_USE_IBL);
                                         }
-                                        VisualizationDebug::Color | VisualizationDebug::ConeAxis => {
+                                        VisualizationDebug::Color
+                                        | VisualizationDebug::ConeAxis => {
                                             render_context
                                                 .constant_data
                                                 .write()
                                                 .unwrap()
-                                                .set_flags(CONSTANT_DATA_FLAGS_NONE)
-                                                .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS)
-                                                .set_frame_index(0);
-                                        }
-                                        VisualizationDebug::BoundingBox => {
-                                            render_context
-                                                .constant_data
-                                                .write()
-                                                .unwrap()
-                                                .set_flags(CONSTANT_DATA_FLAGS_NONE)
                                                 .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS)
                                                 .add_flag(
-                                                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
-                                                )
-                                                .set_frame_index(0);
+                                                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS,
+                                                );
+                                        }
+                                        VisualizationDebug::BoundingBox => {
+                                            render_context.constant_data.write().unwrap()
+                                            .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS)
+                                            .add_flag(
+                                                CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
+                                            );
                                         }
                                         VisualizationDebug::VisibilityBuffer => {
-                                            render_context
-                                                .constant_data
-                                                .write()
-                                                .unwrap()
-                                                .set_flags(CONSTANT_DATA_FLAGS_NONE)
-                                                .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER)
-                                                .set_frame_index(0);
+                                            render_context.constant_data.write().unwrap().add_flag(
+                                                CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER,
+                                            );
                                         }
                                         VisualizationDebug::DepthBuffer => {
                                             render_context
                                                 .constant_data
                                                 .write()
                                                 .unwrap()
-                                                .set_flags(CONSTANT_DATA_FLAGS_NONE)
-                                                .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER)
-                                                .set_frame_index(0);
+                                                .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER);
                                         }
+                                        VisualizationDebug::None => {}
                                     }
                                 }
                             }
