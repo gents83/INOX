@@ -6,31 +6,32 @@ var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
 var<storage, read> indices: Indices;
 @group(0) @binding(2)
-var<storage, read> runtime_vertices: RuntimeVertices;
-@group(0) @binding(3)
 var<storage, read> vertices_attributes: VerticesAttributes;
-@group(0) @binding(4)
+@group(0) @binding(3)
 var<storage, read> meshes: Meshes;
-@group(0) @binding(5)
+@group(0) @binding(4)
 var<storage, read> meshlets: Meshlets;
+@group(0) @binding(5)
+var<storage, read> materials: Materials;
 @group(0) @binding(6)
-var<storage, read> culling_result: array<u32>;
+var<storage, read> textures: Textures;
+@group(0) @binding(7)
+var<storage, read> lights: Lights;
 
 @group(1) @binding(0)
-var<storage, read> meshes_inverse_matrix: Matrices;
+var<storage, read> runtime_vertices: RuntimeVertices;
 @group(1) @binding(1)
-var<storage, read> materials: Materials;
+var<storage, read> culling_result: array<u32>;
 @group(1) @binding(2)
-var<storage, read> textures: Textures;
-@group(1) @binding(3)
 var<storage, read> bhv: BHV;
-@group(1) @binding(4)
+@group(1) @binding(3)
 var<storage, read_write> rays: Rays;
-@group(1) @binding(5)
+
+@group(1) @binding(4)
 var render_target: texture_storage_2d<rgba8unorm, read_write>;
-@group(1) @binding(6)
+@group(1) @binding(5)
 var visibility_texture: texture_2d<f32>;
-@group(1) @binding(7)
+@group(1) @binding(6)
 var depth_texture: texture_depth_2d;
 
 #import "texture_utils.inc"
@@ -112,9 +113,10 @@ fn traverse_bvh(r: Ray, tlas_starting_index: i32) -> Result {
             vertices_position_offset = mesh.vertices_position_offset;
             node_index = i32(mesh.blas_index); 
 
-            let inverse_matrix = &meshes_inverse_matrix.data[mesh_id];    
-            let local_ray_origin = (*inverse_matrix) * vec4<f32>(world_ray.origin, 1.);
-            let local_ray_direction = (*inverse_matrix) * vec4<f32>(world_ray.direction, 0.);
+            let matrix = transform_matrix(mesh.position, mesh.orientation, mesh.scale);    
+            let inverse_matrix = matrix_inverse(matrix);
+            let local_ray_origin = inverse_matrix * vec4<f32>(world_ray.origin, 1.);
+            let local_ray_direction = inverse_matrix * vec4<f32>(world_ray.direction, 0.);
             ray.origin = local_ray_origin.xyz;
             ray.direction = local_ray_direction.xyz;
         }

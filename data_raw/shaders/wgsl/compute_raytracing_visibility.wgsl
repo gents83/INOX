@@ -15,8 +15,6 @@ var<storage, read> meshlets: Meshlets;
 var<storage, read> culling_result: array<u32>;
 @group(0) @binding(6)
 var<storage, read> bhv: BHV;
-@group(0) @binding(7)
-var<storage, read> meshes_inverse_matrix: Matrices;
 
 @group(1) @binding(0)
 var<storage, read_write> rays: Rays;
@@ -49,9 +47,11 @@ fn execute_job(job_index: u32) -> vec4<f32>  {
         }
         //leaf node
         let mesh_id = u32((*node).reference);
-        let inverse_matrix = &meshes_inverse_matrix.data[mesh_id];    
-        let transformed_origin = (*inverse_matrix) * vec4<f32>(ray.origin, 1.);
-        let transformed_direction = (*inverse_matrix) * vec4<f32>(ray.direction, 0.);
+        let mesh = &meshes.data[mesh_id];    
+        let matrix = transform_matrix((*mesh).position, (*mesh).orientation, (*mesh).scale);    
+        let inverse_matrix = matrix_inverse(matrix);
+        let transformed_origin = inverse_matrix * vec4<f32>(ray.origin, 1.);
+        let transformed_direction = inverse_matrix * vec4<f32>(ray.direction, 0.);
         var transformed_ray = Ray(transformed_origin.xyz, ray.t_min, transformed_direction.xyz, ray.t_max);
         let result = traverse_bhv_of_meshlets(&ray, &transformed_ray, mesh_id, nearest);
         visibility_id = select(visibility_id, result.visibility_id, result.distance < nearest);

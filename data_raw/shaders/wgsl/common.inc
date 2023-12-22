@@ -108,7 +108,7 @@ struct DrawIndexedCommand {
 struct Mesh {
     vertices_position_offset: u32,
     vertices_attribute_offset: u32,
-    vertices_attribute_layout: u32,
+    flags_and_vertices_attribute_layout: u32,
     material_index: i32,
     orientation: vec4<f32>,
     position: vec3<f32>,
@@ -117,16 +117,13 @@ struct Mesh {
     blas_index: u32,
 };
 
-struct ConeCulling {
-    center: vec3<f32>,
-    cone_axis_cutoff: u32,
-};
-
 struct Meshlet {
     @location(5) mesh_index: u32,
     @location(6) indices_offset: u32,
     @location(7) indices_count: u32,
     @location(8) triangles_bhv_index: u32,
+    @location(9) center: vec3<f32>,
+    @location(10) cone_axis_cutoff: u32,
 };
 
 struct BHVNode {
@@ -156,7 +153,6 @@ struct TextureData {
 };
 
 struct Material {
-    textures_index_and_coord_set: array<i32, TEXTURE_TYPE_COUNT>,
     roughness_factor: f32,
     metallic_factor: f32,
     ior: f32,
@@ -172,6 +168,7 @@ struct Material {
     alpha_cutoff: f32,
     occlusion_strength: f32,
     flags: u32,
+    textures_index_and_coord_set: array<i32, TEXTURE_TYPE_COUNT>,
 };
 
 
@@ -219,20 +216,8 @@ struct VerticesAttributes {
     data: array<u32>,
 };
 
-struct MeshletsCulling {
-    data: array<ConeCulling>,
-};
-
-struct Matrices {
-    data: array<mat4x4<f32>>,
-};
-
 struct BHV {
     data: array<BHVNode>,
-};
-
-struct MeshFlags {
-    data: array<u32>,
 };
 
 

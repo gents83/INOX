@@ -202,6 +202,26 @@ impl BindingData {
         if data.size() == 0 {
             return self;
         }
+        #[cfg(debug_assertions)]
+        {
+            if data.size()
+                > self
+                    .render_core_context
+                    .device
+                    .limits()
+                    .max_uniform_buffer_binding_size as _
+            {
+                inox_log::debug_log!(
+                    "Trying to bind uniform buffer {} with size {} greater than maximum allowed [{}]",
+                    label.unwrap_or_default(),
+                    data.size(),
+                    self.render_core_context
+                        .device
+                        .limits()
+                        .max_uniform_buffer_binding_size
+                );
+            }
+        }
         let usage = wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST;
         let is_changed =
             self.binding_data_buffer
@@ -269,6 +289,26 @@ impl BindingData {
 
         if data.size() == 0 {
             return self;
+        }
+        #[cfg(debug_assertions)]
+        {
+            if data.size()
+                > self
+                    .render_core_context
+                    .device
+                    .limits()
+                    .max_storage_buffer_binding_size as _
+            {
+                inox_log::debug_log!(
+                    "Trying to bind storage buffer {} with size {} greater than maximum allowed [{}]",
+                    label.unwrap_or_default(),
+                    data.size(),
+                    self.render_core_context
+                        .device
+                        .limits()
+                        .max_uniform_buffer_binding_size
+                );
+            }
         }
 
         let usage = wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | info.flags.into();

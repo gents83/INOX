@@ -7,37 +7,33 @@ use std::{
 };
 
 use inox_bhv::{BHVTree, AABB};
-use inox_math::{quantize_snorm, InnerSpace, Mat4Ops, MatBase, Matrix4, VecBase};
+use inox_math::{quantize_snorm, InnerSpace, Mat4Ops, Matrix4, VecBase};
 use inox_resources::{to_slice, Buffer, HashBuffer, ResourceId};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
 use crate::{
     declare_as_binding_vector, utils::create_linearized_bhv, AsBinding, BindingDataBuffer,
-    ConeCulling, GPUBHVNode, GPUMaterial, GPUMesh, GPUMeshlet, GPURay, GPURuntimeVertexData, Light,
-    LightData, LightId, Material, MaterialData, MaterialFlags, MaterialId, Mesh, MeshData,
-    MeshFlags, MeshId, RenderCommandsPerType, RenderCoreContext, TextureId, TextureInfo,
-    TextureType, INVALID_INDEX,
+    GPUBHVNode, GPUMaterial, GPUMesh, GPUMeshlet, GPURay, GPURuntimeVertexData, Light, LightData,
+    LightId, Material, MaterialData, MaterialFlags, MaterialId, Mesh, MeshData, MeshFlags, MeshId,
+    RenderCommandsPerType, RenderCoreContext, TextureId, TextureInfo, TextureType, INVALID_INDEX,
 };
 
 declare_as_binding_vector!(VecU32, u32);
 
 pub type TexturesBuffer = Arc<RwLock<HashBuffer<TextureId, TextureInfo, 0>>>;
-pub type LightsBuffer = Arc<RwLock<HashBuffer<LightId, LightData, 0>>>;
 pub type MaterialsBuffer = Arc<RwLock<HashBuffer<MaterialId, GPUMaterial, 0>>>;
 pub type CommandsBuffer = Arc<RwLock<HashMap<MeshFlags, RenderCommandsPerType>>>;
 pub type MeshesBuffer = Arc<RwLock<HashBuffer<MeshId, GPUMesh, 0>>>;
-pub type MeshesFlagsBuffer = Arc<RwLock<HashBuffer<MeshId, MeshFlags, 0>>>;
-pub type MeshesInverseMatrixBuffer = Arc<RwLock<HashBuffer<MeshId, [[f32; 4]; 4], 0>>>;
-pub type MeshletsBuffer = Arc<RwLock<Buffer<GPUMeshlet>>>; //MeshId <-> [GPUMeshlet]
-pub type MeshletsCullingBuffer = Arc<RwLock<Buffer<ConeCulling>>>; //MeshId <-> [GPUMeshlet]
-pub type BHVBuffer = Arc<RwLock<Buffer<GPUBHVNode>>>;
-pub type IndicesBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32]
-pub type RuntimeVerticesBuffer = Arc<RwLock<Buffer<GPURuntimeVertexData>>>;
-pub type VertexPositionsBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32] (10 x, 10 y, 10 z, 2 null)
-pub type VertexAttributesBuffer = Arc<RwLock<Buffer<u32>>>; //MeshId <-> [u32]
+pub type MeshletsBuffer = Arc<RwLock<Buffer<GPUMeshlet, 0>>>; //MeshId <-> [GPUMeshlet]
+pub type BHVBuffer = Arc<RwLock<Buffer<GPUBHVNode, 0>>>;
+pub type IndicesBuffer = Arc<RwLock<Buffer<u32, 0>>>; //MeshId <-> [u32]
+pub type VertexPositionsBuffer = Arc<RwLock<Buffer<u32, 0>>>; //MeshId <-> [u32] (10 x, 10 y, 10 z, 2 null)
+pub type VertexAttributesBuffer = Arc<RwLock<Buffer<u32, 0>>>; //MeshId <-> [u32]
 pub type CullingResults = Arc<RwLock<VecU32>>;
+pub type LightsBuffer = Arc<RwLock<HashBuffer<LightId, LightData, 0>>>;
+pub type RuntimeVerticesBuffer = Arc<RwLock<Buffer<GPURuntimeVertexData, 0>>>;
 
-pub type RaysBuffer = Arc<RwLock<Buffer<GPURay>>>;
+pub type RaysBuffer = Arc<RwLock<Buffer<GPURay, 0>>>;
 
 const TLAS_UID: Uid = generate_static_uid_from_string("TLAS");
 pub const ATOMIC_SIZE: u32 = 32;
@@ -50,10 +46,7 @@ pub struct RenderBuffers {
     pub materials: MaterialsBuffer,
     pub commands: CommandsBuffer,
     pub meshes: MeshesBuffer,
-    pub meshes_flags: MeshesFlagsBuffer,
-    pub meshes_inverse_matrix: MeshesInverseMatrixBuffer,
     pub meshlets: MeshletsBuffer,
-    pub meshlets_culling: MeshletsCullingBuffer,
     pub bhv: BHVBuffer,
     pub triangles_ids: RwLock<HashMap<MeshId, Vec<ResourceId>>>,
     pub indices: IndicesBuffer,
@@ -76,9 +69,7 @@ impl RenderBuffers {
         inox_profiler::scoped_profile!("render_buffers::extract_meshlets");
 
         let mut meshlets = Vec::new();
-        let mut meshlets_cones = Vec::new();
         meshlets.resize(mesh_data.meshlets.len(), GPUMeshlet::default());
-        meshlets_cones.resize(mesh_data.meshlets.len(), ConeCulling::default());
         let mut meshlets_aabbs = Vec::new();
         meshlets_aabbs.resize_with(mesh_data.meshlets.len(), AABB::empty);
         mesh_data
@@ -127,13 +118,6 @@ impl RenderBuffers {
                             n.miss += triangles_bhv_index as i32;
                         }
                     });
-                let meshlet = GPUMeshlet {
-                    mesh_index,
-                    indices_offset: (indices_offset + meshlet_data.indices_offset) as _,
-                    indices_count: meshlet_data.indices_count,
-                    triangles_bhv_index,
-                };
-                meshlets[i] = meshlet;
                 let cone_axis = meshlet_data.cone_axis.normalize();
                 let cone_axis_cutoff = [
                     quantize_snorm(cone_axis.x, 8) as i8,
@@ -141,10 +125,15 @@ impl RenderBuffers {
                     quantize_snorm(cone_axis.z, 8) as i8,
                     quantize_snorm(meshlet_data.cone_angle, 8) as i8,
                 ];
-                meshlets_cones[i] = ConeCulling {
+                let meshlet = GPUMeshlet {
+                    mesh_index,
+                    indices_offset: (indices_offset + meshlet_data.indices_offset) as _,
+                    indices_count: meshlet_data.indices_count,
+                    triangles_bhv_index,
                     center: meshlet_data.cone_center.into(),
                     cone_axis_cutoff,
                 };
+                meshlets[i] = meshlet;
                 meshlets_aabbs[i] =
                     AABB::create(meshlet_data.aabb_min, meshlet_data.aabb_max, i as _);
             });
@@ -168,10 +157,6 @@ impl RenderBuffers {
                     n.miss += blas_index as i32;
                 }
             });
-        self.meshlets_culling
-            .write()
-            .unwrap()
-            .allocate(mesh_id, meshlets_cones.as_slice());
         let meshlet_range = self
             .meshlets
             .write()
@@ -248,10 +233,6 @@ impl RenderBuffers {
             .write()
             .unwrap()
             .insert(mesh_id, GPUMesh::default());
-        self.meshes_inverse_matrix
-            .write()
-            .unwrap()
-            .insert(mesh_id, Matrix4::default_identity().inverse().into());
 
         let (vertex_offset, indices_offset, attributes_offset) =
             self.add_vertex_data(mesh_id, mesh_index as _, mesh_data);
@@ -263,7 +244,7 @@ impl RenderBuffers {
             let mesh = meshes.get_mut(mesh_id).unwrap();
             mesh.vertices_position_offset = vertex_offset;
             mesh.vertices_attribute_offset = attributes_offset;
-            mesh.vertices_attribute_layout = mesh_data.vertex_layout.into();
+            mesh.flags_and_vertices_attribute_layout = mesh_data.vertex_layout.into();
             mesh.blas_index = blas_index as _;
             mesh.meshlets_offset = meshlet_offset as _;
         }
@@ -351,27 +332,16 @@ impl RenderBuffers {
                 }
 
                 is_matrix_changed = self.update_transform(mesh, m);
-                if is_matrix_changed {
-                    let mut meshes_inverse_matrix = self.meshes_inverse_matrix.write().unwrap();
-                    if let Some(mat) = meshes_inverse_matrix.get_mut(mesh_id) {
-                        *mat = mesh.matrix().inverse().into();
-                    }
-                }
 
                 let mesh_flags = mesh.flags();
+                let vertex_attribute_layout = m.flags_and_vertices_attribute_layout & 0x0000FFFF;
+                let flags: u32 = (*mesh_flags).into();
+                m.flags_and_vertices_attribute_layout = vertex_attribute_layout | (flags << 16);
                 {
                     let mut commands = self.commands.write().unwrap();
-                    let mut meshes_flags = self.meshes_flags.write().unwrap();
-                    if let Some(flags) = meshes_flags.get_mut(mesh_id) {
-                        let entry = commands.entry(*flags).or_default();
-                        entry.remove_commands(mesh_id);
-
-                        *flags = *mesh_flags;
-                    } else {
-                        meshes_flags.insert(mesh_id, *mesh_flags);
-                    }
-                    meshes_flags.set_dirty(true);
-
+                    commands.iter_mut().for_each(|(_, v)| {
+                        v.remove_commands(mesh_id);
+                    });
                     let entry = commands.entry(*mesh_flags).or_default();
                     entry.add_commands(mesh_id, m, &self.meshlets.read().unwrap());
                 }
@@ -394,10 +364,7 @@ impl RenderBuffers {
                 .for_each(|(_, entry)| {
                     entry.remove_commands(mesh_id);
                 });
-            self.meshes_flags.write().unwrap().remove(mesh_id);
-            self.meshes_inverse_matrix.write().unwrap().remove(mesh_id);
             self.meshlets.write().unwrap().remove(mesh_id);
-            self.meshlets_culling.write().unwrap().remove(mesh_id);
             {
                 let mut bhv = self.bhv.write().unwrap();
                 bhv.remove(mesh_id);

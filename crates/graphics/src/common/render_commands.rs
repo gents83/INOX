@@ -40,7 +40,7 @@ impl AsBinding for RenderCommandsCount {
 #[derive(Default)]
 pub struct RenderCommands {
     pub counter: RenderCommandsCount,
-    pub commands: Buffer<DrawIndexedCommand>,
+    pub commands: Buffer<DrawIndexedCommand, 0>,
 }
 
 impl RenderCommands {
@@ -125,11 +125,11 @@ impl RenderCommandsPerType {
         });
         self
     }
-    pub fn add_commands(
+    pub fn add_commands<const MAX_COUNT: usize>(
         &mut self,
         mesh_id: &MeshId,
         mesh: &GPUMesh,
-        meshlets: &Buffer<GPUMeshlet>,
+        meshlets: &Buffer<GPUMeshlet, MAX_COUNT>,
     ) -> &mut Self {
         if let Some(meshlets) = meshlets.items(mesh_id) {
             let meshlet_entry = self.map.entry(DrawCommandType::PerMeshlet).or_default();

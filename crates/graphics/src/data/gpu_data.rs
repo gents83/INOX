@@ -33,12 +33,12 @@ pub struct DrawCommand {
     pub base_instance: u32,
 }
 
-#[repr(C, align(4))]
+#[repr(C, align(16))]
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub struct GPUMesh {
     pub vertices_position_offset: u32,
     pub vertices_attribute_offset: u32,
-    pub vertices_attribute_layout: u32,
+    pub flags_and_vertices_attribute_layout: u32, // 16 bits | 16 bits
     pub material_index: i32,
     pub orientation: [f32; 4],
     pub position: [f32; 3],
@@ -57,7 +57,7 @@ impl Default for GPUMesh {
             position: [0.; 3],
             meshlets_offset: 0,
             scale: [1.; 3],
-            vertices_attribute_layout: 0,
+            flags_and_vertices_attribute_layout: 0,
             orientation: [0., 0., 0., 1.],
         }
     }
@@ -73,20 +73,15 @@ impl GPUMesh {
     }
 }
 
-#[repr(C, align(4))]
-#[derive(Default, PartialEq, Clone, Copy, Debug)]
-pub struct ConeCulling {
-    pub center: [f32; 3],
-    pub cone_axis_cutoff: [i8; 4],
-}
-
-#[repr(C, align(4))]
+#[repr(C, align(16))]
 #[derive(Default, PartialEq, Clone, Copy, Debug)]
 pub struct GPUMeshlet {
     pub mesh_index: u32,
     pub indices_offset: u32,
     pub indices_count: u32,
     pub triangles_bhv_index: u32,
+    pub center: [f32; 3],
+    pub cone_axis_cutoff: [i8; 4],
 }
 
 impl GPUMeshlet {
@@ -97,11 +92,13 @@ impl GPUMeshlet {
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<[f32; 3]>(VertexFormat::Float32x3.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
         layout_builder
     }
 }
 
-#[repr(C, align(4))]
+#[repr(C, align(16))]
 #[derive(Default, PartialEq, Clone, Copy, Debug)]
 pub struct GPUBHVNode {
     pub min: [f32; 3],
@@ -110,10 +107,9 @@ pub struct GPUBHVNode {
     pub reference: i32,
 }
 
-#[repr(C)]
+#[repr(C, align(16))]
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub struct GPUMaterial {
-    pub textures_index_and_coord_set: [i32; TextureType::Count as _],
     pub roughness_factor: f32,
     pub metallic_factor: f32,
     pub ior: f32,
@@ -129,6 +125,7 @@ pub struct GPUMaterial {
     pub alpha_cutoff: f32,
     pub occlusion_strength: f32,
     pub flags: u32,
+    pub textures_index_and_coord_set: [i32; TextureType::Count as _],
 }
 
 impl Default for GPUMaterial {

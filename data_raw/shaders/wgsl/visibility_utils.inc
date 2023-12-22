@@ -17,7 +17,7 @@ fn visibility_to_gbuffer(visibility_id: u32, clip_coords: vec2<f32>, mvp: mat4x4
     let material_id = u32((*mesh).material_index);
     let position_offset = (*mesh).vertices_position_offset;
     let attributes_offset = (*mesh).vertices_attribute_offset;
-    let vertex_layout = (*mesh).vertices_attribute_layout;
+    let vertex_layout = (*mesh).flags_and_vertices_attribute_layout;
     let orientation = (*mesh).orientation;
     let vertex_attribute_stride = vertex_layout_stride(vertex_layout);   
     let offset_color = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_COLOR);

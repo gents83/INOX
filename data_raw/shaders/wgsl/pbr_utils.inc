@@ -191,7 +191,6 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
     // Anything less than 2% is physically impossible and is instead considered to be shadowing. Compare to "Real-Time-Rendering" 4th editon on page 325.
     material_info.f90 = vec3<f32>(1.);
 
-
     var iridescence_fresnel = vec3<f32>(0.);
     var iridescence_f0 = vec3<f32>(0.);
     if((material.flags & MATERIAL_FLAGS_IRIDESCENCE) != 0u) {
@@ -218,6 +217,15 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
     var albedo_sheen_scaling = 1.0;
 
     //TODO - Use punctual lighting
+    if ((constant_data.flags & CONSTANT_DATA_FLAGS_USE_PUNCTUAL) != 0) {
+        let num_lights = arrayLength(&lights.data);
+        for (var i = 0u; i < num_lights; i++ ) {
+            let light = &lights.data[i];
+            if ((*light).light_type == 0u) {
+                break;
+            }
+        }
+    }
 
     f_emissive = material.emissive_color;
     if (has_texture(&material, TEXTURE_TYPE_EMISSIVE)) {  

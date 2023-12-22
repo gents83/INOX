@@ -16,13 +16,9 @@ var<uniform> culling_data: CullingData;
 @group(0) @binding(2)
 var<storage, read> meshlets: Meshlets;
 @group(0) @binding(3)
-var<storage, read> meshlets_culling: MeshletsCulling;
-@group(0) @binding(4)
 var<storage, read> meshes: Meshes;
-@group(0) @binding(5)
+@group(0) @binding(4)
 var<storage, read> bhv: BHV;
-@group(0) @binding(6)
-var<storage, read> meshes_flags: MeshFlags;
 
 @group(1) @binding(0)
 var<storage, read_write> count: atomic<u32>;
@@ -48,7 +44,7 @@ fn main(
     }
     
     let draw_group_index = workgroup_id.x;
-
+    
     let bits = atomicLoad(&culling_result[draw_group_index]);
     let shift = 1u << local_invocation_id.x;
     let is_visible = bits & shift;
@@ -56,14 +52,14 @@ fn main(
         let mask = 0xFFFFFFFFu << local_invocation_id.x;
         let result = bits & mask;
         let group_count = countOneBits(result);
-
+    
         var previous_count = 0u;
         for(var i = 0u; i < draw_group_index; i = i + 1u) {
             let b = atomicLoad(&culling_result[i]);
             previous_count = previous_count + countOneBits(b);
         }
         let index = previous_count + group_count - 1u;
-
+    
         let meshlet = &meshlets.data[meshlet_id];
         let mesh_id = (*meshlet).mesh_index;
         let mesh = &meshes.data[mesh_id];

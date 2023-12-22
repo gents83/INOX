@@ -79,7 +79,7 @@ where
     }
 }
 
-impl<T> AsBinding for Buffer<T>
+impl<T, const MAX_COUNT: usize> AsBinding for Buffer<T, MAX_COUNT>
 where
     T: Sized + Clone,
 {
@@ -104,7 +104,8 @@ where
     }
 }
 
-impl<T, const ARRAY_SIZE: usize> AsBinding for [Buffer<T>; ARRAY_SIZE]
+impl<T, const MAX_COUNT: usize, const ARRAY_SIZE: usize> AsBinding
+    for [Buffer<T, MAX_COUNT>; ARRAY_SIZE]
 where
     T: Sized + Clone,
 {
