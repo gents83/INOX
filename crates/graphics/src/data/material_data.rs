@@ -69,14 +69,14 @@ impl Default for MaterialData {
             alpha_cutoff: 1.,
             emissive_strength: 1.,
             base_color: Vector4::new(1., 1., 1., 1.),
-            emissive_color: Vector3::new(1., 1., 1.),
+            emissive_color: Vector3::new(0., 0., 0.),
             occlusion_strength: 0.,
             diffuse_factor: Vector4::new(1., 1., 1., 1.),
             specular_glossiness_factor: Vector4::new(0., 0., 0., 1.),
-            specular_factors: Vector4::new(1., 1., 1., 1.),
+            specular_factors: Vector4::new(1., 1., 1., 0.),
             thickness_factor: 0.,
             attenuation_color_and_distance: Vector4::new(1., 1., 1., 0.),
-            flags: MaterialFlags::default(),
+            flags: MaterialFlags::Unlit,
         }
     }
 }

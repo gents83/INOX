@@ -65,7 +65,7 @@ fn compute_base_color(material: ptr<function, Material>, pixel_data: ptr<functio
             let texture_color = sample_texture(uv);
             (*info).base_color *= texture_color;
         }
-    } else if(((*material).flags & MATERIAL_FLAGS_METALLICROUGHNESS) != 0u) {
+    } else if(((*material).flags & MATERIAL_FLAGS_UNLIT) != 0u || ((*material).flags & MATERIAL_FLAGS_METALLICROUGHNESS) != 0u) {
         (*info).base_color = (*material).base_color;
         if (has_texture(material, TEXTURE_TYPE_BASE_COLOR)) {  
             let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_BASE_COLOR);

@@ -49,16 +49,17 @@ fn main(
     let shift = 1u << local_invocation_id.x;
     let is_visible = bits & shift;
     if (is_visible != 0u) {
+        let total_items = countOneBits(bits);
         let mask = 0xFFFFFFFFu << local_invocation_id.x;
         let result = bits & mask;
-        let group_count = countOneBits(result);
+        let group_count = total_items - countOneBits(result);
     
         var previous_count = 0u;
         for(var i = 0u; i < draw_group_index; i = i + 1u) {
             let b = atomicLoad(&culling_result[i]);
             previous_count = previous_count + countOneBits(b);
         }
-        let index = previous_count + group_count - 1u;
+        let index = previous_count + group_count;
     
         let meshlet = &meshlets.data[meshlet_id];
         let mesh_id = (*meshlet).mesh_index;

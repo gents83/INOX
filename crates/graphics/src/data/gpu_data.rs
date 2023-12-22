@@ -137,7 +137,7 @@ impl Default for GPUMaterial {
             ior: 1.5,
             transmission_factor: 0.,
             base_color: [1.; 4],
-            emissive_color: [1.; 3],
+            emissive_color: [0.; 3],
             emissive_strength: 0.0,
             diffuse_color: [1.; 4],
             specular_color: [1.; 4],
@@ -146,7 +146,7 @@ impl Default for GPUMaterial {
             thickness_factor: 0.,
             alpha_cutoff: 1.,
             occlusion_strength: 0.0,
-            flags: MaterialFlags::None.into(),
+            flags: MaterialFlags::Unlit.into(),
         }
     }
 }

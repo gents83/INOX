@@ -510,7 +510,7 @@ impl GltfCompiler {
         let mut material_data = MaterialData::default();
 
         let material = primitive.material().pbr_metallic_roughness();
-        material_data.flags |= MaterialFlags::MetallicRoughness;
+        material_data.flags = MaterialFlags::MetallicRoughness;
         material_data.base_color = material.base_color_factor().into();
         material_data.roughness_factor = material.roughness_factor();
         material_data.metallic_factor = material.metallic_factor();

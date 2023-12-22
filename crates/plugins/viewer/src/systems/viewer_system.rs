@@ -14,16 +14,22 @@ use inox_ui::UIWidget;
 use inox_uid::generate_random_uid;
 use std::path::PathBuf;
 
-use crate::widgets::{Info, InfoParams, View3D};
+use crate::{
+    events::{WidgetEvent, WidgetType},
+    widgets::{Gfx, Hierarchy, Info, InfoParams, View3D},
+};
 
 pub struct ViewerSystem {
     context: ContextRc,
+    renderer: RendererRw,
     listener: Listener,
     scene: Resource<Scene>,
     last_mouse_pos: Vector2,
     is_on_view3d: bool,
     view_3d: Option<View3D>,
     info: Option<Info>,
+    hierarchy: Option<Hierarchy>,
+    graphics: Option<Gfx>,
     last_frame: u64,
     camera_index: u32,
 }
@@ -57,7 +63,8 @@ impl System for ViewerSystem {
             .register::<KeyEvent>()
             .register::<MouseEvent>()
             .register::<WindowEvent>()
-            .register::<SerializableResourceEvent<Scene>>();
+            .register::<SerializableResourceEvent<Scene>>()
+            .register::<WidgetEvent>();
     }
 
     fn run(&mut self) -> bool {
@@ -67,6 +74,9 @@ impl System for ViewerSystem {
 
         if let Some(info) = &mut self.info {
             info.update();
+        }
+        if let Some(gfx) = &mut self.graphics {
+            gfx.update();
         }
 
         let timer = self.context.global_timer();
@@ -78,6 +88,7 @@ impl System for ViewerSystem {
     }
     fn uninit(&mut self) {
         self.listener
+            .unregister::<WidgetEvent>()
             .unregister::<KeyEvent>()
             .unregister::<MouseEvent>()
             .unregister::<WindowEvent>()
@@ -118,7 +129,10 @@ impl ViewerSystem {
             is_on_view3d: false,
             view_3d,
             info,
+            hierarchy: None,
+            graphics: None,
             context: context.clone(),
+            renderer: renderer.clone(),
             listener,
             scene,
             camera_index: 0,
@@ -623,6 +637,29 @@ impl ViewerSystem {
                         }
                     }
                 }
+            })
+            .process_messages(|e: &WidgetEvent| match e {
+                WidgetEvent::Create(t) => match t {
+                    WidgetType::Hierarchy => {
+                        self.hierarchy = Hierarchy::new(
+                            self.context.shared_data(),
+                            self.context.message_hub(),
+                            self.scene.id(),
+                        )
+                    }
+                    WidgetType::Gfx => {
+                        self.graphics = Some(Gfx::new(&self.context, &self.renderer))
+                    }
+                },
+                WidgetEvent::Destroy(t) => match t {
+                    WidgetType::Hierarchy => {
+                        self.hierarchy = None;
+                    }
+                    WidgetType::Gfx => {
+                        self.graphics = None;
+                    }
+                },
+                _ => {}
             });
         self
     }

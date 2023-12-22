@@ -17,9 +17,7 @@ use inox_scene::{Camera, Object, ObjectId, SceneId};
 use inox_ui::{implement_widget_data, ComboBox, UIWidget, Window};
 use inox_uid::INVALID_UID;
 
-use crate::events::WidgetEvent;
-
-use super::{Gfx, Hierarchy};
+use crate::events::{WidgetEvent, WidgetType};
 
 #[derive(Clone)]
 struct MeshInfo {
@@ -81,8 +79,8 @@ enum VisualizationDebug {
 struct Data {
     context: ContextRc,
     params: InfoParams,
-    hierarchy: (bool, Option<Hierarchy>),
-    graphics: (bool, Option<Gfx>),
+    show_hierarchy: bool,
+    show_graphics: bool,
     show_tlas: bool,
     show_blas: bool,
     show_frustum: bool,
@@ -116,8 +114,8 @@ impl Info {
         let data = Data {
             context: context.clone(),
             params,
-            hierarchy: (false, None),
-            graphics: (false, None),
+            show_hierarchy: false,
+            show_graphics: false,
             show_tlas: false,
             show_blas: false,
             show_frustum: false,
@@ -162,9 +160,10 @@ impl Info {
 
         self.listener
             .process_messages(|e: &WidgetEvent| {
-                let WidgetEvent::Selected(object_id) = e;
-                if let Some(data) = self.ui_page.get_mut().data_mut::<Data>() {
-                    data.selected_object_id = *object_id;
+                if let WidgetEvent::Selected(object_id) = e {
+                    if let Some(data) = self.ui_page.get_mut().data_mut::<Data>() {
+                        data.selected_object_id = *object_id;
+                    }
                 }
             })
             .process_messages(|e: &DataTypeResourceEvent<Mesh>| {
@@ -213,24 +212,24 @@ impl Info {
             data.fps = data.context.global_timer().fps();
             data.dt = data.context.global_timer().dt().as_millis();
 
-            if data.hierarchy.0 && data.hierarchy.1.is_none() {
-                data.hierarchy.1 = Hierarchy::new(
-                    data.context.shared_data(),
-                    data.context.message_hub(),
-                    &data.params.scene_id,
-                );
-            } else if !data.hierarchy.0 && data.hierarchy.1.is_some() {
-                data.hierarchy.1 = None;
+            if data.show_hierarchy {
+                self.listener
+                    .message_hub()
+                    .send_event(WidgetEvent::Create(WidgetType::Hierarchy));
+            } else {
+                self.listener
+                    .message_hub()
+                    .send_event(WidgetEvent::Destroy(WidgetType::Hierarchy));
             }
 
-            if data.graphics.0 && data.graphics.1.is_none() {
-                data.graphics.1 = Some(Gfx::new(&data.context, &data.params.renderer));
-            } else if data.graphics.1.is_some() {
-                if !data.graphics.0 {
-                    data.graphics.1 = None;
-                } else {
-                    data.graphics.1.as_mut().unwrap().update();
-                }
+            if data.show_graphics {
+                self.listener
+                    .message_hub()
+                    .send_event(WidgetEvent::Create(WidgetType::Gfx));
+            } else {
+                self.listener
+                    .message_hub()
+                    .send_event(WidgetEvent::Destroy(WidgetType::Gfx));
             }
             if data.show_lights {
                 Self::show_lights(data);
@@ -482,8 +481,8 @@ impl Info {
                     .resizable(true)
                     .show(ui_context, |ui| {
                         ui.label(format!("FPS: {} - ms: {:?}", data.fps, data.dt));
-                        ui.checkbox(&mut data.hierarchy.0, "Hierarchy");
-                        ui.checkbox(&mut data.graphics.0, "Graphics");
+                        ui.checkbox(&mut data.show_hierarchy, "Hierarchy");
+                        ui.checkbox(&mut data.show_graphics, "Graphics");
                         ui.checkbox(&mut data.show_lights, "Show Lights");
                         ui.checkbox(&mut data.show_tlas, "Show TLAS BHV");
                         ui.checkbox(&mut data.show_blas, "Show BLAS BHVs");
