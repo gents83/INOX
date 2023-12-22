@@ -4,8 +4,12 @@ struct Derivatives {
     dy: vec3<f32>,
 }
 
+fn pixel_to_normalized(image_pixel: vec2<u32>, image_size: vec2<u32>) -> vec2<f32> {
+    return (vec2<f32>(image_pixel) / vec2<f32>(image_size));
+}
+
 fn pixel_to_clip(image_pixel: vec2<u32>, image_size: vec2<u32>) -> vec2<f32> {
-    var clip_coords = 2. * (vec2<f32>(image_pixel) / vec2<f32>(image_size)) - vec2<f32>(1., 1.);
+    var clip_coords = 2. * pixel_to_normalized(image_pixel, image_size) - vec2<f32>(1.);
     clip_coords.y = -clip_coords.y;
     return clip_coords;
 }

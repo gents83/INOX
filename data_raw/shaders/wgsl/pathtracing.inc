@@ -22,8 +22,8 @@ fn sample_hemisphere(random_numbers: vec2<f32>, normal: vec3<f32>) -> vec3<f32> 
 }
 
 // Need constant_data, meshlets, meshes, indices, runtime_vertices, vertices_attributes
-fn compute_radiance_from_visibility(visibility_id: u32, clip_coords: vec2<f32>, seed: vec2<u32>, data: RadianceData, mvp: mat4x4<f32>) -> RadianceData { 
-    var pixel_data = visibility_to_gbuffer(visibility_id, clip_coords, mvp);
+fn compute_radiance_from_visibility(visibility_id: u32, pixel_uv: vec2<f32>, seed: vec2<u32>, data: RadianceData, mvp: mat4x4<f32>) -> RadianceData { 
+    var pixel_data = visibility_to_gbuffer(visibility_id, pixel_uv, mvp);
     let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data);
 
     let rnd = vec2<f32>(seed) * 2.32830643654e-10;

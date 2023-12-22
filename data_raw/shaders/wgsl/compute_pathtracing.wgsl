@@ -127,7 +127,7 @@ fn traverse_bvh(r: Ray, tlas_starting_index: i32) -> Result {
 fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>, mvp: mat4x4<f32>) -> vec4<f32>  
 {    
     var ray = rays.data[job_index];
-    var clip_coords = pixel_to_clip(pixel, dimensions);
+    var pixel_uv = pixel_to_normalized(pixel, dimensions);
     var pixel_color = vec3<f32>(0.);
     var seed = (pixel * dimensions) ^ vec2<u32>(constant_data.frame_index * 0xFFFFu);
     var radiance_data = RadianceData(ray.direction, vec3<f32>(0.), vec3<f32>(1.));
@@ -155,8 +155,8 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>, mvp: mat
         ) / 255., 1.);
     }
     seed = get_random_numbers(seed);    
-    radiance_data = compute_radiance_from_visibility(visibility_id, clip_coords, seed, radiance_data, mvp);     
-    let hit_point = clip_to_world(clip_coords, depth_value);
+    radiance_data = compute_radiance_from_visibility(visibility_id, pixel_uv, seed, radiance_data, mvp);     
+    let hit_point = pixel_to_world(pixel, dimensions, depth_value);
     ray = Ray(hit_point + radiance_data.direction * HIT_EPSILON, HIT_EPSILON, radiance_data.direction, MAX_FLOAT);
 
     for (var bounce = 0u; bounce < MAX_PATH_BOUNCES; bounce++) {
@@ -165,7 +165,7 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>, mvp: mat
             break;
         }
         seed = get_random_numbers(seed);    
-        radiance_data = compute_radiance_from_visibility(result.visibility_id, clip_coords, seed, radiance_data, mvp); 
+        radiance_data = compute_radiance_from_visibility(result.visibility_id, pixel_uv, seed, radiance_data, mvp); 
         let hit_point = ray.origin + (ray.direction * result.distance);
         ray = Ray(hit_point + radiance_data.direction * HIT_EPSILON, HIT_EPSILON, radiance_data.direction, MAX_FLOAT);
     }

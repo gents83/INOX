@@ -394,7 +394,10 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
     let specular_weight = 1.0;
 
     var material_info: MaterialInfo;
+    
+    init_material_info_default(&material_info);
     compute_base_color(&material, pixel_data, &material_info);
+
     if((material.flags & MATERIAL_FLAGS_IOR) != 0u) {
         compute_ior(&material, &material_info);
     }
@@ -463,7 +466,7 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
    
     var albedo_sheen_scaling = 1.0;
 
-    if ((constant_data.flags & CONSTANT_DATA_FLAGS_USE_PUNCTUAL) != 0) {
+    if (constant_data.flags == 0 || (constant_data.flags & CONSTANT_DATA_FLAGS_USE_PUNCTUAL) != 0) {
         let num_lights = arrayLength(&lights.data);
         for (var i = 0u; i < num_lights; i++ ) {
             var light = lights.data[i];
@@ -471,7 +474,7 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
                 break; 
             }
             var pointToLight: vec3<f32>;
-            if (light.light_type == LIGHT_TYPE_DIRECTIONAL) { 
+            if (light.light_type != LIGHT_TYPE_DIRECTIONAL) { 
                 pointToLight = light.position - (*pixel_data).world_pos;
             } else {
                 pointToLight = -light.direction;
@@ -535,7 +538,7 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
             }
         }
     }
-
+    
     f_emissive = material.emissive_color;
     if (has_texture(&material, TEXTURE_TYPE_EMISSIVE)) {  
       let uv = material_texture_uv(&material, pixel_data, TEXTURE_TYPE_EMISSIVE);

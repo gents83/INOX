@@ -56,8 +56,20 @@ fn compute_normal(material: ptr<function, Material>, pixel_data: ptr<function, P
     return tbn.normal;
 }
 
+fn init_material_info_default(info: ptr<function, MaterialInfo>) {
+    (*info).base_color = vec4<f32>(1.);
+    (*info).c_diff = (*info).base_color.rgb;
+    (*info).metallic = 1.;
+    (*info).perceptual_roughness = 1.;
+    (*info).emissive_color = vec3<f32>(1.);
+    (*info).ior = 1.5;
+    (*info).sheen_color_and_roughness_factor = vec4<f32>(1.,1.,1.,0.);
+    (*info).attenuation_color_and_distance = vec4<f32>(1.,1.,1.,0.);
+    (*info).iridescence_ior = 1.3;
+    (*info).iridescence_thickness = 100.;
+}
+
 fn compute_base_color(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) {
-    
     if(((*material).flags & MATERIAL_FLAGS_SPECULARGLOSSINESS) != 0u) {
         (*info).base_color = (*material).diffuse_color;
         if (has_texture(material, TEXTURE_TYPE_DIFFUSE)) {  
