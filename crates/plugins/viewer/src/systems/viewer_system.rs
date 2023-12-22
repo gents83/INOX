@@ -1,11 +1,11 @@
 use inox_commands::CommandParser;
 use inox_core::{implement_unique_system_uid, ContextRc, System};
 use inox_graphics::{
-    create_cube_from_min_max, create_quad, create_sphere, Light, Material, MaterialData, Mesh,
-    MeshData, MeshFlags, RendererRw, Texture, VertexAttributeLayout, View,
+    create_quad, Light, Material, MaterialData, Mesh, MeshData, MeshFlags, RendererRw, Texture,
+    VertexAttributeLayout, View,
 };
 use inox_log::debug_log;
-use inox_math::{Degrees, Mat4Ops, Matrix4, NewAngle, Radians, VecBase, Vector2, Vector3};
+use inox_math::{Mat4Ops, Matrix4, VecBase, Vector2, Vector3};
 use inox_messenger::Listener;
 use inox_platform::{InputState, Key, KeyEvent, MouseEvent, MouseState, WindowEvent};
 use inox_resources::{DataTypeResource, Resource, SerializableResource, SerializableResourceEvent};
@@ -34,7 +34,6 @@ pub struct ViewerSystem {
     camera_index: u32,
 }
 
-const USE_CORNELL_BOX: bool = false;
 const FORCE_USE_DEFAULT_CAMERA: bool = false;
 const CAMERA_SPEED: f32 = 200.;
 const CAMERA_ROTATION_SPEED: f32 = 200.;
@@ -141,16 +140,12 @@ impl ViewerSystem {
     }
 
     fn check_command_line_arguments(&mut self) -> &mut Self {
-        if USE_CORNELL_BOX {
-            self.create_cornell_scene();
+        let command_parser = CommandParser::from_command_line();
+        if command_parser.has("load_file") {
+            let values = command_parser.get_values_of::<String>("load_file");
+            self.load_scene(values[0].as_str());
         } else {
-            let command_parser = CommandParser::from_command_line();
-            if command_parser.has("load_file") {
-                let values = command_parser.get_values_of::<String>("load_file");
-                self.load_scene(values[0].as_str());
-            } else {
-                self.create_default_scene();
-            }
+            self.create_default_scene();
         }
         let mut has_lights = false;
         self.scene.get().objects().iter().for_each(|o| {
@@ -177,275 +172,6 @@ impl ViewerSystem {
             self.scene.get_mut().add_object(light_object);
         }
         self
-    }
-
-    fn generate_quad_with_color(&self, r: f32, g: f32, b: f32) -> Resource<Mesh> {
-        let mesh_id = generate_random_uid();
-
-        let flat_mesh = self.context.shared_data().add_resource(
-            self.context.message_hub(),
-            mesh_id,
-            Mesh::new(
-                mesh_id,
-                self.context.shared_data(),
-                self.context.message_hub(),
-            ),
-        );
-        let flat_material = Material::new_resource(
-            self.context.shared_data(),
-            self.context.message_hub(),
-            generate_random_uid(),
-            &MaterialData::default(),
-            None,
-        );
-        flat_mesh
-            .get_mut()
-            .set_material(flat_material)
-            .set_flags(MeshFlags::Visible | MeshFlags::Opaque);
-
-        let mut mesh_data = MeshData {
-            vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
-            ..Default::default()
-        };
-        let quad = create_quad([-1., -1., 1., 1.].into(), 0.);
-        mesh_data.append_mesh_data(quad, false);
-        mesh_data.set_vertex_color([r, g, b, 1.0].into());
-        flat_mesh.get_mut().set_mesh_data(mesh_data);
-        flat_mesh
-    }
-
-    fn create_cornell_scene(&mut self) {
-        let back_wall = {
-            let object_id = generate_random_uid();
-            let object = self.context.shared_data().add_resource(
-                self.context.message_hub(),
-                object_id,
-                Object::new(
-                    object_id,
-                    self.context.shared_data(),
-                    self.context.message_hub(),
-                ),
-            );
-            let mesh = self.generate_quad_with_color(1., 1., 1.);
-            object.get_mut().add_component(mesh);
-            object.get_mut().set_position([0., 0., -5.].into());
-            object
-        };
-        let left_wall = {
-            let object_id = generate_random_uid();
-            let object = self.context.shared_data().add_resource(
-                self.context.message_hub(),
-                object_id,
-                Object::new(
-                    object_id,
-                    self.context.shared_data(),
-                    self.context.message_hub(),
-                ),
-            );
-            let mesh = self.generate_quad_with_color(1., 0., 0.);
-            object.get_mut().add_component(mesh);
-            object.get_mut().set_position([-1., 0., -4.].into());
-            object
-                .get_mut()
-                .rotate([0., Radians::from(Degrees::new(90.)).0, 0.].into());
-            object
-        };
-        let right_wall = {
-            let object_id = generate_random_uid();
-            let object = self.context.shared_data().add_resource(
-                self.context.message_hub(),
-                object_id,
-                Object::new(
-                    object_id,
-                    self.context.shared_data(),
-                    self.context.message_hub(),
-                ),
-            );
-            let mesh = self.generate_quad_with_color(0., 1., 0.);
-            object.get_mut().add_component(mesh);
-            object.get_mut().set_position([1., 0., -4.].into());
-            object
-                .get_mut()
-                .rotate([0., Radians::from(Degrees::new(90.)).0, 0.].into());
-            object
-        };
-        let top_wall = {
-            let object_id = generate_random_uid();
-            let object = self.context.shared_data().add_resource(
-                self.context.message_hub(),
-                object_id,
-                Object::new(
-                    object_id,
-                    self.context.shared_data(),
-                    self.context.message_hub(),
-                ),
-            );
-            let mesh = self.generate_quad_with_color(1., 1., 1.);
-            object.get_mut().add_component(mesh);
-            object.get_mut().set_position([0., 1., -4.].into());
-            object
-                .get_mut()
-                .rotate([Radians::from(Degrees::new(90.)).0, 0., 0.].into());
-            object
-        };
-        let bottom_wall = {
-            let object_id = generate_random_uid();
-            let object = self.context.shared_data().add_resource(
-                self.context.message_hub(),
-                object_id,
-                Object::new(
-                    object_id,
-                    self.context.shared_data(),
-                    self.context.message_hub(),
-                ),
-            );
-            let mesh = self.generate_quad_with_color(1., 1., 1.);
-            object.get_mut().add_component(mesh);
-            object.get_mut().set_position([0., -1., -4.].into());
-            object
-                .get_mut()
-                .rotate([Radians::from(Degrees::new(90.)).0, 0., 0.].into());
-            object
-        };
-
-        let left_cube = {
-            let object_id = generate_random_uid();
-            let object = self.context.shared_data().add_resource(
-                self.context.message_hub(),
-                object_id,
-                Object::new(
-                    object_id,
-                    self.context.shared_data(),
-                    self.context.message_hub(),
-                ),
-            );
-            let mesh_id = generate_random_uid();
-
-            let mesh = self.context.shared_data().add_resource(
-                self.context.message_hub(),
-                mesh_id,
-                Mesh::new(
-                    mesh_id,
-                    self.context.shared_data(),
-                    self.context.message_hub(),
-                ),
-            );
-            let flat_material = Material::new_resource(
-                self.context.shared_data(),
-                self.context.message_hub(),
-                generate_random_uid(),
-                &MaterialData::default(),
-                None,
-            );
-            mesh.get_mut()
-                .set_material(flat_material)
-                .set_flags(MeshFlags::Visible | MeshFlags::Opaque);
-
-            let mut mesh_data = MeshData {
-                vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
-                ..Default::default()
-            };
-            let cube = create_cube_from_min_max(
-                [-1., -1., -1.].into(),
-                [1., 1., 1.].into(),
-                [0., 0., 1., 1.].into(),
-            );
-            mesh_data.append_mesh_data(cube, false);
-            mesh.get_mut().set_mesh_data(mesh_data);
-
-            object.get_mut().add_component(mesh);
-            object.get_mut().set_position([-0.25, -0.4, -4.5].into());
-            object.get_mut().scale([0.35, 0.6, 0.35].into());
-            object
-        };
-
-        let right_sphere = {
-            let object_id = generate_random_uid();
-            let object = self.context.shared_data().add_resource(
-                self.context.message_hub(),
-                object_id,
-                Object::new(
-                    object_id,
-                    self.context.shared_data(),
-                    self.context.message_hub(),
-                ),
-            );
-            let mesh_id = generate_random_uid();
-
-            let mesh = self.context.shared_data().add_resource(
-                self.context.message_hub(),
-                mesh_id,
-                Mesh::new(
-                    mesh_id,
-                    self.context.shared_data(),
-                    self.context.message_hub(),
-                ),
-            );
-            let flat_material = Material::new_resource(
-                self.context.shared_data(),
-                self.context.message_hub(),
-                generate_random_uid(),
-                &MaterialData::default(),
-                None,
-            );
-            mesh.get_mut()
-                .set_material(flat_material)
-                .set_flags(MeshFlags::Visible | MeshFlags::Opaque);
-
-            let mut mesh_data = MeshData {
-                vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
-                ..Default::default()
-            };
-            let cube = create_sphere(
-                [0., 0., 0.].into(),
-                0.35,
-                64,
-                32,
-                [0.5, 0.5, 0.5, 1.].into(),
-            );
-            mesh_data.append_mesh_data(cube, false);
-            mesh.get_mut().set_mesh_data(mesh_data);
-
-            object.get_mut().add_component(mesh);
-            object.get_mut().set_position([0.5, -0.65, -3.5].into());
-            object
-        };
-
-        self.scene.get_mut().add_object(back_wall);
-        self.scene.get_mut().add_object(top_wall);
-        self.scene.get_mut().add_object(bottom_wall);
-        self.scene.get_mut().add_object(left_wall);
-        self.scene.get_mut().add_object(right_wall);
-
-        self.scene.get_mut().add_object(left_cube);
-        self.scene.get_mut().add_object(right_sphere);
-
-        //Add camera
-        let camera_id = generate_random_uid();
-        let camera_object = self.context.shared_data().add_resource::<Object>(
-            self.context.message_hub(),
-            camera_id,
-            Object::new(
-                camera_id,
-                self.context.shared_data(),
-                self.context.message_hub(),
-            ),
-        );
-        camera_object
-            .get_mut()
-            .set_position(Vector3::new(0., 0., -0.5));
-        camera_object
-            .get_mut()
-            .look_at(Vector3::new(0.0, 0.0, -1.0));
-        let camera = camera_object.get_mut().add_default_component::<Camera>(
-            self.context.shared_data(),
-            self.context.message_hub(),
-        );
-        camera
-            .get_mut()
-            .set_parent(&camera_object)
-            .set_active(false);
-        self.scene.get_mut().add_object(camera_object);
     }
 
     fn create_default_scene(&mut self) {

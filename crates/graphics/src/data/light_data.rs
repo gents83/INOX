@@ -14,7 +14,7 @@ pub enum LightType {
 }
 
 #[repr(C, align(16))]
-#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
 #[serde(crate = "inox_serialize")]
 pub struct LightData {
     pub position: [f32; 3],
@@ -32,6 +32,23 @@ pub struct LightData {
 impl SerializeFile for LightData {
     fn extension() -> &'static str {
         "light"
+    }
+}
+
+impl Default for LightData {
+    fn default() -> Self {
+        Self {
+            position: [0.; 3],
+            light_type: LightType::Point.into(),
+            direction: [0., 0., -1.],
+            intensity: 1.,
+            color: [1.; 3],
+            range: 10.,
+            inner_cone_angle: 0.,
+            outer_cone_angle: 1.,
+            _padding1: 0.,
+            _padding2: 0.,
+        }
     }
 }
 

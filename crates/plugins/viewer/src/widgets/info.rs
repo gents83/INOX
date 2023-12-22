@@ -303,7 +303,7 @@ impl Info {
                 });
             }
             if !data.selected_object_id.is_nil() {
-                Self::show_meshes_of_object(data, &data.selected_object_id);
+                Self::show_object_in_scene(data, &data.selected_object_id);
             }
             match data.visualization_debug {
                 VisualizationDebug::BoundingBox => {
@@ -315,14 +315,14 @@ impl Info {
         }
     }
 
-    fn show_meshes_of_object(data: &Data, object_id: &ObjectId) {
+    fn show_object_in_scene(data: &Data, object_id: &ObjectId) {
         if let Some(object) = data.context.shared_data().get_resource::<Object>(object_id) {
             let object = object.get();
             let meshes = object.components_of_type::<Mesh>();
             if meshes.is_empty() {
                 let children = object.children();
                 children.iter().for_each(|o| {
-                    Self::show_meshes_of_object(data, o.id());
+                    Self::show_object_in_scene(data, o.id());
                 });
             } else {
                 let renderer = data.params.renderer.read().unwrap();
@@ -342,6 +342,17 @@ impl Info {
                         });
                     }
                 });
+            }
+            let lights = object.components_of_type::<Light>();
+            for l in lights {
+                let light = l.get();
+                let ld = light.data();
+                data.context.message_hub().send_event(DrawEvent::Sphere(
+                    ld.position.into(),
+                    ld.range,
+                    [1.0, 1.0, 0.0, 1.0].into(),
+                    true,
+                ));
             }
         }
     }
