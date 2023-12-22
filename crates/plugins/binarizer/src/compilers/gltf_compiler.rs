@@ -700,7 +700,7 @@ impl GltfCompiler {
             ));
         }
         if let Some(light) = node.light() {
-            let (_, light_path) = self.process_light(path, &light);
+            let (_, light_path) = self.process_light(path, &light, &object_transform);
             object_data.components.push(to_local_path(
                 light_path.as_path(),
                 self.data_raw_folder.as_path(),
@@ -779,25 +779,32 @@ impl GltfCompiler {
         )
     }
 
-    fn process_light(&mut self, path: &Path, light: &Light) -> (NodeType, PathBuf) {
+    fn process_light(
+        &mut self,
+        path: &Path,
+        light: &Light,
+        transform: &Matrix4,
+    ) -> (NodeType, PathBuf) {
         let mut light_data = LightData {
-            color: [light.color()[0], light.color()[1], light.color()[2], 1.],
+            color: [light.color()[0], light.color()[1], light.color()[2]],
+            direction: (-transform.forward()).into(),
+            position: transform.translation().into(),
             intensity: light.intensity().max(1.),
             range: light.range().unwrap_or(10.),
             ..Default::default()
         };
         match light.kind() {
             Kind::Directional => {
-                light_data.light_type = LightType::Directional as _;
+                light_data.light_type = LightType::Directional.into();
             }
             Kind::Point => {
-                light_data.light_type = LightType::Point as _;
+                light_data.light_type = LightType::Point.into();
             }
             Kind::Spot {
                 inner_cone_angle,
                 outer_cone_angle,
             } => {
-                light_data.light_type = LightType::Spot as _;
+                light_data.light_type = LightType::Spot.into();
                 light_data.inner_cone_angle = inner_cone_angle;
                 light_data.outer_cone_angle = outer_cone_angle;
             }

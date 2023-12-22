@@ -19,6 +19,7 @@ fn visibility_to_gbuffer(visibility_id: u32, clip_coords: vec2<f32>, mvp: mat4x4
     let attributes_offset = (*mesh).vertices_attribute_offset;
     let vertex_layout = (*mesh).flags_and_vertices_attribute_layout;
     let orientation = (*mesh).orientation;
+    let scale = (*mesh).scale;
     let vertex_attribute_stride = vertex_layout_stride(vertex_layout);   
     let offset_color = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_COLOR);
     let offset_normal = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_NORMAL);
@@ -112,5 +113,5 @@ fn visibility_to_gbuffer(visibility_id: u32, clip_coords: vec2<f32>, mvp: mat4x4
         uv_set[3] = interpolate_2d_attribute(uv1, uv2, uv3, deriv, delta);
     }    
 
-    return PixelData(world_pos, depth, normal, material_id, color, uv_set);
+    return PixelData(world_pos, depth, normal, material_id, color, mesh_id, scale, uv_set);
 }

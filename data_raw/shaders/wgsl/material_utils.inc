@@ -179,8 +179,8 @@ fn compute_iridescence(material: ptr<function, Material>, pixel_data: ptr<functi
 fn compute_anisotropy(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) { 
     let specular_weight = unpack2x16float((*info).specular_weight_and_anisotropy_strength).x;
     let tbn = compute_tbn(material, pixel_data);
-    (*info).anosotropicT = tbn.tangent;
-    (*info).anosotropicB = tbn.binormal;
+    (*info).anisotropicT = tbn.tangent;
+    (*info).anisotropicB = tbn.binormal;
     (*info).specular_weight_and_anisotropy_strength = pack2x16float(vec2<f32>(specular_weight, 0.));
 
     //NOT SUPPORTED TILL NOW - need gltf-rs support for KHR_materials_anisotropy

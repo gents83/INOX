@@ -26,6 +26,12 @@ fn ior_to_fresnel0_f32(transmittedIor: f32, incidentIor: f32) -> f32 {
     return ior * ior;
 }
 
+fn apply_ior_to_roughness(roughness: f32, ior: f32) -> f32 {
+    // Scale roughness with IOR so that an IOR of 1.0 results in no microfacet refraction and
+    // an IOR of 1.5 results in the default amount of microfacet refraction.
+    return roughness * clamp(ior * 2.0 - 2.0, 0.0, 1.0);
+}
+
 fn f_schlick_f32(f0: f32, f90: f32, VdotH: f32) -> f32 {
     let x = clamp(1.0 - VdotH, 0.0, 1.0);
     let x2 = x * x;
@@ -52,6 +58,100 @@ fn schlick_to_f0_vec3(f: vec3<f32>, f90: vec3<f32>, VdotH: f32) -> vec3<f32> {
     let x5 = clamp(x * x2 * x2, 0.0, 0.9999);
     let r = (f - (f90 * x5));
     return (r / (1.0 - x5));
+}
+
+// Smith Joint GGX
+// Note: Vis = G / (4 * NdotL * NdotV)
+// see Eric Heitz. 2014. Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs. Journal of Computer Graphics Techniques, 3
+// see Real-Time Rendering. Page 331 to 336.
+// see https://google.github.io/filament/Filament.md.html#materialsystem/specularbrdf/geometricshadowing(specularg)
+fn V_GGX(NdotL: f32, NdotV: f32, alphaRoughness: f32) -> f32 {
+    let alphaRoughnessSq = alphaRoughness * alphaRoughness;
+
+    let GGXV = NdotL * sqrt(NdotV * NdotV * (1.0 - alphaRoughnessSq) + alphaRoughnessSq);
+    let GGXL = NdotV * sqrt(NdotL * NdotL * (1.0 - alphaRoughnessSq) + alphaRoughnessSq);
+
+    let GGX = GGXV + GGXL;
+    return select(0., 0.5 / GGX, GGX > 0.0);
+}
+
+// The following equation(s) model the distribution of microfacet normals across the area being drawn (aka D())
+// Implementation from "Average Irregularity Representation of a Roughened Surface for Ray Reflection" by T. S. Trowbridge, and K. P. Reitz
+// Follows the distribution function recommended in the SIGGRAPH 2013 course notes from EPIC Games [1], Equation 3.
+fn D_GGX(NdotH: f32, alphaRoughness: f32) -> f32 {
+    let alphaRoughnessSq = alphaRoughness * alphaRoughness;
+    let f = (NdotH * NdotH) * (alphaRoughnessSq - 1.0) + 1.0;
+    return alphaRoughnessSq / (MATH_PI * f * f);
+}
+
+// GGX Mask/Shadowing Anisotropic (Same as Babylon.js - smithVisibility_GGXCorrelated_Anisotropic)
+// Heitz http://jcgt.org/published/0003/02/03/paper.pdf
+fn V_GGX_anisotropic(NdotL: f32, NdotV: f32, BdotV: f32, TdotV: f32, TdotL: f32, BdotL: f32, at: f32, ab: f32) -> f32 {
+    let GGXV = NdotL * length(vec3(at * TdotV, ab * BdotV, NdotV));
+    let GGXL = NdotV * length(vec3(at * TdotL, ab * BdotL, NdotL));
+    let v = 0.5 / (GGXV + GGXL);
+    return clamp(v, 0.0, 1.0);
+}
+
+// GGX Distribution Anisotropic (Same as Babylon.js)
+// https://blog.selfshadow.com/publications/s2012-shading-course/burley/s2012_pbs_disney_brdf_notes_v3.pdf Addenda
+fn D_GGX_anisotropic(NdotH: f32, TdotH: f32, BdotH: f32, anisotropy: f32, at: f32, ab: f32) -> f32 {
+    let a2 = at * ab;
+    let f = vec3(ab * TdotH, at * BdotH, a2 * NdotH);
+    let w2 = a2 / dot(f, f);
+    return a2 * w2 * w2 / MATH_PI;
+}
+
+// Estevez and Kulla http://www.aconty.com/pdf/s2017_pbs_imageworks_sheen.pdf
+fn D_Charlie(sheenRoughness: f32, NdotH: f32) -> f32 {
+    let s = max(sheenRoughness, 0.000001); //clamp (0,1)
+    let alphaG = s * s;
+    let invR = 1.0 / alphaG;
+    let cos2h = NdotH * NdotH;
+    let sin2h = 1.0 - cos2h;
+    return (2.0 + invR) * pow(sin2h, invR * 0.5) / (2.0 * MATH_PI);
+}
+
+fn lambda_sheen_numeric_helper(x: f32, alphaG: f32) -> f32 {
+    let oneMinusAlphaSq = (1.0 - alphaG) * (1.0 - alphaG);
+    let a = mix(21.5473, 25.3245, oneMinusAlphaSq);
+    let b = mix(3.82987, 3.32435, oneMinusAlphaSq);
+    let c = mix(0.19823, 0.16801, oneMinusAlphaSq);
+    let d = mix(-1.97760, -1.27393, oneMinusAlphaSq);
+    let e = mix(-4.32054, -4.85967, oneMinusAlphaSq);
+    return a / (1.0 + b * pow(x, c)) + d * x + e;
+}
+
+fn lambda_sheen(cosTheta: f32, alphaG: f32) -> f32 {
+    if (abs(cosTheta) < 0.5)
+    {
+        return exp(lambda_sheen_numeric_helper(cosTheta, alphaG));
+    }
+    else
+    {
+        return exp(2.0 * lambda_sheen_numeric_helper(0.5, alphaG) - lambda_sheen_numeric_helper(1.0 - cosTheta, alphaG));
+    }
+}
+
+fn V_Sheen(NdotL: f32, NdotV: f32, sheenRoughness: f32) -> f32 {
+    let s = max(sheenRoughness, 0.000001); //clamp (0,1)
+    let alphaG = sheenRoughness * sheenRoughness;
+
+    return clamp(1.0 / ((1.0 + lambda_sheen(NdotV, alphaG) + lambda_sheen(NdotL, alphaG)) *
+        (4.0 * NdotV * NdotL)), 0.0, 1.0);
+}
+
+fn sheen_LUT(uv: vec2<f32>) -> vec4<f32> {
+    let tl = vec4<f32>(1.0,1.0,1.0,1.);
+    let tr = vec4<f32>(0.0,0.0,0.0,1.);
+    let bl = vec4<f32>(1.0,1.0,1.0,1.);
+    let br = vec4<f32>(0.5,0.5,0.5,1.);
+    return mix(mix(tr,tr,uv.x),mix(bl,br,uv.x),uv.y);
+}
+
+fn albedo_sheen_scaling_LUT(NdotV: f32, sheenRoughnessFactor: f32) -> f32
+{
+    return sheen_LUT(vec2<f32>(NdotV, sheenRoughnessFactor)).r;
 }
 
 // Fresnel equations for dielectric/dielectric interfaces.
@@ -129,6 +229,153 @@ fn eval_iridescence(outsideIOR: f32, eta2: f32, cosTheta1: f32, thinFilmThicknes
 
     // Since out of gamut colors might be produced, negative color values are clamped to 0.
     return max(I, vec3<f32>(0.0));
+}
+
+fn BRDF_lambertian_iridescence(f0: vec3<f32>, f90: vec3<f32>, iridescenceFresnel: vec3<f32>, iridescenceFactor: f32, diffuseColor: vec3<f32>, specularWeight: f32, VdotH: f32) -> vec3<f32> {
+    // Use the maximum component of the iridescence Fresnel color
+    // Maximum is used instead of the RGB value to not get inverse colors for the diffuse BRDF
+    let iridescenceFresnelMax = vec3<f32>(max(max(iridescenceFresnel.r, iridescenceFresnel.g), iridescenceFresnel.b));
+
+    let schlickFresnel = f_schlick_vec3_vec3(f0, f90, VdotH);
+
+    // Blend default specular Fresnel with iridescence Fresnel
+    let F = mix(schlickFresnel, iridescenceFresnelMax, iridescenceFactor);
+
+    // see https://seblagarde.wordpress.com/2012/01/08/pi-or-not-to-pi-in-game-lighting-equation/
+    return (1.0 - specularWeight * F) * (diffuseColor / MATH_PI);
+}
+
+fn BRDF_specular_GGX_anisotropy(f0: vec3<f32>, f90: vec3<f32>, alphaRoughness: f32, anisotropy: f32, n: vec3<f32>, v: vec3<f32>, l: vec3<f32>, h: vec3<f32>, t: vec3<f32>, b: vec3<f32>) -> vec3<f32> {
+    // Roughness along the anisotropy bitangent is the material roughness, while the tangent roughness increases with anisotropy.
+    let at = mix(alphaRoughness, 1.0, anisotropy * anisotropy);
+    let ab = clamp(alphaRoughness, 0.001, 1.0);
+
+    let NdotL = clamp(dot(n, l), 0.0, 1.0);
+    let NdotH = clamp(dot(n, h), 0.001, 1.0);
+    let NdotV = dot(n, v);
+    let VdotH = clamp(dot(v, h), 0.0, 1.0);
+
+    let V = V_GGX_anisotropic(NdotL, NdotV, dot(b, v), dot(t, v), dot(t, l), dot(b, l), at, ab);
+    let D = D_GGX_anisotropic(NdotH, dot(t, h), dot(b, h), anisotropy, at, ab);
+
+    let F = f_schlick_vec3_vec3(f0, f90, VdotH);
+    return F * V * D;
+}
+
+fn BRDF_specular_GGX_iridescence(f0: vec3<f32>, f90: vec3<f32>, iridescenceFresnel: vec3<f32>, alphaRoughness: f32, iridescenceFactor: f32, specularWeight: f32, VdotH: f32, NdotL: f32, NdotV: f32, NdotH: f32) -> vec3<f32> {
+    let F = mix(f_schlick_vec3_vec3(f0, f90, VdotH), iridescenceFresnel, iridescenceFactor);
+    let Vis = V_GGX(NdotL, NdotV, alphaRoughness);
+    let D = D_GGX(NdotH, alphaRoughness);
+
+    return specularWeight * F * Vis * D;
+}
+
+fn BRDF_lambertian(f0: vec3<f32>, f90: vec3<f32>, diffuseColor: vec3<f32>, specularWeight: f32, VdotH: f32) -> vec3<f32> {
+    // see https://seblagarde.wordpress.com/2012/01/08/pi-or-not-to-pi-in-game-lighting-equation/
+    return (1.0 - specularWeight * f_schlick_vec3_vec3(f0, f90, VdotH)) * (diffuseColor / MATH_PI);
+}
+
+fn BRDF_specular_GGX(f0: vec3<f32>, f90: vec3<f32>, alphaRoughness: f32, specularWeight: f32, VdotH: f32, NdotL: f32, NdotV: f32, NdotH: f32) -> vec3<f32> {
+    let F = f_schlick_vec3_vec3(f0, f90, VdotH);
+    let Vis = V_GGX(NdotL, NdotV, alphaRoughness);
+    let D = D_GGX(NdotH, alphaRoughness);
+
+    return specularWeight * F * Vis * D;
+}
+
+fn BRDF_specular_sheen(sheenColor: vec3<f32>, sheenRoughness: f32, NdotL: f32, NdotV: f32, NdotH: f32) -> vec3<f32> {
+    let sheenDistribution = D_Charlie(sheenRoughness, NdotH);
+    let sheenVisibility = V_Sheen(NdotL, NdotV, sheenRoughness);
+    return sheenColor * sheenDistribution * sheenVisibility;
+}
+
+fn get_punctual_radiance_sheen(sheenColor: vec3<f32>, sheenRoughness: f32, NdotL: f32, NdotV: f32, NdotH: f32) -> vec3<f32> {
+    return NdotL * BRDF_specular_sheen(sheenColor, sheenRoughness, NdotL, NdotV, NdotH);
+}
+
+fn get_punctual_radiance_clearcoat(clearcoatNormal: vec3<f32>, v: vec3<f32>, l: vec3<f32>, h: vec3<f32>, VdotH: f32, f0: vec3<f32>, f90: vec3<f32>, clearcoatRoughness: f32) -> vec3<f32> {
+    let NdotL = clamped_dot(clearcoatNormal, l);
+    let NdotV = clamped_dot(clearcoatNormal, v);
+    let NdotH = clamped_dot(clearcoatNormal, h);
+    return NdotL * BRDF_specular_GGX(f0, f90, clearcoatRoughness * clearcoatRoughness, 1.0, VdotH, NdotL, NdotV, NdotH);
+}
+
+fn get_punctual_radiance_transmission(normal: vec3<f32>, view: vec3<f32>, pointToLight: vec3<f32>, alphaRoughness: f32, f0: vec3<f32>, f90: vec3<f32>, baseColor: vec3<f32>, ior: f32) -> vec3<f32> {
+    let transmissionRougness = apply_ior_to_roughness(alphaRoughness, ior);
+
+    let n = normalize(normal);           // Outward direction of surface point
+    let v = normalize(view);             // Direction from surface point to view
+    let l = normalize(pointToLight);
+    let l_mirror = normalize(l + 2.0*n*dot(-l, n));     // Mirror light reflection vector on surface
+    let h = normalize(l_mirror + v);            // Halfway vector between transmission light vector and v
+
+    let D = D_GGX(clamp(dot(n, h), 0.0, 1.0), transmissionRougness);
+    let F = f_schlick_vec3_vec3(f0, f90, clamp(dot(v, h), 0.0, 1.0));
+    let Vis = V_GGX(clamp(dot(n, l_mirror), 0.0, 1.0), clamp(dot(n, v), 0.0, 1.0), transmissionRougness);
+
+    // Transmission BTDF
+    return (1.0 - F) * baseColor * D * Vis;
+}
+
+fn get_range_attenuation(range: f32, distance: f32) -> f32 {
+    if (range <= 0.0)
+    {
+        // negative range means unlimited
+        return 1.0 / pow(distance, 2.0);
+    }
+    return max(min(1.0 - pow(distance / range, 4.0), 1.0), 0.0) / pow(distance, 2.0);
+}
+
+fn get_spot_attenuation(pointToLight: vec3<f32>, spotDirection: vec3<f32>, outerConeCos: f32, innerConeCos: f32) -> f32 {
+    let actualCos = dot(normalize(spotDirection), normalize(-pointToLight));
+    if (actualCos > outerConeCos)
+    {
+        if (actualCos < innerConeCos)
+        {
+            let angularAttenuation = (actualCos - outerConeCos) / (innerConeCos - outerConeCos);
+            return angularAttenuation * angularAttenuation;
+        }
+        return 1.0;
+    }
+    return 0.0;
+}
+
+fn get_light_intensity(light: ptr<function, LightData>, pointToLight: vec3<f32>) -> vec3<f32> {
+    var rangeAttenuation = 1.0;
+    var spotAttenuation = 1.0;
+
+    if ((*light).light_type != LIGHT_TYPE_DIRECTIONAL)
+    {
+        rangeAttenuation = get_range_attenuation((*light).range, length(pointToLight));
+    }
+    if ((*light).light_type == LIGHT_TYPE_SPOT)
+    {
+        spotAttenuation = get_spot_attenuation(pointToLight, (*light).direction, (*light).outer_cone_angle, (*light).inner_cone_angle);
+    }
+    return rangeAttenuation * spotAttenuation * (*light).intensity * (*light).color;
+}
+
+fn get_volume_transmission_ray(n: vec3<f32>, v: vec3<f32>, thickness: f32, ior: f32, scale: vec3<f32>) -> vec3<f32> {
+    // Direction of refracted light.
+    let refractionVector = refract(-v, normalize(n), 1.0 / ior);
+    // The thickness is specified in local space.
+    return normalize(refractionVector) * thickness * scale;
+}
+
+// Compute attenuated light as it travels through a volume.
+fn apply_volume_attenuation(radiance: vec3<f32>, transmissionDistance: f32, attenuationColor: vec3<f32>, attenuationDistance: f32) -> vec3<f32> {
+    if (attenuationDistance == 0.0)
+    {
+        // Attenuation distance is +∞ (which we indicate by zero), i.e. the transmitted color is not attenuated at all.
+        return radiance;
+    }
+    else
+    {
+        // Compute light attenuation using Beer's law.
+        let attenuationCoefficient = -log(attenuationColor) / attenuationDistance;
+        let transmittance = exp(-attenuationCoefficient * transmissionDistance); // Beer's law
+        return transmittance * radiance;
+    }
 }
 
 //Inspired from glTF-Sample-Viewer
@@ -216,13 +463,75 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
    
     var albedo_sheen_scaling = 1.0;
 
-    //TODO - Use punctual lighting
     if ((constant_data.flags & CONSTANT_DATA_FLAGS_USE_PUNCTUAL) != 0) {
         let num_lights = arrayLength(&lights.data);
         for (var i = 0u; i < num_lights; i++ ) {
-            let light = &lights.data[i];
-            if ((*light).light_type == 0u) {
-                break;
+            var light = lights.data[i];
+            if (light.light_type == LIGHT_TYPE_INVALID) { 
+                break; 
+            }
+            var pointToLight: vec3<f32>;
+            if (light.light_type == LIGHT_TYPE_DIRECTIONAL) { 
+                pointToLight = light.position - (*pixel_data).world_pos;
+            } else {
+                pointToLight = -light.direction;
+            }
+                
+            // BSTF
+            var l = normalize(pointToLight);   // Direction from surface point to light
+            let h = normalize(l + v);          // Direction of the vector between l and v, called halfway vector
+            let NdotL = clamped_dot(tbn.normal, l);
+            let NdotV = clamped_dot(tbn.normal, v);
+            let NdotH = clamped_dot(tbn.normal, h);
+            let LdotH = clamped_dot(l, h);
+            let VdotH = clamped_dot(v, h);
+            if (NdotL > 0.0 || NdotV > 0.0)
+            {
+                // Calculation of analytical light
+                let intensity = get_light_intensity(&light, pointToLight);
+                let specular_weight_and_anisotropy_strength = unpack2x16float(material_info.specular_weight_and_anisotropy_strength);
+                let specular_weight = specular_weight_and_anisotropy_strength.x;
+                if((material.flags & MATERIAL_FLAGS_IRIDESCENCE) != 0u) {
+                    f_diffuse += intensity * NdotL *  BRDF_lambertian_iridescence(material_info.f0, material_info.f90, iridescence_fresnel, material_info.iridescence_factor, material_info.c_diff, specular_weight, VdotH);
+                    f_specular += intensity * NdotL * BRDF_specular_GGX_iridescence(material_info.f0, material_info.f90, iridescence_fresnel, material_info.alpha_roughness,  material_info.iridescence_factor, specular_weight, VdotH, NdotL, NdotV, NdotH);
+                }
+                else {
+                    f_diffuse += intensity * NdotL *  BRDF_lambertian(material_info.f0, material_info.f90, material_info.c_diff, specular_weight, VdotH);
+                    if((material.flags & MATERIAL_FLAGS_ANISOTROPY) != 0u) {
+                        let anisotropy_strength = specular_weight_and_anisotropy_strength.y;
+                        f_specular += intensity * NdotL * BRDF_specular_GGX_anisotropy(material_info.f0, material_info.f90, material_info.alpha_roughness, anisotropy_strength, tbn.normal, v, l, h, material_info.anisotropicT, material_info.anisotropicB);
+                    } else {
+                        f_specular += intensity * NdotL * BRDF_specular_GGX(material_info.f0, material_info.f90, material_info.alpha_roughness, specular_weight, VdotH, NdotL, NdotV, NdotH);
+                    }
+                }
+                
+                if((material.flags & MATERIAL_FLAGS_SHEEN) != 0u) {
+                    f_sheen += intensity * get_punctual_radiance_sheen(material_info.sheen_color_and_roughness_factor.rgb, material_info.sheen_color_and_roughness_factor.w, NdotL, NdotV, NdotH);
+                    let c = max(max(material_info.sheen_color_and_roughness_factor.r, material_info.sheen_color_and_roughness_factor.g), material_info.sheen_color_and_roughness_factor.b);
+                    albedo_sheen_scaling = min(1.0 - c * albedo_sheen_scaling_LUT(NdotV, material_info.sheen_color_and_roughness_factor.w),
+                        1.0 - c * albedo_sheen_scaling_LUT(NdotL, material_info.sheen_color_and_roughness_factor.w));
+                }
+                
+                if((material.flags & MATERIAL_FLAGS_CLEARCOAT) != 0u) {
+                    f_clearcoat += intensity * get_punctual_radiance_clearcoat(material_info.clear_coat_normal, v, l, h, VdotH,
+                        material_info.clear_coat_f0, material_info.clear_coat_f90, material_info.clear_coat_roughness_factor);
+                }
+            }
+            
+            // BDTF
+            if((material.flags & MATERIAL_FLAGS_TRANSMISSION) != 0u) {
+                // If the light ray travels through the geometry, use the point it exits the geometry again.
+                // That will change the angle to the light source, if the material refracts the light ray.
+                let transmission_ray = get_volume_transmission_ray(tbn.normal, v, material_info.thickness_factor, material_info.ior, (*pixel_data).mesh_scale);
+                pointToLight -= transmission_ray;
+                l = normalize(pointToLight);
+                let intensity = get_light_intensity(&light, pointToLight);
+                var transmitted_light = intensity * get_punctual_radiance_transmission(tbn.normal, v, l, material_info.alpha_roughness, material_info.f0, material_info.f90, material_info.c_diff, material_info.ior);
+            
+                if((material.flags & MATERIAL_FLAGS_VOLUME) != 0u) {
+                    transmitted_light = apply_volume_attenuation(transmitted_light, length(transmission_ray), material_info.attenuation_color_and_distance.rgb, material_info.attenuation_color_and_distance.w);
+                }
+                f_transmission += transmitted_light;
             }
         }
     }

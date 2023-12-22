@@ -72,6 +72,10 @@ const MATERIAL_FLAGS_ALPHAMODE_OPAQUE: u32 = 1u << 12u;
 const MATERIAL_FLAGS_ALPHAMODE_MASK: u32 = 1u << 13u;
 const MATERIAL_FLAGS_ALPHAMODE_BLEND: u32 = 1u << 14u;
 
+const LIGHT_TYPE_INVALID: u32 = 0u;
+const LIGHT_TYPE_DIRECTIONAL: u32 = 1u;
+const LIGHT_TYPE_POINT: u32 = 1u << 1u;
+const LIGHT_TYPE_SPOT: u32 = 1u << 2u;
 
 struct ConstantData {
     view: mat4x4<f32>,
@@ -137,11 +141,14 @@ struct BHVNode {
 struct LightData {
     position: vec3<f32>,
     light_type: u32,
-    color: vec4<f32>,
+    direction: vec3<f32>,
     intensity: f32,
+    color: vec3<f32>,
     range: f32,
     inner_cone_angle: f32,
     outer_cone_angle: f32,
+    _padding1: f32,
+    _padding2: f32,
 };
 
 struct TextureData {
@@ -243,6 +250,8 @@ struct PixelData {
     normal: vec3<f32>,
     material_id: u32,
     color: vec4<f32>,
+    mesh_id: u32,
+    mesh_scale: vec3<f32>, 
     uv_set: array<vec2<f32>, 4>,
 };
 
@@ -278,10 +287,10 @@ struct MaterialInfo {
     clear_coat_normal: vec3<f32>,
     iridescence_factor: f32,
 
-    anosotropicT: vec3<f32>,
+    anisotropicT: vec3<f32>,
     iridescence_ior: f32,
 
-    anosotropicB: vec3<f32>,
+    anisotropicB: vec3<f32>,
     iridescence_thickness: f32,
 
     alpha_roughness: f32,
