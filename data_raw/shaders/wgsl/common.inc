@@ -246,12 +246,10 @@ struct RayJob {
 
 struct PixelData {
     world_pos: vec3<f32>,
-    depth: f32,
-    normal: vec3<f32>,
     material_id: u32,
     color: vec4<f32>,
-    mesh_id: u32,
-    mesh_scale: vec3<f32>, 
+    normal: vec3<f32>,
+    mesh_scale: f32, 
     uv_set: array<vec2<f32>, 4>,
 };
 

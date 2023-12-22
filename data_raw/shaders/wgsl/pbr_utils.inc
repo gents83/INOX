@@ -355,7 +355,7 @@ fn get_light_intensity(light: ptr<function, LightData>, pointToLight: vec3<f32>)
     return rangeAttenuation * spotAttenuation * (*light).intensity * (*light).color;
 }
 
-fn get_volume_transmission_ray(n: vec3<f32>, v: vec3<f32>, thickness: f32, ior: f32, scale: vec3<f32>) -> vec3<f32> {
+fn get_volume_transmission_ray(n: vec3<f32>, v: vec3<f32>, thickness: f32, ior: f32, scale: f32) -> vec3<f32> {
     // Direction of refracted light.
     let refractionVector = refract(-v, normalize(n), 1.0 / ior);
     // The thickness is specified in local space.
@@ -394,7 +394,7 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
     let specular_weight = 1.0;
 
     var material_info: MaterialInfo;
-    
+
     init_material_info_default(&material_info);
     compute_base_color(&material, pixel_data, &material_info);
 

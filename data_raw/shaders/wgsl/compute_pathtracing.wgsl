@@ -124,7 +124,7 @@ fn traverse_bvh(r: Ray, tlas_starting_index: i32) -> Result {
     return Result(hit_distance, visibility_id);
 }
 
-fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>, mvp: mat4x4<f32>) -> vec4<f32>  
+fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<f32>  
 {    
     var ray = rays.data[job_index];
     var pixel_uv = pixel_to_normalized(pixel, dimensions);
@@ -155,8 +155,8 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>, mvp: mat
         ) / 255., 1.);
     }
     seed = get_random_numbers(seed);    
-    radiance_data = compute_radiance_from_visibility(visibility_id, pixel_uv, seed, radiance_data, mvp, true);     
     let hit_point = pixel_to_world(pixel, dimensions, depth_value);
+    radiance_data = compute_radiance_from_visibility(visibility_id, hit_point, seed, radiance_data, true);     
     ray = Ray(hit_point + radiance_data.direction * HIT_EPSILON, HIT_EPSILON, radiance_data.direction, MAX_FLOAT);
 
     for (var bounce = 0u; bounce < MAX_PATH_BOUNCES; bounce++) {
@@ -165,8 +165,8 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>, mvp: mat
             break;
         }
         seed = get_random_numbers(seed);    
-        radiance_data = compute_radiance_from_visibility(result.visibility_id, pixel_uv, seed, radiance_data, mvp, false); 
         let hit_point = ray.origin + (ray.direction * result.distance);
+        radiance_data = compute_radiance_from_visibility(result.visibility_id, hit_point, seed, radiance_data, false); 
         ray = Ray(hit_point + radiance_data.direction * HIT_EPSILON, HIT_EPSILON, radiance_data.direction, MAX_FLOAT);
     }
     pixel_color += radiance_data.radiance;
@@ -188,7 +188,6 @@ fn main(
     let dimensions = textureDimensions(render_target);
     atomicStore(&jobs_count, MAX_WORKGROUP_SIZE);
     
-    let mvp = constant_data.proj * constant_data.view;
     var job_index = 0u;
     while(job_index < MAX_WORKGROUP_SIZE)
     {
@@ -201,7 +200,7 @@ fn main(
         
         let index = u32(pixel.y * dimensions.x + pixel.x);
 
-        var out_color = execute_job(index, pixel, dimensions, mvp);
+        var out_color = execute_job(index, pixel, dimensions);
         //out_color = vec4<f32>(Uncharted2ToneMapping(out_color.rgb), 1.);
         //out_color = vec4<f32>(tonemap_ACES_Hill(out_color.rgb), 1.);
         //out_color = vec4<f32>(pow(out_color.rgb, vec3<f32>(INV_GAMMA)), 1.);
