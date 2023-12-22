@@ -26,7 +26,16 @@ fn clip_to_world(clip_coords: vec2<f32>, depth: f32) -> vec3<f32> {
     return world_pos.xyz;
 }
 
-fn compute_barycentrics(a: vec2<f32>, b: vec2<f32>, c: vec2<f32>, p: vec2<f32>) -> vec3<f32> {
+fn compute_barycentrics_3d(p1: vec3<f32>, p2: vec3<f32>, p3: vec3<f32>, p: vec3<f32>) -> vec3<f32> {
+    let v1 = p - p1;
+    let v2 = p - p2;
+    let v3 = p - p3;
+    
+    let area = length(cross(v1 - v2, v1 - v3)); 
+    return vec3<f32>(length(cross(v2, v3)) / area, length(cross(v3, v1)) / area, length(cross(v1, v2)) / area); 
+}
+
+fn compute_barycentrics_2d(a: vec2<f32>, b: vec2<f32>, c: vec2<f32>, p: vec2<f32>) -> vec3<f32> {
     let v0 = b - a;
     let v1 = c - a;
     let v2 = p - a;

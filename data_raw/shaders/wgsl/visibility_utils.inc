@@ -37,13 +37,7 @@ fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData
     let p2 = runtime_vertices.data[vert_indices.y + position_offset].world_pos;
     let p3 = runtime_vertices.data[vert_indices.z + position_offset].world_pos;
     
-    // get the vector from the point to the triangle verts
-    let v1 = hit_point - p1;
-    let v2 = hit_point - p2;
-    let v3 = hit_point - p3;
-    
-    let area = length(cross(v1 - v2, v1 - v3)); 
-    let barycentrics = vec3<f32>(length(cross(v2, v3)) / area, length(cross(v3, v1)) / area, length(cross(v1, v2)) / area); 
+    let barycentrics = compute_barycentrics_3d(p1,p2,p3,hit_point); 
 
     if (offset_color >= 0) {
         let a1 = vertices_attributes.data[attr_indices.x + u32(offset_color)];
