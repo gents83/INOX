@@ -143,7 +143,14 @@ fn vertex_layout_stride(vertex_attribute_layout: u32) -> u32
     return countOneBits((vertex_attribute_layout & 0x0000FFFFu));
 }
 
-const GAMMA:f32 = 2.2;
+const GAMMA: f32 = 2.2;
+const INV_GAMMA: f32 = 1.0 / GAMMA;
+// ODT_SAT => XYZ => D60_2_D65 => sRGB
+const ACESOutputMat: mat3x3<f32> = mat3x3<f32>(
+    1.60475, -0.10208, -0.00327,
+    -0.53108,  1.10813, -0.07276,
+    -0.07367, -0.00605,  1.07602
+);
 
 fn Uncharted2ToneMapping(color: vec3<f32>) -> vec3<f32> {
 	let A = 0.15;
@@ -160,4 +167,26 @@ fn Uncharted2ToneMapping(color: vec3<f32>) -> vec3<f32> {
 	result /= white;
 	result = pow(result, vec3<f32>(1. / GAMMA));
 	return result;
+}
+
+fn tonemap_ACES_Narkowicz(color: vec3<f32>) -> vec3<f32> {
+    let A = 2.51;
+    let B = 0.03;
+    let C = 2.43;
+    let D = 0.59;
+    let E = 0.14;
+    return clamp((color * (A * color + vec3<f32>(B))) / (color * (C * color + vec3<f32>(D)) + vec3<f32>(E)), vec3<f32>(0.0), vec3<f32>(1.0));
+}
+
+// ACES filmic tone map approximation
+// see https://github.com/TheRealMJP/BakingLab/blob/master/BakingLab/ACES.hlsl
+fn RRTAndODTFit(color: vec3<f32>) -> vec3<f32> {
+    let a = color * (color + vec3<f32>(0.0245786)) - vec3<f32>(0.000090537);
+    let b = color * (0.983729 * color + vec3<f32>(0.4329510)) + vec3<f32>(0.238081);
+    return a / b;
+}
+
+fn tonemap_ACES_Hill(color: vec3<f32>) -> vec3<f32> {
+   var c = ACESOutputMat * RRTAndODTFit(color);
+   return clamp(c, vec3<f32>(0.0), vec3<f32>(1.0));
 }

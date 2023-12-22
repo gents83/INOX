@@ -155,7 +155,7 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>, mvp: mat
         ) / 255., 1.);
     }
     seed = get_random_numbers(seed);    
-    radiance_data = compute_radiance_from_visibility(visibility_id, pixel_uv, seed, radiance_data, mvp);     
+    radiance_data = compute_radiance_from_visibility(visibility_id, pixel_uv, seed, radiance_data, mvp, true);     
     let hit_point = pixel_to_world(pixel, dimensions, depth_value);
     ray = Ray(hit_point + radiance_data.direction * HIT_EPSILON, HIT_EPSILON, radiance_data.direction, MAX_FLOAT);
 
@@ -165,7 +165,7 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>, mvp: mat
             break;
         }
         seed = get_random_numbers(seed);    
-        radiance_data = compute_radiance_from_visibility(result.visibility_id, pixel_uv, seed, radiance_data, mvp); 
+        radiance_data = compute_radiance_from_visibility(result.visibility_id, pixel_uv, seed, radiance_data, mvp, false); 
         let hit_point = ray.origin + (ray.direction * result.distance);
         ray = Ray(hit_point + radiance_data.direction * HIT_EPSILON, HIT_EPSILON, radiance_data.direction, MAX_FLOAT);
     }
@@ -202,7 +202,9 @@ fn main(
         let index = u32(pixel.y * dimensions.x + pixel.x);
 
         var out_color = execute_job(index, pixel, dimensions, mvp);
-        out_color = vec4<f32>(Uncharted2ToneMapping(out_color.rgb), 1.);
+        //out_color = vec4<f32>(Uncharted2ToneMapping(out_color.rgb), 1.);
+        //out_color = vec4<f32>(tonemap_ACES_Hill(out_color.rgb), 1.);
+        //out_color = vec4<f32>(pow(out_color.rgb, vec3<f32>(INV_GAMMA)), 1.);
         if(constant_data.frame_index > 0u) {
             var prev_value = textureLoad(render_target, pixel);
             let weight = 1. / f32(constant_data.frame_index + 1u);
