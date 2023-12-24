@@ -39,7 +39,7 @@ var ray_texture: texture_storage_2d<rgba32float, read>;
 #import "raytracing.inc"
 #import "pathtracing.inc"
 
-const NUM_BOUNCES: u32 = 8;
+const NUM_BOUNCES: u32 = 4;
 
 fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<f32>  
 {    
