@@ -101,6 +101,28 @@ fn hash( x: u32 ) -> u32 {
     return v;
 }
 
+fn hash1(seed: f32) -> f32 {
+    var p = fract(seed * .1031);
+    p *= p + 33.33;
+    p *= p + p;
+    return fract(p);
+}
+
+fn hash2(seed: ptr<function, f32>) -> vec2<f32> {
+    let a = (*seed) + 0.1;
+    let b = a + 0.1;
+    (*seed) = b;
+    return fract(sin(vec2(a,b))*vec2(43758.5453123,22578.1459123));
+}
+
+fn hash3(seed: ptr<function, f32>) -> vec3<f32> {
+    let a = (*seed) + 0.1;
+    let b = a + 0.1;
+    let c = b + 0.1;
+    (*seed) = c;
+    return fract(sin(vec3(a,b,c))*vec3(43758.5453123,22578.1459123,19642.3490423));
+}
+
 // This is PCG
 fn get_random_numbers(seed: vec2<u32>) -> vec2<u32> {
     var new_seed = seed;

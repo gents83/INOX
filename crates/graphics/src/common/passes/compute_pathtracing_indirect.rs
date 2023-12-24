@@ -2,42 +2,48 @@ use std::path::PathBuf;
 
 use crate::{
     BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, CullingResults, DrawCommandType, IndicesBuffer, MeshFlags, MeshesBuffer,
-    MeshletsBuffer, OutputPass, Pass, RaysBuffer, RenderContext, RuntimeVerticesBuffer,
-    ShaderStage, Texture, TextureFormat, TextureId, TextureUsage, TextureView,
+    ConstantDataRw, CullingResults, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer,
+    MeshFlags, MeshesBuffer, MeshletsBuffer, OutputPass, Pass, RenderContext,
+    RuntimeVerticesBuffer, SamplerType, ShaderStage, TextureId, TextureView, TexturesBuffer,
+    VertexAttributesBuffer,
 };
 
 use inox_core::ContextRc;
-use inox_resources::{DataTypeResource, Handle, Resource};
-use inox_uid::generate_random_uid;
+use inox_resources::{DataTypeResource, Resource};
+use inox_uid::{generate_random_uid, INVALID_UID};
 
-pub const COMPUTE_RAYTRACING_VISIBILITY_PIPELINE: &str =
-    "pipelines/ComputeRayTracingVisibility.compute_pipeline";
-pub const COMPUTE_RAYTRACING_VISIBILITY_NAME: &str = "ComputeRayTracingVisibilityPass";
+pub const COMPUTE_PATHTRACING_INDIRECT_PIPELINE: &str =
+    "pipelines/ComputePathTracingIndirect.compute_pipeline";
+pub const COMPUTE_PATHTRACING_INDIRECT_NAME: &str = "ComputePathTracingIndirectPass";
 
-pub struct ComputeRayTracingVisibilityPass {
-    context: ContextRc,
+pub struct ComputePathTracingIndirectPass {
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    render_target: Handle<Texture>,
     meshes: MeshesBuffer,
     meshlets: MeshletsBuffer,
     culling_result: CullingResults,
     bhv: BHVBuffer,
     indices: IndicesBuffer,
     runtime_vertices: RuntimeVerticesBuffer,
-    rays: RaysBuffer,
+    vertices_attributes: VertexAttributesBuffer,
+    textures: TexturesBuffer,
+    materials: MaterialsBuffer,
+    lights: LightsBuffer,
+    radiance_texture: TextureId,
+    ray_texture: TextureId,
+    width: u32,
+    height: u32,
 }
-unsafe impl Send for ComputeRayTracingVisibilityPass {}
-unsafe impl Sync for ComputeRayTracingVisibilityPass {}
+unsafe impl Send for ComputePathTracingIndirectPass {}
+unsafe impl Sync for ComputePathTracingIndirectPass {}
 
-impl Pass for ComputeRayTracingVisibilityPass {
+impl Pass for ComputePathTracingIndirectPass {
     fn name(&self) -> &str {
-        COMPUTE_RAYTRACING_VISIBILITY_NAME
+        COMPUTE_PATHTRACING_INDIRECT_NAME
     }
     fn static_name() -> &'static str {
-        COMPUTE_RAYTRACING_VISIBILITY_NAME
+        COMPUTE_PATHTRACING_INDIRECT_NAME
     }
     fn is_active(&self, render_context: &RenderContext) -> bool {
         render_context.has_commands(&self.draw_commands_type(), &self.mesh_flags())
@@ -53,12 +59,11 @@ impl Pass for ComputeRayTracingVisibilityPass {
         Self: Sized,
     {
         let data = ComputePassData {
-            name: COMPUTE_RAYTRACING_VISIBILITY_NAME.to_string(),
-            pipelines: vec![PathBuf::from(COMPUTE_RAYTRACING_VISIBILITY_PIPELINE)],
+            name: COMPUTE_PATHTRACING_INDIRECT_NAME.to_string(),
+            pipelines: vec![PathBuf::from(COMPUTE_PATHTRACING_INDIRECT_PIPELINE)],
         };
 
         Self {
-            context: context.clone(),
             compute_pass: ComputePass::new_resource(
                 context.shared_data(),
                 context.message_hub(),
@@ -73,15 +78,21 @@ impl Pass for ComputeRayTracingVisibilityPass {
             bhv: render_context.render_buffers.bhv.clone(),
             indices: render_context.render_buffers.indices.clone(),
             runtime_vertices: render_context.render_buffers.runtime_vertices.clone(),
-            binding_data: BindingData::new(render_context, COMPUTE_RAYTRACING_VISIBILITY_NAME),
-            render_target: None,
-            rays: render_context.render_buffers.rays.clone(),
+            vertices_attributes: render_context.render_buffers.vertex_attributes.clone(),
+            textures: render_context.render_buffers.textures.clone(),
+            materials: render_context.render_buffers.materials.clone(),
+            lights: render_context.render_buffers.lights.clone(),
+            binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_INDIRECT_NAME),
+            radiance_texture: INVALID_UID,
+            ray_texture: INVALID_UID,
+            width: 0,
+            height: 0,
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
-        inox_profiler::scoped_profile!("raytracing_visibility_pass::init");
+        inox_profiler::scoped_profile!("pathtracing_indirect_pass::init");
 
-        if self.render_target.is_none() || self.meshlets.read().unwrap().is_empty() {
+        if self.radiance_texture.is_nil() || self.meshlets.read().unwrap().is_empty() {
             return;
         }
 
@@ -107,13 +118,13 @@ impl Pass for ComputeRayTracingVisibilityPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.runtime_vertices.write().unwrap(),
-                Some("Runtime Vertices"),
+                &mut *self.vertices_attributes.write().unwrap(),
+                Some("Vertices Attributes"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::Read | BindingFlags::Vertex,
+                    ..Default::default()
                 },
             )
             .add_storage_buffer(
@@ -137,18 +148,18 @@ impl Pass for ComputeRayTracingVisibilityPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.culling_result.write().unwrap(),
-                Some("Culling Results"),
+                &mut *self.materials.write().unwrap(),
+                Some("Materials"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 5,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::Read | BindingFlags::Indirect,
+                    ..Default::default()
                 },
             )
             .add_storage_buffer(
-                &mut *self.bhv.write().unwrap(),
-                Some("BHV"),
+                &mut *self.textures.write().unwrap(),
+                Some("Textures"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 6,
@@ -157,24 +168,80 @@ impl Pass for ComputeRayTracingVisibilityPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.rays.write().unwrap(),
-                Some("Rays"),
+                &mut *self.lights.write().unwrap(),
+                Some("Lights"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 7,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.runtime_vertices.write().unwrap(),
+                Some("Runtime Vertices"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 0,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite,
+                    flags: BindingFlags::Read | BindingFlags::Vertex,
                 },
             )
-            .add_texture(
-                self.render_target.as_ref().unwrap().id(),
+            .add_storage_buffer(
+                &mut *self.culling_result.write().unwrap(),
+                Some("Culling Results"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 1,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::Write | BindingFlags::Storage,
+                    flags: BindingFlags::Read | BindingFlags::Indirect,
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.bhv.write().unwrap(),
+                Some("BHV"),
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 2,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_texture(
+                &self.radiance_texture,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 3,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                },
+            )
+            .add_texture(
+                &self.ray_texture,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 4,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Read | BindingFlags::Storage,
                 },
             );
+
+        self.binding_data
+            .add_default_sampler(
+                BindingInfo {
+                    group_index: 2,
+                    binding_index: 0,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+                SamplerType::Unfiltered,
+            )
+            .add_material_textures(BindingInfo {
+                group_index: 2,
+                binding_index: 1,
+                stage: ShaderStage::Compute,
+                ..Default::default()
+            });
 
         let mut pass = self.compute_pass.get_mut();
         pass.init(render_context, &mut self.binding_data);
@@ -186,22 +253,21 @@ impl Pass for ComputeRayTracingVisibilityPass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        if self.render_target.is_none() || self.meshlets.read().unwrap().is_empty() {
+        if self.radiance_texture.is_nil() || self.meshlets.read().unwrap().is_empty() {
             return;
         }
 
-        inox_profiler::scoped_profile!("raytracing_visibility_pass::update");
+        inox_profiler::scoped_profile!("pathtracing_indirect_pass::update");
 
         let pass = self.compute_pass.get();
 
         let x_pixels_managed_in_shader = 16;
         let y_pixels_managed_in_shader = 16;
-        let dimensions = self.render_target.as_ref().unwrap().get().dimensions();
         let x = (x_pixels_managed_in_shader
-            * ((dimensions.0 + x_pixels_managed_in_shader - 1) / x_pixels_managed_in_shader))
+            * ((self.width + x_pixels_managed_in_shader - 1) / x_pixels_managed_in_shader))
             / x_pixels_managed_in_shader;
         let y = (y_pixels_managed_in_shader
-            * ((dimensions.1 + y_pixels_managed_in_shader - 1) / y_pixels_managed_in_shader))
+            * ((self.height + y_pixels_managed_in_shader - 1) / y_pixels_managed_in_shader))
             / y_pixels_managed_in_shader;
 
         pass.dispatch(
@@ -215,34 +281,29 @@ impl Pass for ComputeRayTracingVisibilityPass {
     }
 }
 
-impl OutputPass for ComputeRayTracingVisibilityPass {
+impl OutputPass for ComputePathTracingIndirectPass {
     fn render_targets_id(&self) -> Option<Vec<TextureId>> {
-        Some([*self.render_target.as_ref().unwrap().id()].to_vec())
+        Some([self.radiance_texture].to_vec())
     }
     fn depth_target_id(&self) -> Option<TextureId> {
         None
     }
 }
 
-impl ComputeRayTracingVisibilityPass {
-    pub fn add_render_target_with_resolution(
+impl ComputePathTracingIndirectPass {
+    pub fn set_ray_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.ray_texture = *texture_id;
+        self
+    }
+    pub fn set_radiance_texture(
         &mut self,
+        texture_id: &TextureId,
         width: u32,
         height: u32,
-        render_format: TextureFormat,
     ) -> &mut Self {
-        self.render_target = Some(Texture::create_from_format(
-            self.context.shared_data(),
-            self.context.message_hub(),
-            width,
-            height,
-            render_format,
-            TextureUsage::TextureBinding
-                | TextureUsage::CopySrc
-                | TextureUsage::CopyDst
-                | TextureUsage::RenderAttachment
-                | TextureUsage::StorageBinding,
-        ));
+        self.radiance_texture = *texture_id;
+        self.width = width;
+        self.height = height;
         self
     }
 }

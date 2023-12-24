@@ -110,3 +110,85 @@ fn traverse_bhv_of_meshlets(world_ray: ptr<function, Ray>, local_ray: ptr<functi
     }
     return Result(nearest, visibility_id);
 }
+
+
+//starting index = tlas_starting_index
+fn traverse_bvh(r: Ray, tlas_starting_index: i32) -> Result {
+    var world_ray = r;
+    var ray = world_ray;
+    var node_index = tlas_starting_index;
+    var visibility_id = 0u;
+    var hit_type = HIT_DATA_TLAS;
+    var meshlets_offset = 0u;
+    var meshlet_indices_offset = 0u;
+    var vertices_position_offset = 0u;
+    var meshlet_id = 0u;
+    var blas_sibling = 0;
+    var tlas_sibling = 0;
+    var hit_distance = MAX_FLOAT;
+    
+    while(hit_type != HIT_DATA_MISS)
+    {
+        if(node_index < 0) {
+            let is_tlas = hit_type == HIT_DATA_TLAS;
+            let is_triangle = hit_type == HIT_DATA_TRIANGLE;
+            node_index = select(tlas_sibling, blas_sibling, is_triangle);
+            hit_type = select(HIT_DATA_TLAS, HIT_DATA_BLAS, is_triangle);
+            hit_type = select(hit_type, HIT_DATA_MISS, is_tlas);
+            ray.origin = select(world_ray.origin, ray.origin, is_triangle);
+            ray.direction = select(world_ray.direction, ray.direction, is_triangle);
+            continue;
+        }
+        
+        let node = bhv.data[u32(node_index)]; 
+        let intersection = intersect_aabb(&ray, node.min, node.max);        
+        let is_miss = intersection > ray.t_max;
+        let is_inner_node = node.reference < 0;
+        node_index = select(node_index, node_index + 1, is_inner_node);
+        node_index = select(node_index, node.miss, is_miss);
+        if (is_miss || is_inner_node) {
+            continue;
+        }
+        //leaf node
+        if(hit_type == HIT_DATA_TRIANGLE) {     
+            node_index = node.miss;        
+            
+            let triangle_id = u32(node.reference);
+            let index_offset = meshlet_indices_offset + (triangle_id * 3u);
+            let v1 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset]].world_pos;
+            let v2 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset + 1u]].world_pos;
+            let v3 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset + 2u]].world_pos;
+            let distance = intersect_triangle(world_ray, v1, v2, v3);
+            visibility_id = select(visibility_id, ((meshlet_id + 1u) << 8u) | triangle_id, distance < hit_distance);
+            hit_distance = min(hit_distance, distance);
+        }
+        else if(hit_type == HIT_DATA_BLAS) {  
+            hit_type = HIT_DATA_TRIANGLE;
+            blas_sibling = node.miss;
+            meshlet_id = meshlets_offset + u32(node.reference);  
+            let index = meshlet_id / 32u;
+            let offset = meshlet_id - (index * 32u);
+            let is_meshlet_visible =  (culling_result[index] & (1u << offset)) != 0u;   
+            let meshlet = meshlets.data[meshlet_id];
+            meshlet_indices_offset = meshlet.indices_offset;
+            node_index = select(blas_sibling, i32(meshlet.triangles_bhv_index), is_meshlet_visible); 
+        }
+        else {  
+            hit_type = HIT_DATA_BLAS;
+            tlas_sibling = node.miss;
+            let mesh_id = u32(node.reference);
+            let mesh = meshes.data[mesh_id];  
+            meshlets_offset = mesh.meshlets_offset;
+            vertices_position_offset = mesh.vertices_position_offset;
+            node_index = i32(mesh.blas_index); 
+
+            let matrix = transform_matrix(mesh.position, mesh.orientation, mesh.scale);    
+            let inverse_matrix = matrix_inverse(matrix);
+            let local_ray_origin = inverse_matrix * vec4<f32>(world_ray.origin, 1.);
+            let local_ray_direction = inverse_matrix * vec4<f32>(world_ray.direction, 0.);
+            ray.origin = local_ray_origin.xyz;
+            ray.direction = local_ray_direction.xyz;
+        }
+    }
+    return Result(hit_distance, visibility_id);
+}

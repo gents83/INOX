@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::{
     BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
     ConstantDataRw, CullingResults, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer,
-    MeshFlags, MeshesBuffer, MeshletsBuffer, OutputPass, Pass, RaysBuffer, RenderContext,
+    MeshFlags, MeshesBuffer, MeshletsBuffer, OutputPass, Pass, RenderContext,
     RuntimeVerticesBuffer, SamplerType, ShaderStage, Texture, TextureFormat, TextureId,
     TextureUsage, TextureView, TexturesBuffer, VertexAttributesBuffer,
 };
@@ -12,15 +12,17 @@ use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Handle, Resource};
 use inox_uid::{generate_random_uid, INVALID_UID};
 
-pub const COMPUTE_PATHTRACING_PIPELINE: &str = "pipelines/ComputePathTracing.compute_pipeline";
-pub const COMPUTE_PATHTRACING_NAME: &str = "ComputePathTracingPass";
+pub const COMPUTE_PATHTRACING_DIRECT_PIPELINE: &str =
+    "pipelines/ComputePathtracingDirect.compute_pipeline";
+pub const COMPUTE_PATHTRACING_DIRECT_NAME: &str = "ComputePathTracingDirectPass";
 
-pub struct ComputePathTracingPass {
+pub struct ComputePathTracingDirectPass {
     context: ContextRc,
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    render_target: Handle<Texture>,
+    radiance_render_target: Handle<Texture>,
+    rays_render_target: Handle<Texture>,
     meshes: MeshesBuffer,
     meshlets: MeshletsBuffer,
     culling_result: CullingResults,
@@ -31,19 +33,18 @@ pub struct ComputePathTracingPass {
     textures: TexturesBuffer,
     materials: MaterialsBuffer,
     lights: LightsBuffer,
-    rays: RaysBuffer,
     visibility_texture: TextureId,
     depth_texture: TextureId,
 }
-unsafe impl Send for ComputePathTracingPass {}
-unsafe impl Sync for ComputePathTracingPass {}
+unsafe impl Send for ComputePathTracingDirectPass {}
+unsafe impl Sync for ComputePathTracingDirectPass {}
 
-impl Pass for ComputePathTracingPass {
+impl Pass for ComputePathTracingDirectPass {
     fn name(&self) -> &str {
-        COMPUTE_PATHTRACING_NAME
+        COMPUTE_PATHTRACING_DIRECT_NAME
     }
     fn static_name() -> &'static str {
-        COMPUTE_PATHTRACING_NAME
+        COMPUTE_PATHTRACING_DIRECT_NAME
     }
     fn is_active(&self, render_context: &RenderContext) -> bool {
         render_context.has_commands(&self.draw_commands_type(), &self.mesh_flags())
@@ -59,8 +60,8 @@ impl Pass for ComputePathTracingPass {
         Self: Sized,
     {
         let data = ComputePassData {
-            name: COMPUTE_PATHTRACING_NAME.to_string(),
-            pipelines: vec![PathBuf::from(COMPUTE_PATHTRACING_PIPELINE)],
+            name: COMPUTE_PATHTRACING_DIRECT_NAME.to_string(),
+            pipelines: vec![PathBuf::from(COMPUTE_PATHTRACING_DIRECT_PIPELINE)],
         };
 
         Self {
@@ -83,17 +84,20 @@ impl Pass for ComputePathTracingPass {
             textures: render_context.render_buffers.textures.clone(),
             materials: render_context.render_buffers.materials.clone(),
             lights: render_context.render_buffers.lights.clone(),
-            binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_NAME),
-            render_target: None,
-            rays: render_context.render_buffers.rays.clone(),
+            binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_DIRECT_NAME),
+            radiance_render_target: None,
+            rays_render_target: None,
             visibility_texture: INVALID_UID,
             depth_texture: INVALID_UID,
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
-        inox_profiler::scoped_profile!("pathtracing_pass::init");
+        inox_profiler::scoped_profile!("pathtracing_direct_pass::init");
 
-        if self.render_target.is_none() || self.meshlets.read().unwrap().is_empty() {
+        if self.radiance_render_target.is_none()
+            || self.rays_render_target.is_none()
+            || self.meshlets.read().unwrap().is_empty()
+        {
             return;
         }
 
@@ -208,18 +212,17 @@ impl Pass for ComputePathTracingPass {
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
-                &mut *self.rays.write().unwrap(),
-                Some("Rays"),
+            .add_texture(
+                self.radiance_render_target.as_ref().unwrap().id(),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 3,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite,
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
             )
             .add_texture(
-                self.render_target.as_ref().unwrap().id(),
+                self.rays_render_target.as_ref().unwrap().id(),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 4,
@@ -273,17 +276,22 @@ impl Pass for ComputePathTracingPass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        if self.render_target.is_none() || self.meshlets.read().unwrap().is_empty() {
+        if self.radiance_render_target.is_none() || self.meshlets.read().unwrap().is_empty() {
             return;
         }
 
-        inox_profiler::scoped_profile!("pathtracing_pass::update");
+        inox_profiler::scoped_profile!("pathtracing_direct_pass::update");
 
         let pass = self.compute_pass.get();
 
         let x_pixels_managed_in_shader = 16;
         let y_pixels_managed_in_shader = 16;
-        let dimensions = self.render_target.as_ref().unwrap().get().dimensions();
+        let dimensions = self
+            .radiance_render_target
+            .as_ref()
+            .unwrap()
+            .get()
+            .dimensions();
         let x = (x_pixels_managed_in_shader
             * ((dimensions.0 + x_pixels_managed_in_shader - 1) / x_pixels_managed_in_shader))
             / x_pixels_managed_in_shader;
@@ -302,16 +310,22 @@ impl Pass for ComputePathTracingPass {
     }
 }
 
-impl OutputPass for ComputePathTracingPass {
+impl OutputPass for ComputePathTracingDirectPass {
     fn render_targets_id(&self) -> Option<Vec<TextureId>> {
-        Some([*self.render_target.as_ref().unwrap().id()].to_vec())
+        Some(
+            [
+                *self.radiance_render_target.as_ref().unwrap().id(),
+                *self.rays_render_target.as_ref().unwrap().id(),
+            ]
+            .to_vec(),
+        )
     }
     fn depth_target_id(&self) -> Option<TextureId> {
         None
     }
 }
 
-impl ComputePathTracingPass {
+impl ComputePathTracingDirectPass {
     pub fn set_visibility_texture(&mut self, texture_id: &TextureId) -> &mut Self {
         self.visibility_texture = *texture_id;
         self
@@ -320,13 +334,13 @@ impl ComputePathTracingPass {
         self.depth_texture = *texture_id;
         self
     }
-    pub fn add_render_target_with_resolution(
+    pub fn add_radiance_render_target_with_resolution(
         &mut self,
         width: u32,
         height: u32,
         render_format: TextureFormat,
     ) -> &mut Self {
-        self.render_target = Some(Texture::create_from_format(
+        self.radiance_render_target = Some(Texture::create_from_format(
             self.context.shared_data(),
             self.context.message_hub(),
             width,
@@ -337,6 +351,22 @@ impl ComputePathTracingPass {
                 | TextureUsage::CopyDst
                 | TextureUsage::RenderAttachment
                 | TextureUsage::StorageBinding,
+        ));
+        self
+    }
+    pub fn add_ray_render_target_with_resolution(
+        &mut self,
+        width: u32,
+        height: u32,
+        render_format: TextureFormat,
+    ) -> &mut Self {
+        self.rays_render_target = Some(Texture::create_from_format(
+            self.context.shared_data(),
+            self.context.message_hub(),
+            width,
+            height,
+            render_format,
+            TextureUsage::CopySrc | TextureUsage::CopyDst | TextureUsage::StorageBinding,
         ));
         self
     }

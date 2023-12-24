@@ -3,12 +3,10 @@ use std::path::PathBuf;
 use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
-    platform::{has_primitive_index_support, has_wireframe_support},
-    rendering_system::RenderingSystem,
-    update_system::UpdateSystem,
-    BlitPass, ComputePathTracingPass, ComputeRayTracingGenerateRayPass,
-    ComputeRayTracingVisibilityPass, ComputeRuntimeVerticesPass, CullingPass, LoadOperation,
-    OutputPass, OutputRenderPass, PBRPass, Pass, RenderPass, RenderTarget, Renderer, RendererRw,
+    platform::has_wireframe_support, rendering_system::RenderingSystem,
+    update_system::UpdateSystem, BlitPass, ComputeFinalizePass, ComputePathTracingDirectPass,
+    ComputePathTracingIndirectPass, ComputeRuntimeVerticesPass, CullingPass, LoadOperation,
+    OutputPass, OutputRenderPass, Pass, RenderPass, RenderTarget, Renderer, RendererRw,
     TextureFormat, TextureId, VisibilityBufferPass, WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH,
     WIREFRAME_PASS_NAME,
 };
@@ -20,8 +18,6 @@ use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
 
 use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
-const FORCE_COMPUTE_PATHTRACING: bool = true;
-const FORCE_COMPUTE_RAYTRACING_PIPELINE: bool = true;
 const ADD_CULLING_PASS: bool = true;
 const ADD_UI_PASS: bool = true;
 const USE_3DVIEW: bool = false;
@@ -147,54 +143,38 @@ impl Viewer {
 
         Self::create_compute_runtime_vertices_pass(context, renderer, true);
         Self::create_culling_pass(context, renderer, ADD_CULLING_PASS);
-        if FORCE_COMPUTE_PATHTRACING {
-            let (visibility_texture_id, depth_texture) = Self::create_visibility_pass(
-                context,
-                renderer,
-                reduced_dimensions.0,
-                reduced_dimensions.1,
-            );
-            Self::create_compute_ray_generation_pass(
-                context,
-                renderer,
-                reduced_dimensions.0,
-                reduced_dimensions.1,
-            );
-            let output_texture_id = Self::create_compute_pathtracing_pass(
-                context,
-                renderer,
-                reduced_dimensions.0,
-                reduced_dimensions.1,
-                &visibility_texture_id,
-                &depth_texture,
-            );
-            Self::create_blit_pass(context, renderer, &output_texture_id);
-        } else {
-            let visibility_texture_id =
-                if has_primitive_index_support() && !FORCE_COMPUTE_RAYTRACING_PIPELINE {
-                    let (visibility_texture_id, _depth_texture_id) = Self::create_visibility_pass(
-                        context,
-                        renderer,
-                        reduced_dimensions.0,
-                        reduced_dimensions.1,
-                    );
-                    visibility_texture_id
-                } else {
-                    Self::create_compute_ray_generation_pass(
-                        context,
-                        renderer,
-                        reduced_dimensions.0,
-                        reduced_dimensions.1,
-                    );
-                    Self::create_compute_raytracing_visibility_pass(
-                        context,
-                        renderer,
-                        reduced_dimensions.0,
-                        reduced_dimensions.1,
-                    )
-                };
-            Self::create_pbr_pass(context, renderer, visibility_texture_id);
-        }
+
+        let (visibility_texture_id, depth_texture) = Self::create_visibility_pass(
+            context,
+            renderer,
+            reduced_dimensions.0,
+            reduced_dimensions.1,
+        );
+        let render_targets_ids = Self::create_compute_pathtracing_direct_pass(
+            context,
+            renderer,
+            reduced_dimensions.0,
+            reduced_dimensions.1,
+            &visibility_texture_id,
+            &depth_texture,
+        );
+        let output_texture_id = Self::create_compute_pathtracing_indirect_pass(
+            context,
+            renderer,
+            reduced_dimensions.0,
+            reduced_dimensions.1,
+            &render_targets_ids[0],
+            &render_targets_ids[1],
+        );
+        let output_texture_id = Self::create_compute_finalize_pass(
+            context,
+            renderer,
+            reduced_dimensions.0,
+            reduced_dimensions.1,
+            &output_texture_id,
+        );
+        Self::create_blit_pass(context, renderer, &output_texture_id);
+
         Self::create_wireframe_pass(context, renderer, has_wireframe_support());
         Self::create_ui_pass(context, renderer, width, height, ADD_UI_PASS);
     }
@@ -217,63 +197,41 @@ impl Viewer {
         let culling_pass = CullingPass::create(context, &renderer.render_context());
         renderer.add_pass(culling_pass, is_enabled);
     }
-    fn create_compute_ray_generation_pass(
-        context: &ContextRc,
-        renderer: &mut Renderer,
-        width: u32,
-        height: u32,
-    ) {
-        let mut compute_generate_ray_pass =
-            ComputeRayTracingGenerateRayPass::create(context, &renderer.render_context());
-        compute_generate_ray_pass.set_dimensions(width, height);
-        renderer.add_pass(compute_generate_ray_pass, true);
-    }
-    fn create_compute_pathtracing_pass(
+    fn create_compute_pathtracing_direct_pass(
         context: &ContextRc,
         renderer: &mut Renderer,
         width: u32,
         height: u32,
         visibility_texture_id: &TextureId,
         depth_texture_id: &TextureId,
-    ) -> TextureId {
-        let mut compute_pathtracing_pass =
-            ComputePathTracingPass::create(context, &renderer.render_context());
-        compute_pathtracing_pass.add_render_target_with_resolution(
-            width,
-            height,
-            TextureFormat::Rgba8Unorm,
-        );
-        compute_pathtracing_pass
+    ) -> Vec<TextureId> {
+        let mut compute_pathtracing_direct_pass =
+            ComputePathTracingDirectPass::create(context, &renderer.render_context());
+        compute_pathtracing_direct_pass
+            .add_radiance_render_target_with_resolution(width, height, TextureFormat::Rgba32Float)
+            .add_ray_render_target_with_resolution(width, height, TextureFormat::Rgba32Float);
+        compute_pathtracing_direct_pass
             .set_visibility_texture(visibility_texture_id)
             .set_depth_texture(depth_texture_id);
-        let render_target_id = *compute_pathtracing_pass
-            .render_targets_id()
-            .unwrap()
-            .first()
-            .unwrap();
-        renderer.add_pass(compute_pathtracing_pass, true);
-        render_target_id
+        let render_targets_id = compute_pathtracing_direct_pass.render_targets_id().unwrap();
+        renderer.add_pass(compute_pathtracing_direct_pass, true);
+        render_targets_id
     }
-    fn create_compute_raytracing_visibility_pass(
+    fn create_compute_pathtracing_indirect_pass(
         context: &ContextRc,
         renderer: &mut Renderer,
         width: u32,
         height: u32,
+        radiance_texture_id: &TextureId,
+        rays_texture_id: &TextureId,
     ) -> TextureId {
-        let mut compute_visibility_pass =
-            ComputeRayTracingVisibilityPass::create(context, &renderer.render_context());
-        compute_visibility_pass.add_render_target_with_resolution(
-            width,
-            height,
-            TextureFormat::Rgba8Unorm,
-        );
-        let render_target_id = *compute_visibility_pass
-            .render_targets_id()
-            .unwrap()
-            .first()
-            .unwrap();
-        renderer.add_pass(compute_visibility_pass, true);
-        render_target_id
+        let mut compute_pathtracing_indirect_pass =
+            ComputePathTracingIndirectPass::create(context, &renderer.render_context());
+        compute_pathtracing_indirect_pass
+            .set_radiance_texture(radiance_texture_id, width, height)
+            .set_ray_texture(rays_texture_id);
+        renderer.add_pass(compute_pathtracing_indirect_pass, true);
+        *radiance_texture_id
     }
     fn create_visibility_pass(
         context: &ContextRc,
@@ -301,15 +259,6 @@ impl Viewer {
         let depth_target_id = visibility_pass.depth_target_id().unwrap();
         renderer.add_pass(visibility_pass, true);
         (render_target_id, depth_target_id)
-    }
-    fn create_pbr_pass(
-        context: &ContextRc,
-        renderer: &mut Renderer,
-        visibility_texture_id: TextureId,
-    ) {
-        let mut pbr_pass = PBRPass::create(context, &renderer.render_context());
-        pbr_pass.set_visibility_texture(&visibility_texture_id);
-        renderer.add_pass(pbr_pass, true);
     }
     fn create_wireframe_pass(context: &ContextRc, renderer: &mut Renderer, is_enabled: bool) {
         if !is_enabled {
@@ -342,6 +291,29 @@ impl Viewer {
             ui_pass.set_load_color_operation(LoadOperation::Load);
         }
         renderer.add_pass(ui_pass, is_enabled);
+    }
+    fn create_compute_finalize_pass(
+        context: &ContextRc,
+        renderer: &mut Renderer,
+        width: u32,
+        height: u32,
+        radiance_texture: &TextureId,
+    ) -> TextureId {
+        let mut compute_finalize_pass =
+            ComputeFinalizePass::create(context, &renderer.render_context());
+        compute_finalize_pass.add_render_target_with_resolution(
+            width,
+            height,
+            TextureFormat::Rgba8Unorm,
+        );
+        compute_finalize_pass.set_radiance_texture(radiance_texture);
+        let render_target_id = *compute_finalize_pass
+            .render_targets_id()
+            .unwrap()
+            .first()
+            .unwrap();
+        renderer.add_pass(compute_finalize_pass, true);
+        render_target_id
     }
     fn create_blit_pass(context: &ContextRc, renderer: &mut Renderer, texture: &TextureId) {
         let mut blit_pass = BlitPass::create(context, &renderer.render_context());
