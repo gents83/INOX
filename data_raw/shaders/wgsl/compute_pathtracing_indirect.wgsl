@@ -77,12 +77,7 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<
         radiance = radiance_data.radiance;
         throughput_weight = radiance_data.throughput_weight;
     }
-        
-    let r = pack2x16float(radiance.rg);
-    let g = pack2x16float(vec2<f32>(radiance.b, throughput_weight.r));
-    let b = pack2x16float(throughput_weight.gb);
-    return vec4<f32>(f32(r), f32(g), f32(b), f32(visibility_id));
-    //return vec4<f32>(radiance_data.radiance, 1.);
+    return vec4<f32>(radiance * throughput_weight, 1.);
 }
 
 

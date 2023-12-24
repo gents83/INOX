@@ -34,13 +34,10 @@ fn main(
         }    
         let source_pixel = vec2<u32>(vec2<f32>(target_pixel) * scale);
 
-        let radiance_value = textureLoad(radiance_texture, source_pixel, 0);
-        let radiance_rg = unpack2x16float(u32(radiance_value.r));
-        let radiance_b_throughput_weight_r = unpack2x16float(u32(radiance_value.g));
-        var out_color = vec4<f32>(radiance_rg.x, radiance_rg.y, radiance_b_throughput_weight_r.x, 1.);
+        var out_color = textureLoad(radiance_texture, source_pixel, 0);
         
         out_color = vec4<f32>(tonemap_ACES_Hill(out_color.rgb), 1.);
-        //out_color = vec4<f32>(pow(out_color.rgb, vec3<f32>(INV_GAMMA)), 1.);
+        out_color = vec4<f32>(pow(out_color.rgb, vec3<f32>(INV_GAMMA)), 1.);
         
         if(constant_data.frame_index > 0u) {
             var prev_value = textureLoad(render_target, target_pixel);
