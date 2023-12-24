@@ -169,8 +169,8 @@ impl Viewer {
         let output_texture_id = Self::create_compute_finalize_pass(
             context,
             renderer,
-            reduced_dimensions.0,
-            reduced_dimensions.1,
+            width,
+            height,
             &output_texture_id,
         );
         Self::create_blit_pass(context, renderer, &output_texture_id);
