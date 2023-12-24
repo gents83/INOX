@@ -35,6 +35,12 @@ fn decode_snorm(i: u32, n: u32) -> f32 {
     }
 }
 
+fn pack_3_f32_to_unorm(value: vec3<f32>) -> u32 {
+    let x = quantize_unorm(value.x, 10u) << 20u;
+    let y = quantize_unorm(value.y, 10u) << 10u;
+    let z = quantize_unorm(value.z, 10u);
+    return (x | y | z);
+}
 fn unpack_unorm_to_3_f32(v: u32) -> vec3<f32> {
     let vx = decode_unorm((v >> 20u) & 0x000003FFu, 10u);
     let vy = decode_unorm((v >> 10u) & 0x000003FFu, 10u);
@@ -42,6 +48,12 @@ fn unpack_unorm_to_3_f32(v: u32) -> vec3<f32> {
     return vec3<f32>(vx, vy, vz);
 }
 
+fn pack_3_f32_to_snorm(value: vec3<f32>) -> u32 {
+    let x = quantize_snorm(value.x, 10u) << 20u;
+    let y = quantize_snorm(value.y, 10u) << 10u;
+    let z = quantize_snorm(value.z, 10u);
+    return (x | y | z);
+}
 fn unpack_snorm_to_3_f32(v: u32) -> vec3<f32> {
     let vx = decode_snorm((v >> 20u) & 0x000003FFu, 10u);
     let vy = decode_snorm((v >> 10u) & 0x000003FFu, 10u);
