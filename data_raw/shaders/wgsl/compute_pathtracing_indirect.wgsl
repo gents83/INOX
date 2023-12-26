@@ -61,10 +61,10 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<
     let origin = pixel_to_world(pixel, dimensions, depth);
     var ray = Ray(origin, 0., direction, MAX_FLOAT);
 
-    var seed = (pixel * dimensions) ^ vec2<u32>((constant_data.frame_index << 16u) * 0xFFFFu);
+    var seed = (pixel * dimensions) ^ vec2<u32>(constant_data.frame_index << 16u);
     
     for(var i = 0u; i < NUM_BOUNCES; i++) {
-        let result = traverse_bvh(ray, i32(constant_data.tlas_starting_index));  
+        let result = traverse_bvh(ray, constant_data.tlas_starting_index);  
         if (result.visibility_id == 0u || (result.visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
             break;
         }
@@ -77,7 +77,7 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<
         radiance = radiance_data.radiance;
         throughput_weight = radiance_data.throughput_weight;
     }
-    return vec4<f32>(radiance * throughput_weight, 1.);
+    return vec4<f32>(radiance, 1.);
 }
 
 

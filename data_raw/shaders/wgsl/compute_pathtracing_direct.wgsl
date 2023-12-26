@@ -51,7 +51,7 @@ fn execute_job(job_index: u32, source_pixel: vec2<u32>, target_pixel: vec2<u32>,
         return vec4<f32>(0.);
     }
 
-    var seed = (source_pixel * source_dimensions) ^ vec2<u32>(constant_data.frame_index * 0xFFFFu);
+    var seed = (source_pixel * source_dimensions) ^ vec2<u32>(constant_data.frame_index);
     seed = get_random_numbers(seed); 
     
     let depth_value = textureLoad(depth_texture, source_pixel, 0);

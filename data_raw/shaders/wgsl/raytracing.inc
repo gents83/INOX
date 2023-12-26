@@ -46,77 +46,10 @@ fn intersect_triangle(ray: Ray, v0: vec3<f32>, v1: vec3<f32>, v2: vec3<f32>) -> 
     return select(ray.t_max, t, (mask_u && mask_v && mask_t));
 }
 
-fn intersect_meshlet_primitive(ray: Ray, position_offset: u32, meshlet_id: u32, index_offset: u32) -> f32 {
-    let v1 = runtime_vertices.data[position_offset + indices.data[index_offset]].world_pos;
-    let v2 = runtime_vertices.data[position_offset + indices.data[index_offset + 1u]].world_pos;
-    let v3 = runtime_vertices.data[position_offset + indices.data[index_offset + 2u]].world_pos;
-        
-    return intersect_triangle(ray, v1, v2, v3);
-}
-
-fn intersect_meshlet(ray: Ray, position_offset: u32, meshlet_id: u32, far_plane: f32) -> Result {
-    var nearest = far_plane;  
-    var visibility_id = 0u;
-      
-    let meshlet = &meshlets.data[meshlet_id];
-    let index_count = (*meshlet).indices_count;
-    let index_offset = (*meshlet).indices_offset;
-    for(var index = 0u; index < index_count; index = index + 3u)
-    {       
-        let hit = intersect_meshlet_primitive(ray, position_offset, meshlet_id, index_offset + index);
-        visibility_id = select(visibility_id, ((meshlet_id + 1u) << 8u) | (index / 3u), hit < nearest);
-        nearest = min(nearest, hit);
-    }
-    return Result(nearest, visibility_id);
-}
-
-fn traverse_bhv_of_meshlets(world_ray: ptr<function, Ray>, local_ray: ptr<function, Ray>, mesh_id: u32, far_plane: f32) -> Result {
-    let mesh = &meshes.data[mesh_id];    
-    let position_offset = (*mesh).vertices_position_offset;
-    var blas_index = i32((*mesh).blas_index);    
-    let mesh_blas_index = blas_index;
-    var nearest = far_plane;  
-    var visibility_id = 0u;
-
-    while (blas_index >= 0)
-    { 
-        let node = &bhv.data[u32(blas_index)];   
-        let intersection = intersect_aabb(local_ray, (*node).min, (*node).max);
-        if (intersection > nearest) {
-            blas_index = select((*node).miss, (*node).miss + mesh_blas_index, (*node).miss >= 0);
-            continue;
-        }
-        if ((*node).reference < 0) {
-            //inner node
-            blas_index = blas_index + 1;
-            continue;  
-        }
-        //leaf node
-        let meshlet_id = (*mesh).meshlets_offset + u32((*node).reference);   
-        
-        let index = meshlet_id / 32u;
-        let offset = meshlet_id - (index * 32u);
-        let bits = culling_result[index];
-        let is_meshlet_visible =  (bits & (1u << offset)) > 0u;   
-
-        if (!is_meshlet_visible) {
-            blas_index = select((*node).miss, (*node).miss + mesh_blas_index, (*node).miss >= 0);
-            continue;
-        }
-        let hit = intersect_meshlet((*world_ray), position_offset, meshlet_id, nearest);
-        visibility_id = select(visibility_id, hit.visibility_id, hit.distance < nearest);
-        nearest = min(nearest, hit.distance);
-        blas_index = select((*node).miss, (*node).miss + mesh_blas_index, (*node).miss >= 0);
-    }
-    return Result(nearest, visibility_id);
-}
-
-
 //starting index = tlas_starting_index
-fn traverse_bvh(r: Ray, tlas_starting_index: i32) -> Result {
-    var world_ray = r;
+fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32) -> Result {
     var ray = world_ray;
-    var node_index = tlas_starting_index;
+    var node_index = i32(tlas_starting_index);
     var visibility_id = 0u;
     var hit_type = HIT_DATA_TLAS;
     var meshlets_offset = 0u;
@@ -125,42 +58,52 @@ fn traverse_bvh(r: Ray, tlas_starting_index: i32) -> Result {
     var meshlet_id = 0u;
     var blas_sibling = 0;
     var tlas_sibling = 0;
-    var hit_distance = MAX_FLOAT;
     
-    while(hit_type != HIT_DATA_MISS)
+    while(node_index >= 0)
     {
-        if(node_index < 0) {
-            let is_tlas = hit_type == HIT_DATA_TLAS;
-            let is_triangle = hit_type == HIT_DATA_TRIANGLE;
-            node_index = select(tlas_sibling, blas_sibling, is_triangle);
-            hit_type = select(HIT_DATA_TLAS, HIT_DATA_BLAS, is_triangle);
-            hit_type = select(hit_type, HIT_DATA_MISS, is_tlas);
-            ray.origin = select(world_ray.origin, ray.origin, is_triangle);
-            ray.direction = select(world_ray.direction, ray.direction, is_triangle);
-            continue;
-        }
-        
         let node = bhv.data[u32(node_index)]; 
         let intersection = intersect_aabb(&ray, node.min, node.max);        
-        let is_miss = intersection > ray.t_max;
-        let is_inner_node = node.reference < 0;
-        node_index = select(node_index, node_index + 1, is_inner_node);
-        node_index = select(node_index, node.miss, is_miss);
-        if (is_miss || is_inner_node) {
+        if(intersection > ray.t_max) {
+            node_index = node.miss;
+            if(hit_type == HIT_DATA_TRIANGLE && node_index < 0) {
+                node_index = blas_sibling;
+                hit_type = HIT_DATA_BLAS;
+            }
+            if(hit_type == HIT_DATA_BLAS && node_index < 0) {
+                node_index = tlas_sibling;
+                hit_type = HIT_DATA_TLAS;
+                ray.origin = world_ray.origin;
+                ray.direction = world_ray.direction;
+            }
+            continue;
+        } 
+        if(node.reference < 0) {
+            node_index = node_index + 1;
             continue;
         }
         //leaf node
         if(hit_type == HIT_DATA_TRIANGLE) {     
-            node_index = node.miss;        
-            
             let triangle_id = u32(node.reference);
             let index_offset = meshlet_indices_offset + (triangle_id * 3u);
             let v1 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset]].world_pos;
             let v2 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset + 1u]].world_pos;
             let v3 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset + 2u]].world_pos;
             let distance = intersect_triangle(world_ray, v1, v2, v3);
-            visibility_id = select(visibility_id, ((meshlet_id + 1u) << 8u) | triangle_id, distance < hit_distance);
-            hit_distance = min(hit_distance, distance);
+            if(distance < ray.t_max) {
+                visibility_id = ((meshlet_id + 1u) << 8u)  | triangle_id;
+                ray.t_max = distance;
+            }
+            node_index = node.miss;
+            if(node_index < 0) {
+                node_index = blas_sibling;
+                hit_type = HIT_DATA_BLAS;
+                if(node_index < 0) {
+                    node_index = tlas_sibling;
+                    hit_type = HIT_DATA_TLAS;
+                    ray.origin = world_ray.origin;
+                    ray.direction = world_ray.direction;
+                }
+            }     
         }
         else if(hit_type == HIT_DATA_BLAS) {  
             hit_type = HIT_DATA_TRIANGLE;
@@ -169,9 +112,19 @@ fn traverse_bvh(r: Ray, tlas_starting_index: i32) -> Result {
             let index = meshlet_id / 32u;
             let offset = meshlet_id - (index * 32u);
             let is_meshlet_visible =  (culling_result[index] & (1u << offset)) != 0u;   
-            let meshlet = meshlets.data[meshlet_id];
-            meshlet_indices_offset = meshlet.indices_offset;
-            node_index = select(blas_sibling, i32(meshlet.triangles_bhv_index), is_meshlet_visible); 
+            if(!is_meshlet_visible) {
+                node_index = blas_sibling; 
+                if(node_index < 0) {
+                    node_index = tlas_sibling;
+                    hit_type = HIT_DATA_TLAS;
+                    ray.origin = world_ray.origin;
+                    ray.direction = world_ray.direction;
+                } 
+            } else {
+                let meshlet = meshlets.data[meshlet_id];
+                meshlet_indices_offset = meshlet.indices_offset;
+                node_index = i32(meshlet.triangles_bhv_index); 
+            }            
         }
         else {  
             hit_type = HIT_DATA_BLAS;
@@ -190,5 +143,5 @@ fn traverse_bvh(r: Ray, tlas_starting_index: i32) -> Result {
             ray.direction = local_ray_direction.xyz;
         }
     }
-    return Result(hit_distance, visibility_id);
+    return Result(ray.t_max, visibility_id);
 }
