@@ -12,13 +12,12 @@ fn sample_sphere(random_numbers: vec2<f32>) -> vec3<f32> {
     let s = sqrt(1. - z * z);
     let x = cos(phi) * s;
     let y = sin(phi) * s;
-    return vec3<f32>(x, y, z);
+    return normalize(vec3<f32>(x, y, z));
 }
 
-fn sample_hemisphere(random_numbers: vec2<f32>, normal: vec3<f32>) -> vec3<f32> {
-    var direction = sample_sphere(random_numbers);
-    let d = dot(normal, direction);
-    return select(direction, direction - 2. * d * normal, d < 0.);
+fn sample_hemisphere(random_numbers: vec2<f32>, n: vec3<f32>) -> vec3<f32> {
+    let v = sample_sphere(random_numbers);
+    return v * sign(dot(v, n));
 }
 
 // Need constant_data, meshlets, meshes, indices, runtime_vertices, vertices_attributes
@@ -26,11 +25,9 @@ fn compute_radiance_from_visibility(visibility_id: u32, hit_point: vec3<f32>, se
     var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
     let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data);
 
-    let rnd = seed * 2.32830643654e-10;
-    let direction = sample_hemisphere(rnd, pixel_data.normal);
+    let direction = sample_hemisphere(seed, pixel_data.normal);
 
-    let color = select(radiance, material_info.base_color.rgb, length(radiance) <= 0.);
-    let rad = color + throughput_weight * material_info.emissive_color;
+    let rad = radiance + throughput_weight * material_info.emissive_color;
     let d = dot(pixel_data.normal, direction);
     let weight = throughput_weight * (material_info.base_color.rgb * 2. * d);
 

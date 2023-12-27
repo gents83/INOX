@@ -57,6 +57,7 @@ fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData
         let n3 = unpack_snorm_to_3_f32(a3);
         normal = barycentrics.x * n1 + barycentrics.y * n2 + barycentrics.z * n3;
         normal = rotate_vector(normal, orientation); 
+        normal = normalize(normal);
     }
     if(offset_uv0 >= 0) {
         let a1 = vertices_attributes.data[attr_indices.x + u32(offset_uv0)];

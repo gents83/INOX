@@ -43,7 +43,7 @@ var depth_texture: texture_depth_2d;
 #import "raytracing.inc"
 #import "pathtracing.inc"
 
-fn execute_job(job_index: u32, source_pixel: vec2<u32>, target_pixel: vec2<u32>, source_dimensions: vec2<u32>) -> vec4<f32>  
+fn execute_job(job_index: u32, source_pixel: vec2<u32>, target_pixel: vec2<u32>, source_dimensions: vec2<u32>, target_dimensions: vec2<u32>) -> vec4<f32>  
 {        
     let visibility_value = textureLoad(visibility_texture, source_pixel, 0);
     let visibility_id = pack4x8unorm(visibility_value);
@@ -51,21 +51,13 @@ fn execute_job(job_index: u32, source_pixel: vec2<u32>, target_pixel: vec2<u32>,
         return vec4<f32>(0.);
     }
 
-    var seed = (source_pixel * source_dimensions) ^ vec2<u32>(constant_data.frame_index);
-    seed = get_random_numbers(seed); 
+    var seed = (target_pixel * target_dimensions) ^ vec2<u32>(constant_data.frame_index);
     
     let depth_value = textureLoad(depth_texture, source_pixel, 0);
     let hit_point = pixel_to_world(source_pixel, source_dimensions, depth_value);
-    let radiance_data = compute_radiance_from_visibility(visibility_id, hit_point, vec2<f32>(seed), vec3<f32>(0.), vec3<f32>(1.));     
+    let radiance_data = compute_radiance_from_visibility(visibility_id, hit_point, get_random_numbers(&seed), vec3<f32>(0.), vec3<f32>(1.));     
     
-    let origin = hit_point + radiance_data.direction * HIT_EPSILON;
-    let direction = normalize(radiance_data.direction);
-
-    let rr = direction.x;
-    let rg = direction.y;
-    let rb = direction.z;
-    let ra = depth_value;
-    let out_rays_color = vec4<f32>(f32(rr), f32(rg), f32(rb), f32(ra));
+    let out_rays_color = vec4<f32>(radiance_data.direction, depth_value);
     textureStore(ray_texture, target_pixel, out_rays_color);
         
     let r = pack2x16float(radiance_data.radiance.rg);
@@ -104,7 +96,7 @@ fn main(
         
         let index = u32(target_pixel.y * target_dimensions.x + target_pixel.x);
         let source_pixel = vec2<u32>(vec2<f32>(target_pixel) * scale);
-        var out_color = execute_job(index, source_pixel, target_pixel, source_dimensions);
+        var out_color = execute_job(index, source_pixel, target_pixel, source_dimensions, target_dimensions);
         textureStore(render_target, target_pixel, out_color);
         job_index = MAX_WORKGROUP_SIZE - atomicSub(&jobs_count, 1u);
     }

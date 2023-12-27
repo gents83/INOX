@@ -39,27 +39,28 @@ var ray_texture: texture_storage_2d<rgba32float, read>;
 #import "raytracing.inc"
 #import "pathtracing.inc"
 
-const NUM_BOUNCES: u32 = 4;
+const NUM_BOUNCES: u32 = 5;
 
 fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<f32>  
 {    
     let radiance_value = textureLoad(radiance_texture, pixel);
     
-    let visibility_id = u32(radiance_value.a);
-    if (visibility_id == 0u || (visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
-        return radiance_value;
-    }
     let radiance_rg = unpack2x16float(u32(radiance_value.r));
     let radiance_b_throughput_weight_r = unpack2x16float(u32(radiance_value.g));
     let throughput_weight_gb = unpack2x16float(u32(radiance_value.b));
     var radiance = vec3<f32>(radiance_rg.x, radiance_rg.y, radiance_b_throughput_weight_r.x);
-    var throughput_weight = vec3<f32>(radiance_b_throughput_weight_r.y, throughput_weight_gb.x, throughput_weight_gb.y);   
+    var throughput_weight = vec3<f32>(radiance_b_throughput_weight_r.y, throughput_weight_gb.x, throughput_weight_gb.y); 
+
+    let visibility_id = u32(radiance_value.a);
+    if (visibility_id == 0u || (visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
+        return vec4<f32>(radiance, 1.);
+    }  
  
     let rays_data = textureLoad(ray_texture, pixel);
     let direction = rays_data.rgb;
     let depth = rays_data.a;
-    let origin = pixel_to_world(pixel, dimensions, depth);
-    var ray = Ray(origin, 0., direction, MAX_FLOAT);
+    let origin = pixel_to_world(pixel, dimensions, depth) + direction * HIT_EPSILON;
+    var ray = Ray(origin, 0., direction, MAX_TRACING_DISTANCE);
 
     var seed = (pixel * dimensions) ^ vec2<u32>(constant_data.frame_index << 16u);
     
@@ -69,11 +70,10 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<
             break;
         }
         
-        seed = get_random_numbers(seed); 
         let hit_point = ray.origin + (ray.direction * result.distance);
-        let radiance_data = compute_radiance_from_visibility(result.visibility_id, hit_point, vec2<f32>(seed), radiance, throughput_weight); 
+        let radiance_data = compute_radiance_from_visibility(result.visibility_id, hit_point, get_random_numbers(&seed), radiance, throughput_weight); 
         
-        ray = Ray(hit_point + radiance_data.direction * HIT_EPSILON, 0., radiance_data.direction, MAX_FLOAT);
+        ray = Ray(hit_point + radiance_data.direction * HIT_EPSILON, 0., radiance_data.direction, MAX_TRACING_DISTANCE);
         radiance = radiance_data.radiance;
         throughput_weight = radiance_data.throughput_weight;
     }

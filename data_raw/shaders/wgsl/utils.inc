@@ -135,19 +135,15 @@ fn hash3(seed: ptr<function, f32>) -> vec3<f32> {
     return fract(sin(vec3(a,b,c))*vec3(43758.5453123,22578.1459123,19642.3490423));
 }
 
-// This is PCG
-fn get_random_numbers(seed: vec2<u32>) -> vec2<u32> {
-    var new_seed = seed;
-    new_seed = 1664525u * new_seed + 1013904223u;
-    new_seed.x += 1664525u * new_seed.y;
-    new_seed.y += 1664525u * new_seed.x;
-    new_seed.x = new_seed.x ^ (new_seed.x >> 16u);
-    new_seed.y = new_seed.y ^ (new_seed.y >> 16u);
-    new_seed.x += 1664525u * new_seed.y;
-    new_seed.y += 1664525u * new_seed.x;
-    new_seed.x = new_seed.x ^ (new_seed.x >> 16u);
-    new_seed.y = new_seed.y ^ (new_seed.y >> 16u);
-    return new_seed;
+// This is PCG2d
+fn get_random_numbers(seed: ptr<function, vec2<u32>>) -> vec2<f32> {
+    var v = (*seed) * 1664525u + 1013904223u;
+    v.x += v.y * 1664525u; v.y += v.x * 1664525u;
+    v ^= v >> vec2u(16u);
+    v.x += v.y * 1664525u; v.y += v.x * 1664525u;
+    v ^= v >> vec2u(16u);
+    *seed = v;
+    return vec2<f32>(v) * 2.32830643654e-10;
 }
 
 fn swap_f32(ptr_a: ptr<function, f32>, ptr_b: ptr<function, f32>) 

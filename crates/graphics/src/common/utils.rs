@@ -1,5 +1,3 @@
-use std::ops::Range;
-
 use inox_bhv::BHVTree;
 use inox_math::Vector4;
 
@@ -37,12 +35,11 @@ pub fn create_linearized_bhv(bhv: &BHVTree) -> Vec<GPUBHVNode> {
             miss: INVALID_INDEX,
         };
         linearized_node.miss = if parent_index >= 0 {
-            if bhv_nodes[parent_index as usize].left() == current_index as u32 {
+            if bhv_nodes[parent_index as usize].left() == current_index as i32 {
                 bhv_nodes[parent_index as usize].right() as _
             } else {
                 let ancestor_index = bhv_nodes[parent_index as usize].parent();
-                if ancestor_index >= 0
-                    && bhv_nodes[ancestor_index as usize].right() != parent_index as u32
+                if ancestor_index >= 0 && bhv_nodes[ancestor_index as usize].right() != parent_index
                 {
                     bhv_nodes[ancestor_index as usize].right() as _
                 } else {
@@ -61,8 +58,8 @@ pub fn create_linearized_bhv(bhv: &BHVTree) -> Vec<GPUBHVNode> {
     linearized_bhv
 }
 
-pub fn print_bhv(bhv: &[GPUBHVNode], bhv_range: &Range<usize>) {
-    println!("BHV {} - {}", bhv_range.start, bhv_range.end + 1);
+pub fn print_bhv(bhv: &[GPUBHVNode]) {
+    println!("BHV {} - {}", 0, bhv.len());
     bhv.iter().enumerate().for_each(|(i, n)| {
         println!("  Node[{i}]:");
         println!("      Miss -> {}", n.miss);

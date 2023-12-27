@@ -99,7 +99,7 @@ impl GPUMeshlet {
 }
 
 #[repr(C, align(16))]
-#[derive(Default, PartialEq, Clone, Copy, Debug)]
+#[derive(Default, PartialEq, Clone, Copy)]
 pub struct GPUBHVNode {
     pub min: [f32; 3],
     pub miss: i32,

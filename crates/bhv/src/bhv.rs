@@ -1,8 +1,8 @@
-use std::fmt::Debug;
+use std::{cmp::Ordering, fmt::Debug};
 
 use inox_math::Vector3;
 
-use crate::Partition;
+use crate::AXIS_COUNT;
 
 use super::aabb::AABB;
 
@@ -11,8 +11,8 @@ const INVALID_NODE: i32 = -1;
 #[derive(Clone, Copy)]
 pub struct BHVNode {
     aabb: AABB,
-    left: u32,
-    right: u32,
+    left: i32,
+    right: i32,
     parent: i32,
 }
 
@@ -20,8 +20,8 @@ impl BHVNode {
     pub fn create(aabb: &AABB, parent: i32) -> Self {
         Self {
             aabb: *aabb,
-            left: 0,
-            right: 0,
+            left: INVALID_NODE,
+            right: INVALID_NODE,
             parent,
         }
     }
@@ -38,10 +38,10 @@ impl BHVNode {
         self.aabb.set_index(index);
         self
     }
-    pub fn right(&self) -> u32 {
+    pub fn right(&self) -> i32 {
         self.right
     }
-    pub fn left(&self) -> u32 {
+    pub fn left(&self) -> i32 {
         self.left
     }
     pub fn parent(&self) -> i32 {
@@ -66,92 +66,173 @@ impl Default for BHVNode {
 pub struct BHVTree {
     nodes: Vec<BHVNode>,
 }
-
 impl BHVTree {
-    pub fn new(list: &[AABB]) -> Self {
-        let mut tree = Self::default();
-        let aabb = AABB::compute_aabb(list);
-        let root_node = BHVNode::create(&aabb, INVALID_NODE);
-        tree.nodes.push(root_node);
-        if list.len() > 1 {
-            tree.add(&aabb, tree.nodes.len() - 1, list);
-        } else {
-            tree.nodes[0].set_aabb_index(0);
-        }
-        tree
+    pub fn new(aabb_list: &[AABB]) -> Self {
+        let mut nodes: Vec<BHVNode> = aabb_list
+            .iter()
+            .enumerate()
+            .map(|(i, aabb)| BHVNode::create(aabb, i as i32))
+            .collect();
+        Self::build_tree(&mut nodes, 0, aabb_list.len());
+        let reversed = BHVTree { nodes };
+        Self::reverse(reversed)
     }
+
+    fn build_tree(nodes: &mut Vec<BHVNode>, start: usize, end: usize) -> u32 {
+        if end - start <= 1 {
+            return start as _;
+        }
+
+        let mut indices: Vec<usize> = (start..end).collect();
+        let axis = Self::choose_split_axis_sah(nodes, &indices);
+        indices.sort_by(|&a, &b| {
+            nodes[a].aabb.center()[axis]
+                .partial_cmp(&nodes[b].aabb.center()[axis])
+                .unwrap_or(Ordering::Equal)
+        });
+
+        let mid = (start + end) / 2;
+        let left_child = Self::build_tree(nodes, start, mid);
+        let right_child = Self::build_tree(nodes, mid, end);
+
+        let parent = nodes.len() as u32;
+        nodes.push(BHVNode {
+            aabb: AABB::compute_aabb(&nodes.iter().map(|&n| n.aabb).collect::<Vec<_>>()),
+            left: left_child as _,
+            right: right_child as _,
+            parent: INVALID_NODE,
+        });
+
+        nodes[left_child as usize].parent = parent as i32;
+        nodes[right_child as usize].parent = parent as i32;
+
+        parent
+    }
+
+    fn choose_split_axis_centroid(nodes: &[BHVNode], indices: &[usize]) -> usize {
+        // Implement your logic for choosing the split axis (e.g., based on SAH).
+        // This is a placeholder; you may need to replace it with a proper implementation.
+        // For simplicity, it currently chooses the axis with the maximum extent.
+        let mut max_extent = 0.0;
+        let mut split_axis = 0;
+
+        for axis in 0..AXIS_COUNT {
+            let min_value = indices
+                .iter()
+                .map(|&i| nodes[i].aabb.min()[axis])
+                .fold(f32::INFINITY, f32::min);
+            let max_value = indices
+                .iter()
+                .map(|&i| nodes[i].aabb.max()[axis])
+                .fold(f32::NEG_INFINITY, f32::max);
+
+            let extent = max_value - min_value;
+            if extent > max_extent {
+                max_extent = extent;
+                split_axis = axis;
+            }
+        }
+
+        split_axis
+    }
+    fn choose_split_axis_sah(nodes: &[BHVNode], indices: &[usize]) -> usize {
+        let mut best_axis = 0;
+        let mut best_cost = f32::INFINITY;
+
+        for axis in 0..AXIS_COUNT {
+            let min_value = indices
+                .iter()
+                .map(|&i| nodes[i].aabb.min()[axis])
+                .fold(f32::INFINITY, f32::min);
+            let max_value = indices
+                .iter()
+                .map(|&i| nodes[i].aabb.max()[axis])
+                .fold(f32::NEG_INFINITY, f32::max);
+
+            let bin_width = (max_value - min_value) / (indices.len() as f32);
+
+            let mut bins_right = vec![0; indices.len()];
+
+            let mut surface_area_left = 0.0;
+            let mut surface_area_right = 0.0;
+
+            for &i in indices {
+                surface_area_right += nodes[i].aabb.surface_area();
+            }
+
+            let mut right_count = 0;
+
+            for &i in indices {
+                // Calculate bin index ensuring it's within bounds
+                let bin = ((nodes[i].aabb.min()[axis] - min_value) / bin_width)
+                    .clamp(0.0, bins_right.len() as f32 - 1.0) as usize;
+                bins_right[bin] += 1;
+
+                // Rest of the code remains the same
+                surface_area_right -= nodes[i].aabb.surface_area();
+                surface_area_left += nodes[i].aabb.surface_area();
+
+                if right_count < indices.len() - 1 {
+                    right_count += 1;
+                }
+
+                if right_count > 0 {
+                    let cost = (surface_area_left + surface_area_right) * bin_width;
+
+                    if cost < best_cost {
+                        best_cost = cost;
+                        best_axis = axis;
+                    }
+                }
+            }
+        }
+
+        best_axis
+    }
+
     pub fn nodes(&self) -> &[BHVNode] {
         &self.nodes
     }
     pub fn nodes_mut(&mut self) -> &mut [BHVNode] {
         &mut self.nodes
     }
-    fn add(&mut self, parent_aabb: &AABB, parent_index: usize, list: &[AABB]) {
-        let (mut left_group, mut right_group) = Partition::compute_sah(parent_aabb, list);
 
-        let left_aabb = if left_group.len() > 1 {
-            AABB::compute_aabb(&left_group)
-        } else {
-            left_group.pop().unwrap()
-        };
-
-        let node = BHVNode::create(&left_aabb, parent_index as _);
-        self.nodes.push(node);
-        let left_index = self.nodes.len() - 1;
-        self.nodes[parent_index].left = left_index as _;
-
-        if left_group.len() > 1 {
-            self.add(&left_aabb, left_index, &left_group);
-        }
-
-        let right_aabb = if right_group.len() > 1 {
-            AABB::compute_aabb(&right_group)
-        } else {
-            right_group.pop().unwrap()
-        };
-
-        let node = BHVNode::create(&right_aabb, parent_index as _);
-        self.nodes.push(node);
-        let right_index = self.nodes.len() - 1;
-        self.nodes[parent_index].right = right_index as _;
-
-        if right_group.len() > 1 {
-            self.add(&right_aabb, right_index, &right_group);
-        }
-    }
-    pub fn insert_at(&mut self, position: usize, tree: BHVTree) -> &mut Self {
-        if position < self.nodes.len() {
-            let mut index = position;
-            for i in 0..tree.nodes.len() {
-                let mut node = tree.nodes[i];
-                node.parent += position as i32;
-                if node.left > 0 {
-                    node.left += position as u32;
-                }
-                if node.right > 0 {
-                    node.right += position as u32;
-                }
-                if i == 0 {
-                    node.parent = self.nodes[index].parent;
-                    self.nodes.remove(position);
-                }
-                self.nodes.insert(index, node);
-                index += 1;
-            }
-            let nodes_offset = tree.nodes.len() - 1;
-            for i in index..self.nodes.len() {
-                if self.nodes[i].parent > position as i32 {
-                    self.nodes[i].parent += nodes_offset as i32;
-                }
-                if self.nodes[i].left > position as u32 {
-                    self.nodes[i].left += nodes_offset as u32;
-                }
-                if self.nodes[i].right > position as u32 {
-                    self.nodes[i].right += nodes_offset as u32;
-                }
+    pub fn reverse(tree: Self) -> Self {
+        let mut index_map = vec![0; tree.nodes.len()];
+        let mut new_bhv = BHVTree::default();
+        let mut nodes_to_visit = [tree.nodes.len() - 1].to_vec();
+        while !nodes_to_visit.is_empty() {
+            let old_index = nodes_to_visit.remove(0);
+            index_map[old_index] = new_bhv.nodes.len();
+            new_bhv.nodes.push(tree.nodes[old_index]);
+            if !tree.nodes[old_index].is_leaf() {
+                nodes_to_visit.insert(0, tree.nodes[old_index].right() as _);
+                nodes_to_visit.insert(0, tree.nodes[old_index].left() as _);
             }
         }
-        self
+        let entries_count = tree.nodes.len();
+        let mut left_modified = vec![false; entries_count];
+        let mut right_modified = vec![false; entries_count];
+        let mut parent_modified = vec![false; entries_count];
+        new_bhv.nodes.iter_mut().enumerate().for_each(|(i, node)| {
+            (0..index_map.len()).for_each(|old_index| {
+                if !left_modified[i] && node.left == old_index as _ {
+                    node.left = index_map[old_index] as _;
+                    left_modified[i] = true;
+                }
+                if !right_modified[i] && node.right == old_index as _ {
+                    node.right = index_map[old_index] as _;
+                    right_modified[i] = true;
+                }
+                if !parent_modified[i] && node.parent == old_index as _ {
+                    node.parent = index_map[old_index] as _;
+                    parent_modified[i] = true;
+                }
+            });
+        });
+        Self {
+            nodes: new_bhv.nodes,
+        }
     }
 }
 
@@ -163,7 +244,126 @@ impl Debug for BHVTree {
             f.write_fmt(format_args!("      Left -> {}\n", n.left)).ok();
             f.write_fmt(format_args!("      Right -> {}\n", n.right))
                 .ok();
+            f.write_fmt(format_args!("      Parent -> {}\n", n.parent))
+                .ok();
+            f.write_fmt(format_args!("      Ref -> {}\n", n.aabb_index()))
+                .ok();
         });
         Ok(())
     }
+}
+
+fn test_bvh_quad() {
+    use inox_math::VecBase;
+
+    struct Triangle {
+        vertices: [Vector3; 3],
+    }
+    let triangles = [
+        Triangle {
+            vertices: [
+                [0., 0., 0.].into(),
+                [0., 1., 0.].into(),
+                [1., 1., 0.].into(),
+            ],
+        },
+        Triangle {
+            vertices: [
+                [1., 1., 0.].into(),
+                [0., 0., 0.].into(),
+                [1., 0., 0.].into(),
+            ],
+        },
+    ];
+    let min_v1 = triangles[0]
+        .vertices
+        .iter()
+        .fold(Vector3::new(f32::MAX, f32::MAX, f32::MAX), |i, v| v.min(i));
+    let max_v1 = triangles[0]
+        .vertices
+        .iter()
+        .fold(Vector3::new(-f32::MAX, -f32::MAX, -f32::MAX), |i, v| {
+            v.max(i)
+        });
+    let min_v2 = triangles[1]
+        .vertices
+        .iter()
+        .fold(Vector3::new(f32::MAX, f32::MAX, f32::MAX), |i, v| v.min(i));
+    let max_v2 = triangles[1]
+        .vertices
+        .iter()
+        .fold(Vector3::new(-f32::MAX, -f32::MAX, -f32::MAX), |i, v| {
+            v.max(i)
+        });
+    let aabbs = [
+        AABB::create(min_v1, max_v1, 0),
+        AABB::create(min_v2, max_v2, 1),
+    ];
+    let bhv = BHVTree::new(&aabbs);
+    println!("{:?}", bhv);
+
+    debug_assert!(bhv.nodes().len() == 3);
+
+    debug_assert!(bhv.nodes()[0].min() == min_v1.min(min_v2));
+    debug_assert!(bhv.nodes()[0].max() == max_v1.max(max_v2));
+    debug_assert!(bhv.nodes()[0].parent() == -1);
+    debug_assert!(bhv.nodes()[0].aabb_index() == -1);
+    debug_assert!(bhv.nodes()[0].left() == 1);
+    debug_assert!(bhv.nodes()[0].right() == 2);
+
+    debug_assert!(bhv.nodes()[1].min() == min_v1);
+    debug_assert!(bhv.nodes()[1].max() == max_v1);
+    debug_assert!(bhv.nodes()[1].parent() == 0);
+    debug_assert!(bhv.nodes()[1].aabb_index() == 0);
+    debug_assert!(bhv.nodes()[1].left() == -1);
+    debug_assert!(bhv.nodes()[1].right() == -1);
+
+    debug_assert!(bhv.nodes()[2].min() == min_v2);
+    debug_assert!(bhv.nodes()[2].max() == max_v2);
+    debug_assert!(bhv.nodes()[2].parent() == 0);
+    debug_assert!(bhv.nodes()[2].aabb_index() == 1);
+    debug_assert!(bhv.nodes()[2].left() == -1);
+    debug_assert!(bhv.nodes()[2].right() == -1);
+}
+
+fn test_bvh_cube() {
+    use inox_math::VecBase;
+
+    let min: Vector3 = [-100., -100., -100.].into();
+    let max: Vector3 = [100., 100., 100.].into();
+    let vertices: [Vector3; 8] = [
+        Vector3::new(min.x, min.y, min.z),
+        Vector3::new(max.x, min.y, min.z),
+        Vector3::new(max.x, max.y, min.z),
+        Vector3::new(min.x, max.y, min.z),
+        Vector3::new(min.x, min.y, max.z),
+        Vector3::new(max.x, min.y, max.z),
+        Vector3::new(max.x, max.y, max.z),
+        Vector3::new(min.x, max.y, max.z),
+    ];
+    let indices = [
+        0, 1, 3, 3, 1, 2, 1, 5, 2, 2, 5, 6, 5, 4, 6, 6, 4, 7, 4, 0, 7, 7, 0, 3, 3, 2, 7, 7, 2, 6,
+        4, 5, 0, 0, 5, 1,
+    ];
+    let mut i = 0;
+    let mut aabbs = Vec::new();
+    while i < indices.len() {
+        let v1 = vertices[indices[i]];
+        i += 1;
+        let v2 = vertices[indices[i]];
+        i += 1;
+        let v3 = vertices[indices[i]];
+        i += 1;
+        let t_min = v1.min(v2.min(v3));
+        let t_max = v1.max(v2.max(v3));
+        aabbs.push(AABB::create(t_min, t_max, ((i - 1) / 3) as _));
+    }
+    let bhv = BHVTree::new(&aabbs);
+    println!("{:?}", bhv);
+}
+
+#[test]
+fn test_bvh() {
+    test_bvh_quad();
+    test_bvh_cube();
 }
