@@ -46,8 +46,8 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<
     let radiance_rg = unpack2x16float(u32(radiance_value.r));
     let radiance_b_throughput_weight_r = unpack2x16float(u32(radiance_value.g));
     let throughput_weight_gb = unpack2x16float(u32(radiance_value.b));
-    var radiance = vec3<f32>(radiance_rg.x, radiance_rg.y, radiance_b_throughput_weight_r.x);
     var throughput_weight = vec3<f32>(radiance_b_throughput_weight_r.y, throughput_weight_gb.x, throughput_weight_gb.y); 
+    var radiance = vec3<f32>(radiance_rg.x, radiance_rg.y, radiance_b_throughput_weight_r.x) * throughput_weight;
 
     let visibility_id = u32(radiance_value.a);
     if (visibility_id == 0u || (visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
