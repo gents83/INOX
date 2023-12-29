@@ -9,19 +9,20 @@ struct Result {
 }
 
 fn intersect_aabb(ray: ptr<function, Ray>, aabb_min: vec3<f32>, aabb_max: vec3<f32>) -> f32 {
-    // Calcolo delle inverse direction components
-    let inverse_dir = vec3<f32>(1.0) / (*ray).direction;
-    var t: array<f32, 10>;
-    t[1] = (aabb_min.x - (*ray).origin.x) * inverse_dir.x;
-    t[2] = (aabb_max.x - (*ray).origin.x) * inverse_dir.x;
-    t[3] = (aabb_min.y - (*ray).origin.y) * inverse_dir.y;
-    t[4] = (aabb_max.y - (*ray).origin.y) * inverse_dir.y;
-    t[5] = (aabb_min.z - (*ray).origin.z) * inverse_dir.z;
-    t[6] = (aabb_max.z - (*ray).origin.z) * inverse_dir.z;
-    t[7] = max(max(min(t[1], t[2]), min(t[3], t[4])), min(t[5], t[6]));
-    t[8] = min(min(max(t[1], t[2]), max(t[3], t[4])), max(t[5], t[6]));
-    t[9] = select((*ray).t_max, t[7], (t[8] < 0 || t[7] > t[8]));
-    return t[9];
+    let size = aabb_max - aabb_min;
+    let inverse_dir = 1. / (*ray).direction;
+    let n = (*ray).origin * inverse_dir;
+    let k = abs(inverse_dir) * size;
+    let t_min = -n - k;
+    let t_max = -n + k;
+
+    let t_near = max(max(t_min.x, t_min.y), t_min.z);
+    let t_far = min(min(t_max.x, t_max.y), t_max.z);
+
+    if t_far >= 0. {
+        return t_near;
+    }
+    return t_far;
 }
 
 fn intersect_triangle(ray: Ray, v0: vec3<f32>, v1: vec3<f32>, v2: vec3<f32>) -> f32

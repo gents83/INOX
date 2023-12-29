@@ -9,9 +9,11 @@ use inox_graphics::{
     CONSTANT_DATA_FLAGS_NONE, CONSTANT_DATA_FLAGS_USE_IBL,
 };
 use inox_math::{
-    compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle, Quat, VecBase, Vector3,
+    compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle, Quat, VecBase, Vector2,
+    Vector3,
 };
 use inox_messenger::Listener;
+use inox_platform::{MouseEvent, MouseState, WindowEvent};
 use inox_resources::{DataTypeResourceEvent, HashBuffer, Resource, ResourceEvent};
 use inox_scene::{Camera, Object, ObjectId, SceneId};
 use inox_ui::{implement_widget_data, ComboBox, UIWidget, Window};
@@ -87,6 +89,8 @@ struct Data {
     show_lights: bool,
     freeze_culling_camera: bool,
     visualization_debug: VisualizationDebug,
+    mouse_coords: Vector2,
+    screen_size: Vector2,
     fps: u32,
     dt: u128,
     cam_matrix: Matrix4,
@@ -110,7 +114,9 @@ impl Info {
         listener
             .register::<DataTypeResourceEvent<Mesh>>()
             .register::<ResourceEvent<Mesh>>()
-            .register::<WidgetEvent>();
+            .register::<WidgetEvent>()
+            .register::<WindowEvent>()
+            .register::<MouseEvent>();
         let data = Data {
             context: context.clone(),
             params,
@@ -122,6 +128,8 @@ impl Info {
             show_lights: false,
             freeze_culling_camera: false,
             visualization_debug: VisualizationDebug::None,
+            mouse_coords: Vector2::default_zero(),
+            screen_size: Vector2::default_one(),
             fps: 0,
             dt: 0,
             cam_matrix: Matrix4::default_identity(),
@@ -200,6 +208,20 @@ impl Info {
                     self.meshes.remove(id);
                 }
                 _ => {}
+            })
+            .process_messages(|event: &MouseEvent| {
+                if event.state == MouseState::Move {
+                    if let Some(data) = self.ui_page.get_mut().data_mut::<Data>() {
+                        data.mouse_coords = [event.x as f32, event.y as f32].into()
+                    }
+                }
+            })
+            .process_messages(|event: &WindowEvent| {
+                if let WindowEvent::SizeChanged(width, height) = *event {
+                    if let Some(data) = self.ui_page.get_mut().data_mut::<Data>() {
+                        data.screen_size = [width.max(1) as f32, height.max(1) as f32].into();
+                    }
+                }
             });
     }
 
@@ -492,6 +514,13 @@ impl Info {
                     .resizable(true)
                     .show(ui_context, |ui| {
                         ui.label(format!("FPS: {} - ms: {:?}", data.fps, data.dt));
+                        ui.label(format!(
+                            "Mouse: ({},{}) - ({:.3},{:.3})",
+                            data.mouse_coords.x,
+                            data.mouse_coords.y,
+                            data.mouse_coords.x / data.screen_size.x,
+                            data.mouse_coords.y / data.screen_size.y
+                        ));
                         ui.checkbox(&mut data.show_hierarchy, "Hierarchy");
                         ui.checkbox(&mut data.show_graphics, "Graphics");
                         ui.checkbox(&mut data.show_lights, "Show Lights");
