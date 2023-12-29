@@ -144,7 +144,7 @@ impl Viewer {
         Self::create_compute_runtime_vertices_pass(context, renderer, true);
         Self::create_culling_pass(context, renderer, ADD_CULLING_PASS);
 
-        let (visibility_texture_id, depth_texture) = Self::create_visibility_pass(
+        let (visibility_texture_id, depth_texture_id) = Self::create_visibility_pass(
             context,
             renderer,
             reduced_dimensions.0,
@@ -156,9 +156,9 @@ impl Viewer {
             reduced_dimensions.0,
             reduced_dimensions.1,
             &visibility_texture_id,
-            &depth_texture,
+            &depth_texture_id,
         );
-        let output_texture_id = Self::create_compute_pathtracing_indirect_pass(
+        let radiance_texture_id = Self::create_compute_pathtracing_indirect_pass(
             context,
             renderer,
             reduced_dimensions.0,
@@ -171,7 +171,9 @@ impl Viewer {
             renderer,
             width,
             height,
-            &output_texture_id,
+            &visibility_texture_id,
+            &radiance_texture_id,
+            &depth_texture_id,
         );
         Self::create_blit_pass(context, renderer, &output_texture_id);
 
@@ -297,7 +299,9 @@ impl Viewer {
         renderer: &mut Renderer,
         width: u32,
         height: u32,
-        radiance_texture: &TextureId,
+        visibility_texture_id: &TextureId,
+        radiance_texture_id: &TextureId,
+        depth_texture_id: &TextureId,
     ) -> TextureId {
         let mut compute_finalize_pass =
             ComputeFinalizePass::create(context, &renderer.render_context());
@@ -306,7 +310,10 @@ impl Viewer {
             height,
             TextureFormat::Rgba8Unorm,
         );
-        compute_finalize_pass.set_radiance_texture(radiance_texture);
+        compute_finalize_pass
+            .set_visibility_texture(visibility_texture_id)
+            .set_radiance_texture(radiance_texture_id)
+            .set_depth_texture(depth_texture_id);
         let render_target_id = *compute_finalize_pass
             .render_targets_id()
             .unwrap()
