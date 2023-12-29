@@ -15,7 +15,7 @@ use crate::{
     declare_as_binding_vector, utils::create_linearized_bhv, AsBinding, BindingDataBuffer,
     GPUBHVNode, GPUMaterial, GPUMesh, GPUMeshlet, GPURay, GPURuntimeVertexData, Light, LightData,
     LightId, Material, MaterialData, MaterialFlags, MaterialId, Mesh, MeshData, MeshFlags, MeshId,
-    RenderCommandsPerType, RenderCoreContext, TextureId, TextureInfo, TextureType, INVALID_INDEX,
+    RenderCommandsPerType, RenderCoreContext, TextureId, TextureInfo, TextureType,
 };
 
 declare_as_binding_vector!(VecU32, u32);
@@ -387,16 +387,14 @@ impl RenderBuffers {
     pub fn add_material(&self, material_id: &MaterialId, material: &mut Material) {
         inox_profiler::scoped_profile!("render_buffers::add_material");
 
-        let mut textures_index_and_coord_set = [INVALID_INDEX; TextureType::Count as _];
+        let mut textures_index_and_coord_set = [0; TextureType::Count as _];
         material
             .textures()
             .iter()
             .enumerate()
             .for_each(|(i, handle_texture)| {
                 if let Some(texture) = handle_texture {
-                    textures_index_and_coord_set[i] = texture.get().texture_index() as _;
-                    textures_index_and_coord_set[i] = textures_index_and_coord_set[i].signum()
-                        * (textures_index_and_coord_set[i] << 28);
+                    textures_index_and_coord_set[i] = (texture.get().texture_index() + 1) as u32;
                 }
             });
         let mut materials = self.materials.write().unwrap();
@@ -419,7 +417,7 @@ impl RenderBuffers {
         let mut materials = self.materials.write().unwrap();
         if let Some(material) = materials.get_mut(material_id) {
             for (i, t) in material_data.texcoords_set.iter().enumerate() {
-                material.textures_index_and_coord_set[i] |= (*t & 0x0000000F) as i32;
+                material.textures_index_and_coord_set[i] |= (*t << 28) as u32;
             }
             material.roughness_factor = material_data.roughness_factor;
             material.metallic_factor = material_data.roughness_factor;
