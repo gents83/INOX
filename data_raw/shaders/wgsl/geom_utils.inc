@@ -5,7 +5,7 @@ struct Derivatives {
 }
 
 fn pixel_to_normalized(image_pixel: vec2<u32>, image_size: vec2<u32>) -> vec2<f32> {
-    return (vec2<f32>(image_pixel) / vec2<f32>(image_size));
+    return ((vec2<f32>(0.5) + vec2<f32>(image_pixel)) / vec2<f32>(image_size));
 }
 
 fn pixel_to_clip(image_pixel: vec2<u32>, image_size: vec2<u32>) -> vec2<f32> {
