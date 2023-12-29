@@ -39,8 +39,6 @@ var ray_texture: texture_storage_2d<rgba32float, read>;
 #import "raytracing.inc"
 #import "pathtracing.inc"
 
-const NUM_BOUNCES: u32 = 5;
-
 fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<f32>  
 {    
     let radiance_value = textureLoad(radiance_texture, pixel);
@@ -64,7 +62,7 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<
 
     var seed = (pixel * dimensions) ^ vec2<u32>(constant_data.frame_index << 16u);
     
-    for(var i = 0u; i < NUM_BOUNCES; i++) {
+    for(var i = 0u; i < constant_data.indirect_light_num_bounces; i++) {
         let result = traverse_bvh(ray, constant_data.tlas_starting_index);  
         if (result.visibility_id == 0u || (result.visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
             break;

@@ -16,7 +16,7 @@ use inox_messenger::Listener;
 use inox_platform::{MouseEvent, MouseState, WindowEvent};
 use inox_resources::{DataTypeResourceEvent, HashBuffer, Resource, ResourceEvent};
 use inox_scene::{Camera, Object, ObjectId, SceneId};
-use inox_ui::{implement_widget_data, ComboBox, UIWidget, Window};
+use inox_ui::{implement_widget_data, ComboBox, DragValue, UIWidget, Window};
 use inox_uid::INVALID_UID;
 
 use crate::events::{WidgetEvent, WidgetType};
@@ -99,6 +99,7 @@ struct Data {
     fov: Degrees,
     aspect_ratio: f32,
     selected_object_id: ObjectId,
+    indirect_light_num_bounces: u32,
 }
 implement_widget_data!(Data);
 
@@ -138,7 +139,18 @@ impl Info {
             fov: Degrees::new(0.),
             aspect_ratio: 1.,
             selected_object_id: INVALID_UID,
+            indirect_light_num_bounces: 5,
         };
+        {
+            let renderer = data.params.renderer.read().unwrap();
+            let render_context = renderer.render_context();
+            render_context
+                .constant_data
+                .write()
+                .unwrap()
+                .set_num_bounces(data.indirect_light_num_bounces)
+                .set_frame_index(0);
+        }
         Self {
             ui_page: Self::create(data),
             listener,
@@ -540,6 +552,24 @@ impl Info {
                                     .send_event(CullingEvent::UnfreezeCamera);
                             }
                         }
+                        ui.horizontal(|ui| {
+                            ui.label("Indirect light bounces: ");
+                            let previous_value = data.indirect_light_num_bounces;
+                            ui.add(
+                                DragValue::new(&mut data.indirect_light_num_bounces)
+                                    .clamp_range(0..=1024),
+                            );
+                            if previous_value != data.indirect_light_num_bounces {
+                                let renderer = data.params.renderer.read().unwrap();
+                                let render_context = renderer.render_context();
+                                render_context
+                                    .constant_data
+                                    .write()
+                                    .unwrap()
+                                    .set_num_bounces(data.indirect_light_num_bounces)
+                                    .set_frame_index(0);
+                            }
+                        });
                         ui.horizontal(|ui| {
                             ui.label("Debug mode:");
                             let combo_box = ComboBox::from_id_source("Meshlet Debug")

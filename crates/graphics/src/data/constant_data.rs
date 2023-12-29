@@ -28,7 +28,7 @@ struct Data {
     pub flags: u32,
     pub debug_uv_coords: [f32; 2],
     pub tlas_starting_index: u32,
-    pub padding: f32,
+    pub num_bounces: u32,
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -80,8 +80,17 @@ impl ConstantData {
         self
     }
     pub fn set_frame_index(&mut self, frame_index: u32) -> &mut Self {
-        self.data.frame_index = frame_index;
-        self.set_dirty(true);
+        if self.data.frame_index != frame_index {
+            self.data.frame_index = frame_index;
+            self.set_dirty(true);
+        }
+        self
+    }
+    pub fn set_num_bounces(&mut self, n: u32) -> &mut Self {
+        if self.data.num_bounces != n {
+            self.data.num_bounces = n;
+            self.set_dirty(true);
+        }
         self
     }
     pub fn update(

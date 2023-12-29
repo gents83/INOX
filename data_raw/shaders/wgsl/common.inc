@@ -88,7 +88,7 @@ struct ConstantData {
     flags: u32,
     debug_uv_coords: vec2<f32>,
     tlas_starting_index: u32,
-    _padding: f32
+    indirect_light_num_bounces: u32
 };
 
 struct RuntimeVertexData {
