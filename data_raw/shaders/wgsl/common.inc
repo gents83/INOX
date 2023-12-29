@@ -86,8 +86,9 @@ struct ConstantData {
     screen_height: f32,
     frame_index: u32,
     flags: u32,
-    padding: vec3<f32>,
+    debug_uv_coords: vec2<f32>,
     tlas_starting_index: u32,
+    _padding: f32
 };
 
 struct RuntimeVertexData {

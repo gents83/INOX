@@ -1,8 +1,8 @@
 use inox_core::{implement_unique_system_uid, ContextRc, System};
 
-use inox_math::Vector2;
+use inox_math::{VecBase, Vector2};
 use inox_messenger::{Listener, MessageHubRc};
-use inox_platform::WindowEvent;
+use inox_platform::{MouseEvent, MouseState, WindowEvent};
 use inox_resources::{
     ConfigBase, ConfigEvent, DataTypeResource, DataTypeResourceEvent, ReloadEvent, Resource,
     ResourceEvent, SerializableResourceEvent, SharedData, SharedDataRc,
@@ -25,7 +25,7 @@ pub struct UpdateSystem {
     message_hub: MessageHubRc,
     listener: Listener,
     view: Resource<View>,
-    scale_factor: f32,
+    mouse_coords: Vector2,
     width: u32,
     height: u32,
     resolution_changed: bool,
@@ -49,7 +49,7 @@ impl UpdateSystem {
             message_hub: context.message_hub().clone(),
             listener,
             resolution_changed: false,
-            scale_factor: 1.0,
+            mouse_coords: Vector2::default_zero(),
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
         }
@@ -59,17 +59,17 @@ impl UpdateSystem {
         inox_profiler::scoped_profile!("update_system::handle_events");
         //REMINDER: message processing order is important - RenderPass must be processed before Texture
         self.listener
-            .process_messages(|e: &WindowEvent| match e {
-                WindowEvent::SizeChanged(width, height) => {
+            .process_messages(|e: &WindowEvent| {
+                if let WindowEvent::SizeChanged(width, height) = e {
                     self.width = *width;
                     self.height = *height;
                     self.resolution_changed = true;
                 }
-                WindowEvent::ScaleFactorChanged(v) => {
-                    self.scale_factor = *v;
-                    self.resolution_changed = true;
+            })
+            .process_messages(|e: &MouseEvent| {
+                if e.state == MouseState::Move {
+                    self.mouse_coords = [e.x as f32, e.y as f32].into();
                 }
-                _ => {}
             })
             .process_messages(|e: &ReloadEvent| {
                 let ReloadEvent::Reload(path) = e;
@@ -219,6 +219,7 @@ impl System for UpdateSystem {
     fn init(&mut self) {
         self.listener
             .register::<WindowEvent>()
+            .register::<MouseEvent>()
             .register::<ReloadEvent>()
             .register::<ConfigEvent<Config>>()
             .register::<DataTypeResourceEvent<Light>>()
@@ -278,6 +279,7 @@ impl System for UpdateSystem {
                     self.view.get().view(),
                     self.view.get().proj(),
                     screen_size,
+                    self.mouse_coords,
                 );
             }
 
@@ -295,6 +297,7 @@ impl System for UpdateSystem {
     fn uninit(&mut self) {
         self.listener
             .unregister::<WindowEvent>()
+            .unregister::<MouseEvent>()
             .unregister::<ReloadEvent>()
             .unregister::<DataTypeResourceEvent<Light>>()
             .unregister::<DataTypeResourceEvent<Material>>()

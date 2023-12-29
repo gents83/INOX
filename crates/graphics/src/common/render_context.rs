@@ -186,12 +186,19 @@ impl RenderContext {
         on_create_func(&mut renderer);
     }
 
-    pub fn update_constant_data(&self, view: Matrix4, proj: Matrix4, screen_size: Vector2) {
+    pub fn update_constant_data(
+        &self,
+        view: Matrix4,
+        proj: Matrix4,
+        screen_size: Vector2,
+        debug_coords: Vector2,
+    ) {
         inox_profiler::scoped_profile!("render_context::update_constant_data");
         self.constant_data.write().unwrap().update(
             view,
             proj,
             screen_size,
+            debug_coords,
             self.render_buffers.tlas_start_index.load(Ordering::Relaxed),
         );
         if self.core.config.read().unwrap().format.is_srgb() {

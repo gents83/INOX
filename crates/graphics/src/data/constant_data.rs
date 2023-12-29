@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use inox_math::{matrix4_to_array, Mat4Ops, Matrix4, Vector2};
+use inox_math::{matrix4_to_array, Mat4Ops, Matrix4, VecBase, Vector2};
 
 use crate::{AsBinding, GpuBuffer, RenderCoreContext};
 
@@ -23,12 +23,12 @@ struct Data {
     pub view: [[f32; 4]; 4],
     pub proj: [[f32; 4]; 4],
     pub inverse_view_proj: [[f32; 4]; 4],
-    pub screen_width: f32,
-    pub screen_height: f32,
+    pub screen_size: [f32; 2],
     pub frame_index: u32,
     pub flags: u32,
-    pub padding: [f32; 3],
+    pub debug_uv_coords: [f32; 2],
     pub tlas_starting_index: u32,
+    pub padding: f32,
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -89,22 +89,23 @@ impl ConstantData {
         view: Matrix4,
         proj: Matrix4,
         screen_size: Vector2,
+        debug_coords: Vector2,
         tlas_starting_index: u32,
     ) -> bool {
         let v = matrix4_to_array(view);
         let p = matrix4_to_array(proj);
         if self.data.view != v
             || self.data.proj != p
-            || self.data.screen_width != screen_size.x
-            || self.data.screen_height != screen_size.y
+            || self.data.screen_size[0] != screen_size.x
+            || self.data.screen_size[1] != screen_size.y
         {
             self.data.frame_index = 0;
         }
         self.data.view = v;
         self.data.proj = p;
         self.data.inverse_view_proj = matrix4_to_array((proj * view).inverse());
-        self.data.screen_width = screen_size.x;
-        self.data.screen_height = screen_size.y;
+        self.data.screen_size = screen_size.into();
+        self.data.debug_uv_coords = (debug_coords.div(screen_size)).into();
         self.data.tlas_starting_index = tlas_starting_index;
         self.data.frame_index += 1;
         self.set_dirty(true);
