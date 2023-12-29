@@ -349,7 +349,7 @@ impl ComputePathTracingDirectPass {
             TextureUsage::TextureBinding
                 | TextureUsage::CopySrc
                 | TextureUsage::CopyDst
-                | TextureUsage::RenderAttachment
+                | TextureUsage::RenderTarget
                 | TextureUsage::StorageBinding,
         ));
         self
@@ -366,7 +366,10 @@ impl ComputePathTracingDirectPass {
             width,
             height,
             render_format,
-            TextureUsage::CopySrc | TextureUsage::CopyDst | TextureUsage::StorageBinding,
+            TextureUsage::CopySrc
+                | TextureUsage::CopyDst
+                | TextureUsage::StorageBinding
+                | TextureUsage::RenderTarget,
         ));
         self
     }

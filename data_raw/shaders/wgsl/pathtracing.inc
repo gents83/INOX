@@ -25,7 +25,7 @@ fn compute_radiance_from_visibility(visibility_id: u32, hit_point: vec3<f32>, se
 
     let direction = sample_hemisphere(seed, pixel_data.normal);
 
-    let rad = radiance + throughput_weight * material_info.emissive_color;
+    let rad = select(radiance + throughput_weight * material_info.emissive_color, material_info.base_color.rgb, length(radiance) == 0.); 
     let d = dot(pixel_data.normal, direction);
     let weight = throughput_weight * (material_info.base_color.rgb * 2. * d);
 

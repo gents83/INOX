@@ -9,7 +9,7 @@ pub enum TextureUsage {
     CopyDst,
     TextureBinding,
     StorageBinding,
-    RenderAttachment,
+    RenderTarget,
 }
 
 impl From<TextureUsage> for wgpu::TextureUsages {
@@ -79,9 +79,9 @@ impl From<usize> for TextureType {
 pub struct TextureInfo {
     pub texture_index: u32,
     pub layer_index: u32,
-    pub total_width: f32,
-    pub total_height: f32,
-    pub area: [f32; 4],
+    pub total_width: u32,
+    pub total_height: u32,
+    pub area: [u32; 4],
 }
 
 impl Default for TextureInfo {
@@ -89,9 +89,9 @@ impl Default for TextureInfo {
         Self {
             texture_index: 0,
             layer_index: 0,
-            total_width: 0.,
-            total_height: 0.,
-            area: [0., 0., 1., 1.],
+            total_width: 0,
+            total_height: 0,
+            area: [0, 0, 1, 1],
         }
     }
 }

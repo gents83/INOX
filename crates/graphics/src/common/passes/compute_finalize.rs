@@ -169,7 +169,7 @@ impl ComputeFinalizePass {
             TextureUsage::TextureBinding
                 | TextureUsage::CopySrc
                 | TextureUsage::CopyDst
-                | TextureUsage::RenderAttachment
+                | TextureUsage::RenderTarget
                 | TextureUsage::StorageBinding,
         ));
         self

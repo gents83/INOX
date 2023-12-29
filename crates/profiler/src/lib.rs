@@ -14,7 +14,6 @@ pub mod gpu_profiler;
 
 pub use self::cpu_profiler::*;
 pub use self::gpu_profiler::*;
-pub use self::macros::*;
 
 pub mod macros;
 

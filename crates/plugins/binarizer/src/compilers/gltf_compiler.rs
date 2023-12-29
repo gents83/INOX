@@ -210,7 +210,7 @@ impl GltfCompiler {
     fn extract_vertices(&mut self, path: &Path, primitive: &Primitive) -> Vec<GltfVertex> {
         let mut vertices = Vec::new();
 
-        for (_attribute_index, (semantic, accessor)) in primitive.attributes().enumerate() {
+        primitive.attributes().enumerate().for_each(|(_attribute_index, (semantic, accessor))| {
             //debug_log!("Attribute[{}]: {:?}", _attribute_index, semantic);
             match semantic {
                 Semantic::Positions => {
@@ -298,14 +298,13 @@ impl GltfCompiler {
                                 eprintln!(
                                 "ERROR: Texture coordinate set {texture_index} is out of range (max {MAX_TEXTURE_COORDS_SETS})",
                             );
-                                continue;
                             }
                         }
                     }
                 }
                 _ => {}
             }
-        }
+        });
         vertices
     }
 

@@ -3,9 +3,9 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use inox_math::{matrix4_to_array, Mat4Ops, Matrix4, VecBase, Vector2};
+use inox_math::{matrix4_to_array, Mat4Ops, MatBase, Matrix4, VecBase, Vector2};
 
-use crate::{AsBinding, GpuBuffer, RenderCoreContext};
+use crate::{AsBinding, GpuBuffer, RenderCoreContext, DEFAULT_HEIGHT, DEFAULT_WIDTH};
 
 pub const CONSTANT_DATA_FLAGS_NONE: u32 = 0;
 pub const CONSTANT_DATA_FLAGS_SUPPORT_SRGB: u32 = 1;
@@ -18,7 +18,7 @@ pub const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1 << 6;
 pub const CONSTANT_DATA_FLAGS_USE_PUNCTUAL: u32 = CONSTANT_DATA_FLAGS_NONE; // Today we want by default punctual lights
 
 #[repr(C)]
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 struct Data {
     pub view: [[f32; 4]; 4],
     pub proj: [[f32; 4]; 4],
@@ -29,6 +29,22 @@ struct Data {
     pub debug_uv_coords: [f32; 2],
     pub tlas_starting_index: u32,
     pub num_bounces: u32,
+}
+
+impl Default for Data {
+    fn default() -> Self {
+        Self {
+            view: Matrix4::default_identity().into(),
+            proj: Matrix4::default_identity().into(),
+            inverse_view_proj: Matrix4::default_identity().into(),
+            screen_size: [DEFAULT_WIDTH as _, DEFAULT_HEIGHT as _],
+            frame_index: 0,
+            flags: 0,
+            debug_uv_coords: [0.; 2],
+            tlas_starting_index: 0,
+            num_bounces: 4,
+        }
+    }
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -92,6 +108,9 @@ impl ConstantData {
             self.set_dirty(true);
         }
         self
+    }
+    pub fn num_bounces(&self) -> u32 {
+        self.data.num_bounces
     }
     pub fn update(
         &mut self,

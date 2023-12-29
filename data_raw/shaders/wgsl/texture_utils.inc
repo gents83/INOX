@@ -33,8 +33,8 @@ fn sample_texture(tex_coords_and_texture_index: vec3<f32>) -> vec4<f32> {
     let atlas_index = (*texture).texture_index;
     let layer_index = i32((*texture).layer_index);
 
-    tex_coords.x = ((*texture).area.x + tex_coords_and_texture_index.x * (*texture).area.z) / (*texture).total_width;
-    tex_coords.y = ((*texture).area.y + tex_coords_and_texture_index.y * (*texture).area.w) / (*texture).total_height;
+    tex_coords.x = (f32((*texture).area.x) + tex_coords_and_texture_index.x * f32((*texture).area.z)) / f32((*texture).total_width);
+    tex_coords.y = (f32((*texture).area.y) + tex_coords_and_texture_index.y * f32((*texture).area.w)) / f32((*texture).total_height);
     tex_coords.z = f32(layer_index);
 
 #ifdef FEATURES_TEXTURE_BINDING_ARRAY

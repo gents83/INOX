@@ -120,6 +120,12 @@ impl Info {
             .register::<MouseEvent>();
         let data = Data {
             context: context.clone(),
+            indirect_light_num_bounces: {
+                let renderer = params.renderer.read().unwrap();
+                let render_context = renderer.render_context();
+                let v = render_context.constant_data.read().unwrap().num_bounces();
+                v
+            },
             params,
             show_hierarchy: false,
             show_graphics: false,
@@ -139,18 +145,7 @@ impl Info {
             fov: Degrees::new(0.),
             aspect_ratio: 1.,
             selected_object_id: INVALID_UID,
-            indirect_light_num_bounces: 5,
         };
-        {
-            let renderer = data.params.renderer.read().unwrap();
-            let render_context = renderer.render_context();
-            render_context
-                .constant_data
-                .write()
-                .unwrap()
-                .set_num_bounces(data.indirect_light_num_bounces)
-                .set_frame_index(0);
-        }
         Self {
             ui_page: Self::create(data),
             listener,

@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use image::ImageFormat;
 use inox_filesystem::{convert_from_local_path, File};
 
+use inox_math::Vector2u;
 use inox_messenger::MessageHubRc;
 use inox_resources::{
     Data, DataTypeResource, Handle, Resource, ResourceEvent, ResourceId, ResourceTrait,
@@ -16,12 +17,21 @@ use crate::{TextureData, TextureFormat, TextureUsage, INVALID_INDEX};
 pub type TextureId = ResourceId;
 
 #[derive(Clone)]
+pub struct TextureBlock {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+    pub data: Vec<u8>,
+}
+
+#[derive(Clone)]
 pub struct Texture {
     id: TextureId,
     message_hub: MessageHubRc,
     shared_data: SharedDataRc,
     path: PathBuf,
-    data: Option<Vec<u8>>,
+    blocks_to_update: Vec<TextureBlock>,
     texture_index: i32,
     width: u32,
     height: u32,
@@ -36,7 +46,7 @@ impl ResourceTrait for Texture {
         self
     }
     fn is_initialized(&self) -> bool {
-        self.texture_index != INVALID_INDEX
+        self.texture_index != INVALID_INDEX && self.blocks_to_update.is_empty()
     }
 }
 
@@ -49,7 +59,7 @@ impl DataTypeResource for Texture {
             message_hub: message_hub.clone(),
             shared_data: shared_data.clone(),
             path: PathBuf::new(),
-            data: None,
+            blocks_to_update: Vec::new(),
             texture_index: INVALID_INDEX,
             width: 0,
             height: 0,
@@ -74,7 +84,13 @@ impl DataTypeResource for Texture {
         texture.format = data.format;
         texture.usage = data.usage;
         if let Some(image_data) = &data.data {
-            texture.data = Some(image_data.clone());
+            texture.blocks_to_update = vec![TextureBlock {
+                x: 0,
+                y: 0,
+                width: data.width,
+                height: data.height,
+                data: image_data.clone(),
+            }];
         }
         texture
     }
@@ -168,8 +184,10 @@ impl Texture {
     pub fn usage(&self) -> TextureUsage {
         self.usage
     }
-    pub fn image_data(&self) -> &Option<Vec<u8>> {
-        &self.data
+    pub fn blocks_to_update(&mut self) -> Vec<TextureBlock> {
+        let v = self.blocks_to_update.clone();
+        self.blocks_to_update.clear();
+        v
     }
     pub fn texture_index(&self) -> i32 {
         self.texture_index
@@ -206,6 +224,17 @@ impl Texture {
             },
         );
         shared_data.add_resource(message_hub, texture_id, texture)
+    }
+
+    pub fn update(&mut self, origin: Vector2u, size: Vector2u, data: &[u8]) {
+        self.blocks_to_update.push(TextureBlock {
+            x: origin.x,
+            y: origin.y,
+            width: size.x,
+            height: size.y,
+            data: data.to_vec(),
+        });
+        self.mark_as_dirty();
     }
 
     fn image_data_from_format(width: u32, height: u32, format: TextureFormat) -> Vec<u8> {

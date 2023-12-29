@@ -2,9 +2,11 @@ use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use inox_log::debug_log;
 
-use crate::{TextureFormat, TextureId, TextureInfo, TextureUsage};
+use crate::{TextureBlock, TextureFormat, TextureId, TextureInfo, TextureUsage};
 
 use super::{gpu_texture::GpuTexture, texture_atlas::TextureAtlas};
+
+pub const DEBUG_TEXTURES: bool = false;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub enum SamplerType {
@@ -78,17 +80,22 @@ impl TextureHandler {
         self.texture_atlas.write().unwrap().retain_mut(|atlas| {
             if atlas.remove(id) {
                 atlas.destroy();
-                debug_log!(
-                    "Removing texture atlas with format {:?}",
-                    atlas.texture_format()
-                );
+                if DEBUG_TEXTURES {
+                    debug_log!(
+                        "Removing texture atlas {} with format {:?}",
+                        atlas.texture_id(),
+                        atlas.texture_format()
+                    );
+                }
             }
             !atlas.is_empty()
         });
         self.render_targets.write().unwrap().retain_mut(|t| {
             if t.id() == id {
                 t.release();
-                debug_log!("Removing render target with format {:?}", t.format());
+                if DEBUG_TEXTURES {
+                    debug_log!("Removing render target {} with format {:?}", id, t.format());
+                }
                 return false;
             }
             true
@@ -112,12 +119,15 @@ impl TextureHandler {
             format,
             usage.into(),
         );
-        inox_log::debug_log!(
-            "Adding new render target {:?}x{:?} with format {:?}",
-            dimensions.0,
-            dimensions.1,
-            format
-        );
+        if DEBUG_TEXTURES {
+            inox_log::debug_log!(
+                "Adding new render target {} {:?}x{:?} with format {:?}",
+                id,
+                dimensions.0,
+                dimensions.1,
+                format
+            );
+        }
         self.render_targets.write().unwrap().push(texture);
         self.render_targets.read().unwrap().len() - 1
     }
@@ -143,6 +153,16 @@ impl TextureHandler {
                     dimensions,
                     image_data,
                 ) {
+                    if DEBUG_TEXTURES {
+                        inox_log::debug_log!(
+                            "Adding image {} {:?}x{:?} into atlas {} at layer {}",
+                            id,
+                            dimensions.0,
+                            dimensions.1,
+                            texture_index,
+                            texture_data.layer_index
+                        );
+                    }
                     return texture_data;
                 }
             }
@@ -151,8 +171,56 @@ impl TextureHandler {
             .write()
             .unwrap()
             .push(TextureAtlas::create_default(device, format));
-        inox_log::debug_log!("Adding new texture atlas with format {:?}", format);
+        if DEBUG_TEXTURES {
+            inox_log::debug_log!(
+                "Adding new texture atlas {} at index {} with format {:?}",
+                self.texture_atlas
+                    .read()
+                    .unwrap()
+                    .last()
+                    .unwrap()
+                    .texture_id(),
+                self.texture_atlas.read().unwrap().len() - 1,
+                format
+            );
+        }
         self.add_image_to_texture_atlas(device, encoder, id, dimensions, format, image_data)
+    }
+
+    pub fn update_texture_atlas(
+        &self,
+        device: &wgpu::Device,
+        encoder: &mut wgpu::CommandEncoder,
+        id: &TextureId,
+        texture_block: &TextureBlock,
+    ) {
+        for (texture_index, texture_atlas) in
+            self.texture_atlas.write().unwrap().iter_mut().enumerate()
+        {
+            if let Some(texture_info) = texture_atlas.texture_info(texture_index as _, id) {
+                if DEBUG_TEXTURES {
+                    inox_log::debug_log!(
+                        "Updating block ({},{}) with size {:?}x{:?} in image {} {:?}x{:?} into atlas {} at layer {}",
+                        texture_block.x,
+                        texture_block.y,
+                        texture_block.width,
+                        texture_block.height,
+                        id,
+                        texture_info.width(),
+                        texture_info.height(),
+                        texture_index,
+                        texture_info.layer_index
+                    );
+                }
+                texture_atlas.update(
+                    device,
+                    encoder,
+                    id,
+                    texture_info.layer_index as _,
+                    texture_block,
+                );
+            }
+        }
     }
 
     pub fn texture_info(&self, id: &TextureId) -> Option<TextureInfo> {

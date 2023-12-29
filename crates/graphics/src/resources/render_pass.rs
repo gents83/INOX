@@ -126,7 +126,7 @@ impl RenderPass {
                 TextureUsage::TextureBinding
                     | TextureUsage::CopySrc
                     | TextureUsage::CopyDst
-                    | TextureUsage::RenderAttachment,
+                    | TextureUsage::RenderTarget,
             );
             self.render_textures.push(texture)
         }
@@ -153,7 +153,7 @@ impl RenderPass {
                     TextureUsage::TextureBinding
                         | TextureUsage::CopySrc
                         | TextureUsage::CopyDst
-                        | TextureUsage::RenderAttachment,
+                        | TextureUsage::RenderTarget,
                 );
                 Some(texture)
             }

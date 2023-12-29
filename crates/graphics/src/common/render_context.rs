@@ -240,6 +240,23 @@ impl RenderContext {
         self.binding_data_buffer.buffers.write().unwrap()
     }
 
+    pub fn update_image(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        texture: &Resource<Texture>,
+    ) {
+        let texture_id = texture.id();
+        let texture_blocks = texture.get_mut().blocks_to_update();
+        for block in texture_blocks {
+            self.texture_handler.update_texture_atlas(
+                &self.core.device,
+                encoder,
+                texture_id,
+                &block,
+            );
+        }
+    }
+
     pub fn add_image(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
@@ -249,27 +266,40 @@ impl RenderContext {
         let width = texture.get().width();
         let height = texture.get().height();
         let format = texture.get().format();
-        let index = if let Some(image_data) = texture.get().image_data() {
-            let info = self.texture_handler.add_image_to_texture_atlas(
+        let mut blocks_to_update = texture.get_mut().blocks_to_update();
+        let image_data = blocks_to_update.remove(0);
+        let info = self.texture_handler.add_image_to_texture_atlas(
+            &self.core.device,
+            encoder,
+            texture_id,
+            (width, height),
+            format,
+            &image_data.data,
+        );
+        for block in blocks_to_update {
+            self.texture_handler.update_texture_atlas(
                 &self.core.device,
                 encoder,
                 texture_id,
-                (width, height),
-                format,
-                image_data,
+                &block,
             );
-            info.texture_index as _
-        } else {
-            let usage = texture.get().usage();
-            let index = self.texture_handler.add_render_target(
-                &self.core.device,
-                texture_id,
-                (width, height),
-                format,
-                usage,
-            );
-            index as _
-        };
-        index
+        }
+        info.texture_index as _
+    }
+
+    pub fn add_render_target(&mut self, texture: &Resource<Texture>) -> usize {
+        let texture_id = texture.id();
+        let width = texture.get().width();
+        let height = texture.get().height();
+        let format = texture.get().format();
+        let usage = texture.get().usage();
+        let index = self.texture_handler.add_render_target(
+            &self.core.device,
+            texture_id,
+            (width, height),
+            format,
+            usage,
+        );
+        index as _
     }
 }

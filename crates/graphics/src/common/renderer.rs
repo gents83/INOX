@@ -210,12 +210,8 @@ impl Renderer {
                 && texture.get().width() > 0
                 && texture.get().height() > 0
             {
-                if texture
-                    .get()
-                    .usage()
-                    .contains(TextureUsage::RenderAttachment)
-                {
-                    let uniform_index = render_context.add_image(encoder, &texture);
+                if texture.get().usage().contains(TextureUsage::RenderTarget) {
+                    let uniform_index = render_context.add_render_target(&texture);
                     texture.get_mut().set_texture_index(uniform_index);
                 } else if render_context
                     .texture_handler
@@ -241,6 +237,9 @@ impl Renderer {
                                 }
                             });
                     }
+                } else {
+                    //updating an existing texture
+                    render_context.update_image(encoder, &texture);
                 }
             }
         }
