@@ -177,7 +177,7 @@ struct Material {
     alpha_cutoff: f32,
     occlusion_strength: f32,
     flags: u32,
-    textures_index_and_coord_set: array<i32, TEXTURE_TYPE_COUNT>,
+    textures_index_and_coord_set: array<u32, TEXTURE_TYPE_COUNT>,
 };
 
 

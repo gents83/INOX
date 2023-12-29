@@ -125,13 +125,13 @@ pub struct GPUMaterial {
     pub alpha_cutoff: f32,
     pub occlusion_strength: f32,
     pub flags: u32,
-    pub textures_index_and_coord_set: [i32; TextureType::Count as _],
+    pub textures_index_and_coord_set: [u32; TextureType::Count as _],
 }
 
 impl Default for GPUMaterial {
     fn default() -> Self {
         Self {
-            textures_index_and_coord_set: [INVALID_INDEX; TextureType::Count as _],
+            textures_index_and_coord_set: [0; TextureType::Count as _],
             roughness_factor: 1.0,
             metallic_factor: 1.0,
             ior: 1.5,
