@@ -125,6 +125,9 @@ where
     pub fn allocate(&mut self, id: &ResourceId, data: &[T]) -> (bool, Range<usize>) {
         self.remove(id);
         self.collapse_free();
+        if data.is_empty() {
+            return (false, 0..0);
+        }
         let mut need_realloc = false;
         let size = data.len();
         let range;

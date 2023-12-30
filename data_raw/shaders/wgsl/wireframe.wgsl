@@ -7,14 +7,6 @@ struct DebugVertex {
     @location(1) color: u32,
 };
 
-struct DebugInstance {
-    @builtin(instance_index) index: u32,
-    @location(2) index_start: u32,
-    @location(3) index_count: u32,
-    @location(4) vertex_start: u32,
-    @location(5) index: u32,
-};
-
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) color: vec4<f32>,
@@ -33,7 +25,6 @@ var<uniform> constant_data: ConstantData;
 @vertex
 fn vs_main(
     v_in: DebugVertex,
-    i_in: DebugInstance,
 ) -> VertexOutput {
 
     var vertex_out: VertexOutput;
@@ -45,6 +36,7 @@ fn vs_main(
 
 @fragment
 fn fs_main(
+    @builtin(primitive_index) primitive_index: u32,
     v_in: VertexOutput,
 ) -> FragmentOutput {    
     var fragment_out: FragmentOutput;

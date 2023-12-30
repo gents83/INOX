@@ -180,7 +180,7 @@ macro_rules! declare_as_binding_vector {
             pub fn data(&self) -> &[$Type] {
                 &self.data
             }
-            pub fn data_mut(&mut self) -> &mut [$Type] {
+            pub fn data_mut(&mut self) -> &mut Vec<$Type> {
                 &mut self.data
             }
             pub fn set(&mut self, data: Vec<$Type>) -> &mut Self {

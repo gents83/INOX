@@ -3,9 +3,9 @@ use std::num::NonZeroU32;
 use inox_bitmask::bitmask;
 
 use crate::{
-    platform::required_gpu_features, AsBinding, BindingDataBufferRc, BufferId, RenderContext,
-    RenderCoreContextRc, SamplerType, ShaderStage, TextureHandlerRc, TextureId,
-    MAX_TEXTURE_ATLAS_COUNT,
+    platform::required_gpu_features, AsBinding, BindingDataBufferRc, BufferId,
+    RenderCommandsPerType, RenderContext, RenderCoreContextRc, SamplerType, ShaderStage,
+    TextureHandlerRc, TextureId, MAX_TEXTURE_ATLAS_COUNT,
 };
 
 const DEBUG_BINDINGS: bool = false;
@@ -129,6 +129,17 @@ impl BindingData {
             self.binding_types
                 .resize(group_index + 1, Default::default());
         }
+    }
+    pub fn bind_commands(
+        &mut self,
+        data: &mut RenderCommandsPerType,
+        label: Option<&str>,
+    ) -> &mut Self {
+        inox_profiler::scoped_profile!("binding_data::bind_commands");
+
+        data.bind(&self.binding_data_buffer, &self.render_core_context, label);
+
+        self
     }
     pub fn set_vertex_buffer<T>(
         &mut self,

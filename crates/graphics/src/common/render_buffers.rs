@@ -343,7 +343,7 @@ impl RenderBuffers {
                         v.remove_commands(mesh_id);
                     });
                     let entry = commands.entry(*mesh_flags).or_default();
-                    entry.add_commands(mesh_id, m, &self.meshlets.read().unwrap());
+                    entry.add_mesh_commands(mesh_id, m, &self.meshlets.read().unwrap());
                 }
 
                 meshes.set_dirty(true);
@@ -479,53 +479,5 @@ impl RenderBuffers {
         inox_profiler::scoped_profile!("render_buffers::remove_texture");
 
         self.textures.write().unwrap().remove(texture_id);
-    }
-
-    pub fn bind_commands(
-        &self,
-        binding_data_buffer: &BindingDataBuffer,
-        render_core_context: &RenderCoreContext,
-        force_rebind: bool,
-    ) {
-        inox_profiler::scoped_profile!("render_buffers::bind_commands");
-
-        self.commands
-            .write()
-            .unwrap()
-            .iter_mut()
-            .for_each(|(_, commands)| {
-                commands.map.iter_mut().for_each(|(_, entry)| {
-                    if entry.commands.is_empty() {
-                        return;
-                    }
-                    if force_rebind {
-                        entry.rebind();
-                    }
-                    if entry.commands.is_dirty() {
-                        let usage = wgpu::BufferUsages::STORAGE
-                            | wgpu::BufferUsages::COPY_SRC
-                            | wgpu::BufferUsages::COPY_DST
-                            | wgpu::BufferUsages::INDIRECT;
-                        binding_data_buffer.bind_buffer(
-                            Some("Commands"),
-                            &mut entry.commands,
-                            usage,
-                            render_core_context,
-                        );
-                    }
-                    if entry.counter.is_dirty() {
-                        let usage = wgpu::BufferUsages::STORAGE
-                            | wgpu::BufferUsages::COPY_SRC
-                            | wgpu::BufferUsages::COPY_DST
-                            | wgpu::BufferUsages::INDIRECT;
-                        binding_data_buffer.bind_buffer(
-                            Some("Counter"),
-                            &mut entry.counter,
-                            usage,
-                            render_core_context,
-                        );
-                    }
-                });
-            });
     }
 }

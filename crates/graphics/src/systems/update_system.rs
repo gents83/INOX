@@ -283,7 +283,6 @@ impl System for UpdateSystem {
                 );
             }
 
-            renderer.prepare();
             renderer.update_passes(command_buffer);
         }
 

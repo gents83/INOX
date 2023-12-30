@@ -268,21 +268,6 @@ impl Renderer {
         }
     }
 
-    pub fn prepare(&mut self) {
-        inox_profiler::scoped_profile!("renderer::prepare");
-
-        let mut render_context = self.render_context.as_ref().unwrap().write().unwrap();
-        let render_context: &mut RenderContext = &mut render_context;
-        let render_buffers = &mut render_context.render_buffers;
-        let render_core_context = &render_context.core;
-        let binding_data_buffer = &render_context.binding_data_buffer;
-        render_buffers.bind_commands(
-            binding_data_buffer,
-            render_core_context,
-            self.need_commands_rebind,
-        );
-        self.need_commands_rebind = false;
-    }
     pub fn update_passes(&mut self, command_buffer: CommandBuffer) {
         inox_profiler::scoped_profile!("renderer::update_passes");
 

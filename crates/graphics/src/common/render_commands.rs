@@ -1,8 +1,13 @@
 use std::collections::HashMap;
 
-use inox_resources::Buffer;
+use inox_resources::{Buffer, ResourceId};
 
-use crate::{AsBinding, DrawCommandType, DrawIndexedCommand, GPUMesh, GPUMeshlet, MeshId};
+use crate::{
+    declare_as_binding_vector, AsBinding, BindingDataBuffer, DrawCommandType, DrawIndexedCommand,
+    GPUMesh, GPUMeshlet, RenderCoreContext,
+};
+
+declare_as_binding_vector!(VecDrawIndexedCommand, DrawIndexedCommand);
 
 #[derive(Default)]
 pub struct RenderCommandsPerType {
@@ -52,14 +57,57 @@ impl RenderCommands {
             self.counter.set_dirty(true);
         }
     }
-    fn remove_commands(&mut self, mesh_id: &MeshId) -> &mut Self {
-        self.commands.remove(mesh_id);
+    fn bind(
+        &mut self,
+        binding_data_buffer: &BindingDataBuffer,
+        render_core_context: &RenderCoreContext,
+        label: Option<&str>,
+    ) {
+        if self.commands.is_dirty() {
+            let usage = wgpu::BufferUsages::STORAGE
+                | wgpu::BufferUsages::COPY_SRC
+                | wgpu::BufferUsages::COPY_DST
+                | wgpu::BufferUsages::INDIRECT;
+            binding_data_buffer.bind_buffer(
+                Some(label.unwrap_or("Commands")),
+                &mut self.commands,
+                usage,
+                render_core_context,
+            );
+        }
+        if self.counter.is_dirty() {
+            let usage = wgpu::BufferUsages::STORAGE
+                | wgpu::BufferUsages::COPY_SRC
+                | wgpu::BufferUsages::COPY_DST
+                | wgpu::BufferUsages::INDIRECT;
+            binding_data_buffer.bind_buffer(
+                Some("Counter"),
+                &mut self.counter,
+                usage,
+                render_core_context,
+            );
+        }
+    }
+    fn remove_commands(&mut self, id: &ResourceId) -> &mut Self {
+        self.commands.remove(id);
         self.rebind();
         self
     }
-    fn add_commands(
+
+    fn add_commands(&mut self, id: &ResourceId, commands: &[DrawIndexedCommand]) -> &mut Self {
+        if commands.is_empty() {
+            return self;
+        }
+        let is_changed = self.commands.allocate(id, commands).0;
+        if is_changed || self.counter.count != commands.len() as u32 {
+            self.counter.count = commands.len() as _;
+            self.counter.set_dirty(true);
+        }
+        self
+    }
+    fn add_mesh_commands(
         &mut self,
-        mesh_id: &MeshId,
+        id: &ResourceId,
         mesh: &GPUMesh,
         meshlets: &[GPUMeshlet],
         draw_command_type: DrawCommandType,
@@ -108,37 +156,48 @@ impl RenderCommands {
             }
             _ => {}
         }
-        let is_changed = self.commands.allocate(mesh_id, commands.as_slice()).0;
-        let count = self.commands.item_count() as _;
-        if is_changed || self.counter.count != count {
-            self.counter.count = count;
-            self.counter.set_dirty(true);
-        }
-        self
+        self.add_commands(id, commands.as_slice())
     }
 }
 
 impl RenderCommandsPerType {
-    pub fn remove_commands(&mut self, mesh_id: &MeshId) -> &mut Self {
+    pub fn bind(
+        &mut self,
+        binding_data_buffer: &BindingDataBuffer,
+        render_core_context: &RenderCoreContext,
+        label: Option<&str>,
+    ) -> &Self {
+        if let Some(entry) = self.map.get_mut(&DrawCommandType::PerMeshlet) {
+            entry.bind(binding_data_buffer, render_core_context, label);
+        }
+        self
+    }
+    pub fn remove_commands(&mut self, id: &ResourceId) -> &mut Self {
         self.map.iter_mut().for_each(|(_, entry)| {
-            entry.remove_commands(mesh_id);
+            entry.remove_commands(id);
         });
         self
     }
-    pub fn add_commands<const MAX_COUNT: usize>(
+    pub fn add_commands(&mut self, id: &ResourceId, commands: &[DrawIndexedCommand]) -> &mut Self {
+        let entry = self.map.entry(DrawCommandType::PerMeshlet).or_default();
+        entry.remove_commands(id);
+        entry.add_commands(id, commands);
+        self
+    }
+    pub fn add_mesh_commands<const MAX_COUNT: usize>(
         &mut self,
-        mesh_id: &MeshId,
+        id: &ResourceId,
         mesh: &GPUMesh,
         meshlets: &Buffer<GPUMeshlet, MAX_COUNT>,
     ) -> &mut Self {
-        if let Some(meshlets) = meshlets.items(mesh_id) {
+        if let Some(meshlets) = meshlets.items(id) {
             let meshlet_entry = self.map.entry(DrawCommandType::PerMeshlet).or_default();
-            meshlet_entry.remove_commands(mesh_id);
-            meshlet_entry.add_commands(mesh_id, mesh, meshlets, DrawCommandType::PerMeshlet);
+            meshlet_entry.remove_commands(id);
+            meshlet_entry.add_mesh_commands(id, mesh, meshlets, DrawCommandType::PerMeshlet);
 
             let triangle_entry = self.map.entry(DrawCommandType::PerTriangle).or_default();
-            triangle_entry.remove_commands(mesh_id);
-            triangle_entry.add_commands(mesh_id, mesh, meshlets, DrawCommandType::PerTriangle);
+            triangle_entry.remove_commands(id);
+            triangle_entry.add_mesh_commands(id, mesh, meshlets, DrawCommandType::PerTriangle);
         }
 
         self
