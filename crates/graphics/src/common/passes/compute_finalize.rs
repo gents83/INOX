@@ -22,6 +22,7 @@ pub struct ComputeFinalizePass {
     visibility_texture: TextureId,
     radiance_texture: TextureId,
     depth_texture: TextureId,
+    debug_data_texture: TextureId,
 }
 unsafe impl Send for ComputeFinalizePass {}
 unsafe impl Sync for ComputeFinalizePass {}
@@ -66,6 +67,7 @@ impl Pass for ComputeFinalizePass {
             visibility_texture: INVALID_UID,
             radiance_texture: INVALID_UID,
             depth_texture: INVALID_UID,
+            debug_data_texture: INVALID_UID,
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -121,6 +123,15 @@ impl Pass for ComputeFinalizePass {
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
+            )
+            .add_texture(
+                &self.debug_data_texture,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 5,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Read | BindingFlags::Storage,
+                },
             );
 
         let mut pass = self.compute_pass.get_mut();
@@ -172,6 +183,10 @@ impl ComputeFinalizePass {
     }
     pub fn set_depth_texture(&mut self, texture_id: &TextureId) -> &mut Self {
         self.depth_texture = *texture_id;
+        self
+    }
+    pub fn set_debug_data_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.debug_data_texture = *texture_id;
         self
     }
     pub fn set_finalize_texture(

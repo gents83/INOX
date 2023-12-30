@@ -29,6 +29,8 @@ var<storage, read> bhv: BHV;
 var radiance_texture: texture_storage_2d<rgba32float, read_write>;
 @group(1) @binding(4)
 var ray_texture: texture_storage_2d<rgba32float, read>;
+@group(1) @binding(5)
+var debug_data_texture: texture_storage_2d<r32float, read_write>;
 
 #import "texture_utils.inc"
 #import "matrix_utils.inc"

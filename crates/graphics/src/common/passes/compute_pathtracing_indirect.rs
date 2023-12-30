@@ -30,7 +30,8 @@ pub struct ComputePathTracingIndirectPass {
     materials: MaterialsBuffer,
     lights: LightsBuffer,
     radiance_texture: TextureId,
-    ray_texture: TextureId,
+    rays_data_texture: TextureId,
+    debug_data_texture: TextureId,
     dimensions: (u32, u32),
 }
 unsafe impl Send for ComputePathTracingIndirectPass {}
@@ -82,7 +83,8 @@ impl Pass for ComputePathTracingIndirectPass {
             lights: render_context.render_buffers.lights.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_INDIRECT_NAME),
             radiance_texture: INVALID_UID,
-            ray_texture: INVALID_UID,
+            rays_data_texture: INVALID_UID,
+            debug_data_texture: INVALID_UID,
             dimensions: (0, 0),
         }
     }
@@ -214,12 +216,21 @@ impl Pass for ComputePathTracingIndirectPass {
                 },
             )
             .add_texture(
-                &self.ray_texture,
+                &self.rays_data_texture,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 4,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Read | BindingFlags::Storage,
+                },
+            )
+            .add_texture(
+                &self.debug_data_texture,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 5,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
             );
 
@@ -280,7 +291,11 @@ impl Pass for ComputePathTracingIndirectPass {
 
 impl ComputePathTracingIndirectPass {
     pub fn set_ray_texture(&mut self, texture_id: &TextureId) -> &mut Self {
-        self.ray_texture = *texture_id;
+        self.rays_data_texture = *texture_id;
+        self
+    }
+    pub fn set_debug_data_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.debug_data_texture = *texture_id;
         self
     }
     pub fn set_radiance_texture(

@@ -230,6 +230,13 @@ impl Viewer {
         let culling_pass = CullingPass::create(context, &renderer.render_context());
         renderer.add_pass(culling_pass, is_enabled);
     }
+    fn create_visibility_pass(context: &ContextRc, renderer: &mut Renderer) {
+        let visibility_pass = VisibilityBufferPass::create(context, &renderer.render_context());
+        visibility_pass
+            .add_render_target(renderer.render_target(RenderTargetType::Visibility as usize))
+            .add_depth_target(renderer.render_target(RenderTargetType::Depth as usize));
+        renderer.add_pass(visibility_pass, true);
+    }
     fn create_compute_pathtracing_direct_pass(context: &ContextRc, renderer: &mut Renderer) {
         let mut compute_pathtracing_direct_pass =
             ComputePathTracingDirectPass::create(context, &renderer.render_context());
@@ -249,15 +256,32 @@ impl Viewer {
         let radiance_texture = renderer.render_target(RenderTargetType::Radiance as usize);
         compute_pathtracing_indirect_pass
             .set_radiance_texture(radiance_texture.id(), radiance_texture.get().dimensions())
-            .set_ray_texture(renderer.render_target_id(RenderTargetType::RaysData as usize));
+            .set_ray_texture(renderer.render_target_id(RenderTargetType::RaysData as usize))
+            .set_debug_data_texture(
+                renderer.render_target_id(RenderTargetType::DebugData as usize),
+            );
         renderer.add_pass(compute_pathtracing_indirect_pass, true);
     }
-    fn create_visibility_pass(context: &ContextRc, renderer: &mut Renderer) {
-        let visibility_pass = VisibilityBufferPass::create(context, &renderer.render_context());
-        visibility_pass
-            .add_render_target(renderer.render_target(RenderTargetType::Visibility as usize))
-            .add_depth_target(renderer.render_target(RenderTargetType::Depth as usize));
-        renderer.add_pass(visibility_pass, true);
+    fn create_compute_finalize_pass(context: &ContextRc, renderer: &mut Renderer) {
+        let mut compute_finalize_pass =
+            ComputeFinalizePass::create(context, &renderer.render_context());
+        let finalize_texture = renderer.render_target(RenderTargetType::Finalize as usize);
+        compute_finalize_pass
+            .set_finalize_texture(finalize_texture.id(), finalize_texture.get().dimensions())
+            .set_visibility_texture(
+                renderer.render_target_id(RenderTargetType::Visibility as usize),
+            )
+            .set_radiance_texture(renderer.render_target_id(RenderTargetType::Radiance as usize))
+            .set_depth_texture(renderer.render_target_id(RenderTargetType::Depth as usize))
+            .set_debug_data_texture(
+                renderer.render_target_id(RenderTargetType::DebugData as usize),
+            );
+        renderer.add_pass(compute_finalize_pass, true);
+    }
+    fn create_blit_pass(context: &ContextRc, renderer: &mut Renderer) {
+        let mut blit_pass = BlitPass::create(context, &renderer.render_context());
+        blit_pass.set_source(renderer.render_target_id(RenderTargetType::Finalize as usize));
+        renderer.add_pass(blit_pass, true);
     }
     fn create_wireframe_pass(context: &ContextRc, renderer: &mut Renderer, is_enabled: bool) {
         if !is_enabled {
@@ -282,23 +306,5 @@ impl Viewer {
             }
         }*/
         renderer.add_pass(ui_pass, is_enabled);
-    }
-    fn create_compute_finalize_pass(context: &ContextRc, renderer: &mut Renderer) {
-        let mut compute_finalize_pass =
-            ComputeFinalizePass::create(context, &renderer.render_context());
-        let finalize_texture = renderer.render_target(RenderTargetType::Finalize as usize);
-        compute_finalize_pass
-            .set_finalize_texture(finalize_texture.id(), finalize_texture.get().dimensions())
-            .set_visibility_texture(
-                renderer.render_target_id(RenderTargetType::Visibility as usize),
-            )
-            .set_radiance_texture(renderer.render_target_id(RenderTargetType::Radiance as usize))
-            .set_depth_texture(renderer.render_target_id(RenderTargetType::Depth as usize));
-        renderer.add_pass(compute_finalize_pass, true);
-    }
-    fn create_blit_pass(context: &ContextRc, renderer: &mut Renderer) {
-        let mut blit_pass = BlitPass::create(context, &renderer.render_context());
-        blit_pass.set_source(renderer.render_target_id(RenderTargetType::Finalize as usize));
-        renderer.add_pass(blit_pass, true);
     }
 }

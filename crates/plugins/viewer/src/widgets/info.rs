@@ -5,8 +5,9 @@ use inox_graphics::{
     CullingEvent, DrawEvent, Light, Mesh, MeshFlags, MeshId, RendererRw,
     CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
-    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS, CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER,
-    CONSTANT_DATA_FLAGS_NONE, CONSTANT_DATA_FLAGS_USE_IBL,
+    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS, CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE,
+    CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER, CONSTANT_DATA_FLAGS_NONE,
+    CONSTANT_DATA_FLAGS_USE_IBL,
 };
 use inox_math::{
     compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle, Quat, VecBase, Vector2,
@@ -75,6 +76,7 @@ enum VisualizationDebug {
     ConeAxis = CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS as _,
     VisibilityBuffer = CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER as _,
     DepthBuffer = CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER as _,
+    PathTrace = CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE as _,
 }
 
 #[derive(Clone)]
@@ -595,6 +597,13 @@ impl Info {
                                     is_changed |= ui
                                         .selectable_value(
                                             &mut data.visualization_debug,
+                                            VisualizationDebug::PathTrace,
+                                            "PathTrace",
+                                        )
+                                        .changed();
+                                    is_changed |= ui
+                                        .selectable_value(
+                                            &mut data.visualization_debug,
                                             VisualizationDebug::Color,
                                             "Color",
                                         )
@@ -669,6 +678,13 @@ impl Info {
                                                 .write()
                                                 .unwrap()
                                                 .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER);
+                                        }
+                                        VisualizationDebug::PathTrace => {
+                                            render_context
+                                                .constant_data
+                                                .write()
+                                                .unwrap()
+                                                .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE);
                                         }
                                         VisualizationDebug::None => {}
                                     }

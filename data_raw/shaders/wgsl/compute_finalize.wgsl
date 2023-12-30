@@ -11,6 +11,8 @@ var visibility_texture: texture_2d<f32>;
 var radiance_texture: texture_2d<f32>;
 @group(0) @binding(4)
 var depth_texture: texture_depth_2d;
+@group(0) @binding(5)
+var debug_data_texture: texture_storage_2d<r32float, read>;
 
 #import "debug_utils.inc"
 
