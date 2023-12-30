@@ -3,10 +3,9 @@ use std::path::PathBuf;
 use inox_core::ContextRc;
 use inox_graphics::{
     declare_as_binding_vector, AsBinding, BindingData, BindingInfo, CommandBuffer, ConstantDataRw,
-    DrawCommandType, GpuBuffer, MeshFlags, OutputRenderPass, Pass, RenderContext,
-    RenderCoreContext, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType,
-    ShaderStage, StoreOperation, TextureView, TexturesBuffer, VertexBufferLayoutBuilder,
-    VertexFormat,
+    DrawCommandType, GpuBuffer, LoadOperation, MeshFlags, Pass, RenderContext, RenderCoreContext,
+    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType, ShaderStage,
+    StoreOperation, TextureView, TexturesBuffer, VertexBufferLayoutBuilder, VertexFormat,
 };
 use inox_messenger::Listener;
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
@@ -116,6 +115,7 @@ impl Pass for UIPass {
     {
         let data = RenderPassData {
             name: UI_PASS_NAME.to_string(),
+            load_color: LoadOperation::Load,
             store_color: StoreOperation::Store,
             render_target: RenderTarget::Screen,
             pipeline: PathBuf::from(UI_PIPELINE),
@@ -272,11 +272,6 @@ impl Pass for UIPass {
     }
 }
 
-impl OutputRenderPass for UIPass {
-    fn render_pass(&self) -> &Resource<RenderPass> {
-        &self.render_pass
-    }
-}
 impl UIPass {
     fn process_messages(&mut self) {
         self.listener

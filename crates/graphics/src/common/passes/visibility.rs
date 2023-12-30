@@ -2,9 +2,9 @@ use std::path::PathBuf;
 
 use crate::{
     BindingData, BindingInfo, CommandBuffer, CommandsBuffer, ConstantDataRw, DrawCommandType,
-    GPURuntimeVertexData, IndicesBuffer, MeshFlags, OutputRenderPass, Pass, RenderContext,
-    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, RuntimeVerticesBuffer,
-    ShaderStage, StoreOperation, TextureView,
+    GPURuntimeVertexData, IndicesBuffer, MeshFlags, Pass, RenderContext, RenderPass,
+    RenderPassBeginData, RenderPassData, RenderTarget, RuntimeVerticesBuffer, ShaderStage,
+    StoreOperation, Texture, TextureView,
 };
 
 use inox_core::ContextRc;
@@ -142,8 +142,13 @@ impl Pass for VisibilityBufferPass {
     }
 }
 
-impl OutputRenderPass for VisibilityBufferPass {
-    fn render_pass(&self) -> &Resource<RenderPass> {
-        &self.render_pass
+impl VisibilityBufferPass {
+    pub fn add_render_target(&self, texture: &Resource<Texture>) -> &Self {
+        self.render_pass.get_mut().add_render_target(texture);
+        self
+    }
+    pub fn add_depth_target(&self, texture: &Resource<Texture>) -> &Self {
+        self.render_pass.get_mut().add_depth_target(texture);
+        self
     }
 }

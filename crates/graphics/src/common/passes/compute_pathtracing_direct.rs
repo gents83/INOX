@@ -3,13 +3,12 @@ use std::path::PathBuf;
 use crate::{
     BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
     ConstantDataRw, CullingResults, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer,
-    MeshFlags, MeshesBuffer, MeshletsBuffer, OutputPass, Pass, RenderContext,
-    RuntimeVerticesBuffer, SamplerType, ShaderStage, Texture, TextureFormat, TextureId,
-    TextureUsage, TextureView, TexturesBuffer, VertexAttributesBuffer,
+    MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RuntimeVerticesBuffer,
+    SamplerType, ShaderStage, TextureId, TextureView, TexturesBuffer, VertexAttributesBuffer,
 };
 
 use inox_core::ContextRc;
-use inox_resources::{DataTypeResource, Handle, Resource};
+use inox_resources::{DataTypeResource, Resource};
 use inox_uid::{generate_random_uid, INVALID_UID};
 
 pub const COMPUTE_PATHTRACING_DIRECT_PIPELINE: &str =
@@ -17,12 +16,9 @@ pub const COMPUTE_PATHTRACING_DIRECT_PIPELINE: &str =
 pub const COMPUTE_PATHTRACING_DIRECT_NAME: &str = "ComputePathTracingDirectPass";
 
 pub struct ComputePathTracingDirectPass {
-    context: ContextRc,
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    radiance_render_target: Handle<Texture>,
-    rays_render_target: Handle<Texture>,
     meshes: MeshesBuffer,
     meshlets: MeshletsBuffer,
     culling_result: CullingResults,
@@ -35,6 +31,9 @@ pub struct ComputePathTracingDirectPass {
     lights: LightsBuffer,
     visibility_texture: TextureId,
     depth_texture: TextureId,
+    radiance_texture: TextureId,
+    rays_data_texture: TextureId,
+    dimensions: (u32, u32),
 }
 unsafe impl Send for ComputePathTracingDirectPass {}
 unsafe impl Sync for ComputePathTracingDirectPass {}
@@ -65,7 +64,6 @@ impl Pass for ComputePathTracingDirectPass {
         };
 
         Self {
-            context: context.clone(),
             compute_pass: ComputePass::new_resource(
                 context.shared_data(),
                 context.message_hub(),
@@ -85,17 +83,18 @@ impl Pass for ComputePathTracingDirectPass {
             materials: render_context.render_buffers.materials.clone(),
             lights: render_context.render_buffers.lights.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_DIRECT_NAME),
-            radiance_render_target: None,
-            rays_render_target: None,
+            radiance_texture: INVALID_UID,
+            rays_data_texture: INVALID_UID,
             visibility_texture: INVALID_UID,
             depth_texture: INVALID_UID,
+            dimensions: (0, 0),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("pathtracing_direct_pass::init");
 
-        if self.radiance_render_target.is_none()
-            || self.rays_render_target.is_none()
+        if self.radiance_texture.is_nil()
+            || self.rays_data_texture.is_nil()
             || self.meshlets.read().unwrap().is_empty()
         {
             return;
@@ -213,7 +212,7 @@ impl Pass for ComputePathTracingDirectPass {
                 },
             )
             .add_texture(
-                self.radiance_render_target.as_ref().unwrap().id(),
+                &self.radiance_texture,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 3,
@@ -222,7 +221,7 @@ impl Pass for ComputePathTracingDirectPass {
                 },
             )
             .add_texture(
-                self.rays_render_target.as_ref().unwrap().id(),
+                &self.rays_data_texture,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 4,
@@ -276,7 +275,7 @@ impl Pass for ComputePathTracingDirectPass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        if self.radiance_render_target.is_none() || self.meshlets.read().unwrap().is_empty() {
+        if self.radiance_texture.is_nil() || self.meshlets.read().unwrap().is_empty() {
             return;
         }
 
@@ -286,17 +285,11 @@ impl Pass for ComputePathTracingDirectPass {
 
         let x_pixels_managed_in_shader = 16;
         let y_pixels_managed_in_shader = 16;
-        let dimensions = self
-            .radiance_render_target
-            .as_ref()
-            .unwrap()
-            .get()
-            .dimensions();
         let x = (x_pixels_managed_in_shader
-            * ((dimensions.0 + x_pixels_managed_in_shader - 1) / x_pixels_managed_in_shader))
+            * ((self.dimensions.0 + x_pixels_managed_in_shader - 1) / x_pixels_managed_in_shader))
             / x_pixels_managed_in_shader;
         let y = (y_pixels_managed_in_shader
-            * ((dimensions.1 + y_pixels_managed_in_shader - 1) / y_pixels_managed_in_shader))
+            * ((self.dimensions.1 + y_pixels_managed_in_shader - 1) / y_pixels_managed_in_shader))
             / y_pixels_managed_in_shader;
 
         pass.dispatch(
@@ -310,21 +303,6 @@ impl Pass for ComputePathTracingDirectPass {
     }
 }
 
-impl OutputPass for ComputePathTracingDirectPass {
-    fn render_targets_id(&self) -> Option<Vec<TextureId>> {
-        Some(
-            [
-                *self.radiance_render_target.as_ref().unwrap().id(),
-                *self.rays_render_target.as_ref().unwrap().id(),
-            ]
-            .to_vec(),
-        )
-    }
-    fn depth_target_id(&self) -> Option<TextureId> {
-        None
-    }
-}
-
 impl ComputePathTracingDirectPass {
     pub fn set_visibility_texture(&mut self, texture_id: &TextureId) -> &mut Self {
         self.visibility_texture = *texture_id;
@@ -334,43 +312,17 @@ impl ComputePathTracingDirectPass {
         self.depth_texture = *texture_id;
         self
     }
-    pub fn add_radiance_render_target_with_resolution(
+    pub fn set_radiance_texture(
         &mut self,
-        width: u32,
-        height: u32,
-        render_format: TextureFormat,
+        texture_id: &TextureId,
+        dimensions: (u32, u32),
     ) -> &mut Self {
-        self.radiance_render_target = Some(Texture::create_from_format(
-            self.context.shared_data(),
-            self.context.message_hub(),
-            width,
-            height,
-            render_format,
-            TextureUsage::TextureBinding
-                | TextureUsage::CopySrc
-                | TextureUsage::CopyDst
-                | TextureUsage::RenderTarget
-                | TextureUsage::StorageBinding,
-        ));
+        self.radiance_texture = *texture_id;
+        self.dimensions = dimensions;
         self
     }
-    pub fn add_ray_render_target_with_resolution(
-        &mut self,
-        width: u32,
-        height: u32,
-        render_format: TextureFormat,
-    ) -> &mut Self {
-        self.rays_render_target = Some(Texture::create_from_format(
-            self.context.shared_data(),
-            self.context.message_hub(),
-            width,
-            height,
-            render_format,
-            TextureUsage::CopySrc
-                | TextureUsage::CopyDst
-                | TextureUsage::StorageBinding
-                | TextureUsage::RenderTarget,
-        ));
+    pub fn set_rays_data_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.rays_data_texture = *texture_id;
         self
     }
 }

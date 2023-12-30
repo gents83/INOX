@@ -2,23 +2,23 @@ use std::path::PathBuf;
 
 use crate::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DrawCommandType, MeshFlags, OutputPass, Pass, RenderContext, ShaderStage,
-    Texture, TextureFormat, TextureId, TextureUsage, TextureView,
+    ConstantDataRw, DrawCommandType, MeshFlags, Pass, RenderContext, ShaderStage, TextureId,
+    TextureView,
 };
 
 use inox_core::ContextRc;
-use inox_resources::{DataTypeResource, Handle, Resource};
+use inox_resources::{DataTypeResource, Resource};
 use inox_uid::{generate_random_uid, INVALID_UID};
 
 pub const COMPUTE_FINALIZE_PIPELINE: &str = "pipelines/ComputeFinalize.compute_pipeline";
 pub const COMPUTE_FINALIZE_NAME: &str = "ComputeFinalizePass";
 
 pub struct ComputeFinalizePass {
-    context: ContextRc,
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    render_target: Handle<Texture>,
+    finalize_texture: TextureId,
+    dimensions: (u32, u32),
     visibility_texture: TextureId,
     radiance_texture: TextureId,
     depth_texture: TextureId,
@@ -52,7 +52,6 @@ impl Pass for ComputeFinalizePass {
         };
 
         Self {
-            context: context.clone(),
             compute_pass: ComputePass::new_resource(
                 context.shared_data(),
                 context.message_hub(),
@@ -62,7 +61,8 @@ impl Pass for ComputeFinalizePass {
             ),
             constant_data: render_context.constant_data.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_FINALIZE_NAME),
-            render_target: None,
+            finalize_texture: INVALID_UID,
+            dimensions: (0, 0),
             visibility_texture: INVALID_UID,
             radiance_texture: INVALID_UID,
             depth_texture: INVALID_UID,
@@ -71,7 +71,7 @@ impl Pass for ComputeFinalizePass {
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("finalize_pass::init");
 
-        if self.render_target.is_none() || self.radiance_texture.is_nil() {
+        if self.finalize_texture.is_nil() || self.radiance_texture.is_nil() {
             return;
         }
 
@@ -87,7 +87,7 @@ impl Pass for ComputeFinalizePass {
                 },
             )
             .add_texture(
-                self.render_target.as_ref().unwrap().id(),
+                &self.finalize_texture,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,
@@ -133,7 +133,7 @@ impl Pass for ComputeFinalizePass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        if self.render_target.is_none() || self.radiance_texture.is_nil() {
+        if self.finalize_texture.is_nil() || self.radiance_texture.is_nil() {
             return;
         }
 
@@ -143,12 +143,11 @@ impl Pass for ComputeFinalizePass {
 
         let x_pixels_managed_in_shader = 16;
         let y_pixels_managed_in_shader = 16;
-        let dimensions = self.render_target.as_ref().unwrap().get().dimensions();
         let x = (x_pixels_managed_in_shader
-            * ((dimensions.0 + x_pixels_managed_in_shader - 1) / x_pixels_managed_in_shader))
+            * ((self.dimensions.0 + x_pixels_managed_in_shader - 1) / x_pixels_managed_in_shader))
             / x_pixels_managed_in_shader;
         let y = (y_pixels_managed_in_shader
-            * ((dimensions.1 + y_pixels_managed_in_shader - 1) / y_pixels_managed_in_shader))
+            * ((self.dimensions.1 + y_pixels_managed_in_shader - 1) / y_pixels_managed_in_shader))
             / y_pixels_managed_in_shader;
 
         pass.dispatch(
@@ -159,15 +158,6 @@ impl Pass for ComputeFinalizePass {
             y,
             1,
         );
-    }
-}
-
-impl OutputPass for ComputeFinalizePass {
-    fn render_targets_id(&self) -> Option<Vec<TextureId>> {
-        Some([*self.render_target.as_ref().unwrap().id()].to_vec())
-    }
-    fn depth_target_id(&self) -> Option<TextureId> {
-        None
     }
 }
 
@@ -184,24 +174,13 @@ impl ComputeFinalizePass {
         self.depth_texture = *texture_id;
         self
     }
-    pub fn add_render_target_with_resolution(
+    pub fn set_finalize_texture(
         &mut self,
-        width: u32,
-        height: u32,
-        render_format: TextureFormat,
+        texture_id: &TextureId,
+        dimensions: (u32, u32),
     ) -> &mut Self {
-        self.render_target = Some(Texture::create_from_format(
-            self.context.shared_data(),
-            self.context.message_hub(),
-            width,
-            height,
-            render_format,
-            TextureUsage::TextureBinding
-                | TextureUsage::CopySrc
-                | TextureUsage::CopyDst
-                | TextureUsage::RenderTarget
-                | TextureUsage::StorageBinding,
-        ));
+        self.finalize_texture = *texture_id;
+        self.dimensions = dimensions;
         self
     }
 }

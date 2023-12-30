@@ -1,13 +1,13 @@
 use crate::{
-    CommandBuffer, ComputePipeline, Material, OutputPass, RenderContext, RenderContextRw,
-    RenderPass, RenderPipeline, Texture, TextureId, TextureUsage, TextureView,
+    CommandBuffer, ComputePipeline, Material, Pass, RenderContext, RenderContextRw, RenderPass,
+    RenderPipeline, Texture, TextureFormat, TextureId, TextureUsage, TextureView,
 };
 use inox_core::ContextRc;
 
 use inox_messenger::MessageHubRc;
 
 use inox_platform::Handle;
-use inox_resources::{ResourceTrait, SharedData, SharedDataRc};
+use inox_resources::{Resource, ResourceTrait, SharedData, SharedDataRc};
 
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
@@ -33,12 +33,12 @@ pub struct Renderer {
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
     state: RendererState,
-    passes: Vec<(Box<dyn OutputPass>, bool)>,
+    passes: Vec<(Box<dyn Pass>, bool)>,
+    render_targets: Vec<Resource<Texture>>,
     command_buffer: Option<CommandBuffer>,
     surface_texture: Option<wgpu::SurfaceTexture>,
     surface_view: Option<TextureView>,
     need_recreate: bool,
-    need_commands_rebind: bool,
 }
 pub type RendererRw = Arc<RwLock<Renderer>>;
 
@@ -64,11 +64,11 @@ impl Renderer {
             shared_data: context.shared_data().clone(),
             message_hub: context.message_hub().clone(),
             passes: Vec::new(),
+            render_targets: Vec::new(),
             command_buffer: None,
             surface_texture: None,
             surface_view: None,
             need_recreate: false,
-            need_commands_rebind: true,
         }));
 
         #[cfg(target_arch = "wasm32")]
@@ -93,6 +93,33 @@ impl Renderer {
     pub fn render_context(&self) -> RwLockReadGuard<RenderContext> {
         self.render_context.as_ref().unwrap().read().unwrap()
     }
+    pub fn add_render_target(
+        &mut self,
+        width: u32,
+        height: u32,
+        format: TextureFormat,
+        usage: TextureUsage,
+    ) -> usize {
+        let texture = Texture::create_from_format(
+            &self.shared_data,
+            &self.message_hub,
+            width,
+            height,
+            format,
+            usage,
+        );
+        self.render_targets.push(texture);
+        self.render_targets.len() - 1
+    }
+    pub fn render_target(&self, index: usize) -> &Resource<Texture> {
+        &self.render_targets[index]
+    }
+    pub fn num_render_targets(&self) -> usize {
+        self.render_targets.len()
+    }
+    pub fn render_target_id(&self, index: usize) -> &TextureId {
+        self.render_targets[index].id()
+    }
     pub fn num_passes(&self) -> usize {
         self.passes.len()
     }
@@ -107,16 +134,15 @@ impl Renderer {
             if v.1 != is_enabled {
                 v.1 = is_enabled;
                 self.need_recreate = true;
-                self.need_commands_rebind = true;
             }
         }
     }
-    pub fn pass_at(&self, index: usize) -> Option<&dyn OutputPass> {
+    pub fn pass_at(&self, index: usize) -> Option<&dyn Pass> {
         self.passes.get(index).map(|v| v.0.as_ref())
     }
     pub fn pass<T>(&self) -> Option<&T>
     where
-        T: OutputPass,
+        T: Pass,
     {
         if let Some(p) = self
             .passes
@@ -129,7 +155,7 @@ impl Renderer {
     }
     pub fn pass_mut<T>(&mut self) -> Option<&mut T>
     where
-        T: OutputPass,
+        T: Pass,
     {
         if let Some(p) = self
             .passes
@@ -141,7 +167,7 @@ impl Renderer {
         None
     }
 
-    pub fn add_pass(&mut self, pass: impl OutputPass, is_enabled: bool) -> &mut Self {
+    pub fn add_pass(&mut self, pass: impl Pass, is_enabled: bool) -> &mut Self {
         self.passes.push((Box::new(pass), is_enabled));
         self
     }

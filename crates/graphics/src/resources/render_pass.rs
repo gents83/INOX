@@ -88,8 +88,8 @@ impl DataTypeResource for RenderPass {
             render_textures: Vec::new(),
             depth_texture: None,
         };
-        pass.add_render_target(data.render_target)
-            .add_depth_target(data.depth_target)
+        pass.create_render_target(data.render_target)
+            .create_depth_target(data.depth_target)
             .set_pipeline(&data.pipeline);
         pass
     }
@@ -110,7 +110,7 @@ impl RenderPass {
         };
         self
     }
-    pub fn add_render_target(&mut self, render_target: RenderTarget) -> &mut Self {
+    pub fn create_render_target(&mut self, render_target: RenderTarget) -> &mut Self {
         if let RenderTarget::Texture {
             width,
             height,
@@ -133,11 +133,11 @@ impl RenderPass {
 
         self
     }
-    pub fn add_render_target_from_texture(&mut self, texture: &Resource<Texture>) -> &mut Self {
+    pub fn add_render_target(&mut self, texture: &Resource<Texture>) -> &mut Self {
         self.render_textures.push(texture.clone());
         self
     }
-    pub fn add_depth_target(&mut self, render_target: RenderTarget) -> &mut Self {
+    pub fn create_depth_target(&mut self, render_target: RenderTarget) -> &mut Self {
         self.depth_texture = match render_target {
             RenderTarget::Texture {
                 width,
@@ -161,7 +161,7 @@ impl RenderPass {
         };
         self
     }
-    pub fn add_depth_target_from_texture(&mut self, texture: &Resource<Texture>) -> &mut Self {
+    pub fn add_depth_target(&mut self, texture: &Resource<Texture>) -> &mut Self {
         self.depth_texture = Some(texture.clone());
         self
     }

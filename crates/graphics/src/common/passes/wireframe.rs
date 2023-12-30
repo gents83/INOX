@@ -4,9 +4,9 @@ use crate::{
     create_arrow, create_circumference, create_colored_quad, create_line, create_sphere,
     declare_as_binding_vector, AsBinding, BindingData, BindingInfo, CommandBuffer, CommandsBuffer,
     ConstantDataRw, DrawCommandType, DrawEvent, DrawIndexedCommand, LoadOperation, MeshData,
-    MeshFlags, OutputRenderPass, Pass, RenderContext, RenderPass, RenderPassBeginData,
-    RenderPassData, RenderTarget, ShaderStage, StoreOperation, TextureView, VecDrawIndexedCommand,
-    VertexBufferLayoutBuilder, VertexFormat, View,
+    MeshFlags, Pass, RenderContext, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
+    ShaderStage, StoreOperation, TextureView, VecDrawIndexedCommand, VertexBufferLayoutBuilder,
+    VertexFormat, View,
 };
 
 use inox_core::ContextRc;
@@ -175,12 +175,6 @@ impl Pass for WireframePass {
             );
             pass.indirect_indexed_draw(render_context, &buffers, draw_commands_type, render_pass);
         }
-    }
-}
-
-impl OutputRenderPass for WireframePass {
-    fn render_pass(&self) -> &Resource<RenderPass> {
-        &self.render_pass
     }
 }
 

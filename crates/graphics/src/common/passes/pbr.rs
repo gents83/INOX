@@ -2,10 +2,10 @@ use std::path::PathBuf;
 
 use crate::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
-    IndicesBuffer, LightsBuffer, MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer,
-    OutputRenderPass, Pass, RenderContext, RenderPass, RenderPassBeginData, RenderPassData,
-    RenderTarget, RuntimeVerticesBuffer, SamplerType, ShaderStage, StoreOperation, TextureId,
-    TextureView, TexturesBuffer, VertexAttributesBuffer,
+    IndicesBuffer, LightsBuffer, MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass,
+    RenderContext, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
+    RuntimeVerticesBuffer, SamplerType, ShaderStage, StoreOperation, TextureId, TextureView,
+    TexturesBuffer, VertexAttributesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -255,12 +255,6 @@ impl Pass for PBRPass {
             );
             pass.draw(render_context, render_pass, 0..3, 0..1);
         }
-    }
-}
-
-impl OutputRenderPass for PBRPass {
-    fn render_pass(&self) -> &Resource<RenderPass> {
-        &self.render_pass
     }
 }
 

@@ -3,9 +3,8 @@ use std::path::PathBuf;
 use crate::{
     BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
     ConstantDataRw, CullingResults, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer,
-    MeshFlags, MeshesBuffer, MeshletsBuffer, OutputPass, Pass, RenderContext,
-    RuntimeVerticesBuffer, SamplerType, ShaderStage, TextureId, TextureView, TexturesBuffer,
-    VertexAttributesBuffer,
+    MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RuntimeVerticesBuffer,
+    SamplerType, ShaderStage, TextureId, TextureView, TexturesBuffer, VertexAttributesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -32,8 +31,7 @@ pub struct ComputePathTracingIndirectPass {
     lights: LightsBuffer,
     radiance_texture: TextureId,
     ray_texture: TextureId,
-    width: u32,
-    height: u32,
+    dimensions: (u32, u32),
 }
 unsafe impl Send for ComputePathTracingIndirectPass {}
 unsafe impl Sync for ComputePathTracingIndirectPass {}
@@ -85,8 +83,7 @@ impl Pass for ComputePathTracingIndirectPass {
             binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_INDIRECT_NAME),
             radiance_texture: INVALID_UID,
             ray_texture: INVALID_UID,
-            width: 0,
-            height: 0,
+            dimensions: (0, 0),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -264,10 +261,10 @@ impl Pass for ComputePathTracingIndirectPass {
         let x_pixels_managed_in_shader = 16;
         let y_pixels_managed_in_shader = 16;
         let x = (x_pixels_managed_in_shader
-            * ((self.width + x_pixels_managed_in_shader - 1) / x_pixels_managed_in_shader))
+            * ((self.dimensions.0 + x_pixels_managed_in_shader - 1) / x_pixels_managed_in_shader))
             / x_pixels_managed_in_shader;
         let y = (y_pixels_managed_in_shader
-            * ((self.height + y_pixels_managed_in_shader - 1) / y_pixels_managed_in_shader))
+            * ((self.dimensions.1 + y_pixels_managed_in_shader - 1) / y_pixels_managed_in_shader))
             / y_pixels_managed_in_shader;
 
         pass.dispatch(
@@ -281,15 +278,6 @@ impl Pass for ComputePathTracingIndirectPass {
     }
 }
 
-impl OutputPass for ComputePathTracingIndirectPass {
-    fn render_targets_id(&self) -> Option<Vec<TextureId>> {
-        Some([self.radiance_texture].to_vec())
-    }
-    fn depth_target_id(&self) -> Option<TextureId> {
-        None
-    }
-}
-
 impl ComputePathTracingIndirectPass {
     pub fn set_ray_texture(&mut self, texture_id: &TextureId) -> &mut Self {
         self.ray_texture = *texture_id;
@@ -298,12 +286,10 @@ impl ComputePathTracingIndirectPass {
     pub fn set_radiance_texture(
         &mut self,
         texture_id: &TextureId,
-        width: u32,
-        height: u32,
+        dimensions: (u32, u32),
     ) -> &mut Self {
         self.radiance_texture = *texture_id;
-        self.width = width;
-        self.height = height;
+        self.dimensions = dimensions;
         self
     }
 }

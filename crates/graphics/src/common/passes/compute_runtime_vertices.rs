@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use crate::{
     BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DrawCommandType, MeshFlags, MeshesBuffer, OutputPass, Pass, RenderContext,
-    RuntimeVerticesBuffer, ShaderStage, TextureId, TextureView, VertexPositionsBuffer,
+    ConstantDataRw, DrawCommandType, MeshFlags, MeshesBuffer, Pass, RenderContext,
+    RuntimeVerticesBuffer, ShaderStage, TextureView, VertexPositionsBuffer,
 };
 
 use inox_core::ContextRc;
@@ -152,14 +152,5 @@ impl Pass for ComputeRuntimeVerticesPass {
             1,
             1,
         );
-    }
-}
-
-impl OutputPass for ComputeRuntimeVerticesPass {
-    fn render_targets_id(&self) -> Option<Vec<TextureId>> {
-        None
-    }
-    fn depth_target_id(&self) -> Option<TextureId> {
-        None
     }
 }
