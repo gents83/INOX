@@ -46,7 +46,6 @@ pub struct WireframePass {
     constant_data: ConstantDataRw,
     vertices: VecDebugVertex,
     indices: VecDebugIndex,
-    commands: VecDrawIndexedCommand,
     commands_buffers: CommandsBuffer,
     listener: Listener,
 }
@@ -101,7 +100,6 @@ impl Pass for WireframePass {
             constant_data: render_context.constant_data.clone(),
             vertices: VecDebugVertex::default(),
             indices: VecDebugIndex::default(),
-            commands: VecDrawIndexedCommand::default(),
             commands_buffers: render_context.render_buffers.commands.clone(),
             listener,
             binding_data: BindingData::new(render_context, WIREFRAME_PASS_NAME),
@@ -112,10 +110,7 @@ impl Pass for WireframePass {
 
         self.process_messages();
 
-        if self.commands.data().is_empty()
-            || self.vertices.data().is_empty()
-            || self.indices.data().is_empty()
-        {
+        if self.vertices.data().is_empty() || self.indices.data().is_empty() {
             return;
         }
 
@@ -151,10 +146,7 @@ impl Pass for WireframePass {
     ) {
         inox_profiler::scoped_profile!("wireframe_pass::update");
 
-        if self.commands.data().is_empty()
-            || self.vertices.data().is_empty()
-            || self.indices.data().is_empty()
-        {
+        if self.vertices.data().is_empty() || self.indices.data().is_empty() {
             return;
         }
 
@@ -233,11 +225,11 @@ impl WireframePass {
         if !self.vertices.data.is_empty() {
             self.indices.set_dirty(true);
             self.vertices.set_dirty(true);
-            self.commands.set_dirty(true);
         }
         self.vertices.data_mut().clear();
-        self.commands.data_mut().clear();
         self.indices.data_mut().clear();
+
+        let mut new_instances = VecDrawIndexedCommand::default();
 
         self.listener
             .process_messages(|event: &DrawEvent| match *event {
@@ -246,7 +238,7 @@ impl WireframePass {
 
                     let mesh_data = create_line(start, end, color);
                     Self::add_mesh(
-                        &mut self.commands,
+                        &mut new_instances,
                         &mut self.vertices,
                         &mut self.indices,
                         mesh_data,
@@ -282,7 +274,7 @@ impl WireframePass {
                     );
                     mesh_data.into_iter().for_each(|mesh_data| {
                         Self::add_mesh(
-                            &mut self.commands,
+                            &mut new_instances,
                             &mut self.vertices,
                             &mut self.indices,
                             mesh_data,
@@ -295,7 +287,7 @@ impl WireframePass {
                     let mesh_data =
                         create_colored_quad([min.x, min.y, max.x, max.y].into(), z, color);
                     Self::add_mesh(
-                        &mut self.commands,
+                        &mut new_instances,
                         &mut self.vertices,
                         &mut self.indices,
                         mesh_data,
@@ -306,7 +298,7 @@ impl WireframePass {
 
                     let mesh_data = create_arrow(position, direction, color);
                     Self::add_mesh(
-                        &mut self.commands,
+                        &mut new_instances,
                         &mut self.vertices,
                         &mut self.indices,
                         mesh_data,
@@ -317,7 +309,7 @@ impl WireframePass {
 
                     let mesh_data = create_sphere(position, radius, 16, 8, color);
                     Self::add_mesh(
-                        &mut self.commands,
+                        &mut new_instances,
                         &mut self.vertices,
                         &mut self.indices,
                         mesh_data,
@@ -335,7 +327,7 @@ impl WireframePass {
                         mesh_data.aabb_max = matrix.rotate_point(mesh_data.aabb_max);
                     }
                     Self::add_mesh(
-                        &mut self.commands,
+                        &mut new_instances,
                         &mut self.vertices,
                         &mut self.indices,
                         mesh_data,
@@ -345,8 +337,7 @@ impl WireframePass {
 
         let mut command_buffers = self.commands_buffers.write().unwrap();
         let commands = command_buffers.entry(self.mesh_flags()).or_default();
-
-        commands.add_commands(&WIREFRAME_CPU_SIDE_COMMANDS_UID, self.commands.data());
+        commands.add_commands(&WIREFRAME_CPU_SIDE_COMMANDS_UID, new_instances.data());
         self.binding_data
             .bind_commands(commands, Some("Wireframe Commands"));
     }
