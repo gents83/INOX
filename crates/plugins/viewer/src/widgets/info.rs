@@ -639,8 +639,7 @@ impl Info {
                                         .constant_data
                                         .write()
                                         .unwrap()
-                                        .set_flags(CONSTANT_DATA_FLAGS_NONE)
-                                        .set_frame_index(0);
+                                        .set_flags(CONSTANT_DATA_FLAGS_NONE);
                                     match &data.visualization_debug {
                                         VisualizationDebug::UseIBL => {
                                             render_context
@@ -680,13 +679,18 @@ impl Info {
                                                 .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER);
                                         }
                                         VisualizationDebug::PathTrace => {
+                                            let mut constant_data =
+                                                render_context.constant_data.write().unwrap();
+                                            constant_data
+                                                .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE);
+                                        }
+                                        VisualizationDebug::None => {
                                             render_context
                                                 .constant_data
                                                 .write()
                                                 .unwrap()
-                                                .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE);
+                                                .set_frame_index(0);
                                         }
-                                        VisualizationDebug::None => {}
                                     }
                                 }
                             }

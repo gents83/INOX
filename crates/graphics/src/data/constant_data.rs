@@ -103,6 +103,9 @@ impl ConstantData {
         }
         self
     }
+    pub fn frame_index(&self) -> u32 {
+        self.data.frame_index
+    }
     pub fn set_num_bounces(&mut self, n: u32) -> &mut Self {
         if self.data.num_bounces != n {
             self.data.num_bounces = n;
@@ -136,7 +139,9 @@ impl ConstantData {
         self.data.screen_size = screen_size.into();
         self.data.debug_uv_coords = (debug_coords.div(screen_size)).into();
         self.data.tlas_starting_index = tlas_starting_index;
-        self.data.frame_index += 1;
+        if self.data.flags & CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE == 0 {
+            self.data.frame_index += 1;
+        }
         self.set_dirty(true);
         self.is_dirty()
     }

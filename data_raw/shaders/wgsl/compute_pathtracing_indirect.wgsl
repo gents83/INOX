@@ -61,6 +61,12 @@ fn write_vec3_on_debug_data_texture(index: u32, v: vec3<f32>) -> u32 {
 
 fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<f32>  
 {    
+    var is_pixel_to_debug = (constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE) != 0;
+    if (is_pixel_to_debug) {
+        let debug_pixel = vec2<u32>(constant_data.debug_uv_coords * vec2<f32>(dimensions));
+        is_pixel_to_debug &= debug_pixel.x == pixel.x && debug_pixel.y == pixel.y;
+    } 
+    
     let radiance_value = textureLoad(radiance_texture, pixel);
     
     let radiance_rg = unpack2x16float(u32(radiance_value.r));
@@ -71,6 +77,10 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<
 
     let visibility_id = u32(radiance_value.a);
     if (visibility_id == 0u || (visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
+        
+        if (is_pixel_to_debug) {
+            write_value_on_debug_data_texture(0u, 0.);
+        }
         return vec4<f32>(radiance, 1.);
     }  
  
@@ -82,12 +92,7 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<
 
     var seed = (pixel * dimensions) ^ vec2<u32>(constant_data.frame_index << 16u);
 
-    var is_pixel_to_debug = (constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE) != 0;
     var debug_index = 1u;
-    if (is_pixel_to_debug) {
-        let debug_pixel = vec2<u32>(constant_data.debug_uv_coords * vec2<f32>(dimensions));
-        is_pixel_to_debug &= debug_pixel.x == pixel.x && debug_pixel.y == pixel.y;
-    } 
     if (is_pixel_to_debug) {
         debug_index = write_value_on_debug_data_texture(debug_index, radiance_value.a);
         debug_index = write_vec3_on_debug_data_texture(debug_index, ray.origin);
