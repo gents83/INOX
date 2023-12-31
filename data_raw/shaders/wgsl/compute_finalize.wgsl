@@ -11,10 +11,6 @@ var visibility_texture: texture_2d<f32>;
 var radiance_texture: texture_2d<f32>;
 @group(0) @binding(4)
 var depth_texture: texture_depth_2d;
-@group(0) @binding(5)
-var debug_data_texture: texture_storage_2d<r32float, read>;
-
-#import "debug_utils.inc"
 
 const MAX_WORKGROUP_SIZE: u32 = 16u*16u;
 var<workgroup> jobs_count: atomic<u32>;
@@ -49,8 +45,6 @@ fn main(
             let weight = 1. / f32(constant_data.frame_index + 1u);
             out_color = mix(prev_value, out_color, weight);
         }
-
-        out_color = debug_color_override(out_color, source_pixel);
         
         textureStore(render_target, target_pixel, out_color);
         job_index = MAX_WORKGROUP_SIZE - atomicSub(&jobs_count, 1u);

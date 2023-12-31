@@ -5,9 +5,9 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 use inox_graphics::{
     platform::has_wireframe_support, rendering_system::RenderingSystem,
     update_system::UpdateSystem, BlitPass, ComputeFinalizePass, ComputePathTracingDirectPass,
-    ComputePathTracingIndirectPass, ComputeRuntimeVerticesPass, CullingPass, Pass, RenderPass,
-    Renderer, RendererRw, TextureFormat, TextureUsage, VisibilityBufferPass, WireframePass,
-    DEFAULT_HEIGHT, DEFAULT_WIDTH, WIREFRAME_PASS_NAME,
+    ComputePathTracingIndirectPass, ComputeRuntimeVerticesPass, CullingPass, DebugPass, Pass,
+    RenderPass, Renderer, RendererRw, TextureFormat, TextureUsage, VisibilityBufferPass,
+    WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -208,6 +208,7 @@ impl Viewer {
         Self::create_compute_finalize_pass(context, renderer);
         Self::create_blit_pass(context, renderer);
 
+        Self::create_debug_pass(context, renderer);
         Self::create_wireframe_pass(context, renderer, has_wireframe_support());
         Self::create_ui_pass(context, renderer, ADD_UI_PASS);
     }
@@ -272,16 +273,27 @@ impl Viewer {
                 renderer.render_target_id(RenderTargetType::Visibility as usize),
             )
             .set_radiance_texture(renderer.render_target_id(RenderTargetType::Radiance as usize))
-            .set_depth_texture(renderer.render_target_id(RenderTargetType::Depth as usize))
-            .set_debug_data_texture(
-                renderer.render_target_id(RenderTargetType::DebugData as usize),
-            );
+            .set_depth_texture(renderer.render_target_id(RenderTargetType::Depth as usize));
         renderer.add_pass(compute_finalize_pass, true);
     }
     fn create_blit_pass(context: &ContextRc, renderer: &mut Renderer) {
         let mut blit_pass = BlitPass::create(context, &renderer.render_context());
         blit_pass.set_source(renderer.render_target_id(RenderTargetType::Finalize as usize));
         renderer.add_pass(blit_pass, true);
+    }
+    fn create_debug_pass(context: &ContextRc, renderer: &mut Renderer) {
+        let mut debug_pass = DebugPass::create(context, &renderer.render_context());
+        debug_pass
+            .set_finalize_texture(renderer.render_target_id(RenderTargetType::Finalize as usize))
+            .set_visibility_texture(
+                renderer.render_target_id(RenderTargetType::Visibility as usize),
+            )
+            .set_radiance_texture(renderer.render_target_id(RenderTargetType::Radiance as usize))
+            .set_depth_texture(renderer.render_target_id(RenderTargetType::Depth as usize))
+            .set_debug_data_texture(
+                renderer.render_target_id(RenderTargetType::DebugData as usize),
+            );
+        renderer.add_pass(debug_pass, true);
     }
     fn create_wireframe_pass(context: &ContextRc, renderer: &mut Renderer, is_enabled: bool) {
         if !is_enabled {
