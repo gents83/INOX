@@ -14,14 +14,23 @@ struct FragmentOutput {
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
-var finalize_texture: texture_2d<f32>;
+var<storage, read> indices: Indices;
 @group(0) @binding(2)
-var visibility_texture: texture_2d<f32>;
+var<storage, read> runtime_vertices: RuntimeVertices;
 @group(0) @binding(3)
-var radiance_texture: texture_2d<f32>;
+var<storage, read> meshes: Meshes;
 @group(0) @binding(4)
+var<storage, read> meshlets: Meshlets;
+
+@group(1) @binding(0)
+var finalize_texture: texture_2d<f32>;
+@group(1) @binding(1)
+var visibility_texture: texture_2d<f32>;
+@group(1) @binding(2)
+var radiance_texture: texture_2d<f32>;
+@group(1) @binding(3)
 var depth_texture: texture_depth_2d;
-@group(0) @binding(5)
+@group(1) @binding(4)
 var debug_data_texture: texture_2d<f32>;
 
 #import "geom_utils.inc"
@@ -33,6 +42,37 @@ fn read_value_from_debug_data_texture(i: ptr<function, u32>) -> f32 {
     let v = textureLoad(debug_data_texture, vec2<u32>(index % dimensions.x, index / dimensions.x), 0);
     *i = index + 1u;
     return v.r;
+}
+
+fn draw_triangle_from_visibility(visibility_id: u32, pixel: vec2<u32>, dimensions: vec2<u32>, previous_color: vec3<f32>) -> vec3<f32>{
+    let meshlet_id = (visibility_id >> 8u) - 1u; 
+    let primitive_id = visibility_id & 255u;
+    let meshlet = &meshlets.data[meshlet_id];
+    let index_offset = (*meshlet).indices_offset + (primitive_id * 3u);
+
+    let mesh_id = u32((*meshlet).mesh_index);
+    let mesh = &meshes.data[mesh_id];
+    let position_offset = (*mesh).vertices_position_offset;
+    let attributes_offset = (*mesh).vertices_attribute_offset;
+    let vertex_layout = (*mesh).flags_and_vertices_attribute_layout;
+    let vertex_attribute_stride = vertex_layout_stride(vertex_layout);   
+    
+    let vert_indices = vec3<u32>(indices.data[index_offset], indices.data[index_offset + 1u], indices.data[index_offset + 2u]);
+    let attr_indices = vec3<u32>(attributes_offset + vert_indices.x * vertex_attribute_stride, 
+                                 attributes_offset + vert_indices.y * vertex_attribute_stride,
+                                 attributes_offset + vert_indices.z * vertex_attribute_stride);
+    
+    let p1 = runtime_vertices.data[vert_indices.x + position_offset].world_pos;
+    let p2 = runtime_vertices.data[vert_indices.y + position_offset].world_pos;
+    let p3 = runtime_vertices.data[vert_indices.z + position_offset].world_pos;
+    
+    let line_color = vec3<f32>(0., 1., 1.);
+    let line_size = 0.001;
+    var final_color = previous_color;
+    final_color = draw_line_3d(pixel, dimensions, p1, p2, previous_color, line_color, line_size);
+    final_color = draw_line_3d(pixel, dimensions, p2, p3, previous_color, line_color, line_size);
+    final_color = draw_line_3d(pixel, dimensions, p3, p1, previous_color, line_color, line_size);
+    return final_color;
 }
 
 fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>) -> vec4<f32> {
@@ -69,6 +109,8 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>) -> vec4<f32> {
         var bounce_index = 0u;
         while(debug_index < max_index) {
             let visibility_id = u32(read_value_from_debug_data_texture(&debug_index));
+            final_color = draw_triangle_from_visibility(visibility_id, pixel, dimensions, final_color);
+            
             var origin = vec3<f32>(0.);
             origin.x = read_value_from_debug_data_texture(&debug_index);
             origin.y = read_value_from_debug_data_texture(&debug_index);

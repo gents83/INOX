@@ -1,8 +1,9 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, LoadOperation,
-    MeshFlags, Pass, RenderContext, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
+    IndicesBuffer, LoadOperation, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext,
+    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, RuntimeVerticesBuffer,
     ShaderStage, StoreOperation, TextureId, TextureView,
 };
 
@@ -17,6 +18,10 @@ pub struct DebugPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
+    meshes: MeshesBuffer,
+    meshlets: MeshletsBuffer,
+    indices: IndicesBuffer,
+    runtime_vertices: RuntimeVerticesBuffer,
     finalize_texture: TextureId,
     visibility_texture: TextureId,
     radiance_texture: TextureId,
@@ -69,6 +74,10 @@ impl Pass for DebugPass {
             ),
             binding_data: BindingData::new(render_context, DEBUG_PASS_NAME),
             constant_data: render_context.constant_data.clone(),
+            meshes: render_context.render_buffers.meshes.clone(),
+            meshlets: render_context.render_buffers.meshlets.clone(),
+            indices: render_context.render_buffers.indices.clone(),
+            runtime_vertices: render_context.render_buffers.runtime_vertices.clone(),
             finalize_texture: INVALID_UID,
             debug_data_texture: INVALID_UID,
             visibility_texture: INVALID_UID,
@@ -79,7 +88,11 @@ impl Pass for DebugPass {
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("debug_pass::init");
 
-        if self.debug_data_texture.is_nil() {
+        if self.indices.read().unwrap().is_empty()
+            || self.meshes.read().unwrap().is_empty()
+            || self.meshlets.read().unwrap().is_empty()
+            || self.debug_data_texture.is_nil()
+        {
             return;
         }
 
@@ -92,21 +105,23 @@ impl Pass for DebugPass {
                 BindingInfo {
                     group_index: 0,
                     binding_index: 0,
-                    stage: ShaderStage::VertexAndFragment,
-                    ..Default::default()
-                },
-            )
-            .add_texture(
-                &self.finalize_texture,
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 1,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
             )
-            .add_texture(
-                &self.visibility_texture,
+            .add_storage_buffer(
+                &mut *self.indices.write().unwrap(),
+                Some("Indices"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 1,
+                    stage: ShaderStage::Fragment,
+                    flags: BindingFlags::Read | BindingFlags::Index,
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.runtime_vertices.write().unwrap(),
+                Some("Runtime Vertices"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,
@@ -114,8 +129,9 @@ impl Pass for DebugPass {
                     ..Default::default()
                 },
             )
-            .add_texture(
-                &self.radiance_texture,
+            .add_storage_buffer(
+                &mut *self.meshes.write().unwrap(),
+                Some("Meshes"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 3,
@@ -123,8 +139,9 @@ impl Pass for DebugPass {
                     ..Default::default()
                 },
             )
-            .add_texture(
-                &self.depth_texture,
+            .add_storage_buffer(
+                &mut *self.meshlets.write().unwrap(),
+                Some("Meshlets"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 4,
@@ -133,10 +150,46 @@ impl Pass for DebugPass {
                 },
             )
             .add_texture(
+                &self.finalize_texture,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 0,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+            )
+            .add_texture(
+                &self.visibility_texture,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 1,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+            )
+            .add_texture(
+                &self.radiance_texture,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 2,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+            )
+            .add_texture(
+                &self.depth_texture,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 3,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+            )
+            .add_texture(
                 &self.debug_data_texture,
                 BindingInfo {
-                    group_index: 0,
-                    binding_index: 5,
+                    group_index: 1,
+                    binding_index: 4,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
