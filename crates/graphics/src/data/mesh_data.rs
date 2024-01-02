@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use inox_bvh::GPUBVHNode;
 use inox_math::{
     decode_unorm, quantize_half, quantize_snorm, quantize_unorm, VecBase, Vector2, Vector3, Vector4,
 };
@@ -18,6 +19,7 @@ pub struct MeshletData {
     pub cone_center: Vector3,
     pub cone_axis: Vector3,
     pub cone_angle: f32,
+    pub triangles_bvh: Vec<GPUBVHNode>,
 }
 
 impl Default for MeshletData {
@@ -30,6 +32,7 @@ impl Default for MeshletData {
             cone_angle: 0.,
             indices_offset: 0,
             indices_count: 0,
+            triangles_bvh: Vec::default(),
         }
     }
 }
@@ -45,6 +48,7 @@ pub struct MeshData {
     pub indices: Vec<u32>,
     pub material: PathBuf,
     pub meshlets: Vec<MeshletData>,
+    pub meshlets_bvh: Vec<GPUBVHNode>,
 }
 
 impl Default for MeshData {
@@ -66,6 +70,7 @@ impl Default for MeshData {
             indices: Vec::new(),
             material: PathBuf::default(),
             meshlets: Vec::new(),
+            meshlets_bvh: Vec::new(),
         }
     }
 }

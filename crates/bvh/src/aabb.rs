@@ -1,9 +1,11 @@
 use inox_math::{VecBase, Vector3};
+use inox_serialize::{Deserialize, Serialize};
 
 pub const AXIS_COUNT: usize = 3;
 pub(crate) const INVALID_INDEX: i32 = -1;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
+#[serde(crate = "inox_serialize")]
 pub struct AABB {
     min: Vector3,
     max: Vector3,

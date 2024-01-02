@@ -17,6 +17,7 @@ use gltf::{
     Accessor, Camera, Gltf, Node, Primitive, Semantic, Texture,
 };
 
+use inox_bvh::{create_linearized_bhv, BVHTree, AABB};
 use inox_graphics::{
     LightData, LightType, MaterialData, MaterialFlags, MeshData, MeshletData, TextureType,
     VertexAttributeLayout, MAX_TEXTURE_COORDS_SETS,
@@ -414,12 +415,6 @@ impl GltfCompiler {
             for m in meshlets.iter() {
                 let bounds =
                     meshopt::compute_meshlet_bounds(m, vertex_data_adapter.as_ref().unwrap());
-                let mut min = Vector3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY);
-                let mut max = Vector3::new(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY);
-                m.vertices.iter().for_each(|i| {
-                    min = min.min(positions[*i as usize]);
-                    max = max.max(positions[*i as usize]);
-                });
                 let index_offset = new_indices.len();
                 debug_assert!(
                     m.triangles.len() % 3 == 0,
@@ -429,39 +424,74 @@ impl GltfCompiler {
                 m.triangles.iter().for_each(|v_i| {
                     new_indices.push(m.vertices[*v_i as usize]);
                 });
+                debug_assert!(
+                    new_indices.len() % 3 == 0,
+                    "new indices count {} is not divisible by 3",
+                    new_indices.len()
+                );
+                let mut triangles_aabbs = Vec::new();
+                triangles_aabbs.resize_with(m.triangles.len() / 3, AABB::empty);
+                let mut i = 0;
+                while i < m.triangles.len() {
+                    let triangle_id = i / 3;
+                    let v1 = positions[m.vertices[m.triangles[i] as usize] as usize];
+                    i += 1;
+                    let v2 = positions[m.vertices[m.triangles[i] as usize] as usize];
+                    i += 1;
+                    let v3 = positions[m.vertices[m.triangles[i] as usize] as usize];
+                    i += 1;
+                    let min = v1.min(v2).min(v3);
+                    let max = v1.max(v2).max(v3);
+                    triangles_aabbs[triangle_id] = AABB::create(min, max, triangle_id as _);
+                }
+                let bvh = BVHTree::new(&triangles_aabbs);
                 new_meshlets.push(MeshletData {
                     indices_offset: index_offset as _,
                     indices_count: m.triangles.len() as _,
-                    aabb_max: max,
-                    aabb_min: min,
+                    aabb_max: bvh.nodes()[0].max(),
+                    aabb_min: bvh.nodes()[0].min(),
                     cone_axis: bounds.cone_axis.into(),
                     cone_angle: bounds.cone_cutoff,
                     cone_center: bounds.center.into(),
+                    triangles_bvh: create_linearized_bhv(&bvh),
                 });
             }
-            debug_assert!(
-                new_indices.len() % 3 == 0,
-                "new indices count {} is not divisible by 3",
-                new_indices.len()
-            );
             mesh_data.indices = new_indices;
         } else {
-            let mut min = Vector3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY);
-            let mut max = Vector3::new(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY);
-            positions.iter().for_each(|&v| {
-                min = min.min(v);
-                max = max.max(v);
-            });
+            let mut triangles_aabbs = Vec::new();
+            triangles_aabbs.resize_with(mesh_data.indices.len() / 3, AABB::empty);
+            let mut i = 0;
+            while i < mesh_data.indices.len() {
+                let v1 = positions[mesh_data.indices[i] as usize];
+                i += 1;
+                let v2 = positions[mesh_data.indices[i] as usize];
+                i += 1;
+                let v3 = positions[mesh_data.indices[i] as usize];
+                i += 1;
+                let min = v1.min(v2).min(v3);
+                let max = v1.max(v2).max(v3);
+                triangles_aabbs[i] = AABB::create(min, max, i as _);
+            }
+            let bvh = BVHTree::new(&triangles_aabbs);
             let meshlet = MeshletData {
                 indices_offset: 0,
                 indices_count: mesh_data.indices.len() as _,
-                aabb_max: max,
-                aabb_min: min,
+                aabb_max: bvh.nodes()[0].max(),
+                aabb_min: bvh.nodes()[0].min(),
+                triangles_bvh: create_linearized_bhv(&bvh),
                 ..Default::default()
             };
             new_meshlets.push(meshlet);
         }
         mesh_data.meshlets = new_meshlets;
+
+        let mut meshlets_aabbs = Vec::new();
+        meshlets_aabbs.resize_with(mesh_data.meshlets.len(), AABB::empty);
+        mesh_data.meshlets.iter().enumerate().for_each(|(i, m)| {
+            meshlets_aabbs[i] = AABB::create(m.aabb_min, m.aabb_max, i as _);
+        });
+        let bvh = BVHTree::new(&meshlets_aabbs);
+        mesh_data.meshlets_bvh = create_linearized_bhv(&bvh);
     }
 
     fn process_mesh_data(

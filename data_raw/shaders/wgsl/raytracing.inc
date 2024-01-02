@@ -100,22 +100,10 @@ fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32, is_pixel_to_debug: boo
                 hit_type = HIT_DATA_TRIANGLE;
                 blas_sibling = node.miss;
                 meshlet_id = meshlets_offset + u32(node.reference);  
-                let index = meshlet_id / 32u;
-                let offset = meshlet_id - (index * 32u);
-                let is_meshlet_visible =  (culling_result[index] & (1u << offset)) != 0u;   
-                if(!is_meshlet_visible) {
-                    node_index = blas_sibling; 
-                    if(node_index < 0) {
-                        node_index = tlas_sibling;
-                        hit_type = HIT_DATA_TLAS;
-                        ray.origin = world_ray.origin;
-                        ray.direction = world_ray.direction;
-                    } 
-                } else {
-                    let meshlet = meshlets.data[meshlet_id];
-                    meshlet_indices_offset = meshlet.indices_offset;
-                    node_index = i32(meshlet.triangles_bhv_index); 
-                }            
+            
+                let meshlet = meshlets.data[meshlet_id];
+                meshlet_indices_offset = meshlet.indices_offset;
+                node_index = i32(meshlet.triangles_bhv_index + 1u); //We add 1 here to avoid checking same aabb 
             }
             else {  
                 hit_type = HIT_DATA_BLAS;

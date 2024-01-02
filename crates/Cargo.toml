@@ -3,7 +3,7 @@ resolver = "2"
 members = [
     "app",
     "bitmask",
-    "bhv",
+    "bvh",
     "blender",
     "commands",
     "core",

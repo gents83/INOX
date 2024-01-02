@@ -99,15 +99,6 @@ impl GPUMeshlet {
 }
 
 #[repr(C, align(16))]
-#[derive(Default, PartialEq, Clone, Copy)]
-pub struct GPUBHVNode {
-    pub min: [f32; 3],
-    pub miss: i32,
-    pub max: [f32; 3],
-    pub reference: i32,
-}
-
-#[repr(C, align(16))]
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub struct GPUMaterial {
     pub roughness_factor: f32,

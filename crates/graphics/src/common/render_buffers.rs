@@ -6,16 +6,16 @@ use std::{
     },
 };
 
-use inox_bhv::{BHVTree, AABB};
+use inox_bvh::{create_linearized_bhv, BVHTree, GPUBVHNode, AABB};
 use inox_math::{quantize_snorm, InnerSpace, Mat4Ops, Matrix4, VecBase};
 use inox_resources::{to_slice, Buffer, HashBuffer, ResourceId};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
 use crate::{
-    declare_as_binding_vector, utils::create_linearized_bhv, AsBinding, GPUBHVNode, GPUMaterial,
-    GPUMesh, GPUMeshlet, GPURay, GPURuntimeVertexData, Light, LightData, LightId, Material,
-    MaterialData, MaterialFlags, MaterialId, Mesh, MeshData, MeshFlags, MeshId,
-    RenderCommandsPerType, TextureId, TextureInfo, TextureType,
+    declare_as_binding_vector, AsBinding, GPUMaterial, GPUMesh, GPUMeshlet, GPURay,
+    GPURuntimeVertexData, Light, LightData, LightId, Material, MaterialData, MaterialFlags,
+    MaterialId, Mesh, MeshData, MeshFlags, MeshId, RenderCommandsPerType, TextureId, TextureInfo,
+    TextureType,
 };
 
 declare_as_binding_vector!(VecU32, u32);
@@ -25,7 +25,7 @@ pub type MaterialsBuffer = Arc<RwLock<HashBuffer<MaterialId, GPUMaterial, 0>>>;
 pub type CommandsBuffer = Arc<RwLock<HashMap<MeshFlags, RenderCommandsPerType>>>;
 pub type MeshesBuffer = Arc<RwLock<HashBuffer<MeshId, GPUMesh, 0>>>;
 pub type MeshletsBuffer = Arc<RwLock<Buffer<GPUMeshlet, 0>>>; //MeshId <-> [GPUMeshlet]
-pub type BHVBuffer = Arc<RwLock<Buffer<GPUBHVNode, 0>>>;
+pub type BHVBuffer = Arc<RwLock<Buffer<GPUBVHNode, 0>>>;
 pub type IndicesBuffer = Arc<RwLock<Buffer<u32, 0>>>; //MeshId <-> [u32]
 pub type VertexPositionsBuffer = Arc<RwLock<Buffer<u32, 0>>>; //MeshId <-> [u32] (10 x, 10 y, 10 z, 2 null)
 pub type VertexAttributesBuffer = Arc<RwLock<Buffer<u32, 0>>>; //MeshId <-> [u32]
@@ -70,33 +70,11 @@ impl RenderBuffers {
 
         let mut meshlets = Vec::new();
         meshlets.resize(mesh_data.meshlets.len(), GPUMeshlet::default());
-        let mut meshlets_aabbs = Vec::new();
-        meshlets_aabbs.resize_with(mesh_data.meshlets.len(), AABB::empty);
         mesh_data
             .meshlets
             .iter()
             .enumerate()
             .for_each(|(i, meshlet_data)| {
-                let mut triangles_aabbs = Vec::new();
-                triangles_aabbs.resize_with(meshlet_data.indices_count as usize / 3, AABB::empty);
-                let mut v = 0;
-                let offset = meshlet_data.indices_offset;
-                while v < meshlet_data.indices_count {
-                    let triangle_index = v / 3;
-                    let v1 = mesh_data
-                        .position(mesh_data.indices[(offset + triangle_index) as usize] as _);
-                    let v2 = mesh_data
-                        .position(mesh_data.indices[(offset + triangle_index + 1) as usize] as _);
-                    let v3 = mesh_data
-                        .position(mesh_data.indices[(offset + triangle_index + 2) as usize] as _);
-                    let min = v1.min(v2).min(v3);
-                    let max = v1.max(v2).max(v3);
-                    triangles_aabbs[triangle_index as usize] =
-                        AABB::create(min, max, triangle_index as _);
-                    v += 3;
-                }
-                let bhv = BHVTree::new(&triangles_aabbs);
-                let linearized_bhv = create_linearized_bhv(&bhv);
                 let triangle_id = generate_random_uid();
                 self.triangles_ids
                     .write()
@@ -108,7 +86,7 @@ impl RenderBuffers {
                     .bhv
                     .write()
                     .unwrap()
-                    .allocate(&triangle_id, &linearized_bhv)
+                    .allocate(&triangle_id, &meshlet_data.triangles_bvh)
                     .1;
                 let triangles_bhv_index = triangle_bhv_range.start as _;
                 self.bhv.write().unwrap().data_mut()[triangle_bhv_range]
@@ -134,20 +112,15 @@ impl RenderBuffers {
                     cone_axis_cutoff,
                 };
                 meshlets[i] = meshlet;
-                meshlets_aabbs[i] =
-                    AABB::create(meshlet_data.aabb_min, meshlet_data.aabb_max, i as _);
             });
         if meshlets.is_empty() {
             inox_log::debug_log!("No meshlet data for mesh {:?}", mesh_id);
         }
-
-        let bhv = BHVTree::new(&meshlets_aabbs);
-        let linearized_bhv = create_linearized_bhv(&bhv);
         let mesh_bhv_range = self
             .bhv
             .write()
             .unwrap()
-            .allocate(mesh_id, &linearized_bhv)
+            .allocate(mesh_id, &mesh_data.meshlets_bvh)
             .1;
         let blas_index = mesh_bhv_range.start as _;
         self.bhv.write().unwrap().data_mut()[mesh_bhv_range]
@@ -279,7 +252,7 @@ impl RenderBuffers {
                 meshes_aabbs.push(aabb);
             });
         }
-        let bhv = BHVTree::new(&meshes_aabbs);
+        let bhv = BVHTree::new(&meshes_aabbs);
         let linearized_bhv = create_linearized_bhv(&bhv);
         let mut bhv = self.bhv.write().unwrap();
         let tlas_range = bhv.allocate(&TLAS_UID, &linearized_bhv).1;

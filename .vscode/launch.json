@@ -71,8 +71,8 @@
                 "-plugin inox_common_script",
                 "-plugin inox_viewer",
                 "-load_file",
-                "models/cornell_box/cornell_box.scene"
-                //"models/craftman/craftman.scene"
+                //"models/cornell_box/cornell_box.scene"
+                "models/craftman/craftman.scene"
                 //"models/sponza/sponza.scene"
             ],
             "cwd": "${workspaceFolder}",

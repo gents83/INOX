@@ -1,5 +1,5 @@
 [package]
-name = "inox_bhv"
+name = "inox_bvh"
 build = "build.rs"
 edition.workspace = true
 version.workspace = true
@@ -13,3 +13,4 @@ crate-type = ["lib"]
 
 [dependencies]
 inox_math = { path = "../math" }
+inox_serialize = { path = "../serialize" }
