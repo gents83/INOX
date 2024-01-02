@@ -71,7 +71,7 @@ fn draw_triangle_from_visibility(visibility_id: u32, pixel: vec2<u32>, dimension
 
 fn draw_cube_from_min_max(min: vec3<f32>, max:vec3<f32>, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec3<f32> {  
     let line_color = vec3<f32>(0., 0., 1.);
-    let line_size = 0.001;
+    let line_size = 0.003;
     var color = vec3<f32>(0.);
     color += draw_line_3d(pixel, dimensions, vec3<f32>(min.x, min.y, min.z), vec3<f32>(max.x, min.y, min.z), line_color, line_size);
     color += draw_line_3d(pixel, dimensions, vec3<f32>(max.x, min.y, min.z), vec3<f32>(max.x, min.y, max.z), line_color, line_size);
@@ -115,9 +115,10 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>) -> vec4<f32> {
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE) != 0) {
         let dimensions = textureDimensions(debug_data_texture);
-        var start = vec3<f32>(0.);
+        var origin = vec3<f32>(0.);
+        var direction = vec3<f32>(0.);
         let line_color = vec3<f32>(0., 1., 0.);
-        let line_size = 0.001;
+        let line_size = 0.003;
         var bounce_index = 0u;
         var color = out_color.rgb;        
         /*
@@ -144,20 +145,19 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>) -> vec4<f32> {
             let visibility_id = u32(read_value_from_debug_data_texture(&debug_index));
             color += draw_triangle_from_visibility(visibility_id, pixel, dimensions);
             
-            var origin = vec3<f32>(0.);
+            var previous = origin;
             origin.x = read_value_from_debug_data_texture(&debug_index);
             origin.y = read_value_from_debug_data_texture(&debug_index);
             origin.z = read_value_from_debug_data_texture(&debug_index);
-            var direction = vec3<f32>(0.);
             direction.x = read_value_from_debug_data_texture(&debug_index);
             direction.y = read_value_from_debug_data_texture(&debug_index);
             direction.z = read_value_from_debug_data_texture(&debug_index);
             if (bounce_index > 0u) {
-                color += draw_line_3d(pixel, dimensions, start, origin, line_color, line_size);
+                color += draw_line_3d(pixel, dimensions, previous, origin, line_color, line_size);
             }
             bounce_index += 1u;
-            start = origin;
         }
+        color += draw_line_3d(pixel, dimensions, origin, origin + direction * 5., line_color, line_size);
         out_color = vec4<f32>(color, 1.);
     } 
     return out_color;
