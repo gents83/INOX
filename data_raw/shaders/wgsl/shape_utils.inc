@@ -12,7 +12,7 @@ fn draw_circle(uv: vec2<f32>, center: vec2<f32>, radius: f32, width: f32) -> f32
     return 1. - smoothstep(0., width, abs(radius-d));
 }
 
-fn draw_line_3d(image_pixel: vec2<u32>, image_size: vec2<u32>, start: vec3<f32>, end: vec3<f32>, previous_color: vec3<f32>, line_color: vec3<f32>, size: f32) -> vec3<f32>
+fn draw_line_3d(image_pixel: vec2<u32>, image_size: vec2<u32>, start: vec3<f32>, end: vec3<f32>, line_color: vec3<f32>, size: f32) -> vec3<f32>
 {    
     let origin = pixel_to_world(image_pixel, image_size, -1.);
     let far = pixel_to_world(image_pixel, image_size, 1.);
@@ -27,5 +27,5 @@ fn draw_line_3d(image_pixel: vec2<u32>, image_size: vec2<u32>, start: vec3<f32>,
     len = clamp(len, 0., length(end-start));
     let p = start+line_dir*len;
     let value = length(cross(p-origin, direction));
-    return mix(line_color, previous_color, 1.-size/value);
+    return mix(line_color, vec3<f32>(0.), 1.-size/value);
 }
