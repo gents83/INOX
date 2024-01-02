@@ -414,8 +414,8 @@ impl GltfCompiler {
             for m in meshlets.iter() {
                 let bounds =
                     meshopt::compute_meshlet_bounds(m, vertex_data_adapter.as_ref().unwrap());
-                let mut min = Vector3::new(f32::MAX, f32::MAX, f32::MAX);
-                let mut max = Vector3::new(-f32::MAX, -f32::MAX, -f32::MAX);
+                let mut min = Vector3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY);
+                let mut max = Vector3::new(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY);
                 m.vertices.iter().for_each(|i| {
                     min = min.min(positions[*i as usize]);
                     max = max.max(positions[*i as usize]);
@@ -446,8 +446,8 @@ impl GltfCompiler {
             );
             mesh_data.indices = new_indices;
         } else {
-            let mut min = Vector3::new(f32::MAX, f32::MAX, f32::MAX);
-            let mut max = Vector3::new(-f32::MAX, -f32::MAX, -f32::MAX);
+            let mut min = Vector3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY);
+            let mut max = Vector3::new(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY);
             positions.iter().for_each(|&v| {
                 min = min.min(v);
                 max = max.max(v);

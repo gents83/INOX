@@ -100,7 +100,7 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<
     }
     
     for(var i = 0u; i < constant_data.indirect_light_num_bounces; i++) {
-        let result = traverse_bvh(ray, constant_data.tlas_starting_index);  
+        let result = traverse_bvh(ray, constant_data.tlas_starting_index, is_pixel_to_debug, 100u);  
         if (result.visibility_id == 0u || (result.visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
             break;
         }
