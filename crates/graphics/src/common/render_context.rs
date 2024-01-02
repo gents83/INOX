@@ -152,7 +152,7 @@ impl RenderContext {
             view_formats: vec![format],
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode: wgpu::PresentMode::AutoVsync,
             alpha_mode: *capabilities.alpha_modes.first().unwrap(),
         };
 
@@ -266,14 +266,14 @@ impl RenderContext {
         let width = texture.get().width();
         let height = texture.get().height();
         let format = texture.get().format();
+        let sample_count = texture.get().sample_count();
         let mut blocks_to_update = texture.get_mut().blocks_to_update();
         let image_data = blocks_to_update.remove(0);
         let info = self.texture_handler.add_image_to_texture_atlas(
             &self.core.device,
             encoder,
             texture_id,
-            (width, height),
-            format,
+            (width, height, format, sample_count),
             &image_data.data,
         );
         for block in blocks_to_update {
@@ -293,12 +293,14 @@ impl RenderContext {
         let height = texture.get().height();
         let format = texture.get().format();
         let usage = texture.get().usage();
+        let sample_count = texture.get().sample_count();
         let index = self.texture_handler.add_render_target(
             &self.core.device,
             texture_id,
             (width, height),
             format,
             usage,
+            sample_count,
         );
         index as _
     }

@@ -24,6 +24,7 @@ pub struct TextureData {
     pub height: u32,
     pub format: TextureFormat,
     pub usage: TextureUsage,
+    pub sample_count: u32,
     pub data: Option<Vec<u8>>,
 }
 

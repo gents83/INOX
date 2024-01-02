@@ -37,6 +37,7 @@ pub struct Texture {
     height: u32,
     format: TextureFormat,
     usage: TextureUsage,
+    sample_count: u32,
     update_from_gpu: bool,
 }
 
@@ -65,6 +66,7 @@ impl DataTypeResource for Texture {
             height: 0,
             format: TextureFormat::Rgba8Unorm,
             usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
+            sample_count: 1,
             update_from_gpu: false,
         }
     }
@@ -126,6 +128,7 @@ impl SerializableResource for Texture {
                 format: TextureFormat::Rgba8Unorm,
                 data: Some(image_data.into_rgba8().to_vec()),
                 usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
+                sample_count: 1,
             });
         });
     }
@@ -184,6 +187,9 @@ impl Texture {
     pub fn usage(&self) -> TextureUsage {
         self.usage
     }
+    pub fn sample_count(&self) -> u32 {
+        self.sample_count
+    }
     pub fn blocks_to_update(&mut self) -> Vec<TextureBlock> {
         let v = self.blocks_to_update.clone();
         self.blocks_to_update.clear();
@@ -209,6 +215,7 @@ impl Texture {
         height: u32,
         format: TextureFormat,
         usage: TextureUsage,
+        sample_count: u32,
     ) -> Resource<Texture> {
         let texture_id = generate_random_uid();
         let texture = Texture::create_from_data(
@@ -221,6 +228,7 @@ impl Texture {
                 format,
                 data: None,
                 usage,
+                sample_count,
             },
         );
         shared_data.add_resource(message_hub, texture_id, texture)

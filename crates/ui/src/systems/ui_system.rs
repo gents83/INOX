@@ -293,6 +293,7 @@ impl UISystem {
                     data: Some(pixels.to_vec()),
                     format: TextureFormat::Rgba8Unorm,
                     usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
+                    sample_count: 1,
                 };
                 let texture = Texture::new_resource(
                     &self.shared_data,

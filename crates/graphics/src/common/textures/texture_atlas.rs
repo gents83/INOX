@@ -17,7 +17,7 @@ pub struct TextureAtlas {
 }
 
 impl TextureAtlas {
-    pub fn create_default(device: &wgpu::Device, format: TextureFormat) -> Self {
+    pub fn create_default(device: &wgpu::Device, format: TextureFormat, sample_count: u32) -> Self {
         let mut allocators: Vec<AreaAllocator> = Vec::new();
         for _i in 0..DEFAULT_LAYER_COUNT {
             allocators.push(AreaAllocator::new(DEFAULT_AREA_SIZE, DEFAULT_AREA_SIZE));
@@ -25,11 +25,14 @@ impl TextureAtlas {
         let texture = GpuTexture::create(
             device,
             generate_random_uid(),
-            DEFAULT_AREA_SIZE,
-            DEFAULT_AREA_SIZE,
-            DEFAULT_LAYER_COUNT,
-            format,
-            wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            (
+                DEFAULT_AREA_SIZE,
+                DEFAULT_AREA_SIZE,
+                DEFAULT_LAYER_COUNT,
+                sample_count,
+                format,
+                wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            ),
         );
         Self {
             texture,

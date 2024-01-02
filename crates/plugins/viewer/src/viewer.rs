@@ -148,14 +148,21 @@ impl Plugin for Viewer {
 impl Viewer {
     fn create_render_targets(renderer: &mut Renderer, width: u32, height: u32) {
         let half_dims = (width / 4, height / 4);
+        let single_sample = 1;
+        let multi_sample = 4;
         let usage = TextureUsage::TextureBinding
             | TextureUsage::CopySrc
             | TextureUsage::CopyDst
             | TextureUsage::RenderTarget;
 
         //Visibility = 0,
-        let _visibility =
-            renderer.add_render_target(half_dims.0, half_dims.1, TextureFormat::Rgba8Unorm, usage);
+        let _visibility = renderer.add_render_target(
+            half_dims.0,
+            half_dims.1,
+            TextureFormat::Rgba8Unorm,
+            usage,
+            single_sample,
+        );
         debug_assert!(_visibility == RenderTargetType::Visibility as usize);
         //Depth = 1,
         let _depth = renderer.add_render_target(
@@ -163,6 +170,7 @@ impl Viewer {
             half_dims.1,
             TextureFormat::Depth32Float,
             usage,
+            single_sample,
         );
         debug_assert!(_depth == RenderTargetType::Depth as usize);
         //Radiance = 2,
@@ -171,6 +179,7 @@ impl Viewer {
             half_dims.1,
             TextureFormat::Rgba32Float,
             usage | TextureUsage::StorageBinding,
+            single_sample,
         );
         debug_assert!(_radiance == RenderTargetType::Radiance as usize);
         //RaysData = 3,
@@ -179,6 +188,7 @@ impl Viewer {
             half_dims.1,
             TextureFormat::Rgba32Float,
             usage | TextureUsage::StorageBinding,
+            single_sample,
         );
         debug_assert!(_rays_data == RenderTargetType::RaysData as usize);
         //Debug = 4,
@@ -187,6 +197,7 @@ impl Viewer {
             half_dims.1,
             TextureFormat::R32Float,
             usage | TextureUsage::StorageBinding,
+            single_sample,
         );
         debug_assert!(_debug_data == RenderTargetType::DebugData as usize);
         //Finalize = 5,
@@ -195,6 +206,7 @@ impl Viewer {
             height,
             TextureFormat::Rgba8Unorm,
             usage | TextureUsage::StorageBinding,
+            multi_sample,
         );
         debug_assert!(_finalize == RenderTargetType::Finalize as usize);
     }

@@ -99,6 +99,7 @@ impl Renderer {
         height: u32,
         format: TextureFormat,
         usage: TextureUsage,
+        sample_count: u32,
     ) -> usize {
         let texture = Texture::create_from_format(
             &self.shared_data,
@@ -107,6 +108,7 @@ impl Renderer {
             height,
             format,
             usage,
+            sample_count,
         );
         self.render_targets.push(texture);
         self.render_targets.len() - 1

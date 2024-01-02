@@ -127,6 +127,7 @@ impl RenderPass {
                     | TextureUsage::CopySrc
                     | TextureUsage::CopyDst
                     | TextureUsage::RenderTarget,
+                1,
             );
             self.render_textures.push(texture)
         }
@@ -154,6 +155,7 @@ impl RenderPass {
                         | TextureUsage::CopySrc
                         | TextureUsage::CopyDst
                         | TextureUsage::RenderTarget,
+                    1,
                 );
                 Some(texture)
             }

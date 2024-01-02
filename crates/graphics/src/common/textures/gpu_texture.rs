@@ -31,12 +31,14 @@ impl GpuTexture {
     pub fn create(
         device: &wgpu::Device,
         id: TextureId,
-        width: u32,
-        height: u32,
-        layers_count: u32,
-        format: TextureFormat,
-        usage: wgpu::TextureUsages,
+        texture_params: (u32, u32, u32, u32, TextureFormat, wgpu::TextureUsages),
     ) -> Self {
+        let width = texture_params.0;
+        let height = texture_params.1;
+        let layers_count = texture_params.2;
+        let sample_count = texture_params.3;
+        let format = texture_params.4;
+        let usage = texture_params.5;
         let size = wgpu::Extent3d {
             width,
             height,
@@ -46,7 +48,7 @@ impl GpuTexture {
             label: Some(format!("Texture[{id}]").as_str()),
             size,
             mip_level_count: 1,
-            sample_count: 1,
+            sample_count,
             dimension: wgpu::TextureDimension::D2,
             format: format.into(),
             usage,

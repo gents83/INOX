@@ -109,15 +109,19 @@ impl TextureHandler {
         dimensions: (u32, u32),
         format: TextureFormat,
         usage: TextureUsage,
+        sample_count: u32,
     ) -> usize {
         let texture = GpuTexture::create(
             device,
             *id,
-            dimensions.0,
-            dimensions.1,
-            1,
-            format,
-            usage.into(),
+            (
+                dimensions.0,
+                dimensions.1,
+                1,
+                sample_count,
+                format,
+                usage.into(),
+            ),
         );
         if DEBUG_TEXTURES {
             inox_log::debug_log!(
@@ -137,28 +141,27 @@ impl TextureHandler {
         device: &wgpu::Device,
         encoder: &mut wgpu::CommandEncoder,
         id: &TextureId,
-        dimensions: (u32, u32),
-        format: TextureFormat,
+        texture_params: (u32, u32, TextureFormat, u32),
         image_data: &[u8],
     ) -> TextureInfo {
         for (texture_index, texture_atlas) in
             self.texture_atlas.write().unwrap().iter_mut().enumerate()
         {
-            if texture_atlas.texture_format() == &format {
+            if texture_atlas.texture_format() == &texture_params.2 {
                 if let Some(texture_data) = texture_atlas.allocate(
                     device,
                     encoder,
                     id,
                     texture_index as _,
-                    dimensions,
+                    (texture_params.0, texture_params.1),
                     image_data,
                 ) {
                     if DEBUG_TEXTURES {
                         inox_log::debug_log!(
                             "Adding image {} {:?}x{:?} into atlas {} at layer {}",
                             id,
-                            dimensions.0,
-                            dimensions.1,
+                            texture_params.0,
+                            texture_params.1,
                             texture_index,
                             texture_data.layer_index
                         );
@@ -170,7 +173,11 @@ impl TextureHandler {
         self.texture_atlas
             .write()
             .unwrap()
-            .push(TextureAtlas::create_default(device, format));
+            .push(TextureAtlas::create_default(
+                device,
+                texture_params.2,
+                texture_params.3,
+            ));
         if DEBUG_TEXTURES {
             inox_log::debug_log!(
                 "Adding new texture atlas {} at index {} with format {:?}",
@@ -181,10 +188,10 @@ impl TextureHandler {
                     .unwrap()
                     .texture_id(),
                 self.texture_atlas.read().unwrap().len() - 1,
-                format
+                texture_params.2
             );
         }
-        self.add_image_to_texture_atlas(device, encoder, id, dimensions, format, image_data)
+        self.add_image_to_texture_atlas(device, encoder, id, texture_params, image_data)
     }
 
     pub fn update_texture_atlas(
