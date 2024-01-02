@@ -275,7 +275,7 @@ impl RenderBuffers {
                 );
                 let min = matrix.rotate_point(node.min.into());
                 let max = matrix.rotate_point(node.max.into());
-                let aabb = AABB::create(min, max, i as _);
+                let aabb = AABB::create(min.min(max), max.max(min), i as _);
                 meshes_aabbs.push(aabb);
             });
         }

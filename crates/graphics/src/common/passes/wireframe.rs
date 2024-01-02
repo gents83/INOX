@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 
 use crate::{
-    create_arrow, create_circumference, create_colored_quad, create_line, create_sphere,
-    declare_as_binding_vector, AsBinding, BindingData, BindingInfo, CommandBuffer, CommandsBuffer,
-    ConstantDataRw, DrawCommandType, DrawEvent, DrawIndexedCommand, LoadOperation, MeshData,
-    MeshFlags, Pass, RenderContext, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
-    ShaderStage, StoreOperation, TextureView, VecDrawIndexedCommand, VertexBufferLayoutBuilder,
-    VertexFormat, View,
+    create_arrow, create_circumference, create_colored_quad, create_cube_from_min_max, create_line,
+    create_sphere, declare_as_binding_vector, AsBinding, BindingData, BindingInfo, CommandBuffer,
+    CommandsBuffer, ConstantDataRw, DrawCommandType, DrawEvent, DrawIndexedCommand, LoadOperation,
+    MeshData, MeshFlags, Pass, RenderContext, RenderPass, RenderPassBeginData, RenderPassData,
+    RenderTarget, ShaderStage, StoreOperation, TextureView, VecDrawIndexedCommand,
+    VertexBufferLayoutBuilder, VertexFormat, View,
 };
 
 use inox_core::ContextRc;
@@ -241,39 +241,13 @@ impl WireframePass {
                 DrawEvent::BoundingBox(min, max, color) => {
                     inox_profiler::scoped_profile!("DrawEvent::BoundingBox");
 
-                    let mut mesh_data: [MeshData; 6] = Default::default();
-                    mesh_data[0] =
-                        create_colored_quad([min.x, min.y, max.x, max.y].into(), min.z, color);
-                    mesh_data[1] =
-                        create_colored_quad([min.x, min.y, max.x, max.y].into(), max.z, color);
-                    mesh_data[2] = create_line(
-                        [min.x, min.y, min.z].into(),
-                        [min.x, min.y, max.z].into(),
-                        color,
+                    let mesh_data = create_cube_from_min_max(min, max, color);
+                    Self::add_mesh(
+                        &mut new_instances,
+                        &mut self.vertices,
+                        &mut self.indices,
+                        mesh_data,
                     );
-                    mesh_data[3] = create_line(
-                        [min.x, max.y, min.z].into(),
-                        [min.x, max.y, max.z].into(),
-                        color,
-                    );
-                    mesh_data[4] = create_line(
-                        [max.x, min.y, min.z].into(),
-                        [max.x, min.y, max.z].into(),
-                        color,
-                    );
-                    mesh_data[5] = create_line(
-                        [max.x, max.y, min.z].into(),
-                        [max.x, max.y, max.z].into(),
-                        color,
-                    );
-                    mesh_data.into_iter().for_each(|mesh_data| {
-                        Self::add_mesh(
-                            &mut new_instances,
-                            &mut self.vertices,
-                            &mut self.indices,
-                            mesh_data,
-                        );
-                    });
                 }
                 DrawEvent::Quad(min, max, z, color, _is_wireframe) => {
                     inox_profiler::scoped_profile!("DrawEvent::Quad");

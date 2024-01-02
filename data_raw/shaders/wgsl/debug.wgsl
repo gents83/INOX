@@ -70,7 +70,7 @@ fn draw_triangle_from_visibility(visibility_id: u32, pixel: vec2<u32>, dimension
 }
 
 fn draw_cube_from_min_max(min: vec3<f32>, max:vec3<f32>, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec3<f32> {  
-    let line_color = vec3<f32>(1., 1., 0.);
+    let line_color = vec3<f32>(0., 0., 1.);
     let line_size = 0.001;
     var color = vec3<f32>(0.);
     color += draw_line_3d(pixel, dimensions, vec3<f32>(min.x, min.y, min.z), vec3<f32>(max.x, min.y, min.z), line_color, line_size);
@@ -137,6 +137,7 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>) -> vec4<f32> {
             //color += draw_line_3d(pixel, dimensions, min, max, vec3<f32>(0.,0.,1.), line_size);
         }
         */
+        
         var debug_index = 0u;
         let max_index = u32(read_value_from_debug_data_texture(&debug_index));
         while(debug_index < max_index) {
