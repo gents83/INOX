@@ -296,7 +296,7 @@ impl Info {
                     .render_buffers
                     .tlas_start_index
                     .load(Ordering::Relaxed);
-                let bhv = render_context.render_buffers.bhv.read().unwrap();
+                let bhv = render_context.render_buffers.bvh.read().unwrap();
                 bhv.for_each_data(|i, _id, n| {
                     if i >= tlas_index as _ {
                         data.context
@@ -312,7 +312,7 @@ impl Info {
             if data.show_blas {
                 let renderer = data.params.renderer.read().unwrap();
                 let render_context = renderer.render_context();
-                let bhv = render_context.render_buffers.bhv.read().unwrap();
+                let bhv = render_context.render_buffers.bvh.read().unwrap();
                 let bhv_data = bhv.data();
                 let meshes = render_context.render_buffers.meshes.read().unwrap();
                 meshes.for_each_entry(|_, mesh| {
@@ -358,7 +358,7 @@ impl Info {
             } else {
                 let renderer = data.params.renderer.read().unwrap();
                 let render_context = renderer.render_context();
-                let bhv = render_context.render_buffers.bhv.read().unwrap();
+                let bhv = render_context.render_buffers.bvh.read().unwrap();
                 meshes.iter().for_each(|mesh| {
                     if let Some(nodes) = bhv.items(mesh.id()) {
                         nodes.iter().for_each(|n| {

@@ -12,7 +12,7 @@ pub struct GPUBVHNode {
     pub reference: i32,
 }
 
-pub fn create_linearized_bhv(bhv: &BVHTree) -> Vec<GPUBVHNode> {
+pub fn create_linearized_bvh(bhv: &BVHTree) -> Vec<GPUBVHNode> {
     let mut linearized_bhv = Vec::<GPUBVHNode>::new();
     let bhv_nodes = bhv.nodes();
     let nodes_count = bhv_nodes.len();
@@ -50,10 +50,12 @@ pub fn create_linearized_bhv(bhv: &BVHTree) -> Vec<GPUBVHNode> {
     linearized_bhv
 }
 
-pub fn print_bhv(bhv: &[GPUBVHNode]) {
+pub fn print_bvh(bhv: &[GPUBVHNode]) {
     println!("BHV {} - {}", 0, bhv.len());
     bhv.iter().enumerate().for_each(|(i, n)| {
         println!("  Node[{i}]:");
+        println!("      Min -> {},{},{}", n.min[0], n.min[1], n.min[2]);
+        println!("      Max -> {},{},{}", n.max[0], n.max[1], n.max[2]);
         println!("      Miss -> {}", n.miss);
         println!("      Ref [{}]", n.reference);
     });

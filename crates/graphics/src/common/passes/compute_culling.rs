@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{
-    AsBinding, BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, CommandsBuffer,
+    AsBinding, BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, CommandsBuffer,
     ComputePass, ComputePassData, ConstantDataRw, CullingResults, DrawCommandType, GpuBuffer,
     MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderCoreContext, ShaderStage,
     TextureView, ATOMIC_SIZE,
@@ -78,7 +78,7 @@ pub struct CullingPass {
     commands: CommandsBuffer,
     meshes: MeshesBuffer,
     meshlets: MeshletsBuffer,
-    bhv: BHVBuffer,
+    bhv: BVHBuffer,
     culling_data: CullingData,
     culling_result: CullingResults,
     listener: Listener,
@@ -138,7 +138,7 @@ impl Pass for CullingPass {
             commands: render_context.render_buffers.commands.clone(),
             meshes: render_context.render_buffers.meshes.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
-            bhv: render_context.render_buffers.bhv.clone(),
+            bhv: render_context.render_buffers.bvh.clone(),
             binding_data: BindingData::new(render_context, CULLING_PASS_NAME),
             culling_data: CullingData::default(),
             culling_result: render_context.render_buffers.culling_result.clone(),

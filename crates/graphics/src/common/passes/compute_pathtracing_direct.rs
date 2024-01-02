@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{
-    BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
+    BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
     ConstantDataRw, CullingResults, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer,
     MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RuntimeVerticesBuffer,
     SamplerType, ShaderStage, TextureId, TextureView, TexturesBuffer, VertexAttributesBuffer,
@@ -22,7 +22,7 @@ pub struct ComputePathTracingDirectPass {
     meshes: MeshesBuffer,
     meshlets: MeshletsBuffer,
     culling_result: CullingResults,
-    bhv: BHVBuffer,
+    bhv: BVHBuffer,
     indices: IndicesBuffer,
     runtime_vertices: RuntimeVerticesBuffer,
     vertices_attributes: VertexAttributesBuffer,
@@ -75,7 +75,7 @@ impl Pass for ComputePathTracingDirectPass {
             meshes: render_context.render_buffers.meshes.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
             culling_result: render_context.render_buffers.culling_result.clone(),
-            bhv: render_context.render_buffers.bhv.clone(),
+            bhv: render_context.render_buffers.bvh.clone(),
             indices: render_context.render_buffers.indices.clone(),
             runtime_vertices: render_context.render_buffers.runtime_vertices.clone(),
             vertices_attributes: render_context.render_buffers.vertex_attributes.clone(),

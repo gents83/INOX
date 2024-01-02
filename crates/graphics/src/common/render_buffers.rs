@@ -6,7 +6,7 @@ use std::{
     },
 };
 
-use inox_bvh::{create_linearized_bhv, BVHTree, GPUBVHNode, AABB};
+use inox_bvh::{create_linearized_bvh, BVHTree, GPUBVHNode, AABB};
 use inox_math::{quantize_snorm, InnerSpace, Mat4Ops, Matrix4, VecBase};
 use inox_resources::{to_slice, Buffer, HashBuffer, ResourceId};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
@@ -25,7 +25,7 @@ pub type MaterialsBuffer = Arc<RwLock<HashBuffer<MaterialId, GPUMaterial, 0>>>;
 pub type CommandsBuffer = Arc<RwLock<HashMap<MeshFlags, RenderCommandsPerType>>>;
 pub type MeshesBuffer = Arc<RwLock<HashBuffer<MeshId, GPUMesh, 0>>>;
 pub type MeshletsBuffer = Arc<RwLock<Buffer<GPUMeshlet, 0>>>; //MeshId <-> [GPUMeshlet]
-pub type BHVBuffer = Arc<RwLock<Buffer<GPUBVHNode, 0>>>;
+pub type BVHBuffer = Arc<RwLock<Buffer<GPUBVHNode, 0>>>;
 pub type IndicesBuffer = Arc<RwLock<Buffer<u32, 0>>>; //MeshId <-> [u32]
 pub type VertexPositionsBuffer = Arc<RwLock<Buffer<u32, 0>>>; //MeshId <-> [u32] (10 x, 10 y, 10 z, 2 null)
 pub type VertexAttributesBuffer = Arc<RwLock<Buffer<u32, 0>>>; //MeshId <-> [u32]
@@ -47,7 +47,7 @@ pub struct RenderBuffers {
     pub commands: CommandsBuffer,
     pub meshes: MeshesBuffer,
     pub meshlets: MeshletsBuffer,
-    pub bhv: BHVBuffer,
+    pub bvh: BVHBuffer,
     pub triangles_ids: RwLock<HashMap<MeshId, Vec<ResourceId>>>,
     pub indices: IndicesBuffer,
     pub vertex_positions: VertexPositionsBuffer,
@@ -83,13 +83,13 @@ impl RenderBuffers {
                     .or_default()
                     .push(triangle_id);
                 let triangle_bhv_range = self
-                    .bhv
+                    .bvh
                     .write()
                     .unwrap()
                     .allocate(&triangle_id, &meshlet_data.triangles_bvh)
                     .1;
                 let triangles_bhv_index = triangle_bhv_range.start as _;
-                self.bhv.write().unwrap().data_mut()[triangle_bhv_range]
+                self.bvh.write().unwrap().data_mut()[triangle_bhv_range]
                     .iter_mut()
                     .for_each(|n| {
                         if n.miss >= 0 {
@@ -117,13 +117,13 @@ impl RenderBuffers {
             inox_log::debug_log!("No meshlet data for mesh {:?}", mesh_id);
         }
         let mesh_bhv_range = self
-            .bhv
+            .bvh
             .write()
             .unwrap()
             .allocate(mesh_id, &mesh_data.meshlets_bvh)
             .1;
         let blas_index = mesh_bhv_range.start as _;
-        self.bhv.write().unwrap().data_mut()[mesh_bhv_range]
+        self.bvh.write().unwrap().data_mut()[mesh_bhv_range]
             .iter_mut()
             .for_each(|n| {
                 if n.miss >= 0 {
@@ -237,7 +237,7 @@ impl RenderBuffers {
         let mut meshes_aabbs = Vec::new();
         {
             let meshes = self.meshes.read().unwrap();
-            let bhv = self.bhv.read().unwrap();
+            let bhv = self.bvh.read().unwrap();
             let bhv = bhv.data();
             meshes.for_each_entry(|i, mesh| {
                 let node = &bhv[mesh.blas_index as usize];
@@ -252,18 +252,20 @@ impl RenderBuffers {
                 meshes_aabbs.push(aabb);
             });
         }
-        let bhv = BVHTree::new(&meshes_aabbs);
-        let linearized_bhv = create_linearized_bhv(&bhv);
-        let mut bhv = self.bhv.write().unwrap();
-        let tlas_range = bhv.allocate(&TLAS_UID, &linearized_bhv).1;
+        let bvh = BVHTree::new(&meshes_aabbs);
+        let linearized_bhv = create_linearized_bvh(&bvh);
+        let mut bvh = self.bvh.write().unwrap();
+        let tlas_range = bvh.allocate(&TLAS_UID, &linearized_bhv).1;
         let tlas_starting_index = tlas_range.start as _;
         self.tlas_start_index
             .store(tlas_starting_index, Ordering::SeqCst);
-        bhv.data_mut()[tlas_range].iter_mut().for_each(|n| {
+        bvh.data_mut()[tlas_range].iter_mut().for_each(|n| {
             if n.miss >= 0 {
                 n.miss += tlas_starting_index as i32;
             }
         });
+        //println!("\n\nTLAS: {}", tlas_starting_index);
+        //print_bvh(bvh.data());
     }
     fn update_transform(&self, mesh: &mut Mesh, m: &mut GPUMesh) -> bool {
         inox_profiler::scoped_profile!("render_buffers::update_transform");
@@ -339,7 +341,7 @@ impl RenderBuffers {
                 });
             self.meshlets.write().unwrap().remove(mesh_id);
             {
-                let mut bhv = self.bhv.write().unwrap();
+                let mut bhv = self.bvh.write().unwrap();
                 bhv.remove(mesh_id);
                 let mut triangle_ids = self.triangles_ids.write().unwrap();
                 triangle_ids.get(mesh_id).unwrap().iter().for_each(|id| {

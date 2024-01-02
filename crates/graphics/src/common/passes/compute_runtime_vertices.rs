@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{
-    BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
+    BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
     ConstantDataRw, DrawCommandType, MeshFlags, MeshesBuffer, Pass, RenderContext,
     RuntimeVerticesBuffer, ShaderStage, TextureView, VertexPositionsBuffer,
 };
@@ -18,7 +18,7 @@ pub struct ComputeRuntimeVerticesPass {
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    bhv: BHVBuffer,
+    bhv: BVHBuffer,
     meshes: MeshesBuffer,
     vertices_positions: VertexPositionsBuffer,
     runtime_vertices: RuntimeVerticesBuffer,
@@ -61,7 +61,7 @@ impl Pass for ComputeRuntimeVerticesPass {
             ),
             binding_data: BindingData::new(render_context, COMPUTE_RUNTIME_VERTICES_PASS_NAME),
             constant_data: render_context.constant_data.clone(),
-            bhv: render_context.render_buffers.bhv.clone(),
+            bhv: render_context.render_buffers.bvh.clone(),
             meshes: render_context.render_buffers.meshes.clone(),
             vertices_positions: render_context.render_buffers.vertex_positions.clone(),
             runtime_vertices: render_context.render_buffers.runtime_vertices.clone(),

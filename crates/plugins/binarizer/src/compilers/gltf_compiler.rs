@@ -17,7 +17,7 @@ use gltf::{
     Accessor, Camera, Gltf, Node, Primitive, Semantic, Texture,
 };
 
-use inox_bvh::{create_linearized_bhv, BVHTree, AABB};
+use inox_bvh::{create_linearized_bvh, BVHTree, AABB};
 use inox_graphics::{
     LightData, LightType, MaterialData, MaterialFlags, MeshData, MeshletData, TextureType,
     VertexAttributeLayout, MAX_TEXTURE_COORDS_SETS,
@@ -453,7 +453,7 @@ impl GltfCompiler {
                     cone_axis: bounds.cone_axis.into(),
                     cone_angle: bounds.cone_cutoff,
                     cone_center: bounds.center.into(),
-                    triangles_bvh: create_linearized_bhv(&bvh),
+                    triangles_bvh: create_linearized_bvh(&bvh),
                 });
             }
             mesh_data.indices = new_indices;
@@ -478,7 +478,7 @@ impl GltfCompiler {
                 indices_count: mesh_data.indices.len() as _,
                 aabb_max: bvh.nodes()[0].max(),
                 aabb_min: bvh.nodes()[0].min(),
-                triangles_bvh: create_linearized_bhv(&bvh),
+                triangles_bvh: create_linearized_bvh(&bvh),
                 ..Default::default()
             };
             new_meshlets.push(meshlet);
@@ -491,7 +491,7 @@ impl GltfCompiler {
             meshlets_aabbs[i] = AABB::create(m.aabb_min, m.aabb_max, i as _);
         });
         let bvh = BVHTree::new(&meshlets_aabbs);
-        mesh_data.meshlets_bvh = create_linearized_bhv(&bvh);
+        mesh_data.meshlets_bvh = create_linearized_bvh(&bvh);
     }
 
     fn process_mesh_data(

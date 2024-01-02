@@ -29,7 +29,7 @@ where
     T: Serialize,
 {
     check_serializable_registry(registry);
-    serde_json::to_string(&data).unwrap()
+    serde_json::to_string_pretty(&data).unwrap()
 }
 
 #[inline]
@@ -53,7 +53,7 @@ where
     let data = data.clone();
     let mut file = File::new(filepath);
     file.save(move |bytes| {
-        let string = serde_json::to_string(&data).unwrap();
+        let string = serde_json::to_string_pretty(&data).unwrap();
         bytes.extend_from_slice(string.as_bytes());
     });
 }

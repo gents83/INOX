@@ -62,16 +62,16 @@ fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32, is_pixel_to_debug: boo
     while(node_index >= 0)
     {
         let node = bhv.data[u32(node_index)]; 
-        if (is_pixel_to_debug && hit_type == HIT_DATA_TLAS) {
-            debug_index = write_vec3_on_debug_data_texture(debug_index, node.min);
-            debug_index = write_vec3_on_debug_data_texture(debug_index, node.max);
-        }
         if(node.reference < 0) {
             node_index = node_index + 1;
             continue;
         }
         let intersection = intersect_aabb(&ray, node.min, node.max);        
         if(intersection < ray.t_max) {
+            if (is_pixel_to_debug) {
+                debug_index = write_vec3_on_debug_data_texture(debug_index, node.min);
+                debug_index = write_vec3_on_debug_data_texture(debug_index, node.max);
+            }
             //leaf node
             if(hit_type == HIT_DATA_TRIANGLE) {     
                 let triangle_id = u32(node.reference);
@@ -103,7 +103,7 @@ fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32, is_pixel_to_debug: boo
             
                 let meshlet = meshlets.data[meshlet_id];
                 meshlet_indices_offset = meshlet.indices_offset;
-                node_index = i32(meshlet.triangles_bhv_index + 1u); //We add 1 here to avoid checking same aabb 
+                node_index = i32(meshlet.triangles_bhv_index) + 1; //We add 1 here to avoid checking same aabb 
             }
             else {  
                 hit_type = HIT_DATA_BLAS;
@@ -112,7 +112,7 @@ fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32, is_pixel_to_debug: boo
                 let mesh = meshes.data[mesh_id];  
                 meshlets_offset = mesh.meshlets_offset;
                 vertices_position_offset = mesh.vertices_position_offset;
-                node_index = i32(mesh.blas_index); 
+                node_index = i32(mesh.blas_index) + 1;  //We add 1 here to avoid checking same aabb 
 
                 let matrix = transform_matrix(mesh.position, mesh.orientation, mesh.scale);    
                 let inverse_matrix = matrix_inverse(matrix);
