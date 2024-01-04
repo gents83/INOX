@@ -31,8 +31,7 @@ pub struct ComputePathTracingDirectPass {
     lights: LightsBuffer,
     visibility_texture: TextureId,
     depth_texture: TextureId,
-    radiance_texture: TextureId,
-    rays_data_texture: TextureId,
+    gbuffer_texture: TextureId,
     dimensions: (u32, u32),
 }
 unsafe impl Send for ComputePathTracingDirectPass {}
@@ -83,8 +82,7 @@ impl Pass for ComputePathTracingDirectPass {
             materials: render_context.render_buffers.materials.clone(),
             lights: render_context.render_buffers.lights.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_DIRECT_NAME),
-            radiance_texture: INVALID_UID,
-            rays_data_texture: INVALID_UID,
+            gbuffer_texture: INVALID_UID,
             visibility_texture: INVALID_UID,
             depth_texture: INVALID_UID,
             dimensions: (0, 0),
@@ -93,10 +91,7 @@ impl Pass for ComputePathTracingDirectPass {
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("pathtracing_direct_pass::init");
 
-        if self.radiance_texture.is_nil()
-            || self.rays_data_texture.is_nil()
-            || self.meshlets.read().unwrap().is_empty()
-        {
+        if self.gbuffer_texture.is_nil() || self.meshlets.read().unwrap().is_empty() {
             return;
         }
 
@@ -212,7 +207,7 @@ impl Pass for ComputePathTracingDirectPass {
                 },
             )
             .add_texture(
-                &self.radiance_texture,
+                &self.gbuffer_texture,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 3,
@@ -221,19 +216,10 @@ impl Pass for ComputePathTracingDirectPass {
                 },
             )
             .add_texture(
-                &self.rays_data_texture,
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 4,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
-                },
-            )
-            .add_texture(
                 &self.visibility_texture,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 5,
+                    binding_index: 4,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -242,7 +228,7 @@ impl Pass for ComputePathTracingDirectPass {
                 &self.depth_texture,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 6,
+                    binding_index: 5,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -275,7 +261,7 @@ impl Pass for ComputePathTracingDirectPass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        if self.radiance_texture.is_nil() || self.meshlets.read().unwrap().is_empty() {
+        if self.gbuffer_texture.is_nil() || self.meshlets.read().unwrap().is_empty() {
             return;
         }
 
@@ -312,17 +298,13 @@ impl ComputePathTracingDirectPass {
         self.depth_texture = *texture_id;
         self
     }
-    pub fn set_radiance_texture(
+    pub fn set_gbuffer_texture(
         &mut self,
         texture_id: &TextureId,
         dimensions: (u32, u32),
     ) -> &mut Self {
-        self.radiance_texture = *texture_id;
+        self.gbuffer_texture = *texture_id;
         self.dimensions = dimensions;
-        self
-    }
-    pub fn set_rays_data_texture(&mut self, texture_id: &TextureId) -> &mut Self {
-        self.rays_data_texture = *texture_id;
         self
     }
 }

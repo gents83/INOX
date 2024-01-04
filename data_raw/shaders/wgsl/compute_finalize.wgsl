@@ -8,8 +8,10 @@ var render_target: texture_storage_2d<rgba8unorm, read_write>;
 @group(0) @binding(2)
 var visibility_texture: texture_2d<f32>;
 @group(0) @binding(3)
-var radiance_texture: texture_2d<f32>;
+var gbuffer_texture: texture_2d<f32>;
 @group(0) @binding(4)
+var radiance_texture: texture_2d<f32>;
+@group(0) @binding(5)
 var depth_texture: texture_depth_2d;
 
 const WORKGROUP_SIZE: u32 = 4u;
@@ -30,7 +32,9 @@ fn main(
         return;
     }    
     let source_pixel = vec2<u32>(vec2<f32>(target_pixel) * scale);
-    var out_color = textureLoad(radiance_texture, source_pixel, 0);            
+    let radiance = textureLoad(radiance_texture, source_pixel, 0);  
+    let gbuffer = textureLoad(gbuffer_texture, source_pixel, 0);        
+    var out_color = vec4<f32>(gbuffer.rgb + radiance.rgb, 1.);    
     //out_color = vec4<f32>(tonemap_ACES_Hill(out_color.rgb), 1.);
     //out_color = vec4<f32>(pow(out_color.rgb, vec3<f32>(INV_GAMMA)), 1.);
     

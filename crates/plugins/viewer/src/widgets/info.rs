@@ -429,7 +429,8 @@ impl Info {
                         pos + mesh_info
                             .matrix
                             .orientation()
-                            .transform_vector(meshlet_info.axis),
+                            .transform_vector(meshlet_info.axis)
+                            * 0.5,
                         [1.0, 1.0, 0.0, 1.0].into(),
                     ));
                 });

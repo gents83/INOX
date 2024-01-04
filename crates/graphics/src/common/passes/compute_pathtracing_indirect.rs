@@ -2,9 +2,10 @@ use std::path::PathBuf;
 
 use crate::{
     BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, CullingResults, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer,
-    MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RuntimeVerticesBuffer,
-    SamplerType, ShaderStage, TextureId, TextureView, TexturesBuffer, VertexAttributesBuffer,
+    ConstantDataRw, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer, MeshFlags,
+    MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RuntimeVerticesBuffer, SamplerType,
+    ShaderStage, TextureId, TextureView, TexturesBuffer, VertexAttributesBuffer,
+    VertexPositionsBuffer,
 };
 
 use inox_core::ContextRc;
@@ -21,16 +22,17 @@ pub struct ComputePathTracingIndirectPass {
     constant_data: ConstantDataRw,
     meshes: MeshesBuffer,
     meshlets: MeshletsBuffer,
-    culling_result: CullingResults,
     bhv: BVHBuffer,
     indices: IndicesBuffer,
     runtime_vertices: RuntimeVerticesBuffer,
+    vertices_positions: VertexPositionsBuffer,
     vertices_attributes: VertexAttributesBuffer,
     textures: TexturesBuffer,
     materials: MaterialsBuffer,
     lights: LightsBuffer,
     radiance_texture: TextureId,
-    rays_data_texture: TextureId,
+    visibility_texture: TextureId,
+    depth_texture: TextureId,
     debug_data_texture: TextureId,
     dimensions: (u32, u32),
 }
@@ -73,17 +75,18 @@ impl Pass for ComputePathTracingIndirectPass {
             constant_data: render_context.constant_data.clone(),
             meshes: render_context.render_buffers.meshes.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
-            culling_result: render_context.render_buffers.culling_result.clone(),
             bhv: render_context.render_buffers.bvh.clone(),
             indices: render_context.render_buffers.indices.clone(),
             runtime_vertices: render_context.render_buffers.runtime_vertices.clone(),
+            vertices_positions: render_context.render_buffers.vertex_positions.clone(),
             vertices_attributes: render_context.render_buffers.vertex_attributes.clone(),
             textures: render_context.render_buffers.textures.clone(),
             materials: render_context.render_buffers.materials.clone(),
             lights: render_context.render_buffers.lights.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_INDIRECT_NAME),
+            visibility_texture: INVALID_UID,
             radiance_texture: INVALID_UID,
-            rays_data_texture: INVALID_UID,
+            depth_texture: INVALID_UID,
             debug_data_texture: INVALID_UID,
             dimensions: (0, 0),
         }
@@ -177,8 +180,8 @@ impl Pass for ComputePathTracingIndirectPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.runtime_vertices.write().unwrap(),
-                Some("Runtime Vertices"),
+                &mut *self.vertices_positions.write().unwrap(),
+                Some("Vertices Positions"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 0,
@@ -187,13 +190,13 @@ impl Pass for ComputePathTracingIndirectPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.culling_result.write().unwrap(),
-                Some("Culling Results"),
+                &mut *self.runtime_vertices.write().unwrap(),
+                Some("Runtime Vertices"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 1,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::Read | BindingFlags::Indirect,
+                    flags: BindingFlags::Read | BindingFlags::Vertex,
                 },
             )
             .add_storage_buffer(
@@ -216,19 +219,28 @@ impl Pass for ComputePathTracingIndirectPass {
                 },
             )
             .add_texture(
-                &self.rays_data_texture,
+                &self.visibility_texture,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 4,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::Read | BindingFlags::Storage,
+                    flags: BindingFlags::Read,
+                },
+            )
+            .add_texture(
+                &self.depth_texture,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 5,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Read,
                 },
             )
             .add_texture(
                 &self.debug_data_texture,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 5,
+                    binding_index: 6,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
@@ -290,8 +302,12 @@ impl Pass for ComputePathTracingIndirectPass {
 }
 
 impl ComputePathTracingIndirectPass {
-    pub fn set_ray_texture(&mut self, texture_id: &TextureId) -> &mut Self {
-        self.rays_data_texture = *texture_id;
+    pub fn set_visibility_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.visibility_texture = *texture_id;
+        self
+    }
+    pub fn set_depth_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.depth_texture = *texture_id;
         self
     }
     pub fn set_debug_data_texture(&mut self, texture_id: &TextureId) -> &mut Self {

@@ -20,6 +20,7 @@ pub struct ComputeFinalizePass {
     finalize_texture: TextureId,
     dimensions: (u32, u32),
     visibility_texture: TextureId,
+    gbuffer_texture: TextureId,
     radiance_texture: TextureId,
     depth_texture: TextureId,
 }
@@ -64,6 +65,7 @@ impl Pass for ComputeFinalizePass {
             finalize_texture: INVALID_UID,
             dimensions: (0, 0),
             visibility_texture: INVALID_UID,
+            gbuffer_texture: INVALID_UID,
             radiance_texture: INVALID_UID,
             depth_texture: INVALID_UID,
         }
@@ -105,7 +107,7 @@ impl Pass for ComputeFinalizePass {
                 },
             )
             .add_texture(
-                &self.radiance_texture,
+                &self.gbuffer_texture,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 3,
@@ -114,10 +116,19 @@ impl Pass for ComputeFinalizePass {
                 },
             )
             .add_texture(
-                &self.depth_texture,
+                &self.radiance_texture,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 4,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_texture(
+                &self.depth_texture,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 5,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -164,6 +175,10 @@ impl Pass for ComputeFinalizePass {
 impl ComputeFinalizePass {
     pub fn set_visibility_texture(&mut self, texture_id: &TextureId) -> &mut Self {
         self.visibility_texture = *texture_id;
+        self
+    }
+    pub fn set_gbuffer_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.gbuffer_texture = *texture_id;
         self
     }
     pub fn set_radiance_texture(&mut self, texture_id: &TextureId) -> &mut Self {

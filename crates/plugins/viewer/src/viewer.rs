@@ -23,8 +23,8 @@ const ADD_UI_PASS: bool = true;
 enum RenderTargetType {
     Visibility = 0,
     Depth = 1,
-    Radiance = 2,
-    RaysData = 3,
+    GBuffer = 2,
+    Radiance = 3,
     DebugData = 4,
     Finalize = 5,
 }
@@ -173,7 +173,16 @@ impl Viewer {
             single_sample,
         );
         debug_assert!(_depth == RenderTargetType::Depth as usize);
-        //Radiance = 2,
+        //GBuffer = 2,
+        let _gbuffer = renderer.add_render_target(
+            half_dims.0,
+            half_dims.1,
+            TextureFormat::Rgba32Float,
+            usage | TextureUsage::StorageBinding,
+            single_sample,
+        );
+        debug_assert!(_gbuffer == RenderTargetType::GBuffer as usize);
+        //Radiance = 3,
         let _radiance = renderer.add_render_target(
             half_dims.0,
             half_dims.1,
@@ -182,15 +191,6 @@ impl Viewer {
             single_sample,
         );
         debug_assert!(_radiance == RenderTargetType::Radiance as usize);
-        //RaysData = 3,
-        let _rays_data = renderer.add_render_target(
-            half_dims.0,
-            half_dims.1,
-            TextureFormat::Rgba32Float,
-            usage | TextureUsage::StorageBinding,
-            single_sample,
-        );
-        debug_assert!(_rays_data == RenderTargetType::RaysData as usize);
         //Debug = 4,
         let _debug_data = renderer.add_render_target(
             half_dims.0,
@@ -253,10 +253,9 @@ impl Viewer {
     fn create_compute_pathtracing_direct_pass(context: &ContextRc, renderer: &mut Renderer) {
         let mut compute_pathtracing_direct_pass =
             ComputePathTracingDirectPass::create(context, &renderer.render_context());
-        let radiance_texture = renderer.render_target(RenderTargetType::Radiance as usize);
+        let gbuffer_texture = renderer.render_target(RenderTargetType::GBuffer as usize);
         compute_pathtracing_direct_pass
-            .set_radiance_texture(radiance_texture.id(), radiance_texture.get().dimensions())
-            .set_rays_data_texture(renderer.render_target_id(RenderTargetType::RaysData as usize))
+            .set_gbuffer_texture(gbuffer_texture.id(), gbuffer_texture.get().dimensions())
             .set_visibility_texture(
                 renderer.render_target_id(RenderTargetType::Visibility as usize),
             )
@@ -269,7 +268,10 @@ impl Viewer {
         let radiance_texture = renderer.render_target(RenderTargetType::Radiance as usize);
         compute_pathtracing_indirect_pass
             .set_radiance_texture(radiance_texture.id(), radiance_texture.get().dimensions())
-            .set_ray_texture(renderer.render_target_id(RenderTargetType::RaysData as usize))
+            .set_visibility_texture(
+                renderer.render_target_id(RenderTargetType::Visibility as usize),
+            )
+            .set_depth_texture(renderer.render_target_id(RenderTargetType::Depth as usize))
             .set_debug_data_texture(
                 renderer.render_target_id(RenderTargetType::DebugData as usize),
             );
@@ -284,6 +286,7 @@ impl Viewer {
             .set_visibility_texture(
                 renderer.render_target_id(RenderTargetType::Visibility as usize),
             )
+            .set_gbuffer_texture(renderer.render_target_id(RenderTargetType::GBuffer as usize))
             .set_radiance_texture(renderer.render_target_id(RenderTargetType::Radiance as usize))
             .set_depth_texture(renderer.render_target_id(RenderTargetType::Depth as usize));
         renderer.add_pass(compute_finalize_pass, true);
@@ -301,6 +304,7 @@ impl Viewer {
                 renderer.render_target_id(RenderTargetType::Visibility as usize),
             )
             .set_radiance_texture(renderer.render_target_id(RenderTargetType::Radiance as usize))
+            .set_gbuffer_texture(renderer.render_target_id(RenderTargetType::GBuffer as usize))
             .set_depth_texture(renderer.render_target_id(RenderTargetType::Depth as usize))
             .set_debug_data_texture(
                 renderer.render_target_id(RenderTargetType::DebugData as usize),

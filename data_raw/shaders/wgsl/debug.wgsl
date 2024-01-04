@@ -29,8 +29,10 @@ var visibility_texture: texture_2d<f32>;
 @group(1) @binding(2)
 var radiance_texture: texture_2d<f32>;
 @group(1) @binding(3)
-var depth_texture: texture_depth_2d;
+var gbuffer_texture: texture_2d<f32>;
 @group(1) @binding(4)
+var depth_texture: texture_depth_2d;
+@group(1) @binding(5)
 var debug_data_texture: texture_2d<f32>;
 
 #import "geom_utils.inc"
@@ -106,7 +108,7 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>) -> vec4<f32> {
         }
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER) != 0) {
-        out_color = textureLoad(visibility_texture, pixel, 0);
+        out_color = textureLoad(radiance_texture, pixel, 0);
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER) != 0) {
         let depth = textureLoad(depth_texture, pixel, 0);

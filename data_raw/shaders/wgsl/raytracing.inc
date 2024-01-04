@@ -48,7 +48,7 @@ fn intersect_triangle(ray: Ray, v0: vec3<f32>, v1: vec3<f32>, v2: vec3<f32>) -> 
 //starting index = tlas_starting_index
 fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32, is_pixel_to_debug: bool, debug_starting_index: u32) -> Result {
     var ray = world_ray;
-    var node_index = i32(tlas_starting_index);
+    var node_index = i32(tlas_starting_index) + 1;
     var visibility_id = 0u;
     var hit_type = HIT_DATA_TLAS;
     var meshlets_offset = 0u;
@@ -58,19 +58,19 @@ fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32, is_pixel_to_debug: boo
     var blas_sibling = 0;
     var tlas_sibling = 0;
     var debug_index = 1u + debug_starting_index;
-    
+
     while(node_index >= 0)
     {
         let node = bhv.data[u32(node_index)]; 
-        if(node.reference < 0) {
-            node_index = node_index + 1;
-            continue;
-        }
         let intersection = intersect_aabb(&ray, node.min, node.max);        
         if(intersection < ray.t_max) {
             if (is_pixel_to_debug) {
                 debug_index = write_vec3_on_debug_data_texture(debug_index, node.min);
                 debug_index = write_vec3_on_debug_data_texture(debug_index, node.max);
+            }
+            if(node.reference < 0) {
+                node_index = node_index + 1;
+                continue;
             }
             //leaf node
             if(hit_type == HIT_DATA_TRIANGLE) {     
@@ -139,6 +139,5 @@ fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32, is_pixel_to_debug: boo
     if (is_pixel_to_debug) {
         write_value_on_debug_data_texture(debug_starting_index, f32(debug_index));
     }
-
     return Result(ray.t_max, visibility_id);
 }

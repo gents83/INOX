@@ -152,7 +152,7 @@ impl RenderContext {
             view_formats: vec![format],
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
-            present_mode: wgpu::PresentMode::AutoVsync,
+            present_mode: wgpu::PresentMode::Immediate,
             alpha_mode: *capabilities.alpha_modes.first().unwrap(),
         };
 

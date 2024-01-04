@@ -28,10 +28,8 @@ var<storage, read> bhv: BHV;
 @group(1) @binding(3)
 var render_target: texture_storage_2d<rgba32float, read_write>;
 @group(1) @binding(4)
-var ray_texture: texture_storage_2d<rgba32float, read_write>;
-@group(1) @binding(5)
 var visibility_texture: texture_2d<f32>;
-@group(1) @binding(6)
+@group(1) @binding(5)
 var depth_texture: texture_depth_2d;
 
 #import "texture_utils.inc"
@@ -42,29 +40,23 @@ var depth_texture: texture_depth_2d;
 #import "visibility_utils.inc"
 #import "pathtracing.inc"
 
-fn execute_job(source_pixel: vec2<u32>, target_pixel: vec2<u32>, source_dimensions: vec2<u32>, target_dimensions: vec2<u32>) -> vec4<f32>  
+fn execute_job(source_pixel: vec2<u32>, source_dimensions: vec2<u32>) -> vec4<f32>  
 {        
     let visibility_value = textureLoad(visibility_texture, source_pixel, 0);
     let visibility_id = pack4x8unorm(visibility_value);
     if (visibility_id == 0u || (visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
         return vec4<f32>(0.);
     }
-
-    var seed = (target_pixel * target_dimensions) ^ vec2<u32>(constant_data.frame_index);
     
-    let depth_value = textureLoad(depth_texture, source_pixel, 0);
-    let hit_point = pixel_to_world(source_pixel, source_dimensions, depth_value);
-    let radiance_data = compute_radiance_from_visibility(visibility_id, hit_point, get_random_numbers(&seed), vec3<f32>(0.), vec3<f32>(1.));     
+    let depth = textureLoad(depth_texture, source_pixel, 0);
+    let hit_point = pixel_to_world(source_pixel, source_dimensions, depth); 
+    var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
+    let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data);   
     
-    let out_rays_color = vec4<f32>(radiance_data.direction, depth_value);
-    textureStore(ray_texture, target_pixel, out_rays_color);
-        
-    let r = pack2x16float(radiance_data.radiance.rg);
-    let g = pack2x16float(vec2<f32>(radiance_data.radiance.b, radiance_data.throughput_weight.r));
-    let b = pack2x16float(radiance_data.throughput_weight.gb);
-    let a = visibility_id;
+    let out_gbuffer = vec4<f32>(material_info.base_color.rgb, 
+                                f32(visibility_id));
     
-    return vec4<f32>(f32(r), f32(g), f32(b), f32(a));
+    return vec4<f32>(out_gbuffer);
 }
 
 
@@ -88,7 +80,7 @@ fn main(
     }    
     
     let source_pixel = vec2<u32>(vec2<f32>(target_pixel) * scale);
-    var out_color = execute_job(source_pixel, target_pixel, source_dimensions, target_dimensions);
+    var out_color = execute_job(source_pixel, source_dimensions);
     textureStore(render_target, target_pixel, out_color);
     
 }

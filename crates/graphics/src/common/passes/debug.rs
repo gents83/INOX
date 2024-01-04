@@ -25,6 +25,7 @@ pub struct DebugPass {
     finalize_texture: TextureId,
     visibility_texture: TextureId,
     radiance_texture: TextureId,
+    gbuffer_texture: TextureId,
     depth_texture: TextureId,
     debug_data_texture: TextureId,
 }
@@ -81,6 +82,7 @@ impl Pass for DebugPass {
             finalize_texture: INVALID_UID,
             debug_data_texture: INVALID_UID,
             visibility_texture: INVALID_UID,
+            gbuffer_texture: INVALID_UID,
             radiance_texture: INVALID_UID,
             depth_texture: INVALID_UID,
         }
@@ -177,7 +179,7 @@ impl Pass for DebugPass {
                 },
             )
             .add_texture(
-                &self.depth_texture,
+                &self.gbuffer_texture,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 3,
@@ -186,10 +188,19 @@ impl Pass for DebugPass {
                 },
             )
             .add_texture(
-                &self.debug_data_texture,
+                &self.depth_texture,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 4,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+            )
+            .add_texture(
+                &self.debug_data_texture,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 5,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
@@ -216,7 +227,6 @@ impl Pass for DebugPass {
         }
         let buffers = render_context.buffers();
         let render_targets = render_context.texture_handler.render_targets();
-        let draw_commands_type = self.draw_commands_type();
 
         let render_pass_begin_data = RenderPassBeginData {
             render_core_context: &render_context.core,
@@ -232,7 +242,7 @@ impl Pass for DebugPass {
                 &render_context.core.device,
                 "debug_pass",
             );
-            pass.indirect_indexed_draw(render_context, &buffers, draw_commands_type, render_pass);
+            pass.draw(render_context, render_pass, 0..3, 0..1);
         }
     }
 }
@@ -244,6 +254,10 @@ impl DebugPass {
     }
     pub fn set_radiance_texture(&mut self, texture_id: &TextureId) -> &mut Self {
         self.radiance_texture = *texture_id;
+        self
+    }
+    pub fn set_gbuffer_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.gbuffer_texture = *texture_id;
         self
     }
     pub fn set_depth_texture(&mut self, texture_id: &TextureId) -> &mut Self {

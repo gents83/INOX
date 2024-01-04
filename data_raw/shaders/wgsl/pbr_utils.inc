@@ -539,7 +539,7 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
         }
     }
     
-    f_emissive = material.emissive_color;
+    f_emissive = material.emissive_color * material.emissive_strength;
     if (has_texture(&material, TEXTURE_TYPE_EMISSIVE)) {  
       let uv = material_texture_uv(&material, pixel_data, TEXTURE_TYPE_EMISSIVE);
       let texture_color = sample_texture(uv);
