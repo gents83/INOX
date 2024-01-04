@@ -59,7 +59,7 @@ fn write_vec3_on_debug_data_texture(index: u32, v: vec3<f32>) -> u32 {
     return new_index;
 }
 
-fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<f32>  
+fn execute_job(pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<f32>  
 {    
     var is_pixel_to_debug = (constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE) != 0;
     if (is_pixel_to_debug) {
@@ -127,33 +127,22 @@ fn execute_job(job_index: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<
 
 
 
-const MAX_WORKGROUP_SIZE: u32 = 16u*16u;
-var<workgroup> jobs_count: atomic<u32>;
+const WORKGROUP_SIZE: u32 = 4u;
 
 @compute
-@workgroup_size(16, 16, 1)
+@workgroup_size(WORKGROUP_SIZE, WORKGROUP_SIZE, 1)
 fn main(
     @builtin(local_invocation_id) local_invocation_id: vec3<u32>, 
     @builtin(workgroup_id) workgroup_id: vec3<u32>
 ) {
     let dimensions = textureDimensions(radiance_texture);
-    atomicStore(&jobs_count, MAX_WORKGROUP_SIZE);
     
-    var job_index = 0u;
-    while(job_index < MAX_WORKGROUP_SIZE)
-    {
-        let pixel = vec2<u32>(workgroup_id.x * 16u + job_index % 16u, 
-                              workgroup_id.y * 16u + job_index / 16u);
-        if (pixel.x >= dimensions.x || pixel.y >= dimensions.y) {
-            job_index = MAX_WORKGROUP_SIZE - atomicSub(&jobs_count, 1u);
-            continue;
-        }    
-        
-        let index = u32(pixel.y * dimensions.x + pixel.x);
+    let pixel = vec2<u32>(workgroup_id.x * WORKGROUP_SIZE + local_invocation_id.x, 
+                            workgroup_id.y * WORKGROUP_SIZE + local_invocation_id.y);
+    if (pixel.x > dimensions.x || pixel.y > dimensions.y) {
+        return;
+    }    
 
-        var out_color = execute_job(index, pixel, dimensions);
-        textureStore(radiance_texture, pixel, out_color);
-
-        job_index = MAX_WORKGROUP_SIZE - atomicSub(&jobs_count, 1u);
-    }
+    var out_color = execute_job(pixel, dimensions);
+    textureStore(radiance_texture, pixel, out_color);   
 }

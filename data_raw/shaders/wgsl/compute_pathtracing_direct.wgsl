@@ -40,10 +40,9 @@ var depth_texture: texture_depth_2d;
 #import "material_utils.inc"
 #import "pbr_utils.inc"
 #import "visibility_utils.inc"
-#import "raytracing.inc"
 #import "pathtracing.inc"
 
-fn execute_job(job_index: u32, source_pixel: vec2<u32>, target_pixel: vec2<u32>, source_dimensions: vec2<u32>, target_dimensions: vec2<u32>) -> vec4<f32>  
+fn execute_job(source_pixel: vec2<u32>, target_pixel: vec2<u32>, source_dimensions: vec2<u32>, target_dimensions: vec2<u32>) -> vec4<f32>  
 {        
     let visibility_value = textureLoad(visibility_texture, source_pixel, 0);
     let visibility_id = pack4x8unorm(visibility_value);
@@ -70,11 +69,10 @@ fn execute_job(job_index: u32, source_pixel: vec2<u32>, target_pixel: vec2<u32>,
 
 
 
-const MAX_WORKGROUP_SIZE: u32 = 16u*16u;
-var<workgroup> jobs_count: atomic<u32>;
+const WORKGROUP_SIZE: u32 = 4u;
 
 @compute
-@workgroup_size(16, 16, 1)
+@workgroup_size(WORKGROUP_SIZE, WORKGROUP_SIZE, 1)
 fn main(
     @builtin(local_invocation_id) local_invocation_id: vec3<u32>, 
     @builtin(workgroup_id) workgroup_id: vec3<u32>
@@ -82,22 +80,15 @@ fn main(
     let target_dimensions = textureDimensions(render_target);
     let source_dimensions = textureDimensions(visibility_texture);
     let scale = vec2<f32>(source_dimensions) / vec2<f32>(target_dimensions);
-    atomicStore(&jobs_count, MAX_WORKGROUP_SIZE);
+
+    let target_pixel = vec2<u32>(workgroup_id.x * WORKGROUP_SIZE + local_invocation_id.x, 
+                                 workgroup_id.y * WORKGROUP_SIZE + local_invocation_id.y);
+    if (target_pixel.x > target_dimensions.x || target_pixel.y > target_dimensions.y) {
+        return;
+    }    
     
-    var job_index = 0u;
-    while(job_index < MAX_WORKGROUP_SIZE)
-    {
-        let target_pixel = vec2<u32>(workgroup_id.x * 16u + job_index % 16u, 
-                              workgroup_id.y * 16u + job_index / 16u);
-        if (target_pixel.x >= target_dimensions.x || target_pixel.y >= target_dimensions.y) {
-            job_index = MAX_WORKGROUP_SIZE - atomicSub(&jobs_count, 1u);
-            continue;
-        }    
-        
-        let index = u32(target_pixel.y * target_dimensions.x + target_pixel.x);
-        let source_pixel = vec2<u32>(vec2<f32>(target_pixel) * scale);
-        var out_color = execute_job(index, source_pixel, target_pixel, source_dimensions, target_dimensions);
-        textureStore(render_target, target_pixel, out_color);
-        job_index = MAX_WORKGROUP_SIZE - atomicSub(&jobs_count, 1u);
-    }
+    let source_pixel = vec2<u32>(vec2<f32>(target_pixel) * scale);
+    var out_color = execute_job(source_pixel, target_pixel, source_dimensions, target_dimensions);
+    textureStore(render_target, target_pixel, out_color);
+    
 }
