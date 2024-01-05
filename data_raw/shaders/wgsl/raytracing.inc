@@ -22,24 +22,33 @@ fn intersect_aabb(ray: ptr<function, Ray>, aabb_min: vec3<f32>, aabb_max: vec3<f
     return select(t_far, t_near, (t_near < (*ray).t_max && t_far > 0.));
 }
 
-fn intersect_triangle(ray: Ray, v0: vec3<f32>, v1: vec3<f32>, v2: vec3<f32>) -> f32
+// Mäller-Trumbore algorithm
+// https://en.wikipedia.org/wiki/Möller–Trumbore_intersection_algorithm
+fn intersect_triangle(ray: ptr<function, Ray>, v0: vec3<f32>, v1: vec3<f32>, v2: vec3<f32>) -> f32
 {
+    let o = (*ray).origin;
+    let dir = (*ray).direction;
+    let miss = (*ray).t_max;
+    var result = miss;
+
     let e1 = v1 - v0;
     let e2 = v2 - v0;
 
-    let h = cross(ray.direction, e2);
-    let a = dot(e1, h);    
-    let inv_a = 1.0 / a;    
-    let s = ray.origin - v0;    
-    let u = inv_a * dot(s, h);    
-    let mask_u = u >= 0.0 && u <= 1.0;
-    let q = cross(s, e1);    
-    let v = inv_a * dot(ray.direction, q);    
-    let mask_v = v >= 0.0 && u + v <= 1.0;
-    let t = inv_a * dot(e2, q);    
-    let mask_t = t > 0.0 && t < ray.t_max;
+    let h = cross(dir, e2);
+    let det = dot(e1, h);
 
-    return select(ray.t_max, t, (mask_u && mask_v && mask_t));
+    let inv_det = 1. / det;
+    let s = o - v0;
+    let u = inv_det * dot(s, h);
+
+    let q = cross(s, e1);
+    let v = inv_det * dot(dir, q);
+
+    let t = inv_det * dot(e2, q);
+    result = select(result, t, (t > MATH_EPSILON && t < result));
+    result = select(result, miss, u < 0. || u > 1.);
+    result = select(result, miss, v < 0. || u + v > 1.);
+    return result;
 }
 
 //starting index = tlas_starting_index
@@ -72,7 +81,9 @@ fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32) -> Result {
                 let v1 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset]].world_pos;
                 let v2 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset + 1u]].world_pos;
                 let v3 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset + 2u]].world_pos;
-                let distance = intersect_triangle(world_ray, v1, v2, v3);
+                ray.origin = world_ray.origin;
+                ray.direction = world_ray.direction;
+                let distance = intersect_triangle(&ray, v1, v2, v3);
                 if(distance < ray.t_max) {
                     visibility_id = ((meshlet_id + 1u) << 8u)  | triangle_id;
                     ray.t_max = distance;
