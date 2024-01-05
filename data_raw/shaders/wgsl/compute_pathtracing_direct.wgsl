@@ -26,7 +26,7 @@ var<storage, read> culling_result: array<u32>;
 var<storage, read> bhv: BHV;
 
 @group(1) @binding(3)
-var render_target: texture_storage_2d<rgba32float, read_write>;
+var gbuffer_texture: texture_storage_2d<rgba8unorm, read_write>;
 @group(1) @binding(4)
 var visibility_texture: texture_2d<f32>;
 @group(1) @binding(5)
@@ -40,16 +40,22 @@ var depth_texture: texture_depth_2d;
 #import "visibility_utils.inc"
 #import "pathtracing.inc"
 
-fn execute_job(source_pixel: vec2<u32>, source_dimensions: vec2<u32>) -> vec4<f32>  
+fn execute_job(pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<f32>  
 {        
-    let visibility_value = textureLoad(visibility_texture, source_pixel, 0);
+    let visibility_dimensions = textureDimensions(visibility_texture);
+    let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
+    let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
+    let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
     let visibility_id = pack4x8unorm(visibility_value);
     if (visibility_id == 0u || (visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
         return vec4<f32>(0.);
     }
     
-    let depth = textureLoad(depth_texture, source_pixel, 0);
-    let hit_point = pixel_to_world(source_pixel, source_dimensions, depth); 
+    let depth_dimensions = textureDimensions(depth_texture);
+    let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
+    let depth_pixel = vec2<u32>(vec2<f32>(pixel) * depth_scale);
+    let depth = textureLoad(depth_texture, depth_pixel, 0);
+    let hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth); 
     var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
     let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data);   
     
@@ -61,7 +67,7 @@ fn execute_job(source_pixel: vec2<u32>, source_dimensions: vec2<u32>) -> vec4<f3
 
 
 
-const WORKGROUP_SIZE: u32 = 4u;
+const WORKGROUP_SIZE: u32 = 8u;
 
 @compute
 @workgroup_size(WORKGROUP_SIZE, WORKGROUP_SIZE, 1)
@@ -69,18 +75,14 @@ fn main(
     @builtin(local_invocation_id) local_invocation_id: vec3<u32>, 
     @builtin(workgroup_id) workgroup_id: vec3<u32>
 ) {
-    let target_dimensions = textureDimensions(render_target);
-    let source_dimensions = textureDimensions(visibility_texture);
-    let scale = vec2<f32>(source_dimensions) / vec2<f32>(target_dimensions);
+    let dimensions = textureDimensions(gbuffer_texture);
 
-    let target_pixel = vec2<u32>(workgroup_id.x * WORKGROUP_SIZE + local_invocation_id.x, 
-                                 workgroup_id.y * WORKGROUP_SIZE + local_invocation_id.y);
-    if (target_pixel.x > target_dimensions.x || target_pixel.y > target_dimensions.y) {
+    let pixel = vec2<u32>(workgroup_id.x * WORKGROUP_SIZE + local_invocation_id.x, 
+                          workgroup_id.y * WORKGROUP_SIZE + local_invocation_id.y);
+    if (pixel.x > dimensions.x || pixel.y > dimensions.y) {
         return;
     }    
     
-    let source_pixel = vec2<u32>(vec2<f32>(target_pixel) * scale);
-    var out_color = execute_job(source_pixel, source_dimensions);
-    textureStore(render_target, target_pixel, out_color);
-    
+    var out_color = execute_job(pixel, dimensions);
+    textureStore(gbuffer_texture, pixel, out_color);    
 }

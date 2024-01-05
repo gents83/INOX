@@ -61,7 +61,7 @@ fn write_vec3_on_debug_data_texture(index: u32, v: vec3<f32>) -> u32 {
     return new_index;
 }
 
-fn execute_job(pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<f32>  
+fn execute_job(pixel: vec2<u32>, dimensions: vec2<u32>, visibility_pixel: vec2<u32>, depth_pixel: vec2<u32>, depth_dimensions: vec2<u32>) -> vec4<f32>  
 {    
     var is_pixel_to_debug = (constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE) != 0;
     if (is_pixel_to_debug) {
@@ -69,49 +69,42 @@ fn execute_job(pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<f32>
         is_pixel_to_debug &= debug_pixel.x == pixel.x && debug_pixel.y == pixel.y;
     } 
 
-    var radiance = vec3<f32>(0.);
-
-    let visibility_value = textureLoad(visibility_texture, pixel, 0);
-    let visibility_id = pack4x8unorm(visibility_value);
+    let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
+    var visibility_id = pack4x8unorm(visibility_value);
     if (visibility_id == 0u || (visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
-        
         if (is_pixel_to_debug) {
             write_value_on_debug_data_texture(0u, 0.);
         }
-        return vec4<f32>(radiance, 1.);
+        return vec4<f32>(vec3<f32>(0.), 1.);
     }       
 
+    var radiance = vec3<f32>(0.);
     var throughput_weight = vec3<f32>(1.); 
     var seed = (pixel * dimensions) ^ vec2<u32>(constant_data.frame_index << 16u);
-
-    let depth = textureLoad(depth_texture, pixel, 0);
-    var hit_point = pixel_to_world(pixel, dimensions, depth);
-    var radiance_data = compute_radiance_from_visibility(visibility_id, hit_point, get_random_numbers(&seed), radiance, throughput_weight);  
-
-    var ray = Ray(hit_point + radiance_data.direction * HIT_EPSILON, 0., radiance_data.direction, MAX_TRACING_DISTANCE);
-
+    var hit_point: vec3<f32>;
+    var ray: Ray;
     var debug_index = 1u;
-    if (is_pixel_to_debug) {
-        debug_index = write_value_on_debug_data_texture(debug_index, f32(visibility_id));
-        debug_index = write_vec3_on_debug_data_texture(debug_index, ray.origin);
-        debug_index = write_vec3_on_debug_data_texture(debug_index, ray.direction);
-    }
-    
+
     for(var i = 0u; i < constant_data.indirect_light_num_bounces; i++) {
-        let result = traverse_bvh(ray, constant_data.tlas_starting_index, is_pixel_to_debug, 100u);  
-        if (result.visibility_id == 0u || (result.visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
-            break;
+        if (i == 0u) {
+            let depth = textureLoad(depth_texture, depth_pixel, 0);
+            hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth);
+        } else {
+            let result = traverse_bvh(ray, constant_data.tlas_starting_index, is_pixel_to_debug, 100u);  
+            if (result.visibility_id == 0u || (result.visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
+                return vec4<f32>(radiance, 1.);
+            }      
+            visibility_id = result.visibility_id;      
+            hit_point = ray.origin + (ray.direction * result.distance);
         }
-        
-        hit_point = ray.origin + (ray.direction * result.distance);
-        radiance_data = compute_radiance_from_visibility(result.visibility_id, hit_point, get_random_numbers(&seed), radiance, throughput_weight); 
+        let radiance_data = compute_radiance_from_visibility(visibility_id, hit_point, get_random_numbers(&seed), radiance, throughput_weight); 
         
         ray = Ray(hit_point + radiance_data.direction * HIT_EPSILON, 0., radiance_data.direction, MAX_TRACING_DISTANCE);
-        radiance = radiance_data.radiance;
-        throughput_weight = radiance_data.throughput_weight;
+        radiance += radiance_data.radiance;
+        throughput_weight *= radiance_data.throughput_weight;
         
         if (is_pixel_to_debug) {
-            debug_index = write_value_on_debug_data_texture(debug_index, f32(result.visibility_id));
+            debug_index = write_value_on_debug_data_texture(debug_index, f32(visibility_id));
             debug_index = write_vec3_on_debug_data_texture(debug_index, ray.origin);
             debug_index = write_vec3_on_debug_data_texture(debug_index, ray.direction);
         }
@@ -125,7 +118,7 @@ fn execute_job(pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<f32>
 
 
 
-const WORKGROUP_SIZE: u32 = 4u;
+const WORKGROUP_SIZE: u32 = 8u;
 
 @compute
 @workgroup_size(WORKGROUP_SIZE, WORKGROUP_SIZE, 1)
@@ -136,11 +129,25 @@ fn main(
     let dimensions = textureDimensions(radiance_texture);
     
     let pixel = vec2<u32>(workgroup_id.x * WORKGROUP_SIZE + local_invocation_id.x, 
-                            workgroup_id.y * WORKGROUP_SIZE + local_invocation_id.y);
+                          workgroup_id.y * WORKGROUP_SIZE + local_invocation_id.y);
     if (pixel.x > dimensions.x || pixel.y > dimensions.y) {
         return;
-    }    
+    }        
 
-    var out_color = execute_job(pixel, dimensions);
+    let visibility_dimensions = textureDimensions(visibility_texture);
+    let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
+    let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
+    let depth_dimensions = textureDimensions(depth_texture);
+    let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
+    let depth_pixel = vec2<u32>(vec2<f32>(pixel) * depth_scale);
+
+    var out_color = execute_job(pixel, dimensions, visibility_pixel, depth_pixel, depth_dimensions);
+
+    if(constant_data.frame_index > 0u) {
+        let prev_value = textureLoad(radiance_texture, pixel);
+        let weight = 1. / f32(constant_data.frame_index + 1u);
+        out_color = mix(prev_value, out_color, weight);
+    }
+
     textureStore(radiance_texture, pixel, out_color);   
 }

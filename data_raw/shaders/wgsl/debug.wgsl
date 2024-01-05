@@ -92,10 +92,13 @@ fn draw_cube_from_min_max(min: vec3<f32>, max:vec3<f32>, pixel: vec2<u32>, dimen
     return color;
 }
 
-fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>) -> vec4<f32> {
+fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<f32> {
     var out_color = color;
     if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS) != 0) {
-        let visibility_output = textureLoad(visibility_texture, pixel, 0);
+        let visibility_dimensions = textureDimensions(visibility_texture);
+        let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
+        let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
+        let visibility_output = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = pack4x8unorm(visibility_output);
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
             let meshlet_id = (visibility_id >> 8u); 
@@ -108,15 +111,35 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>) -> vec4<f32> {
         }
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER) != 0) {
-        out_color = textureLoad(radiance_texture, pixel, 0);
+        let visibility_dimensions = textureDimensions(visibility_texture);
+        let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
+        let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
+        out_color = textureLoad(visibility_texture, visibility_pixel, 0);
+    } 
+    else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_GBUFFER) != 0) {
+        let gbuffer_dimensions = textureDimensions(gbuffer_texture);
+        let gbuffer_scale = vec2<f32>(gbuffer_dimensions) / vec2<f32>(dimensions);
+        let gbuffer_pixel = vec2<u32>(vec2<f32>(pixel) * gbuffer_scale); 
+        out_color = textureLoad(gbuffer_texture, gbuffer_pixel, 0);
+    } 
+    else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER) != 0) {
+        let radiance_dimensions = textureDimensions(radiance_texture);
+        let radiance_scale = vec2<f32>(radiance_dimensions) / vec2<f32>(dimensions);
+        let radiance_pixel = vec2<u32>(vec2<f32>(pixel) * radiance_scale);
+        out_color = textureLoad(radiance_texture, radiance_pixel, 0);
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER) != 0) {
-        let depth = textureLoad(depth_texture, pixel, 0);
+        let depth_dimensions = textureDimensions(depth_texture);
+        let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
+        let depth_pixel = vec2<u32>(vec2<f32>(pixel) * depth_scale);
+        let depth = textureLoad(depth_texture, depth_pixel, 0);
         let v = vec3<f32>(1. - depth);
         out_color = vec4<f32>(v, 1.);
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE) != 0) {
-        let dimensions = textureDimensions(debug_data_texture);
+        let debug_dimensions = textureDimensions(debug_data_texture);
+        let debug_scale = vec2<f32>(debug_dimensions) / vec2<f32>(dimensions);
+        let debug_pixel = vec2<u32>(vec2<f32>(pixel) * debug_scale);
         var origin = vec3<f32>(0.);
         var direction = vec3<f32>(0.);
         let line_color = vec3<f32>(0., 1., 0.);
@@ -136,8 +159,8 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>) -> vec4<f32> {
             max.x = read_value_from_debug_data_texture(&debug_bhv_index);
             max.y = read_value_from_debug_data_texture(&debug_bhv_index);
             max.z = read_value_from_debug_data_texture(&debug_bhv_index);
-            color += draw_cube_from_min_max(min, max, pixel, dimensions);
-            //color += draw_line_3d(pixel, dimensions, min, max, vec3<f32>(0.,0.,1.), line_size);
+            color += draw_cube_from_min_max(min, max, debug_pixel, debug_dimensions);
+            //color += draw_line_3d(debug_pixel, debug_dimensions, min, max, vec3<f32>(0.,0.,1.), line_size);
         }
         */
         
@@ -145,7 +168,7 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>) -> vec4<f32> {
         let max_index = u32(read_value_from_debug_data_texture(&debug_index));
         while(debug_index < max_index) {
             let visibility_id = u32(read_value_from_debug_data_texture(&debug_index));
-            color += draw_triangle_from_visibility(visibility_id, pixel, dimensions);
+            color += draw_triangle_from_visibility(visibility_id, debug_pixel, debug_dimensions);
             
             var previous = origin;
             origin.x = read_value_from_debug_data_texture(&debug_index);
@@ -155,11 +178,11 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>) -> vec4<f32> {
             direction.y = read_value_from_debug_data_texture(&debug_index);
             direction.z = read_value_from_debug_data_texture(&debug_index);
             if (bounce_index > 0u) {
-                color += draw_line_3d(pixel, dimensions, previous, origin, line_color, line_size);
+                color += draw_line_3d(debug_pixel, debug_dimensions, previous, origin, line_color, line_size);
             }
             bounce_index += 1u;
         }
-        color += draw_line_3d(pixel, dimensions, origin, origin + direction * 5., line_color, line_size);
+        color += draw_line_3d(debug_pixel, debug_dimensions, origin, origin + direction * 5., line_color, line_size);
         out_color = vec4<f32>(color, 1.);
     } 
     return out_color;
@@ -181,13 +204,10 @@ fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
 
 @fragment
 fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
-    let target_dimensions = vec2<f32>(textureDimensions(debug_data_texture));
-    let source_dimensions = vec2<f32>(textureDimensions(finalize_texture));
-    let scale = vec2<f32>(source_dimensions) / vec2<f32>(target_dimensions);
-    let target_pixel = vec2<u32>(u32(v_in.uv.x * target_dimensions.x), u32(v_in.uv.y * target_dimensions.y));
-    let source_pixel = vec2<u32>(vec2<f32>(target_pixel) * scale);
+    let dimensions = textureDimensions(finalize_texture);
+    let pixel = vec2<u32>(u32(v_in.uv.x * f32(dimensions.x)), u32(v_in.uv.y * f32(dimensions.y)));
 
-    var out_color = textureLoad(finalize_texture, source_pixel, 0);    
-    out_color = debug_color_override(out_color, target_pixel); 
+    var out_color = textureLoad(finalize_texture, pixel, 0);    
+    out_color = debug_color_override(out_color, pixel, dimensions); 
     return out_color;
 }

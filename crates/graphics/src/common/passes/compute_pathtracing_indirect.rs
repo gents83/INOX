@@ -281,8 +281,8 @@ impl Pass for ComputePathTracingIndirectPass {
 
         let pass = self.compute_pass.get();
 
-        let x_pixels_managed_in_shader = 4;
-        let y_pixels_managed_in_shader = 4;
+        let x_pixels_managed_in_shader = 8;
+        let y_pixels_managed_in_shader = 8;
         let x = (x_pixels_managed_in_shader
             * ((self.dimensions.0 + x_pixels_managed_in_shader - 1) / x_pixels_managed_in_shader))
             / x_pixels_managed_in_shader;

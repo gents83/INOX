@@ -177,7 +177,7 @@ impl Viewer {
         let _gbuffer = renderer.add_render_target(
             half_dims.0,
             half_dims.1,
-            TextureFormat::Rgba32Float,
+            TextureFormat::Rgba8Unorm,
             usage | TextureUsage::StorageBinding,
             single_sample,
         );
@@ -202,8 +202,8 @@ impl Viewer {
         debug_assert!(_debug_data == RenderTargetType::DebugData as usize);
         //Finalize = 5,
         let _finalize = renderer.add_render_target(
-            width,
-            height,
+            half_dims.0,
+            half_dims.1,
             TextureFormat::Rgba8Unorm,
             usage | TextureUsage::StorageBinding,
             multi_sample,

@@ -13,9 +13,11 @@ pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 1 << 1;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 1 << 2;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS: u32 = 1 << 3;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER: u32 = 1 << 4;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER: u32 = 1 << 5;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE: u32 = 1 << 6;
-pub const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1 << 7;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER: u32 = 1 << 5;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_GBUFFER: u32 = 1 << 6;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER: u32 = 1 << 7;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE: u32 = 1 << 8;
+pub const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1 << 9;
 pub const CONSTANT_DATA_FLAGS_USE_PUNCTUAL: u32 = CONSTANT_DATA_FLAGS_NONE; // Today we want by default punctual lights
 
 #[repr(C)]
@@ -43,7 +45,7 @@ impl Default for Data {
             flags: 0,
             debug_uv_coords: [0.; 2],
             tlas_starting_index: 0,
-            num_bounces: 4,
+            num_bounces: 5,
         }
     }
 }
