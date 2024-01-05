@@ -90,7 +90,7 @@ fn execute_job(pixel: vec2<u32>, dimensions: vec2<u32>, visibility_pixel: vec2<u
             let depth = textureLoad(depth_texture, depth_pixel, 0);
             hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth);
         } else {
-            let result = traverse_bvh(ray, constant_data.tlas_starting_index, is_pixel_to_debug, 100u);  
+            let result = traverse_bvh(ray, constant_data.tlas_starting_index);  
             if (result.visibility_id == 0u || (result.visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
                 return vec4<f32>(radiance, 1.);
             }      

@@ -19,10 +19,7 @@ fn intersect_aabb(ray: ptr<function, Ray>, aabb_min: vec3<f32>, aabb_max: vec3<f
     let t_near = max(max(t_min.x, t_min.y), t_min.z);
     let t_far = min(min(t_max.x, t_max.y), t_max.z);
 
-    if t_far >= 0. {
-        return t_near;
-    }
-    return t_far;
+    return select(t_far, t_near, (t_near < (*ray).t_max && t_far > 0.));
 }
 
 fn intersect_triangle(ray: Ray, v0: vec3<f32>, v1: vec3<f32>, v2: vec3<f32>) -> f32
@@ -46,7 +43,7 @@ fn intersect_triangle(ray: Ray, v0: vec3<f32>, v1: vec3<f32>, v2: vec3<f32>) -> 
 }
 
 //starting index = tlas_starting_index
-fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32, is_pixel_to_debug: bool, debug_starting_index: u32) -> Result {
+fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32) -> Result {
     var ray = world_ray;
     var node_index = i32(tlas_starting_index) + 1;
     var visibility_id = 0u;
@@ -57,21 +54,17 @@ fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32, is_pixel_to_debug: boo
     var meshlet_id = 0u;
     var blas_sibling = 0;
     var tlas_sibling = 0;
-    var debug_index = 1u + debug_starting_index;
-
+    
+    var node = bhv.data[u32(node_index)]; 
     while(node_index >= 0)
     {
-        let node = bhv.data[u32(node_index)]; 
+        node = bhv.data[u32(node_index)]; 
+        if(node.reference < 0) {
+            node_index = node_index + 1;
+            continue;
+        }
         let intersection = intersect_aabb(&ray, node.min, node.max);        
         if(intersection < ray.t_max) {
-            if (is_pixel_to_debug) {
-                debug_index = write_vec3_on_debug_data_texture(debug_index, node.min);
-                debug_index = write_vec3_on_debug_data_texture(debug_index, node.max);
-            }
-            if(node.reference < 0) {
-                node_index = node_index + 1;
-                continue;
-            }
             //leaf node
             if(hit_type == HIT_DATA_TRIANGLE) {     
                 let triangle_id = u32(node.reference);
@@ -85,16 +78,14 @@ fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32, is_pixel_to_debug: boo
                     ray.t_max = distance;
                 }
                 node_index = node.miss;
-                if(node_index < 0) {
-                    node_index = blas_sibling;
-                    hit_type = HIT_DATA_BLAS;
-                    if(node_index < 0) {
-                        node_index = tlas_sibling;
-                        hit_type = HIT_DATA_TLAS;
-                        ray.origin = world_ray.origin;
-                        ray.direction = world_ray.direction;
-                    }
-                }     
+                let should_go_to_blas = node_index < 0;
+                hit_type = select(hit_type, HIT_DATA_BLAS, should_go_to_blas);
+                node_index = select(node_index, blas_sibling, should_go_to_blas);
+                let should_go_to_tlas = node_index < 0;
+                hit_type = select(hit_type, HIT_DATA_TLAS, should_go_to_tlas);
+                node_index = select(node_index, tlas_sibling, should_go_to_tlas);
+                ray.origin = select(ray.origin, world_ray.origin, should_go_to_tlas);
+                ray.direction = select(ray.direction, world_ray.direction, should_go_to_tlas);
             }
             else if(hit_type == HIT_DATA_BLAS) {  
                 hit_type = HIT_DATA_TRIANGLE;
@@ -124,20 +115,15 @@ fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32, is_pixel_to_debug: boo
         }
         else {
             node_index = node.miss;
-            if(hit_type == HIT_DATA_TRIANGLE && node_index < 0) {
-                node_index = blas_sibling;
-                hit_type = HIT_DATA_BLAS;
-            }
-            if(hit_type == HIT_DATA_BLAS && node_index < 0) {
-                node_index = tlas_sibling;
-                hit_type = HIT_DATA_TLAS;
-                ray.origin = world_ray.origin;
-                ray.direction = world_ray.direction;
-            }
+            let should_go_to_blas = hit_type == HIT_DATA_TRIANGLE && node_index < 0;
+            hit_type = select(hit_type, HIT_DATA_BLAS, should_go_to_blas);
+            node_index = select(node_index, blas_sibling, should_go_to_blas);
+            let should_go_to_tlas = hit_type == HIT_DATA_BLAS && node_index < 0;
+            hit_type = select(hit_type, HIT_DATA_TLAS, should_go_to_tlas);
+            node_index = select(node_index, tlas_sibling, should_go_to_tlas);
+            ray.origin = select(ray.origin, world_ray.origin, hit_type == HIT_DATA_TLAS);
+            ray.direction = select(ray.direction, world_ray.direction, hit_type == HIT_DATA_TLAS);
         }         
-    }
-    if (is_pixel_to_debug) {
-        write_value_on_debug_data_texture(debug_starting_index, f32(debug_index));
     }
     return Result(ray.t_max, visibility_id);
 }
