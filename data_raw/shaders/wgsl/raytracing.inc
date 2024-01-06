@@ -29,8 +29,12 @@ fn intersect_triangle(origin: vec3<f32>, direction: vec3<f32>, max_distance: f32
     var result = max_distance;
     let e1 = v1 - v0;
     let e2 = v2 - v0;
-    let s = origin - v0;
+    let n = cross(e1, e2);
+    if (dot(n, direction) > 0.) {
+        return result;
+    }
 
+    let s = origin - v0;
     let q = cross(s, e1);
     let h = cross(direction, e2);
     let det = dot(e1, h);
@@ -54,6 +58,7 @@ fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32) -> Result {
     var node_index = i32(tlas_starting_index) + 1;
     var visibility_id = 0u;
     var hit_type = HIT_DATA_TLAS;
+    var mesh_orientation = vec4<f32>(0.);
     var meshlets_offset = 0u;
     var meshlet_indices_offset = 0u;
     var vertices_position_offset = 0u;
@@ -94,24 +99,31 @@ fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32) -> Result {
                 direction = select(direction, world_ray.direction, should_go_to_tlas);
             }
             else if(hit_type == HIT_DATA_BLAS) {  
-                hit_type = HIT_DATA_TRIANGLE;
+                meshlet_id = meshlets_offset + reference;              
+                let meshlet = &meshlets.data[meshlet_id];
+                meshlet_indices_offset = (*meshlet).indices_offset;
+                let cone_axis_cutoff = unpack4x8snorm((*meshlet).cone_axis_cutoff) / 127.;
+                let cone_axis = rotate_vector(cone_axis_cutoff.xyz, mesh_orientation); 
+                let is_culled = dot(cone_axis, direction) >= (cone_axis_cutoff.w + length(node.max-node.min));
                 blas_sibling = node.miss;
-                meshlet_id = meshlets_offset + reference;  
-            
-                let meshlet = meshlets.data[meshlet_id];
-                
-                meshlet_indices_offset = meshlet.indices_offset;
-                node_index = i32(meshlet.triangles_bhv_index) + 1; //We add 1 here to avoid checking same aabb 
+                hit_type = select(HIT_DATA_TRIANGLE, hit_type, is_culled);
+                node_index = select(i32((*meshlet).triangles_bhv_index) + 1, blas_sibling, is_culled);
+                let should_go_to_tlas = node_index < 0;
+                hit_type = select(hit_type, HIT_DATA_TLAS, should_go_to_tlas);
+                node_index = select(node_index, tlas_sibling, should_go_to_tlas);
+                origin = select(origin, world_ray.origin, should_go_to_tlas);
+                direction = select(direction, world_ray.direction, should_go_to_tlas);
             }
             else {  
                 hit_type = HIT_DATA_BLAS;
                 tlas_sibling = node.miss;
-                let mesh = meshes.data[reference];  
-                meshlets_offset = mesh.meshlets_offset;
-                vertices_position_offset = mesh.vertices_position_offset;
-                node_index = i32(mesh.blas_index) + 1;  //We add 1 here to avoid checking same aabb 
+                let mesh = &meshes.data[reference];  
+                meshlets_offset = (*mesh).meshlets_offset;
+                vertices_position_offset = (*mesh).vertices_position_offset;
+                mesh_orientation = (*mesh).orientation;
+                node_index = i32((*mesh).blas_index) + 1;  //We add 1 here to avoid checking same aabb 
 
-                let matrix = transform_matrix(mesh.position, mesh.orientation, mesh.scale);    
+                let matrix = transform_matrix((*mesh).position, (*mesh).orientation, (*mesh).scale);    
                 let inverse_matrix = matrix_inverse(matrix);
                 let local_ray_origin = inverse_matrix * vec4<f32>(world_ray.origin, 1.);
                 let local_ray_direction = inverse_matrix * vec4<f32>(world_ray.direction, 0.);
