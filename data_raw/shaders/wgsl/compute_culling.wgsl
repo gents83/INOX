@@ -97,7 +97,7 @@ fn main(
     }
 
     let meshlet_index = (*mesh).meshlets_offset - meshlet_id;
-    let bb_id = (*mesh).blas_index + meshlet_index;
+    let bb_id = (*meshlet).triangles_bhv_index;
     let bb = &bhv.data[bb_id];
     let max = transform_vector((*bb).max, (*mesh).position, (*mesh).orientation, (*mesh).scale);
     let min = transform_vector((*bb).min, (*mesh).position, (*mesh).orientation, (*mesh).scale);
@@ -125,9 +125,10 @@ fn main(
         return;
     }
 
-    let cone_axis_cutoff = unpack4x8snorm((*meshlet).cone_axis_cutoff);
-    let cone_axis = rotate_vector(cone_axis_cutoff.xyz, (*mesh).orientation);    
-    if (!is_cone_visible((*meshlet).center, cone_axis, cone_axis_cutoff.w, radius))
+    let cone_axis_cutoff = unpack4x8snorm((*meshlet).cone_axis_cutoff) / 127.;
+    let cone_axis = rotate_vector(cone_axis_cutoff.xyz, (*mesh).orientation); 
+    let meshlet_center = transform_vector((*meshlet).center, (*mesh).position, (*mesh).orientation, (*mesh).scale);;    
+    if (!is_cone_visible(meshlet_center, cone_axis, cone_axis_cutoff.w, radius))
     {
         return;
     }

@@ -104,6 +104,7 @@ fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32) -> Result {
                 meshlet_id = meshlets_offset + u32(node.reference);  
             
                 let meshlet = meshlets.data[meshlet_id];
+                
                 meshlet_indices_offset = meshlet.indices_offset;
                 node_index = i32(meshlet.triangles_bhv_index) + 1; //We add 1 here to avoid checking same aabb 
             }

@@ -59,8 +59,7 @@ fn execute_job(pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<f32>
     var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
     let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data);   
     
-    let out_gbuffer = vec4<f32>(material_info.base_color.rgb, 
-                                f32(visibility_id));
+    let out_gbuffer = vec4<f32>(material_info.base_color);
     
     return vec4<f32>(out_gbuffer);
 }

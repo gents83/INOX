@@ -432,7 +432,7 @@ impl Info {
                             .matrix
                             .orientation()
                             .transform_vector(meshlet_info.axis)
-                            * 0.5,
+                            * 0.75,
                         [1.0, 1.0, 0.0, 1.0].into(),
                     ));
                 });

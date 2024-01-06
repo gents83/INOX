@@ -466,76 +466,73 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
    
     var albedo_sheen_scaling = 1.0;
 
-    if (constant_data.flags == 0 || (constant_data.flags & CONSTANT_DATA_FLAGS_USE_PUNCTUAL) != 0) {
-        let num_lights = arrayLength(&lights.data);
-        for (var i = 0u; i < num_lights; i++ ) {
-            var light = lights.data[i];
-            if (light.light_type == LIGHT_TYPE_INVALID) { 
-                break; 
+    let num_lights = arrayLength(&lights.data);
+    
+    let i = hash(constant_data.frame_index) % num_lights;
+
+    var light = lights.data[i];
+    if (light.light_type != LIGHT_TYPE_INVALID) { 
+        var pointToLight: vec3<f32>;
+        if (light.light_type != LIGHT_TYPE_DIRECTIONAL) { 
+            pointToLight = light.position - (*pixel_data).world_pos;
+        } else {
+            pointToLight = -light.direction;
+        }
+            
+        // BSTF
+        var l = normalize(pointToLight);   // Direction from surface point to light
+        let h = normalize(l + v);          // Direction of the vector between l and v, called halfway vector
+        let NdotL = clamped_dot(tbn.normal, l);
+        let NdotH = clamped_dot(tbn.normal, h);
+        let LdotH = clamped_dot(l, h);
+        let VdotH = clamped_dot(v, h);
+        if (NdotL > 0.0 || NdotV > 0.0)
+        {
+            // Calculation of analytical light
+            let intensity = get_light_intensity(&light, pointToLight);
+            let specular_weight_and_anisotropy_strength = unpack2x16float(material_info.specular_weight_and_anisotropy_strength);
+            let specular_weight = specular_weight_and_anisotropy_strength.x;
+            if((material.flags & MATERIAL_FLAGS_IRIDESCENCE) != 0u) {
+                f_diffuse += intensity * NdotL *  BRDF_lambertian_iridescence(material_info.f0, material_info.f90, iridescence_fresnel, material_info.iridescence_factor, material_info.c_diff, specular_weight, VdotH);
+                f_specular += intensity * NdotL * BRDF_specular_GGX_iridescence(material_info.f0, material_info.f90, iridescence_fresnel, material_info.alpha_roughness,  material_info.iridescence_factor, specular_weight, VdotH, NdotL, NdotV, NdotH);
             }
-            var pointToLight: vec3<f32>;
-            if (light.light_type != LIGHT_TYPE_DIRECTIONAL) { 
-                pointToLight = light.position - (*pixel_data).world_pos;
-            } else {
-                pointToLight = -light.direction;
-            }
-                
-            // BSTF
-            var l = normalize(pointToLight);   // Direction from surface point to light
-            let h = normalize(l + v);          // Direction of the vector between l and v, called halfway vector
-            let NdotL = clamped_dot(tbn.normal, l);
-            let NdotV = clamped_dot(tbn.normal, v);
-            let NdotH = clamped_dot(tbn.normal, h);
-            let LdotH = clamped_dot(l, h);
-            let VdotH = clamped_dot(v, h);
-            if (NdotL > 0.0 || NdotV > 0.0)
-            {
-                // Calculation of analytical light
-                let intensity = get_light_intensity(&light, pointToLight);
-                let specular_weight_and_anisotropy_strength = unpack2x16float(material_info.specular_weight_and_anisotropy_strength);
-                let specular_weight = specular_weight_and_anisotropy_strength.x;
-                if((material.flags & MATERIAL_FLAGS_IRIDESCENCE) != 0u) {
-                    f_diffuse += intensity * NdotL *  BRDF_lambertian_iridescence(material_info.f0, material_info.f90, iridescence_fresnel, material_info.iridescence_factor, material_info.c_diff, specular_weight, VdotH);
-                    f_specular += intensity * NdotL * BRDF_specular_GGX_iridescence(material_info.f0, material_info.f90, iridescence_fresnel, material_info.alpha_roughness,  material_info.iridescence_factor, specular_weight, VdotH, NdotL, NdotV, NdotH);
-                }
-                else {
-                    f_diffuse += intensity * NdotL *  BRDF_lambertian(material_info.f0, material_info.f90, material_info.c_diff, specular_weight, VdotH);
-                    if((material.flags & MATERIAL_FLAGS_ANISOTROPY) != 0u) {
-                        let anisotropy_strength = specular_weight_and_anisotropy_strength.y;
-                        f_specular += intensity * NdotL * BRDF_specular_GGX_anisotropy(material_info.f0, material_info.f90, material_info.alpha_roughness, anisotropy_strength, tbn.normal, v, l, h, material_info.anisotropicT, material_info.anisotropicB);
-                    } else {
-                        f_specular += intensity * NdotL * BRDF_specular_GGX(material_info.f0, material_info.f90, material_info.alpha_roughness, specular_weight, VdotH, NdotL, NdotV, NdotH);
-                    }
-                }
-                
-                if((material.flags & MATERIAL_FLAGS_SHEEN) != 0u) {
-                    f_sheen += intensity * get_punctual_radiance_sheen(material_info.sheen_color_and_roughness_factor.rgb, material_info.sheen_color_and_roughness_factor.w, NdotL, NdotV, NdotH);
-                    let c = max(max(material_info.sheen_color_and_roughness_factor.r, material_info.sheen_color_and_roughness_factor.g), material_info.sheen_color_and_roughness_factor.b);
-                    albedo_sheen_scaling = min(1.0 - c * albedo_sheen_scaling_LUT(NdotV, material_info.sheen_color_and_roughness_factor.w),
-                        1.0 - c * albedo_sheen_scaling_LUT(NdotL, material_info.sheen_color_and_roughness_factor.w));
-                }
-                
-                if((material.flags & MATERIAL_FLAGS_CLEARCOAT) != 0u) {
-                    f_clearcoat += intensity * get_punctual_radiance_clearcoat(material_info.clear_coat_normal, v, l, h, VdotH,
-                        material_info.clear_coat_f0, material_info.clear_coat_f90, material_info.clear_coat_roughness_factor);
+            else {
+                f_diffuse += intensity * NdotL *  BRDF_lambertian(material_info.f0, material_info.f90, material_info.c_diff, specular_weight, VdotH);
+                if((material.flags & MATERIAL_FLAGS_ANISOTROPY) != 0u) {
+                    let anisotropy_strength = specular_weight_and_anisotropy_strength.y;
+                    f_specular += intensity * NdotL * BRDF_specular_GGX_anisotropy(material_info.f0, material_info.f90, material_info.alpha_roughness, anisotropy_strength, tbn.normal, v, l, h, material_info.anisotropicT, material_info.anisotropicB);
+                } else {
+                    f_specular += intensity * NdotL * BRDF_specular_GGX(material_info.f0, material_info.f90, material_info.alpha_roughness, specular_weight, VdotH, NdotL, NdotV, NdotH);
                 }
             }
             
-            // BDTF
-            if((material.flags & MATERIAL_FLAGS_TRANSMISSION) != 0u) {
-                // If the light ray travels through the geometry, use the point it exits the geometry again.
-                // That will change the angle to the light source, if the material refracts the light ray.
-                let transmission_ray = get_volume_transmission_ray(tbn.normal, v, material_info.thickness_factor, material_info.ior, (*pixel_data).mesh_scale);
-                pointToLight -= transmission_ray;
-                l = normalize(pointToLight);
-                let intensity = get_light_intensity(&light, pointToLight);
-                var transmitted_light = intensity * get_punctual_radiance_transmission(tbn.normal, v, l, material_info.alpha_roughness, material_info.f0, material_info.f90, material_info.c_diff, material_info.ior);
-            
-                if((material.flags & MATERIAL_FLAGS_VOLUME) != 0u) {
-                    transmitted_light = apply_volume_attenuation(transmitted_light, length(transmission_ray), material_info.attenuation_color_and_distance.rgb, material_info.attenuation_color_and_distance.w);
-                }
-                f_transmission += transmitted_light;
+            if((material.flags & MATERIAL_FLAGS_SHEEN) != 0u) {
+                f_sheen += intensity * get_punctual_radiance_sheen(material_info.sheen_color_and_roughness_factor.rgb, material_info.sheen_color_and_roughness_factor.w, NdotL, NdotV, NdotH);
+                let c = max(max(material_info.sheen_color_and_roughness_factor.r, material_info.sheen_color_and_roughness_factor.g), material_info.sheen_color_and_roughness_factor.b);
+                albedo_sheen_scaling = min(1.0 - c * albedo_sheen_scaling_LUT(NdotV, material_info.sheen_color_and_roughness_factor.w),
+                    1.0 - c * albedo_sheen_scaling_LUT(NdotL, material_info.sheen_color_and_roughness_factor.w));
             }
+            
+            if((material.flags & MATERIAL_FLAGS_CLEARCOAT) != 0u) {
+                f_clearcoat += intensity * get_punctual_radiance_clearcoat(material_info.clear_coat_normal, v, l, h, VdotH,
+                    material_info.clear_coat_f0, material_info.clear_coat_f90, material_info.clear_coat_roughness_factor);
+            }
+        }
+        
+        // BDTF
+        if((material.flags & MATERIAL_FLAGS_TRANSMISSION) != 0u) {
+            // If the light ray travels through the geometry, use the point it exits the geometry again.
+            // That will change the angle to the light source, if the material refracts the light ray.
+            let transmission_ray = get_volume_transmission_ray(tbn.normal, v, material_info.thickness_factor, material_info.ior, (*pixel_data).mesh_scale);
+            pointToLight -= transmission_ray;
+            l = normalize(pointToLight);
+            let intensity = get_light_intensity(&light, pointToLight);
+            var transmitted_light = intensity * get_punctual_radiance_transmission(tbn.normal, v, l, material_info.alpha_roughness, material_info.f0, material_info.f90, material_info.c_diff, material_info.ior);
+        
+            if((material.flags & MATERIAL_FLAGS_VOLUME) != 0u) {
+                transmitted_light = apply_volume_attenuation(transmitted_light, length(transmission_ray), material_info.attenuation_color_and_distance.rgb, material_info.attenuation_color_and_distance.w);
+            }
+            f_transmission += transmitted_light;
         }
     }
     
