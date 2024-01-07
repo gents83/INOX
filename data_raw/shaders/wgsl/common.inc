@@ -241,14 +241,20 @@ struct Ray {
     t_max: f32,
 };
 
-struct Rays {
-    data: array<Ray>,
+struct RadianceData {
+    origin: vec3<f32>,
+    seed_x: u32,
+    direction: vec3<f32>,
+    seed_y: u32,
+    radiance: vec3<f32>,
+    _padding1: u32,
+    throughput_weight: vec3<f32>,
+    _padding2: u32,
 };
 
-struct RayJob {
-    index: u32,
-    step: u32,
-}
+struct RadianceDataBuffer {
+    data: array<RadianceData>,
+};
 
 struct PixelData {
     world_pos: vec3<f32>,

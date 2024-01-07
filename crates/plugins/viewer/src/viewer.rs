@@ -253,9 +253,10 @@ impl Viewer {
     fn create_compute_pathtracing_direct_pass(context: &ContextRc, renderer: &mut Renderer) {
         let mut compute_pathtracing_direct_pass =
             ComputePathTracingDirectPass::create(context, &renderer.render_context());
-        let gbuffer_texture = renderer.render_target(RenderTargetType::GBuffer as usize);
+        let radiance_texture = renderer.render_target(RenderTargetType::Radiance as usize);
         compute_pathtracing_direct_pass
-            .set_gbuffer_texture(gbuffer_texture.id(), gbuffer_texture.get().dimensions())
+            .set_radiance_texture_size(radiance_texture.get().dimensions())
+            .set_gbuffer_texture(renderer.render_target_id(RenderTargetType::GBuffer as usize))
             .set_visibility_texture(
                 renderer.render_target_id(RenderTargetType::Visibility as usize),
             )

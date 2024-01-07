@@ -51,9 +51,9 @@ fn intersect_triangle(origin: vec3<f32>, direction: vec3<f32>, max_distance: f32
 }
 
 //starting index = tlas_starting_index
-fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32) -> Result {
-    var origin = world_ray.origin;
-    var direction = world_ray.direction;
+fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tlas_starting_index: u32) -> Result {
+    var origin = world_ray_origin;
+    var direction = world_ray_direction;
     var max_distance = MAX_TRACING_DISTANCE;
     var node_index = i32(tlas_starting_index) + 1;
     var visibility_id = 0u;
@@ -83,7 +83,7 @@ fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32) -> Result {
                 let v1 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset]].world_pos;
                 let v2 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset + 1u]].world_pos;
                 let v3 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset + 2u]].world_pos;
-                let distance = intersect_triangle(world_ray.origin, world_ray.direction, max_distance, v1, v2, v3);
+                let distance = intersect_triangle(world_ray_origin, world_ray_direction, max_distance, v1, v2, v3);
                 if(distance < max_distance) {
                     visibility_id = ((meshlet_id + 1u) << 8u)  | reference;
                     max_distance = distance;
@@ -95,8 +95,8 @@ fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32) -> Result {
                 let should_go_to_tlas = node_index < 0;
                 hit_type = select(hit_type, HIT_DATA_TLAS, should_go_to_tlas);
                 node_index = select(node_index, tlas_sibling, should_go_to_tlas);
-                origin = select(origin, world_ray.origin, should_go_to_tlas);
-                direction = select(direction, world_ray.direction, should_go_to_tlas);
+                origin = select(origin, world_ray_origin, should_go_to_tlas);
+                direction = select(direction, world_ray_direction, should_go_to_tlas);
             }
             else if(hit_type == HIT_DATA_BLAS) {  
                 meshlet_id = meshlets_offset + reference;              
@@ -111,8 +111,8 @@ fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32) -> Result {
                 let should_go_to_tlas = node_index < 0;
                 hit_type = select(hit_type, HIT_DATA_TLAS, should_go_to_tlas);
                 node_index = select(node_index, tlas_sibling, should_go_to_tlas);
-                origin = select(origin, world_ray.origin, should_go_to_tlas);
-                direction = select(direction, world_ray.direction, should_go_to_tlas);
+                origin = select(origin, world_ray_origin, should_go_to_tlas);
+                direction = select(direction, world_ray_direction, should_go_to_tlas);
             }
             else {  
                 hit_type = HIT_DATA_BLAS;
@@ -125,8 +125,8 @@ fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32) -> Result {
 
                 let matrix = transform_matrix((*mesh).position, (*mesh).orientation, (*mesh).scale);    
                 let inverse_matrix = matrix_inverse(matrix);
-                let local_ray_origin = inverse_matrix * vec4<f32>(world_ray.origin, 1.);
-                let local_ray_direction = inverse_matrix * vec4<f32>(world_ray.direction, 0.);
+                let local_ray_origin = inverse_matrix * vec4<f32>(world_ray_origin, 1.);
+                let local_ray_direction = inverse_matrix * vec4<f32>(world_ray_direction, 0.);
                 origin = local_ray_origin.xyz;
                 direction = local_ray_direction.xyz;
             }
@@ -139,8 +139,8 @@ fn traverse_bvh(world_ray: Ray, tlas_starting_index: u32) -> Result {
             let should_go_to_tlas = hit_type == HIT_DATA_BLAS && node_index < 0;
             hit_type = select(hit_type, HIT_DATA_TLAS, should_go_to_tlas);
             node_index = select(node_index, tlas_sibling, should_go_to_tlas);
-            origin = select(origin, world_ray.origin, hit_type == HIT_DATA_TLAS);
-            direction = select(direction, world_ray.direction, hit_type == HIT_DATA_TLAS);
+            origin = select(origin, world_ray_origin, hit_type == HIT_DATA_TLAS);
+            direction = select(direction, world_ray_direction, hit_type == HIT_DATA_TLAS);
         }         
     }
     return Result(max_distance, visibility_id);

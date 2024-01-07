@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use crate::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DrawCommandType, MeshFlags, Pass, RenderContext, ShaderStage, TextureId,
-    TextureView,
+    ConstantDataRw, DrawCommandType, MeshFlags, Pass, RadianceDataBuffer, RenderContext,
+    ShaderStage, TextureId, TextureView,
 };
 
 use inox_core::ContextRc;
@@ -17,6 +17,7 @@ pub struct ComputeFinalizePass {
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
+    radiance_data_buffer: RadianceDataBuffer,
     finalize_texture: TextureId,
     dimensions: (u32, u32),
     visibility_texture: TextureId,
@@ -61,6 +62,7 @@ impl Pass for ComputeFinalizePass {
                 None,
             ),
             constant_data: render_context.constant_data.clone(),
+            radiance_data_buffer: render_context.render_buffers.radiance_data_buffer.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_FINALIZE_NAME),
             finalize_texture: INVALID_UID,
             dimensions: (0, 0),
@@ -73,7 +75,10 @@ impl Pass for ComputeFinalizePass {
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("finalize_pass::init");
 
-        if self.finalize_texture.is_nil() || self.radiance_texture.is_nil() {
+        if self.finalize_texture.is_nil()
+            || self.radiance_texture.is_nil()
+            || self.radiance_data_buffer.read().unwrap().data().is_empty()
+        {
             return;
         }
 
@@ -88,11 +93,21 @@ impl Pass for ComputeFinalizePass {
                     ..Default::default()
                 },
             )
+            .add_storage_buffer(
+                &mut *self.radiance_data_buffer.write().unwrap(),
+                Some("Radiance Data Buffer"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 1,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
             .add_texture(
                 &self.finalize_texture,
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 1,
+                    binding_index: 2,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
@@ -101,7 +116,7 @@ impl Pass for ComputeFinalizePass {
                 &self.visibility_texture,
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 2,
+                    binding_index: 3,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -110,7 +125,7 @@ impl Pass for ComputeFinalizePass {
                 &self.gbuffer_texture,
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 3,
+                    binding_index: 4,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -119,16 +134,16 @@ impl Pass for ComputeFinalizePass {
                 &self.radiance_texture,
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 4,
+                    binding_index: 5,
                     stage: ShaderStage::Compute,
-                    ..Default::default()
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
             )
             .add_texture(
                 &self.depth_texture,
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 5,
+                    binding_index: 6,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -144,7 +159,10 @@ impl Pass for ComputeFinalizePass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        if self.finalize_texture.is_nil() || self.radiance_texture.is_nil() {
+        if self.finalize_texture.is_nil()
+            || self.radiance_texture.is_nil()
+            || self.radiance_data_buffer.read().unwrap().data().is_empty()
+        {
             return;
         }
 

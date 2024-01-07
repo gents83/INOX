@@ -3,9 +3,8 @@ use std::path::PathBuf;
 use crate::{
     BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
     ConstantDataRw, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer, MeshFlags,
-    MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RuntimeVerticesBuffer, SamplerType,
-    ShaderStage, TextureId, TextureView, TexturesBuffer, VertexAttributesBuffer,
-    VertexPositionsBuffer,
+    MeshesBuffer, MeshletsBuffer, Pass, RadianceDataBuffer, RenderContext, RuntimeVerticesBuffer,
+    SamplerType, ShaderStage, TextureId, TextureView, TexturesBuffer, VertexAttributesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -25,7 +24,7 @@ pub struct ComputePathTracingIndirectPass {
     bhv: BVHBuffer,
     indices: IndicesBuffer,
     runtime_vertices: RuntimeVerticesBuffer,
-    vertices_positions: VertexPositionsBuffer,
+    radiance_data_buffer: RadianceDataBuffer,
     vertices_attributes: VertexAttributesBuffer,
     textures: TexturesBuffer,
     materials: MaterialsBuffer,
@@ -78,7 +77,7 @@ impl Pass for ComputePathTracingIndirectPass {
             bhv: render_context.render_buffers.bvh.clone(),
             indices: render_context.render_buffers.indices.clone(),
             runtime_vertices: render_context.render_buffers.runtime_vertices.clone(),
-            vertices_positions: render_context.render_buffers.vertex_positions.clone(),
+            radiance_data_buffer: render_context.render_buffers.radiance_data_buffer.clone(),
             vertices_attributes: render_context.render_buffers.vertex_attributes.clone(),
             textures: render_context.render_buffers.textures.clone(),
             materials: render_context.render_buffers.materials.clone(),
@@ -94,7 +93,10 @@ impl Pass for ComputePathTracingIndirectPass {
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("pathtracing_indirect_pass::init");
 
-        if self.radiance_texture.is_nil() || self.meshlets.read().unwrap().is_empty() {
+        if self.radiance_texture.is_nil()
+            || self.meshlets.read().unwrap().is_empty()
+            || self.radiance_data_buffer.read().unwrap().data().is_empty()
+        {
             return;
         }
 
@@ -180,13 +182,13 @@ impl Pass for ComputePathTracingIndirectPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.vertices_positions.write().unwrap(),
-                Some("Vertices Positions"),
+                &mut *self.radiance_data_buffer.write().unwrap(),
+                Some("Radiance Data Buffer"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 0,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::Read | BindingFlags::Vertex,
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
             )
             .add_storage_buffer(
@@ -273,7 +275,10 @@ impl Pass for ComputePathTracingIndirectPass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        if self.radiance_texture.is_nil() || self.meshlets.read().unwrap().is_empty() {
+        if self.radiance_texture.is_nil()
+            || self.meshlets.read().unwrap().is_empty()
+            || self.radiance_data_buffer.read().unwrap().data().is_empty()
+        {
             return;
         }
 
@@ -290,14 +295,16 @@ impl Pass for ComputePathTracingIndirectPass {
             * ((self.dimensions.1 + y_pixels_managed_in_shader - 1) / y_pixels_managed_in_shader))
             / y_pixels_managed_in_shader;
 
-        pass.dispatch(
-            render_context,
-            &mut self.binding_data,
-            command_buffer,
-            x,
-            y,
-            1,
-        );
+        for _ in 0..self.constant_data.read().unwrap().num_bounces() {
+            pass.dispatch(
+                render_context,
+                &mut self.binding_data,
+                command_buffer,
+                x,
+                y,
+                1,
+            );
+        }
     }
 }
 

@@ -142,13 +142,31 @@ impl Default for GPUMaterial {
     }
 }
 
-#[repr(C, align(4))]
-#[derive(Default, PartialEq, Clone, Copy, Debug)]
-pub struct GPURay {
-    pub origin: [f32; 3],
-    pub t_min: f32,
-    pub direction: [f32; 3],
-    pub t_max: f32,
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub struct RadianceData {
+    origin: [f32; 3],
+    seed_x: u32,
+    direction: [f32; 3],
+    seed_y: u32,
+    radiance: [f32; 3],
+    _padding1: u32,
+    throughput_weight: [f32; 3],
+    _padding2: u32,
+}
+
+impl Default for RadianceData {
+    fn default() -> Self {
+        Self {
+            origin: [0.; 3],
+            direction: [0.; 3],
+            radiance: [1.; 3],
+            throughput_weight: [1.; 3],
+            seed_x: 0,
+            seed_y: 0,
+            _padding1: 0,
+            _padding2: 0,
+        }
+    }
 }
 
 #[repr(C, align(4))]

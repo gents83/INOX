@@ -1,4 +1,4 @@
-struct RadianceData {
+struct RadianceResult {
     direction: vec3<f32>,
     radiance: vec3<f32>, 
     throughput_weight: vec3<f32>, 
@@ -57,7 +57,7 @@ fn sample_in_cone(random_numbers: vec2<f32>, cos_max: f32, n: vec3<f32>) -> vec3
 }
 
 // Need constant_data, meshlets, meshes, indices, runtime_vertices, vertices_attributes
-fn compute_radiance_from_visibility(visibility_id: u32, hit_point: vec3<f32>, seed: vec2<f32>, old_radiance: vec3<f32>, old_throughput_weight: vec3<f32>) -> RadianceData { 
+fn compute_radiance_from_visibility(visibility_id: u32, hit_point: vec3<f32>, seed: vec2<f32>, old_radiance: vec3<f32>, old_throughput_weight: vec3<f32>) -> RadianceResult { 
     var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
     let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data);
 
@@ -68,5 +68,5 @@ fn compute_radiance_from_visibility(visibility_id: u32, hit_point: vec3<f32>, se
     let d = dot(pixel_data.normal, direction);
     let throughput_weight = (material_info.base_color.rgb * 2. * d);
 
-    return RadianceData(direction, radiance, throughput_weight);
+    return RadianceResult(direction, radiance, throughput_weight);
 }

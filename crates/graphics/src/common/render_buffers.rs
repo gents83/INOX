@@ -9,13 +9,12 @@ use std::{
 use inox_bvh::{create_linearized_bvh, BVHTree, GPUBVHNode, AABB};
 use inox_math::{quantize_snorm, InnerSpace, Mat4Ops, Matrix4, VecBase};
 use inox_resources::{to_slice, Buffer, HashBuffer, ResourceId};
-use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
+use inox_uid::{generate_random_uid, generate_static_uid_from_string};
 
 use crate::{
-    declare_as_binding_vector, AsBinding, GPUMaterial, GPUMesh, GPUMeshlet, GPURay,
-    GPURuntimeVertexData, Light, LightData, LightId, Material, MaterialData, MaterialFlags,
-    MaterialId, Mesh, MeshData, MeshFlags, MeshId, RenderCommandsPerType, TextureId, TextureInfo,
-    TextureType,
+    declare_as_binding_vector, AsBinding, GPUMaterial, GPUMesh, GPUMeshlet, GPURuntimeVertexData,
+    Light, LightData, LightId, Material, MaterialData, MaterialFlags, MaterialId, Mesh, MeshData,
+    MeshFlags, MeshId, RenderCommandsPerType, TextureId, TextureInfo, TextureType,
 };
 
 declare_as_binding_vector!(VecU32, u32);
@@ -32,10 +31,9 @@ pub type VertexAttributesBuffer = Arc<RwLock<Buffer<u32, 0>>>; //MeshId <-> [u32
 pub type CullingResults = Arc<RwLock<VecU32>>;
 pub type LightsBuffer = Arc<RwLock<HashBuffer<LightId, LightData, 0>>>;
 pub type RuntimeVerticesBuffer = Arc<RwLock<Buffer<GPURuntimeVertexData, 0>>>;
+pub type RadianceDataBuffer = Arc<RwLock<VecU32>>;
 
-pub type RaysBuffer = Arc<RwLock<Buffer<GPURay, 0>>>;
-
-const TLAS_UID: Uid = generate_static_uid_from_string("TLAS");
+pub const TLAS_UID: ResourceId = generate_static_uid_from_string("TLAS");
 pub const ATOMIC_SIZE: u32 = 32;
 
 //Alignment should be 4, 8, 16 or 32 bytes
@@ -53,9 +51,9 @@ pub struct RenderBuffers {
     pub vertex_positions: VertexPositionsBuffer,
     pub vertex_attributes: VertexAttributesBuffer,
     pub runtime_vertices: RuntimeVerticesBuffer,
-    pub rays: RaysBuffer,
     pub culling_result: CullingResults,
     pub tlas_start_index: AtomicU32,
+    pub radiance_data_buffer: RadianceDataBuffer,
 }
 
 impl RenderBuffers {

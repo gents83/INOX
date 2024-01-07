@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use crate::{
     BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, CullingResults, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer,
-    MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RuntimeVerticesBuffer,
+    ConstantDataRw, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer, MeshFlags,
+    MeshesBuffer, MeshletsBuffer, Pass, RadianceDataBuffer, RenderContext, RuntimeVerticesBuffer,
     SamplerType, ShaderStage, TextureId, TextureView, TexturesBuffer, VertexAttributesBuffer,
 };
 
@@ -21,7 +21,7 @@ pub struct ComputePathTracingDirectPass {
     constant_data: ConstantDataRw,
     meshes: MeshesBuffer,
     meshlets: MeshletsBuffer,
-    culling_result: CullingResults,
+    radiance_data_buffer: RadianceDataBuffer,
     bhv: BVHBuffer,
     indices: IndicesBuffer,
     runtime_vertices: RuntimeVerticesBuffer,
@@ -73,7 +73,7 @@ impl Pass for ComputePathTracingDirectPass {
             constant_data: render_context.constant_data.clone(),
             meshes: render_context.render_buffers.meshes.clone(),
             meshlets: render_context.render_buffers.meshlets.clone(),
-            culling_result: render_context.render_buffers.culling_result.clone(),
+            radiance_data_buffer: render_context.render_buffers.radiance_data_buffer.clone(),
             bhv: render_context.render_buffers.bvh.clone(),
             indices: render_context.render_buffers.indices.clone(),
             runtime_vertices: render_context.render_buffers.runtime_vertices.clone(),
@@ -91,7 +91,10 @@ impl Pass for ComputePathTracingDirectPass {
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("pathtracing_direct_pass::init");
 
-        if self.gbuffer_texture.is_nil() || self.meshlets.read().unwrap().is_empty() {
+        if self.gbuffer_texture.is_nil()
+            || self.meshlets.read().unwrap().is_empty()
+            || self.radiance_data_buffer.read().unwrap().data().is_empty()
+        {
             return;
         }
 
@@ -187,13 +190,13 @@ impl Pass for ComputePathTracingDirectPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.culling_result.write().unwrap(),
-                Some("Culling Results"),
+                &mut *self.radiance_data_buffer.write().unwrap(),
+                Some("Radiance Data Buffer"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 1,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::Read | BindingFlags::Indirect,
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
             )
             .add_storage_buffer(
@@ -261,7 +264,10 @@ impl Pass for ComputePathTracingDirectPass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        if self.gbuffer_texture.is_nil() || self.meshlets.read().unwrap().is_empty() {
+        if self.gbuffer_texture.is_nil()
+            || self.meshlets.read().unwrap().is_empty()
+            || self.radiance_data_buffer.read().unwrap().data().is_empty()
+        {
             return;
         }
 
@@ -298,13 +304,19 @@ impl ComputePathTracingDirectPass {
         self.depth_texture = *texture_id;
         self
     }
-    pub fn set_gbuffer_texture(
-        &mut self,
-        texture_id: &TextureId,
-        dimensions: (u32, u32),
-    ) -> &mut Self {
-        self.gbuffer_texture = *texture_id;
+    pub fn set_radiance_texture_size(&mut self, dimensions: (u32, u32)) -> &mut Self {
         self.dimensions = dimensions;
+        //origin(3f), direction(3f), radiance(3f), throughput_weight(3f), seed(2u) = 14
+        const RADIANCE_DATA_STRIDE: u32 = std::mem::size_of::<u32>() as u32 * 14;
+        self.radiance_data_buffer.write().unwrap().set(vec![
+            0u32;
+            (dimensions.0 * dimensions.1 * RADIANCE_DATA_STRIDE)
+                as usize
+        ]);
+        self
+    }
+    pub fn set_gbuffer_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.gbuffer_texture = *texture_id;
         self
     }
 }
