@@ -3,22 +3,24 @@ use std::sync::atomic::Ordering;
 use inox_core::ContextRc;
 use inox_graphics::{
     CullingEvent, DrawEvent, Light, Mesh, MeshFlags, MeshId, RendererRw,
-    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
-    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE,
+    CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
+    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
+    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS, CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE,
+    CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER,
+    CONSTANT_DATA_FLAGS_NONE,
 };
 use inox_math::{
-    compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle, Quat, VecBase,
-    VecBaseFloat, Vector3,
+    compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle, Quat, VecBase, Vector2,
+    Vector3,
 };
 use inox_messenger::Listener;
+use inox_platform::{MouseEvent, MouseState, WindowEvent};
 use inox_resources::{DataTypeResourceEvent, HashBuffer, Resource, ResourceEvent};
 use inox_scene::{Camera, Object, ObjectId, SceneId};
-use inox_ui::{implement_widget_data, ComboBox, UIWidget, Window};
+use inox_ui::{implement_widget_data, ComboBox, DragValue, UIWidget, Window};
 use inox_uid::INVALID_UID;
 
-use crate::events::WidgetEvent;
-
-use super::{Gfx, Hierarchy};
+use crate::events::{WidgetEvent, WidgetType};
 
 #[derive(Clone)]
 struct MeshInfo {
@@ -65,27 +67,32 @@ pub struct InfoParams {
 }
 
 #[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
-enum MeshletDebug {
+enum VisualizationDebug {
     #[default]
-    None,
-    Color,
-    Sphere,
-    BoundingBox,
-    ConeAxis,
+    None = 0,
+    Meshlets = CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS as _,
+    BoundingBox = CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX as _,
+    ConeAxis = CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS as _,
+    VisibilityBuffer = CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER as _,
+    RadianceBuffer = CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER as _,
+    DepthBuffer = CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER as _,
+    PathTrace = CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE as _,
 }
 
 #[derive(Clone)]
 struct Data {
     context: ContextRc,
     params: InfoParams,
-    hierarchy: (bool, Option<Hierarchy>),
-    graphics: (bool, Option<Gfx>),
+    show_hierarchy: bool,
+    show_graphics: bool,
     show_tlas: bool,
     show_blas: bool,
     show_frustum: bool,
     show_lights: bool,
     freeze_culling_camera: bool,
-    meshlet_debug: MeshletDebug,
+    visualization_debug: VisualizationDebug,
+    mouse_coords: Vector2,
+    screen_size: Vector2,
     fps: u32,
     dt: u128,
     cam_matrix: Matrix4,
@@ -94,6 +101,7 @@ struct Data {
     fov: Degrees,
     aspect_ratio: f32,
     selected_object_id: ObjectId,
+    indirect_light_num_bounces: u32,
 }
 implement_widget_data!(Data);
 
@@ -109,18 +117,28 @@ impl Info {
         listener
             .register::<DataTypeResourceEvent<Mesh>>()
             .register::<ResourceEvent<Mesh>>()
-            .register::<WidgetEvent>();
+            .register::<WidgetEvent>()
+            .register::<WindowEvent>()
+            .register::<MouseEvent>();
         let data = Data {
             context: context.clone(),
+            indirect_light_num_bounces: {
+                let renderer = params.renderer.read().unwrap();
+                let render_context = renderer.render_context();
+                let v = render_context.constant_data.read().unwrap().num_bounces();
+                v
+            },
             params,
-            hierarchy: (false, None),
-            graphics: (false, None),
+            show_hierarchy: false,
+            show_graphics: false,
             show_tlas: false,
             show_blas: false,
             show_frustum: false,
             show_lights: false,
             freeze_culling_camera: false,
-            meshlet_debug: MeshletDebug::None,
+            visualization_debug: VisualizationDebug::None,
+            mouse_coords: Vector2::default_zero(),
+            screen_size: Vector2::default_one(),
             fps: 0,
             dt: 0,
             cam_matrix: Matrix4::default_identity(),
@@ -159,9 +177,10 @@ impl Info {
 
         self.listener
             .process_messages(|e: &WidgetEvent| {
-                let WidgetEvent::Selected(object_id) = e;
-                if let Some(data) = self.ui_page.get_mut().data_mut::<Data>() {
-                    data.selected_object_id = *object_id;
+                if let WidgetEvent::Selected(object_id) = e {
+                    if let Some(data) = self.ui_page.get_mut().data_mut::<Data>() {
+                        data.selected_object_id = *object_id;
+                    }
                 }
             })
             .process_messages(|e: &DataTypeResourceEvent<Mesh>| {
@@ -198,6 +217,20 @@ impl Info {
                     self.meshes.remove(id);
                 }
                 _ => {}
+            })
+            .process_messages(|event: &MouseEvent| {
+                if event.state == MouseState::Move {
+                    if let Some(data) = self.ui_page.get_mut().data_mut::<Data>() {
+                        data.mouse_coords = [event.x as f32, event.y as f32].into()
+                    }
+                }
+            })
+            .process_messages(|event: &WindowEvent| {
+                if let WindowEvent::SizeChanged(width, height) = *event {
+                    if let Some(data) = self.ui_page.get_mut().data_mut::<Data>() {
+                        data.screen_size = [width.max(1) as f32, height.max(1) as f32].into();
+                    }
+                }
             });
     }
 
@@ -210,24 +243,24 @@ impl Info {
             data.fps = data.context.global_timer().fps();
             data.dt = data.context.global_timer().dt().as_millis();
 
-            if data.hierarchy.0 && data.hierarchy.1.is_none() {
-                data.hierarchy.1 = Hierarchy::new(
-                    data.context.shared_data(),
-                    data.context.message_hub(),
-                    &data.params.scene_id,
-                );
-            } else if !data.hierarchy.0 && data.hierarchy.1.is_some() {
-                data.hierarchy.1 = None;
+            if data.show_hierarchy {
+                self.listener
+                    .message_hub()
+                    .send_event(WidgetEvent::Create(WidgetType::Hierarchy));
+            } else {
+                self.listener
+                    .message_hub()
+                    .send_event(WidgetEvent::Destroy(WidgetType::Hierarchy));
             }
 
-            if data.graphics.0 && data.graphics.1.is_none() {
-                data.graphics.1 = Some(Gfx::new(&data.context, &data.params.renderer));
-            } else if data.graphics.1.is_some() {
-                if !data.graphics.0 {
-                    data.graphics.1 = None;
-                } else {
-                    data.graphics.1.as_mut().unwrap().update();
-                }
+            if data.show_graphics {
+                self.listener
+                    .message_hub()
+                    .send_event(WidgetEvent::Create(WidgetType::Gfx));
+            } else {
+                self.listener
+                    .message_hub()
+                    .send_event(WidgetEvent::Destroy(WidgetType::Gfx));
             }
             if data.show_lights {
                 Self::show_lights(data);
@@ -260,10 +293,12 @@ impl Info {
                 let renderer = data.params.renderer.read().unwrap();
                 let render_context = renderer.render_context();
                 let tlas_index = render_context
-                    .render_buffers
+                    .global_buffers
                     .tlas_start_index
+                    .read()
+                    .unwrap()
                     .load(Ordering::Relaxed);
-                let bhv = render_context.render_buffers.bhv.read().unwrap();
+                let bhv = render_context.global_buffers.bvh.read().unwrap();
                 bhv.for_each_data(|i, _id, n| {
                     if i >= tlas_index as _ {
                         data.context
@@ -279,9 +314,9 @@ impl Info {
             if data.show_blas {
                 let renderer = data.params.renderer.read().unwrap();
                 let render_context = renderer.render_context();
-                let bhv = render_context.render_buffers.bhv.read().unwrap();
+                let bhv = render_context.global_buffers.bvh.read().unwrap();
                 let bhv_data = bhv.data();
-                let meshes = render_context.render_buffers.meshes.read().unwrap();
+                let meshes = render_context.global_buffers.meshes.read().unwrap();
                 meshes.for_each_entry(|_, mesh| {
                     let node = &bhv_data[mesh.blas_index as usize];
                     let matrix = Matrix4::from_translation_orientation_scale(
@@ -301,32 +336,31 @@ impl Info {
                 });
             }
             if !data.selected_object_id.is_nil() {
-                Self::show_meshes_of_object(data, &data.selected_object_id);
+                Self::show_object_in_scene(data, &data.selected_object_id);
             }
-            match data.meshlet_debug {
-                MeshletDebug::Sphere => {
-                    Self::show_meshlets_sphere(data, &self.meshes);
+            match data.visualization_debug {
+                VisualizationDebug::BoundingBox => {
+                    Self::show_meshlets_bounding_box(data, &self.meshes)
                 }
-                MeshletDebug::BoundingBox => Self::show_meshlets_bounding_box(data, &self.meshes),
-                MeshletDebug::ConeAxis => Self::show_meshlets_cone_axis(data, &self.meshes),
+                VisualizationDebug::ConeAxis => Self::show_meshlets_cone_axis(data, &self.meshes),
                 _ => {}
             }
         }
     }
 
-    fn show_meshes_of_object(data: &Data, object_id: &ObjectId) {
+    fn show_object_in_scene(data: &Data, object_id: &ObjectId) {
         if let Some(object) = data.context.shared_data().get_resource::<Object>(object_id) {
             let object = object.get();
             let meshes = object.components_of_type::<Mesh>();
             if meshes.is_empty() {
                 let children = object.children();
                 children.iter().for_each(|o| {
-                    Self::show_meshes_of_object(data, o.id());
+                    Self::show_object_in_scene(data, o.id());
                 });
             } else {
                 let renderer = data.params.renderer.read().unwrap();
                 let render_context = renderer.render_context();
-                let bhv = render_context.render_buffers.bhv.read().unwrap();
+                let bhv = render_context.global_buffers.bvh.read().unwrap();
                 meshes.iter().for_each(|mesh| {
                     if let Some(nodes) = bhv.items(mesh.id()) {
                         nodes.iter().for_each(|n| {
@@ -341,6 +375,17 @@ impl Info {
                         });
                     }
                 });
+            }
+            let lights = object.components_of_type::<Light>();
+            for l in lights {
+                let light = l.get();
+                let ld = light.data();
+                data.context.message_hub().send_event(DrawEvent::Sphere(
+                    ld.position.into(),
+                    ld.range,
+                    [1.0, 1.0, 0.0, 1.0].into(),
+                    true,
+                ));
             }
         }
     }
@@ -358,24 +403,6 @@ impl Info {
                     ));
                 }
             });
-    }
-
-    fn show_meshlets_sphere(data: &mut Data, meshes: &HashBuffer<MeshId, MeshInfo, 0>) {
-        meshes.for_each_entry(|_id, mesh_info| {
-            if mesh_info.flags.contains(MeshFlags::Visible) {
-                mesh_info.meshlets.iter().for_each(|meshlet_info| {
-                    let radius = ((meshlet_info.max - meshlet_info.min) * 0.5)
-                        .mul(mesh_info.matrix.scale())
-                        .length();
-                    data.context.message_hub().send_event(DrawEvent::Circle(
-                        mesh_info.matrix.rotate_point(meshlet_info.center),
-                        radius,
-                        [1.0, 1.0, 0.0, 1.0].into(),
-                        true,
-                    ));
-                });
-            }
-        });
     }
 
     fn show_meshlets_bounding_box(data: &mut Data, meshes: &HashBuffer<MeshId, MeshInfo, 0>) {
@@ -404,7 +431,8 @@ impl Info {
                         pos + mesh_info
                             .matrix
                             .orientation()
-                            .transform_vector(meshlet_info.axis),
+                            .transform_vector(meshlet_info.axis)
+                            * 0.75,
                         [1.0, 1.0, 0.0, 1.0].into(),
                     ));
                 });
@@ -498,8 +526,15 @@ impl Info {
                     .resizable(true)
                     .show(ui_context, |ui| {
                         ui.label(format!("FPS: {} - ms: {:?}", data.fps, data.dt));
-                        ui.checkbox(&mut data.hierarchy.0, "Hierarchy");
-                        ui.checkbox(&mut data.graphics.0, "Graphics");
+                        ui.label(format!(
+                            "Mouse: ({},{}) - ({:.3},{:.3})",
+                            data.mouse_coords.x,
+                            data.mouse_coords.y,
+                            data.mouse_coords.x / data.screen_size.x,
+                            data.mouse_coords.y / data.screen_size.y
+                        ));
+                        ui.checkbox(&mut data.show_hierarchy, "Hierarchy");
+                        ui.checkbox(&mut data.show_graphics, "Graphics");
                         ui.checkbox(&mut data.show_lights, "Show Lights");
                         ui.checkbox(&mut data.show_tlas, "Show TLAS BHV");
                         ui.checkbox(&mut data.show_blas, "Show BLAS BHVs");
@@ -508,109 +543,154 @@ impl Info {
                         ui.checkbox(&mut data.freeze_culling_camera, "Freeze Culling Camera");
                         if is_freezed != data.freeze_culling_camera {
                             if data.freeze_culling_camera {
-                                data.context.message_hub().send_event(CullingEvent::FreezeCamera);
+                                data.context
+                                    .message_hub()
+                                    .send_event(CullingEvent::FreezeCamera);
                             } else {
-                                data.context.message_hub().send_event(CullingEvent::UnfreezeCamera);
+                                data.context
+                                    .message_hub()
+                                    .send_event(CullingEvent::UnfreezeCamera);
                             }
                         }
                         ui.horizontal(|ui| {
-                            ui.label("Show Meshlets");
+                            ui.label("Indirect light bounces: ");
+                            let previous_value = data.indirect_light_num_bounces;
+                            ui.add(
+                                DragValue::new(&mut data.indirect_light_num_bounces)
+                                    .clamp_range(0..=1024),
+                            );
+                            if previous_value != data.indirect_light_num_bounces {
+                                let renderer = data.params.renderer.read().unwrap();
+                                let render_context = renderer.render_context();
+                                render_context
+                                    .constant_data
+                                    .write()
+                                    .unwrap()
+                                    .set_num_bounces(data.indirect_light_num_bounces)
+                                    .set_frame_index(0);
+                            }
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Debug mode:");
                             let combo_box = ComboBox::from_id_source("Meshlet Debug")
-                                .selected_text(format!("{:?}", data.meshlet_debug))
+                                .selected_text(format!("{:?}", data.visualization_debug))
                                 .show_ui(ui, |ui| {
                                     let mut is_changed = false;
                                     is_changed |= ui
                                         .selectable_value(
-                                            &mut data.meshlet_debug,
-                                            MeshletDebug::None,
+                                            &mut data.visualization_debug,
+                                            VisualizationDebug::None,
                                             "None",
                                         )
                                         .changed();
                                     is_changed |= ui
                                         .selectable_value(
-                                            &mut data.meshlet_debug,
-                                            MeshletDebug::Color,
-                                            "Color",
+                                            &mut data.visualization_debug,
+                                            VisualizationDebug::VisibilityBuffer,
+                                            "Visibility Buffer",
                                         )
                                         .changed();
                                     is_changed |= ui
                                         .selectable_value(
-                                            &mut data.meshlet_debug,
-                                            MeshletDebug::Sphere,
-                                            "Sphere",
+                                            &mut data.visualization_debug,
+                                            VisualizationDebug::DepthBuffer,
+                                            "Depth Buffer",
                                         )
                                         .changed();
                                     is_changed |= ui
                                         .selectable_value(
-                                            &mut data.meshlet_debug,
-                                            MeshletDebug::BoundingBox,
+                                            &mut data.visualization_debug,
+                                            VisualizationDebug::RadianceBuffer,
+                                            "Radiance Buffer",
+                                        )
+                                        .changed();
+                                    is_changed |= ui
+                                        .selectable_value(
+                                            &mut data.visualization_debug,
+                                            VisualizationDebug::PathTrace,
+                                            "PathTrace",
+                                        )
+                                        .changed();
+                                    is_changed |= ui
+                                        .selectable_value(
+                                            &mut data.visualization_debug,
+                                            VisualizationDebug::Meshlets,
+                                            "Meshlets",
+                                        )
+                                        .changed();
+                                    is_changed |= ui
+                                        .selectable_value(
+                                            &mut data.visualization_debug,
+                                            VisualizationDebug::BoundingBox,
                                             "Bounding Box",
                                         )
                                         .changed();
-                                        is_changed |= ui
-                                            .selectable_value(
-                                                &mut data.meshlet_debug,
-                                                MeshletDebug::ConeAxis,
-                                                "Cone Axis",
-                                            )
-                                            .changed();
+                                    is_changed |= ui
+                                        .selectable_value(
+                                            &mut data.visualization_debug,
+                                            VisualizationDebug::ConeAxis,
+                                            "Cone Axis",
+                                        )
+                                        .changed();
                                     is_changed
                                 });
                             if let Some(is_changed) = combo_box.inner {
                                 if is_changed {
-
                                     let renderer = data.params.renderer.read().unwrap();
                                     let render_context = renderer.render_context();
-                                    match &data.meshlet_debug {
-                                        MeshletDebug::None => {
+                                    render_context
+                                        .constant_data
+                                        .write()
+                                        .unwrap()
+                                        .set_flags(CONSTANT_DATA_FLAGS_NONE);
+                                    match &data.visualization_debug {
+                                        VisualizationDebug::Meshlets
+                                        | VisualizationDebug::ConeAxis => {
                                             render_context
                                                 .constant_data
                                                 .write()
                                                 .unwrap()
-                                                .remove_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS)
-                                                .remove_flag(
-                                                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE,
-                                                )
-                                                .remove_flag(
-                                                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
-                                                );
-                                        }
-                                        MeshletDebug::Color | MeshletDebug::ConeAxis => {
-                                            render_context
-                                                .constant_data
-                                                .write()
-                                                .unwrap()
-                                                .remove_flag(
-                                                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE,
-                                                )
-                                                .remove_flag(
-                                                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
-                                                )
-                                                .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS);
-                                        }
-                                        MeshletDebug::Sphere => {
-                                            render_context
-                                                .constant_data
-                                                .write()
-                                                .unwrap()
-                                                .remove_flag(
-                                                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
-                                                )
-                                                .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS)
-                                                .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE);
-                                        }
-                                        MeshletDebug::BoundingBox => {
-                                            render_context
-                                                .constant_data
-                                                .write()
-                                                .unwrap()
-                                                .remove_flag(
-                                                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE,
-                                                )
                                                 .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS)
                                                 .add_flag(
-                                                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
+                                                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS,
                                                 );
+                                        }
+                                        VisualizationDebug::BoundingBox => {
+                                            render_context.constant_data.write().unwrap()
+                                            .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS)
+                                            .add_flag(
+                                                CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
+                                            );
+                                        }
+                                        VisualizationDebug::VisibilityBuffer => {
+                                            render_context.constant_data.write().unwrap().add_flag(
+                                                CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER,
+                                            );
+                                        }
+                                        VisualizationDebug::RadianceBuffer => {
+                                            render_context.constant_data.write().unwrap().add_flag(
+                                                CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER,
+                                            );
+                                        }
+                                        VisualizationDebug::DepthBuffer => {
+                                            render_context
+                                                .constant_data
+                                                .write()
+                                                .unwrap()
+                                                .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER);
+                                        }
+                                        VisualizationDebug::PathTrace => {
+                                            let mut constant_data =
+                                                render_context.constant_data.write().unwrap();
+                                            constant_data
+                                                .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE);
+                                        }
+                                        VisualizationDebug::None => {
+                                            render_context
+                                                .constant_data
+                                                .write()
+                                                .unwrap()
+                                                .set_frame_index(0);
                                         }
                                     }
                                 }

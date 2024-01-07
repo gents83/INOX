@@ -1,3 +1,0 @@
-{
-    "shader": "shaders/wgsl/compute_raytracing_generate_ray.shader"
-}

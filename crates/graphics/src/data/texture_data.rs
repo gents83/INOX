@@ -9,7 +9,7 @@ pub enum TextureUsage {
     CopyDst,
     TextureBinding,
     StorageBinding,
-    RenderAttachment,
+    RenderTarget,
 }
 
 impl From<TextureUsage> for wgpu::TextureUsages {
@@ -24,6 +24,7 @@ pub struct TextureData {
     pub height: u32,
     pub format: TextureFormat,
     pub usage: TextureUsage,
+    pub sample_count: u32,
     pub data: Option<Vec<u8>>,
 }
 
@@ -37,8 +38,16 @@ pub enum TextureType {
     Occlusion = 4,
     SpecularGlossiness = 5,
     Diffuse = 6,
-    _EmptyForPadding = 7,
-    Count = 8,
+    Specular = 7,
+    SpecularColor = 8,
+    Transmission = 9,
+    Thickness = 10,
+    EmptyForPadding3 = 11,
+    EmptyForPadding4 = 12,
+    EmptyForPadding5 = 13,
+    EmptyForPadding6 = 14,
+    EmptyForPadding7 = 15,
+    Count = 16,
 }
 
 impl From<TextureType> for usize {
@@ -56,8 +65,11 @@ impl From<usize> for TextureType {
             4 => TextureType::Occlusion,
             5 => TextureType::SpecularGlossiness,
             6 => TextureType::Diffuse,
-            7 => TextureType::_EmptyForPadding,
-            8 => TextureType::Count,
+            7 => TextureType::Specular,
+            8 => TextureType::SpecularColor,
+            9 => TextureType::Transmission,
+            10 => TextureType::Thickness,
+            16 => TextureType::Count,
             _ => panic!("Invalid TextureType value: {value}"),
         }
     }
@@ -68,9 +80,9 @@ impl From<usize> for TextureType {
 pub struct TextureInfo {
     pub texture_index: u32,
     pub layer_index: u32,
-    pub total_width: f32,
-    pub total_height: f32,
-    pub area: [f32; 4],
+    pub total_width: u32,
+    pub total_height: u32,
+    pub area: [u32; 4],
 }
 
 impl Default for TextureInfo {
@@ -78,9 +90,9 @@ impl Default for TextureInfo {
         Self {
             texture_index: 0,
             layer_index: 0,
-            total_width: 0.,
-            total_height: 0.,
-            area: [0., 0., 1., 1.],
+            total_width: 0,
+            total_height: 0,
+            area: [0, 0, 1, 1],
         }
     }
 }
@@ -301,6 +313,19 @@ pub enum TextureFormat {
         block: AstcBlock,
         channel: AstcChannel,
     },
+}
+
+impl TextureFormat {
+    pub fn aspect(&self) -> wgpu::TextureAspect {
+        let fmt: wgpu::TextureFormat = (*self).into();
+        if fmt.has_depth_aspect() && !fmt.has_stencil_aspect() {
+            wgpu::TextureAspect::DepthOnly
+        } else if fmt.has_stencil_aspect() && !fmt.has_depth_aspect() {
+            wgpu::TextureAspect::StencilOnly
+        } else {
+            wgpu::TextureAspect::All
+        }
+    }
 }
 
 impl From<TextureFormat> for wgpu::TextureFormat {

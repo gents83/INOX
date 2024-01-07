@@ -2,9 +2,9 @@ use std::path::PathBuf;
 
 use crate::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
-    IndicesBuffer, LightsBuffer, MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer,
-    OutputRenderPass, Pass, RenderContext, RenderPass, RenderPassBeginData, RenderPassData,
-    RenderTarget, RuntimeVerticesBuffer, ShaderStage, StoreOperation, TextureId, TextureView,
+    IndicesBuffer, LightsBuffer, MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass,
+    RenderContext, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
+    RuntimeVerticesBuffer, SamplerType, ShaderStage, StoreOperation, TextureId, TextureView,
     TexturesBuffer, VertexAttributesBuffer,
 };
 
@@ -73,14 +73,14 @@ impl Pass for PBRPass {
             ),
             binding_data: BindingData::new(render_context, PBR_PASS_NAME),
             constant_data: render_context.constant_data.clone(),
-            indices: render_context.render_buffers.indices.clone(),
-            runtime_vertices: render_context.render_buffers.runtime_vertices.clone(),
-            vertices_attributes: render_context.render_buffers.vertex_attributes.clone(),
-            meshes: render_context.render_buffers.meshes.clone(),
-            meshlets: render_context.render_buffers.meshlets.clone(),
-            textures: render_context.render_buffers.textures.clone(),
-            materials: render_context.render_buffers.materials.clone(),
-            lights: render_context.render_buffers.lights.clone(),
+            indices: render_context.global_buffers.indices.clone(),
+            runtime_vertices: render_context.global_buffers.runtime_vertices.clone(),
+            vertices_attributes: render_context.global_buffers.vertex_attributes.clone(),
+            meshes: render_context.global_buffers.meshes.clone(),
+            meshlets: render_context.global_buffers.meshlets.clone(),
+            textures: render_context.global_buffers.textures.clone(),
+            materials: render_context.global_buffers.materials.clone(),
+            lights: render_context.global_buffers.lights.clone(),
             visibility_texture: INVALID_UID,
         }
     }
@@ -198,12 +198,15 @@ impl Pass for PBRPass {
             );
 
         self.binding_data
-            .add_default_sampler(BindingInfo {
-                group_index: 2,
-                binding_index: 0,
-                stage: ShaderStage::Fragment,
-                ..Default::default()
-            })
+            .add_default_sampler(
+                BindingInfo {
+                    group_index: 2,
+                    binding_index: 0,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+                SamplerType::Default,
+            )
             .add_material_textures(BindingInfo {
                 group_index: 2,
                 binding_index: 1,
@@ -252,12 +255,6 @@ impl Pass for PBRPass {
             );
             pass.draw(render_context, render_pass, 0..3, 0..1);
         }
-    }
-}
-
-impl OutputRenderPass for PBRPass {
-    fn render_pass(&self) -> &Resource<RenderPass> {
-        &self.render_pass
     }
 }
 

@@ -17,8 +17,9 @@ use gltf::{
     Accessor, Camera, Gltf, Node, Primitive, Semantic, Texture,
 };
 
+use inox_bvh::{create_linearized_bvh, BVHTree, AABB};
 use inox_graphics::{
-    LightData, LightType, MaterialAlphaMode, MaterialData, MeshData, MeshletData, TextureType,
+    LightData, LightType, MaterialData, MaterialFlags, MeshData, MeshletData, TextureType,
     VertexAttributeLayout, MAX_TEXTURE_COORDS_SETS,
 };
 use inox_log::debug_log;
@@ -210,7 +211,7 @@ impl GltfCompiler {
     fn extract_vertices(&mut self, path: &Path, primitive: &Primitive) -> Vec<GltfVertex> {
         let mut vertices = Vec::new();
 
-        for (_attribute_index, (semantic, accessor)) in primitive.attributes().enumerate() {
+        primitive.attributes().enumerate().for_each(|(_attribute_index, (semantic, accessor))| {
             //debug_log!("Attribute[{}]: {:?}", _attribute_index, semantic);
             match semantic {
                 Semantic::Positions => {
@@ -298,14 +299,13 @@ impl GltfCompiler {
                                 eprintln!(
                                 "ERROR: Texture coordinate set {texture_index} is out of range (max {MAX_TEXTURE_COORDS_SETS})",
                             );
-                                continue;
                             }
                         }
                     }
                 }
                 _ => {}
             }
-        }
+        });
         vertices
     }
 
@@ -415,12 +415,6 @@ impl GltfCompiler {
             for m in meshlets.iter() {
                 let bounds =
                     meshopt::compute_meshlet_bounds(m, vertex_data_adapter.as_ref().unwrap());
-                let mut min = Vector3::new(f32::MAX, f32::MAX, f32::MAX);
-                let mut max = Vector3::new(-f32::MAX, -f32::MAX, -f32::MAX);
-                m.vertices.iter().for_each(|i| {
-                    min = min.min(positions[*i as usize]);
-                    max = max.max(positions[*i as usize]);
-                });
                 let index_offset = new_indices.len();
                 debug_assert!(
                     m.triangles.len() % 3 == 0,
@@ -430,39 +424,74 @@ impl GltfCompiler {
                 m.triangles.iter().for_each(|v_i| {
                     new_indices.push(m.vertices[*v_i as usize]);
                 });
+                debug_assert!(
+                    new_indices.len() % 3 == 0,
+                    "new indices count {} is not divisible by 3",
+                    new_indices.len()
+                );
+                let mut triangles_aabbs = Vec::new();
+                triangles_aabbs.resize_with(m.triangles.len() / 3, AABB::empty);
+                let mut i = 0;
+                while i < m.triangles.len() {
+                    let triangle_id = i / 3;
+                    let v1 = positions[m.vertices[m.triangles[i] as usize] as usize];
+                    i += 1;
+                    let v2 = positions[m.vertices[m.triangles[i] as usize] as usize];
+                    i += 1;
+                    let v3 = positions[m.vertices[m.triangles[i] as usize] as usize];
+                    i += 1;
+                    let min = v1.min(v2).min(v3);
+                    let max = v1.max(v2).max(v3);
+                    triangles_aabbs[triangle_id] = AABB::create(min, max, triangle_id as _);
+                }
+                let bvh = BVHTree::new(&triangles_aabbs);
                 new_meshlets.push(MeshletData {
                     indices_offset: index_offset as _,
                     indices_count: m.triangles.len() as _,
-                    aabb_max: max,
-                    aabb_min: min,
+                    aabb_max: bvh.nodes()[0].max(),
+                    aabb_min: bvh.nodes()[0].min(),
                     cone_axis: bounds.cone_axis.into(),
                     cone_angle: bounds.cone_cutoff,
                     cone_center: bounds.center.into(),
+                    triangles_bvh: create_linearized_bvh(&bvh),
                 });
             }
-            debug_assert!(
-                new_indices.len() % 3 == 0,
-                "new indices count {} is not divisible by 3",
-                new_indices.len()
-            );
             mesh_data.indices = new_indices;
         } else {
-            let mut min = Vector3::new(f32::MAX, f32::MAX, f32::MAX);
-            let mut max = Vector3::new(-f32::MAX, -f32::MAX, -f32::MAX);
-            positions.iter().for_each(|&v| {
-                min = min.min(v);
-                max = max.max(v);
-            });
+            let mut triangles_aabbs = Vec::new();
+            triangles_aabbs.resize_with(mesh_data.indices.len() / 3, AABB::empty);
+            let mut i = 0;
+            while i < mesh_data.indices.len() {
+                let v1 = positions[mesh_data.indices[i] as usize];
+                i += 1;
+                let v2 = positions[mesh_data.indices[i] as usize];
+                i += 1;
+                let v3 = positions[mesh_data.indices[i] as usize];
+                i += 1;
+                let min = v1.min(v2).min(v3);
+                let max = v1.max(v2).max(v3);
+                triangles_aabbs[i] = AABB::create(min, max, i as _);
+            }
+            let bvh = BVHTree::new(&triangles_aabbs);
             let meshlet = MeshletData {
                 indices_offset: 0,
                 indices_count: mesh_data.indices.len() as _,
-                aabb_max: max,
-                aabb_min: min,
+                aabb_max: bvh.nodes()[0].max(),
+                aabb_min: bvh.nodes()[0].min(),
+                triangles_bvh: create_linearized_bvh(&bvh),
                 ..Default::default()
             };
             new_meshlets.push(meshlet);
         }
         mesh_data.meshlets = new_meshlets;
+
+        let mut meshlets_aabbs = Vec::new();
+        meshlets_aabbs.resize_with(mesh_data.meshlets.len(), AABB::empty);
+        mesh_data.meshlets.iter().enumerate().for_each(|(i, m)| {
+            meshlets_aabbs[i] = AABB::create(m.aabb_min, m.aabb_max, i as _);
+        });
+        let bvh = BVHTree::new(&meshlets_aabbs);
+        mesh_data.meshlets_bvh = create_linearized_bvh(&bvh);
     }
 
     fn process_mesh_data(
@@ -510,6 +539,7 @@ impl GltfCompiler {
         let mut material_data = MaterialData::default();
 
         let material = primitive.material().pbr_metallic_roughness();
+        material_data.flags = MaterialFlags::MetallicRoughness;
         material_data.base_color = material.base_color_factor().into();
         material_data.roughness_factor = material.roughness_factor();
         material_data.metallic_factor = material.metallic_factor();
@@ -526,6 +556,9 @@ impl GltfCompiler {
         }
 
         let material = primitive.material();
+        if material.unlit() {
+            material_data.flags |= MaterialFlags::Unlit;
+        }
         if let Some(texture) = material.normal_texture() {
             material_data.textures[TextureType::Normal as usize] =
                 self.process_texture(path, texture.texture());
@@ -541,14 +574,15 @@ impl GltfCompiler {
                 self.process_texture(path, texture.texture());
             material_data.texcoords_set[TextureType::Occlusion as usize] = texture.tex_coord() as _;
             material_data.occlusion_strength = texture.strength();
-        }
-        material_data.alpha_mode = match material.alpha_mode() {
-            AlphaMode::Opaque => MaterialAlphaMode::Opaque,
+        };
+        material_data.alpha_cutoff = 0.5;
+        match material.alpha_mode() {
+            AlphaMode::Opaque => material_data.flags |= MaterialFlags::AlphaModeOpaque,
             AlphaMode::Mask => {
                 material_data.alpha_cutoff = 0.5;
-                MaterialAlphaMode::Mask
+                material_data.flags |= MaterialFlags::AlphaModeMask;
             }
-            AlphaMode::Blend => MaterialAlphaMode::Blend,
+            AlphaMode::Blend => material_data.flags |= MaterialFlags::AlphaModeBlend,
         };
         material_data.alpha_cutoff = primitive.material().alpha_cutoff().unwrap_or(1.);
         material_data.emissive_color = [
@@ -557,27 +591,83 @@ impl GltfCompiler {
             primitive.material().emissive_factor()[2],
         ]
         .into();
-        if let Some(material) = material.pbr_specular_glossiness() {
-            if let Some(texture) = material.specular_glossiness_texture() {
+        if let Some(pbr) = material.pbr_specular_glossiness() {
+            material_data.flags |= MaterialFlags::SpecularGlossiness;
+            if let Some(texture) = pbr.specular_glossiness_texture() {
                 material_data.textures[TextureType::SpecularGlossiness as usize] =
                     self.process_texture(path, texture.texture());
                 material_data.texcoords_set[TextureType::SpecularGlossiness as usize] =
                     texture.tex_coord() as _;
             }
-            if let Some(texture) = material.diffuse_texture() {
+            if let Some(texture) = pbr.diffuse_texture() {
                 material_data.textures[TextureType::Diffuse as usize] =
                     self.process_texture(path, texture.texture());
                 material_data.texcoords_set[TextureType::Diffuse as usize] =
                     texture.tex_coord() as _;
             }
-            material_data.diffuse_color = material.diffuse_factor().into();
-            material_data.specular_color = [
-                material.specular_factor()[0],
-                material.specular_factor()[1],
-                material.specular_factor()[2],
-                1.,
+            material_data.diffuse_factor = pbr.diffuse_factor().into();
+            material_data.specular_glossiness_factor = [
+                pbr.specular_factor()[0],
+                pbr.specular_factor()[1],
+                pbr.specular_factor()[2],
+                pbr.glossiness_factor(),
             ]
             .into();
+        }
+
+        material_data.ior = if let Some(ior) = material.ior() {
+            material_data.flags |= MaterialFlags::Ior;
+            ior
+        } else {
+            1.5
+        };
+        if let Some(specular) = material.specular() {
+            material_data.flags |= MaterialFlags::Specular;
+            material_data.specular_factors = [
+                specular.specular_color_factor()[0],
+                specular.specular_color_factor()[1],
+                specular.specular_color_factor()[2],
+                specular.specular_factor(),
+            ]
+            .into();
+            if let Some(texture) = specular.specular_texture() {
+                material_data.textures[TextureType::Specular as usize] =
+                    self.process_texture(path, texture.texture());
+                material_data.texcoords_set[TextureType::Specular as usize] =
+                    texture.tex_coord() as _;
+            }
+            if let Some(texture) = specular.specular_color_texture() {
+                material_data.textures[TextureType::SpecularColor as usize] =
+                    self.process_texture(path, texture.texture());
+                material_data.texcoords_set[TextureType::SpecularColor as usize] =
+                    texture.tex_coord() as _;
+            }
+        }
+        if let Some(transmission) = material.transmission() {
+            material_data.flags |= MaterialFlags::Transmission;
+            material_data.transmission_factor = transmission.transmission_factor();
+            if let Some(texture) = transmission.transmission_texture() {
+                material_data.textures[TextureType::Transmission as usize] =
+                    self.process_texture(path, texture.texture());
+                material_data.texcoords_set[TextureType::Transmission as usize] =
+                    texture.tex_coord() as _;
+            }
+        }
+        if let Some(volume) = material.volume() {
+            material_data.flags |= MaterialFlags::Volume;
+            material_data.attenuation_color_and_distance = [
+                volume.attenuation_color()[0],
+                volume.attenuation_color()[1],
+                volume.attenuation_color()[2],
+                volume.attenuation_distance(),
+            ]
+            .into();
+            if let Some(texture) = volume.thickness_texture() {
+                material_data.textures[TextureType::Thickness as usize] =
+                    self.process_texture(path, texture.texture());
+                material_data.texcoords_set[TextureType::Thickness as usize] =
+                    texture.tex_coord() as _;
+            }
         }
 
         let name = format!("Material_{}", self.material_index);
@@ -639,7 +729,7 @@ impl GltfCompiler {
             ));
         }
         if let Some(light) = node.light() {
-            let (_, light_path) = self.process_light(path, &light);
+            let (_, light_path) = self.process_light(path, &light, &object_transform);
             object_data.components.push(to_local_path(
                 light_path.as_path(),
                 self.data_raw_folder.as_path(),
@@ -718,25 +808,32 @@ impl GltfCompiler {
         )
     }
 
-    fn process_light(&mut self, path: &Path, light: &Light) -> (NodeType, PathBuf) {
+    fn process_light(
+        &mut self,
+        path: &Path,
+        light: &Light,
+        transform: &Matrix4,
+    ) -> (NodeType, PathBuf) {
         let mut light_data = LightData {
-            color: [light.color()[0], light.color()[1], light.color()[2], 1.],
+            color: [light.color()[0], light.color()[1], light.color()[2]],
+            direction: (-transform.forward()).into(),
+            position: transform.translation().into(),
             intensity: light.intensity().max(1.),
             range: light.range().unwrap_or(10.),
             ..Default::default()
         };
         match light.kind() {
             Kind::Directional => {
-                light_data.light_type = LightType::Directional as _;
+                light_data.light_type = LightType::Directional.into();
             }
             Kind::Point => {
-                light_data.light_type = LightType::Point as _;
+                light_data.light_type = LightType::Point.into();
             }
             Kind::Spot {
                 inner_cone_angle,
                 outer_cone_angle,
             } => {
-                light_data.light_type = LightType::Spot as _;
+                light_data.light_type = LightType::Spot.into();
                 light_data.inner_cone_angle = inner_cone_angle;
                 light_data.outer_cone_angle = outer_cone_angle;
             }

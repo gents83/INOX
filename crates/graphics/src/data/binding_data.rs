@@ -3,8 +3,9 @@ use std::num::NonZeroU32;
 use inox_bitmask::bitmask;
 
 use crate::{
-    platform::required_gpu_features, AsBinding, BindingDataBufferRc, BufferId, RenderContext,
-    RenderCoreContextRc, ShaderStage, TextureHandlerRc, TextureId, MAX_TEXTURE_ATLAS_COUNT,
+    platform::required_gpu_features, AsBinding, BindingDataBufferRc, BufferId, DispatchCommandSize,
+    RenderCommandsPerType, RenderContext, RenderCoreContextRc, SamplerType, ShaderStage,
+    TextureHandlerRc, TextureId, MAX_TEXTURE_ATLAS_COUNT,
 };
 
 const DEBUG_BINDINGS: bool = false;
@@ -77,7 +78,7 @@ impl Default for BindingInfo {
 #[derive(Clone)]
 enum BindingType {
     Buffer(usize, BufferId),
-    DefaultSampler(usize),
+    DefaultSampler(usize, SamplerType),
     Texture(usize, TextureId),
     TextureArray(usize, Box<[TextureId; MAX_TEXTURE_ATLAS_COUNT as usize]>),
 }
@@ -128,6 +129,33 @@ impl BindingData {
             self.binding_types
                 .resize(group_index + 1, Default::default());
         }
+    }
+    pub fn bind_render_commands(
+        &mut self,
+        data: &mut RenderCommandsPerType,
+        label: Option<&str>,
+    ) -> &mut Self {
+        inox_profiler::scoped_profile!("binding_data::bind_render_commands");
+
+        data.bind(&self.binding_data_buffer, &self.render_core_context, label);
+
+        self
+    }
+    pub fn bind_dispatch_commands(
+        &mut self,
+        data: &mut DispatchCommandSize,
+        label: Option<&str>,
+    ) -> &mut Self {
+        inox_profiler::scoped_profile!("binding_data::bind_dispatch_commands");
+
+        let usage = wgpu::BufferUsages::STORAGE
+            | wgpu::BufferUsages::COPY_SRC
+            | wgpu::BufferUsages::COPY_DST
+            | wgpu::BufferUsages::INDIRECT;
+        self.binding_data_buffer
+            .bind_buffer(label, data, usage, &self.render_core_context);
+
+        self
     }
     pub fn set_vertex_buffer<T>(
         &mut self,
@@ -201,6 +229,26 @@ impl BindingData {
         if data.size() == 0 {
             return self;
         }
+        #[cfg(debug_assertions)]
+        {
+            if data.size()
+                > self
+                    .render_core_context
+                    .device
+                    .limits()
+                    .max_uniform_buffer_binding_size as _
+            {
+                inox_log::debug_log!(
+                    "Trying to bind uniform buffer {} with size {} greater than maximum allowed [{}]",
+                    label.unwrap_or_default(),
+                    data.size(),
+                    self.render_core_context
+                        .device
+                        .limits()
+                        .max_uniform_buffer_binding_size
+                );
+            }
+        }
         let usage = wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST;
         let is_changed =
             self.binding_data_buffer
@@ -269,6 +317,26 @@ impl BindingData {
         if data.size() == 0 {
             return self;
         }
+        #[cfg(debug_assertions)]
+        {
+            if data.size()
+                > self
+                    .render_core_context
+                    .device
+                    .limits()
+                    .max_storage_buffer_binding_size as _
+            {
+                inox_log::debug_log!(
+                    "Trying to bind storage buffer {} with size {} greater than maximum allowed [{}]",
+                    label.unwrap_or_default(),
+                    data.size(),
+                    self.render_core_context
+                        .device
+                        .limits()
+                        .max_uniform_buffer_binding_size
+                );
+            }
+        }
 
         let usage = wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | info.flags.into();
         let is_changed =
@@ -327,7 +395,11 @@ impl BindingData {
         self
     }
 
-    pub fn add_default_sampler(&mut self, info: BindingInfo) -> &mut Self {
+    pub fn add_default_sampler(
+        &mut self,
+        info: BindingInfo,
+        sampler_type: SamplerType,
+    ) -> &mut Self {
         inox_profiler::scoped_profile!("binding_data::add_default_sampler");
 
         self.create_group_and_binding_index(info.group_index);
@@ -342,8 +414,10 @@ impl BindingData {
             self.is_layout_changed = true;
         }
         if self.binding_types[info.group_index].is_empty() {
-            self.binding_types[info.group_index]
-                .push(BindingType::DefaultSampler(info.binding_index));
+            self.binding_types[info.group_index].push(BindingType::DefaultSampler(
+                info.binding_index,
+                sampler_type,
+            ));
             self.is_data_changed = true;
         }
         self
@@ -469,7 +543,7 @@ impl BindingData {
                         wgpu::BindingType::Texture {
                             sample_type: format
                                 .sample_type(
-                                    Some(wgpu::TextureAspect::All),
+                                    Some(texture.format().aspect()),
                                     Some(self.render_core_context.device.features()),
                                 )
                                 .unwrap_or_default(),
@@ -632,7 +706,7 @@ impl BindingData {
                                     );
                                 }
                             }
-                            BindingType::DefaultSampler(binding_index) => {
+                            BindingType::DefaultSampler(binding_index, sampler_type) => {
                                 if DEBUG_BINDINGS {
                                     inox_log::debug_log!(
                                         "Binding Default sampler [{}][{}]",
@@ -643,7 +717,7 @@ impl BindingData {
                                 bind_group.push(wgpu::BindGroupEntry {
                                     binding: *binding_index as _,
                                     resource: wgpu::BindingResource::Sampler(
-                                        self.texture_handler.default_sampler(),
+                                        self.texture_handler.sampler(*sampler_type),
                                     ),
                                 });
                             }

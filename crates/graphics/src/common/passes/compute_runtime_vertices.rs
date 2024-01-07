@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 use crate::{
-    BHVBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DrawCommandType, MeshFlags, MeshesBuffer, OutputPass, Pass, RenderContext,
-    RuntimeVerticesBuffer, ShaderStage, TextureId, TextureView, VertexPositionsBuffer,
+    BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
+    ConstantDataRw, DrawCommandType, MeshFlags, MeshesBuffer, Pass, RenderContext,
+    RuntimeVerticesBuffer, ShaderStage, TextureView, VertexPositionsBuffer,
 };
 
 use inox_core::ContextRc;
@@ -18,7 +18,7 @@ pub struct ComputeRuntimeVerticesPass {
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    bhv: BHVBuffer,
+    bhv: BVHBuffer,
     meshes: MeshesBuffer,
     vertices_positions: VertexPositionsBuffer,
     runtime_vertices: RuntimeVerticesBuffer,
@@ -61,10 +61,10 @@ impl Pass for ComputeRuntimeVerticesPass {
             ),
             binding_data: BindingData::new(render_context, COMPUTE_RUNTIME_VERTICES_PASS_NAME),
             constant_data: render_context.constant_data.clone(),
-            bhv: render_context.render_buffers.bhv.clone(),
-            meshes: render_context.render_buffers.meshes.clone(),
-            vertices_positions: render_context.render_buffers.vertex_positions.clone(),
-            runtime_vertices: render_context.render_buffers.runtime_vertices.clone(),
+            bhv: render_context.global_buffers.bvh.clone(),
+            meshes: render_context.global_buffers.meshes.clone(),
+            vertices_positions: render_context.global_buffers.vertex_positions.clone(),
+            runtime_vertices: render_context.global_buffers.runtime_vertices.clone(),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -152,14 +152,5 @@ impl Pass for ComputeRuntimeVerticesPass {
             1,
             1,
         );
-    }
-}
-
-impl OutputPass for ComputeRuntimeVerticesPass {
-    fn render_targets_id(&self) -> Option<Vec<TextureId>> {
-        None
-    }
-    fn depth_target_id(&self) -> Option<TextureId> {
-        None
     }
 }

@@ -4,7 +4,38 @@ struct Derivatives {
     dy: vec3<f32>,
 }
 
-fn compute_barycentrics(a: vec2<f32>, b: vec2<f32>, c: vec2<f32>, p: vec2<f32>) -> vec3<f32> {
+fn pixel_to_normalized(image_pixel: vec2<u32>, image_size: vec2<u32>) -> vec2<f32> {
+    return ((vec2<f32>(0.5) + vec2<f32>(image_pixel)) / vec2<f32>(image_size));
+}
+
+fn pixel_to_clip(image_pixel: vec2<u32>, image_size: vec2<u32>) -> vec2<f32> {
+    var clip_coords = 2. * pixel_to_normalized(image_pixel, image_size) - vec2<f32>(1.);
+    clip_coords.y = -clip_coords.y;
+    return clip_coords;
+}
+
+fn pixel_to_world(image_pixel: vec2<u32>, image_size: vec2<u32>, depth: f32) -> vec3<f32> {
+    let clip_coords = pixel_to_clip(image_pixel, image_size);
+    let world_pos = clip_to_world(clip_coords, depth);
+    return world_pos;
+}
+
+fn clip_to_world(clip_coords: vec2<f32>, depth: f32) -> vec3<f32> {    
+    var world_pos = constant_data.inverse_view_proj * vec4<f32>(clip_coords, depth, 1.);
+    world_pos /= world_pos.w;
+    return world_pos.xyz;
+}
+
+fn compute_barycentrics_3d(p1: vec3<f32>, p2: vec3<f32>, p3: vec3<f32>, p: vec3<f32>) -> vec3<f32> {
+    let v1 = p - p1;
+    let v2 = p - p2;
+    let v3 = p - p3;
+    
+    let area = length(cross(v1 - v2, v1 - v3)); 
+    return vec3<f32>(length(cross(v2, v3)) / area, length(cross(v3, v1)) / area, length(cross(v1, v2)) / area); 
+}
+
+fn compute_barycentrics_2d(a: vec2<f32>, b: vec2<f32>, c: vec2<f32>, p: vec2<f32>) -> vec3<f32> {
     let v0 = b - a;
     let v1 = c - a;
     let v2 = p - a;
@@ -29,10 +60,7 @@ fn compute_partial_derivatives(v0: vec2<f32>, v1: vec2<f32>, v2: vec2<f32>) -> D
 {
     let d = 1. / determinant(mat2x2<f32>(v2-v1, v0-v1));
     
-    var deriv: Derivatives;
-    deriv.dx = vec3<f32>(v1.y - v2.y, v2.y - v0.y, v0.y - v1.y) * d;
-    deriv.dy = vec3<f32>(v2.x - v1.x, v0.x - v2.x, v1.x - v0.x) * d;
-    return deriv;
+    return Derivatives(vec3<f32>(v1.y - v2.y, v2.y - v0.y, v0.y - v1.y) * d, vec3<f32>(v2.x - v1.x, v0.x - v2.x, v1.x - v0.x) * d);
 }
 
 // Interpolate 2D attributes using the partial derivatives and generates dx and dy for texture sampling.

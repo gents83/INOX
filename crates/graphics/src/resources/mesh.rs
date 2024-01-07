@@ -15,6 +15,7 @@ pub type MeshId = ResourceId;
 
 #[bitmask]
 #[repr(u32)]
+#[repr(C, align(16))]
 pub enum MeshFlags {
     None = 0,
     Visible = 1,

@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, DrawCommandType, MeshFlags, OutputRenderPass, Pass,
-    RenderContext, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage,
-    StoreOperation, TextureId, TextureView,
+    BindingData, BindingInfo, CommandBuffer, DrawCommandType, MeshFlags, Pass, RenderContext,
+    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
+    TextureId, TextureView,
 };
 
 use inox_core::ContextRc;
@@ -121,12 +121,6 @@ impl Pass for BlitPass {
             );
             pass.draw(render_context, render_pass, 0..3, 0..1);
         }
-    }
-}
-
-impl OutputRenderPass for BlitPass {
-    fn render_pass(&self) -> &Resource<RenderPass> {
-        &self.render_pass
     }
 }
 

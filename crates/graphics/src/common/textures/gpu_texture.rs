@@ -1,4 +1,4 @@
-use wgpu::util::DeviceExt;
+use wgpu::util::{align_to, DeviceExt};
 
 use crate::{TextureFormat, TextureId};
 
@@ -31,12 +31,14 @@ impl GpuTexture {
     pub fn create(
         device: &wgpu::Device,
         id: TextureId,
-        width: u32,
-        height: u32,
-        layers_count: u32,
-        format: TextureFormat,
-        usage: wgpu::TextureUsages,
+        texture_params: (u32, u32, u32, u32, TextureFormat, wgpu::TextureUsages),
     ) -> Self {
+        let width = texture_params.0;
+        let height = texture_params.1;
+        let layers_count = texture_params.2;
+        let sample_count = texture_params.3;
+        let format = texture_params.4;
+        let usage = texture_params.5;
         let size = wgpu::Extent3d {
             width,
             height,
@@ -46,7 +48,7 @@ impl GpuTexture {
             label: Some(format!("Texture[{id}]").as_str()),
             size,
             mip_level_count: 1,
-            sample_count: 1,
+            sample_count,
             dimension: wgpu::TextureDimension::D2,
             format: format.into(),
             usage,
@@ -60,12 +62,11 @@ impl GpuTexture {
             } else {
                 Some(wgpu::TextureViewDimension::D2)
             },
-            aspect: wgpu::TextureAspect::default(),
+            aspect: format.aspect(),
             base_mip_level: 0,
             mip_level_count: Some(1),
             base_array_layer: 0,
             array_layer_count: Some(layers_count),
-            ..Default::default()
         });
         Self {
             id,
@@ -109,34 +110,29 @@ impl GpuTexture {
         // So we calculate padded_width by rounding width up to the next
         // multiple of wgpu::COPY_BYTES_PER_ROW_ALIGNMENT.
         let format: wgpu::TextureFormat = self.format.into();
-        let pixel_size = format
-            .block_copy_size(Some(wgpu::TextureAspect::All))
-            .unwrap_or_default();
-        let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
-        let padding = (align - (pixel_size * area.width) % align) % align;
-        let padded_width = (pixel_size * area.width + padding) as usize;
-        let padded_data_size = (pixel_size * area.width * area.height) as usize;
+        let (block_width, block_height) = format.block_dimensions();
+        let (area_width, area_height) = (area.width / block_width, area.height / block_height);
+        let block_copy_size = format
+            .block_copy_size(Some(self.format.aspect()))
+            .unwrap_or(1);
+        let original_bytes_per_row = area_width * block_copy_size;
+        let bytes_per_row = align_to(original_bytes_per_row, wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
+        let buffer_size = bytes_per_row * area_height; // should be multiplied for number of layers
 
-        let mut padded_data = vec![0; padded_data_size];
-
-        for row in 0..area.height as usize {
-            let offset = row * padded_width;
-
-            padded_data[offset..offset + (pixel_size * area.width) as usize].copy_from_slice(
-                &data[row * (pixel_size * area.width) as usize
-                    ..(row + 1) * (pixel_size * area.width) as usize],
-            )
+        let mut padded_data = vec![0; buffer_size as _];
+        let mut offset = 0;
+        for row in 0..area_height as usize {
+            padded_data[offset..offset + original_bytes_per_row as usize].copy_from_slice(
+                &data[row * original_bytes_per_row as usize
+                    ..(row + 1) * original_bytes_per_row as usize],
+            );
+            offset += bytes_per_row as usize;
         }
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("image staging buffer"),
             contents: &padded_data,
             usage: wgpu::BufferUsages::COPY_SRC,
         });
-        let extent = wgpu::Extent3d {
-            width: area.width,
-            height: area.height,
-            depth_or_array_layers: 1,
-        };
 
         inox_profiler::gpu_scoped_profile!(encoder, device, "encoder::copy_buffer_to_texture");
         encoder.copy_buffer_to_texture(
@@ -144,8 +140,8 @@ impl GpuTexture {
                 buffer: &buffer,
                 layout: wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: Some(pixel_size * area.width + padding),
-                    rows_per_image: Some(area.height),
+                    bytes_per_row: Some(bytes_per_row as _),
+                    rows_per_image: Some(area_height),
                 },
             },
             wgpu::ImageCopyTexture {
@@ -156,9 +152,13 @@ impl GpuTexture {
                     y: area.y,
                     z: layer_index,
                 },
-                aspect: wgpu::TextureAspect::default(),
+                aspect: self.format.aspect(),
             },
-            extent,
+            wgpu::Extent3d {
+                width: area_width,
+                height: area_height,
+                depth_or_array_layers: 1,
+            },
         );
     }
 

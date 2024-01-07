@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 
 use crate::ResourceId;
 use inox_uid::{generate_random_uid, INVALID_UID};
@@ -88,25 +88,31 @@ impl BufferData {
     }
 }
 
-pub struct Buffer<T> {
+pub struct Buffer<T, const MAX_COUNT: usize> {
     occupied: Vec<BufferData>,
     free: Vec<BufferData>,
     data: Vec<T>,
     is_changed: bool,
 }
 
-impl<T> Default for Buffer<T> {
+unsafe impl<T, const MAX_COUNT: usize> Sync for Buffer<T, MAX_COUNT> {}
+unsafe impl<T, const MAX_COUNT: usize> Send for Buffer<T, MAX_COUNT> {}
+
+impl<T, const MAX_COUNT: usize> Default for Buffer<T, MAX_COUNT>
+where
+    T: Sized + Clone + Default,
+{
     fn default() -> Self {
         Self {
             occupied: Vec::new(),
-            free: Vec::new(),
-            data: Vec::new(),
+            free: vec![BufferData::new(&generate_random_uid(), 0, MAX_COUNT)],
+            data: vec![T::default(); MAX_COUNT],
             is_changed: false,
         }
     }
 }
 
-impl<T> Buffer<T>
+impl<T, const MAX_COUNT: usize> Buffer<T, MAX_COUNT>
 where
     T: Sized + Clone,
 {
@@ -119,6 +125,9 @@ where
     pub fn allocate(&mut self, id: &ResourceId, data: &[T]) -> (bool, Range<usize>) {
         self.remove(id);
         self.collapse_free();
+        if data.is_empty() {
+            return (false, 0..0);
+        }
         let mut need_realloc = false;
         let size = data.len();
         let range;
@@ -148,6 +157,7 @@ where
         let end = start + size;
         //inox_log::debug_log!("[{:?}] added, [start {} : end {}]", id, start, end);
 
+        debug_assert!(MAX_COUNT == 0, "Trying to modify a Buffer with fixed size");
         self.is_changed = true;
         self.data.extend_from_slice(data);
         self.occupied.push(BufferData::new(id, start, end));
@@ -346,6 +356,7 @@ where
         self.is_changed = true;
     }
     pub fn defrag(&mut self) {
+        debug_assert!(MAX_COUNT == 0, "Trying to modify a Buffer with fixed size");
         if !self.free.is_empty() {
             self.free.clear();
             let mut new_data = Vec::<T>::new();
@@ -390,7 +401,7 @@ fn test_buffer() {
     const NUM_VERTICES: u32 = 4;
     const NUM_MESHES: usize = 4;
 
-    let mut buffer = Buffer::<Data>::default();
+    let mut buffer = Buffer::<Data, 0>::default();
 
     let mut meshes = Vec::new();
     let mut mesh = Mesh::new();
@@ -531,7 +542,39 @@ fn test_buffer() {
     assert!(buffer.is_full(), "Allocator should be full now");
 }
 
+#[allow(dead_code)]
+fn test_buffer_fixed() {
+    #[derive(Default, Clone)]
+    struct Data {
+        integer: i32,
+    }
+    const MAX_NUM_DATA: usize = 2;
+    let buffer = Arc::new(std::sync::RwLock::new(
+        Buffer::<Data, MAX_NUM_DATA>::default(),
+    ));
+    let id_0 = generate_random_uid();
+    let id_1 = generate_random_uid();
+    buffer.write().unwrap().allocate(&id_0, &[Data::default()]);
+    buffer.write().unwrap().allocate(&id_1, &[Data::default()]);
+    let id_2 = generate_random_uid();
+    let b = buffer.clone();
+
+    buffer.write().unwrap().remove(&id_0);
+    buffer.write().unwrap().allocate(&id_2, &[Data::default()]);
+    let id_3 = generate_random_uid();
+
+    let prev_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {}));
+    let result = std::panic::catch_unwind(move || {
+        b.write().unwrap().allocate(&id_3, &[Data::default()]);
+    });
+    std::panic::set_hook(prev_hook);
+
+    assert!(result.is_err());
+}
+
 #[test]
 fn test() {
     test_buffer();
+    test_buffer_fixed();
 }

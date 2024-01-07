@@ -15,7 +15,7 @@ downcast-rs = { workspace = true }
 image = { workspace = true }
 ttf-parser = { workspace = true }
 inox_bitmask = { path = "../bitmask" }
-inox_bhv = { path = "../bhv" }
+inox_bvh = { path = "../bvh" }
 inox_commands = { path = "../commands" }
 inox_core = { path = "../core" }
 inox_filesystem = { path = "../filesystem" }

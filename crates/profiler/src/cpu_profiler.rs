@@ -1,7 +1,7 @@
 #![allow(improper_ctypes_definitions)]
 
 use inox_filesystem::Library;
-use inox_log::debug_log;
+
 use inox_platform::{get_raw_thread_id, RawThreadId};
 use std::{
     cell::RefCell,
@@ -121,14 +121,14 @@ impl CpuProfiler {
             current_time_in_micros(),
             std::sync::atomic::Ordering::SeqCst,
         );
-        debug_log!("Starting profiler");
+        inox_log::debug_log!("Starting profiler");
     }
     pub fn stop(&self) {
         self.is_started
             .swap(false, std::sync::atomic::Ordering::SeqCst);
         let current_time = current_time_in_micros();
         let start_time = self.time_start.load(std::sync::atomic::Ordering::SeqCst);
-        debug_log!(
+        inox_log::debug_log!(
             "Stopping profiler for a total duration of {:.3}",
             (current_time - start_time) as f64 / 1000. / 1000.
         );

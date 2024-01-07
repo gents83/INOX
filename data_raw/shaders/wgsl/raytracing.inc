@@ -1,119 +1,147 @@
-const HIT_EPSILON: f32 = 0.0001;
-const INVALID_NODE: i32 = -1;
+const HIT_DATA_TLAS = 0u;
+const HIT_DATA_BLAS = 1u;
+const HIT_DATA_TRIANGLE = 2u;
+const HIT_DATA_MISS = 4u;
 
 struct Result {
     distance: f32,
     visibility_id: u32,
 }
 
-fn intersect_aabb(ray: ptr<function, Ray>, aabb_min: vec3<f32>, aabb_max: vec3<f32>) -> f32 
-{     
-    let r_min = (*ray).t_min;
-    let r_max = (*ray).t_max;
-    let inverse_dir = 1. / (*ray).direction;
-    let v_min = (aabb_min - (*ray).origin) * inverse_dir;
-    let v_max = (aabb_max - (*ray).origin) * inverse_dir;
+fn intersect_aabb(origin: vec3<f32>, direction: vec3<f32>, max_distance: f32, aabb_min: vec3<f32>, aabb_max: vec3<f32>) -> f32 {
+    let size = aabb_max - aabb_min;
+    let inverse_dir = 1. / direction;
+    let n = origin * inverse_dir;
+    let k = abs(inverse_dir) * size;
+    let t_min = -n - k;
+    let t_max = -n + k;
 
-    let b_min = min(v_min, v_max);
-    let b_max = max(v_min, v_max);
+    let t_near = max(max(t_min.x, t_min.y), t_min.z);
+    let t_far = min(min(t_max.x, t_max.y), t_max.z);
 
-    let t_near = max(max(b_min.x, b_min.y), max(b_min.x, b_min.z));
-    let t_far = min(min(b_max.x, b_max.y), min(b_max.x, b_max.z));
-    
-    let r = select(t_near, r_max, t_near > t_far || t_far < 0.);
-    return r; 
+    return select(t_far, t_near, (t_near < max_distance && t_far > 0.));
 }
 
-fn intersect_triangle(ray: ptr<function, Ray>, v0: vec3<f32>, v1: vec3<f32>, v2: vec3<f32>) -> f32
+// Mäller-Trumbore algorithm
+// https://en.wikipedia.org/wiki/Möller–Trumbore_intersection_algorithm
+fn intersect_triangle(origin: vec3<f32>, direction: vec3<f32>, max_distance: f32, v0: vec3<f32>, v1: vec3<f32>, v2: vec3<f32>) -> f32
 {
-    let origin = (*ray).origin;
-    let dir = (*ray).direction;
-    let far = (*ray).t_max;
-
+    var result = max_distance;
     let e1 = v1 - v0;
     let e2 = v2 - v0;
+    let n = cross(e1, e2);
+    if (dot(n, direction) > 0.) {
+        return result;
+    }
 
-    let p = cross(dir, e2);
-    let det = dot(e1, p);
-    
-    if (abs(det) < HIT_EPSILON) { return far; }
+    let s = origin - v0;
+    let q = cross(s, e1);
+    let h = cross(direction, e2);
+    let det = dot(e1, h);
 
-    // Computes Barycentric coordinates.
     let inv_det = 1. / det;
-    let t1 = origin - v0;    
-    let u = dot(t1, p) * inv_det;
-    if (u < 0. || u > 1.) { return far; }
+    let u = inv_det * dot(s, h);
+    let v = inv_det * dot(direction, q);
+    let t = inv_det * dot(e2, q);
     
-    let q = cross(t1, e1);
-    let v = dot(dir, q) * inv_det;
-    if (v < 0. || u + v > 1.) { return far; }
-
-    let t2 = dot(e2, q) * inv_det;
-    return select(t2, far, t2 < 0.);
+    result = select(result, t, (t > MATH_EPSILON && t < result));
+    result = select(result, max_distance, u < 0. || u > 1.);
+    result = select(result, max_distance, v < 0. || u + v > 1.);
+    return result;
 }
 
-fn intersect_meshlet_primitive(ray: ptr<function, Ray>, position_offset: u32, meshlet_id: u32, index_offset: u32) -> f32 {
-    let vert_indices = vec3<u32>(indices.data[index_offset], indices.data[index_offset + 1u], indices.data[index_offset + 2u]);
-    let pos_indices = vert_indices + vec3<u32>(position_offset, position_offset, position_offset);
-        
-    return intersect_triangle(ray, runtime_vertices.data[pos_indices.x].world_pos, runtime_vertices.data[pos_indices.y].world_pos, runtime_vertices.data[pos_indices.z].world_pos);
-}
-
-fn intersect_meshlet(ray: ptr<function, Ray>, position_offset: u32, meshlet_id: u32, far_plane: f32) -> Result {
-    var nearest = far_plane;  
+//starting index = tlas_starting_index
+fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tlas_starting_index: u32) -> Result {
+    var origin = world_ray_origin;
+    var direction = world_ray_direction;
+    var max_distance = MAX_TRACING_DISTANCE;
+    var node_index = i32(tlas_starting_index) + 1;
     var visibility_id = 0u;
-      
-    let meshlet = &meshlets.data[meshlet_id];
-    let index_count = (*meshlet).indices_count;
-    let index_offset = (*meshlet).indices_offset;
-    for(var index = 0u; index < index_count; index = index + 3u)
-    {       
-        let hit = intersect_meshlet_primitive(ray, position_offset, meshlet_id, index_offset + index);
-        visibility_id = select(visibility_id, ((meshlet_id + 1u) << 8u) | (index / 3u), hit < nearest);
-        nearest = min(nearest, hit);
-    }
-    return Result(nearest, visibility_id);
-}
-
-fn traverse_bhv_of_meshlets(world_ray: ptr<function, Ray>, local_ray: ptr<function, Ray>, mesh_id: u32, far_plane: f32) -> Result {
-    let mesh = &meshes.data[mesh_id];    
-    let position_offset = (*mesh).vertices_position_offset;
-    var blas_index = i32((*mesh).blas_index);    
-    let mesh_blas_index = blas_index;
-    var nearest = far_plane;  
-    var visibility_id = 0u;
-
-    while (blas_index >= 0)
-    { 
-        let node = &bhv.data[u32(blas_index)];   
-        let intersection = intersect_aabb(local_ray, (*node).min, (*node).max);
-        if (intersection > nearest) {
-            blas_index = select((*node).miss, (*node).miss + mesh_blas_index, (*node).miss >= 0);
+    var hit_type = HIT_DATA_TLAS;
+    var mesh_orientation = vec4<f32>(0.);
+    var meshlets_offset = 0u;
+    var meshlet_indices_offset = 0u;
+    var vertices_position_offset = 0u;
+    var meshlet_id = 0u;
+    var blas_sibling = 0;
+    var tlas_sibling = 0;
+    
+    var node = bhv.data[u32(node_index)]; 
+    while(node_index >= 0)
+    {
+        node = bhv.data[u32(node_index)]; 
+        if(node.reference < 0) {
+            node_index = node_index + 1;
             continue;
         }
-        if ((*node).reference < 0) {
-            //inner node
-            blas_index = blas_index + 1;
-            continue;  
-        }
-        //leaf node
-        let meshlet_id = (*mesh).meshlets_offset + u32((*node).reference);   
-        
-        let index = meshlet_id / 32u;
-        let offset = meshlet_id - (index * 32u);
-        let bits = culling_result[index];
-        let is_meshlet_visible =  (bits & (1u << offset)) > 0u;   
+        let intersection = intersect_aabb(origin, direction, max_distance, node.min, node.max);        
+        if(intersection < max_distance) {
+            let reference = u32(node.reference);  
+            //leaf node
+            if(hit_type == HIT_DATA_TRIANGLE) {     
+                let index_offset = meshlet_indices_offset + (reference * 3u);
+                let v1 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset]].world_pos;
+                let v2 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset + 1u]].world_pos;
+                let v3 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset + 2u]].world_pos;
+                let distance = intersect_triangle(world_ray_origin, world_ray_direction, max_distance, v1, v2, v3);
+                if(distance < max_distance) {
+                    visibility_id = ((meshlet_id + 1u) << 8u)  | reference;
+                    max_distance = distance;
+                }
+                node_index = node.miss;
+                let should_go_to_blas = node_index < 0;
+                hit_type = select(hit_type, HIT_DATA_BLAS, should_go_to_blas);
+                node_index = select(node_index, blas_sibling, should_go_to_blas);
+                let should_go_to_tlas = node_index < 0;
+                hit_type = select(hit_type, HIT_DATA_TLAS, should_go_to_tlas);
+                node_index = select(node_index, tlas_sibling, should_go_to_tlas);
+                origin = select(origin, world_ray_origin, should_go_to_tlas);
+                direction = select(direction, world_ray_direction, should_go_to_tlas);
+            }
+            else if(hit_type == HIT_DATA_BLAS) {  
+                meshlet_id = meshlets_offset + reference;              
+                let meshlet = &meshlets.data[meshlet_id];
+                meshlet_indices_offset = (*meshlet).indices_offset;
+                let cone_axis_cutoff = unpack4x8snorm((*meshlet).cone_axis_cutoff) / 127.;
+                let cone_axis = rotate_vector(cone_axis_cutoff.xyz, mesh_orientation); 
+                let is_culled = dot(cone_axis, direction) >= (cone_axis_cutoff.w + length(node.max-node.min));
+                blas_sibling = node.miss;
+                hit_type = select(HIT_DATA_TRIANGLE, hit_type, is_culled);
+                node_index = select(i32((*meshlet).triangles_bhv_index) + 1, blas_sibling, is_culled);
+                let should_go_to_tlas = node_index < 0;
+                hit_type = select(hit_type, HIT_DATA_TLAS, should_go_to_tlas);
+                node_index = select(node_index, tlas_sibling, should_go_to_tlas);
+                origin = select(origin, world_ray_origin, should_go_to_tlas);
+                direction = select(direction, world_ray_direction, should_go_to_tlas);
+            }
+            else {  
+                hit_type = HIT_DATA_BLAS;
+                tlas_sibling = node.miss;
+                let mesh = &meshes.data[reference];  
+                meshlets_offset = (*mesh).meshlets_offset;
+                vertices_position_offset = (*mesh).vertices_position_offset;
+                mesh_orientation = (*mesh).orientation;
+                node_index = i32((*mesh).blas_index) + 1;  //We add 1 here to avoid checking same aabb 
 
-        if (!is_meshlet_visible) {
-            blas_index = select((*node).miss, (*node).miss + mesh_blas_index, (*node).miss >= 0);
-            continue;
+                let matrix = transform_matrix((*mesh).position, (*mesh).orientation, (*mesh).scale);    
+                let inverse_matrix = matrix_inverse(matrix);
+                let local_ray_origin = inverse_matrix * vec4<f32>(world_ray_origin, 1.);
+                let local_ray_direction = inverse_matrix * vec4<f32>(world_ray_direction, 0.);
+                origin = local_ray_origin.xyz;
+                direction = local_ray_direction.xyz;
+            }
         }
-        let hit = intersect_meshlet(world_ray, position_offset, meshlet_id, nearest);
-        visibility_id = select(visibility_id, hit.visibility_id, hit.distance < nearest);
-        nearest = min(nearest, hit.distance);
-        blas_index = select((*node).miss, (*node).miss + mesh_blas_index, (*node).miss >= 0);
+        else {
+            node_index = node.miss;
+            let should_go_to_blas = hit_type == HIT_DATA_TRIANGLE && node_index < 0;
+            hit_type = select(hit_type, HIT_DATA_BLAS, should_go_to_blas);
+            node_index = select(node_index, blas_sibling, should_go_to_blas);
+            let should_go_to_tlas = hit_type == HIT_DATA_BLAS && node_index < 0;
+            hit_type = select(hit_type, HIT_DATA_TLAS, should_go_to_tlas);
+            node_index = select(node_index, tlas_sibling, should_go_to_tlas);
+            origin = select(origin, world_ray_origin, hit_type == HIT_DATA_TLAS);
+            direction = select(direction, world_ray_direction, hit_type == HIT_DATA_TLAS);
+        }         
     }
-    return Result(nearest, visibility_id);
+    return Result(max_distance, visibility_id);
 }
-
-

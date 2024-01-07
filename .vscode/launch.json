@@ -72,7 +72,9 @@
                 "-plugin inox_viewer",
                 "-load_file",
                 //"models/cornell_box/cornell_box.scene"
+                //"models/spheres/spheres.scene"
                 "models/craftman/craftman.scene"
+                //"models/sponza/sponza.scene"
             ],
             "cwd": "${workspaceFolder}",
             "environment": [

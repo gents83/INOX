@@ -16,13 +16,9 @@ var<uniform> culling_data: CullingData;
 @group(0) @binding(2)
 var<storage, read> meshlets: Meshlets;
 @group(0) @binding(3)
-var<storage, read> meshlets_culling: MeshletsCulling;
-@group(0) @binding(4)
 var<storage, read> meshes: Meshes;
-@group(0) @binding(5)
+@group(0) @binding(4)
 var<storage, read> bhv: BHV;
-@group(0) @binding(6)
-var<storage, read> meshes_flags: MeshFlags;
 
 @group(1) @binding(0)
 var<storage, read_write> count: atomic<u32>;
@@ -93,13 +89,15 @@ fn main(
 
     let meshlet = &meshlets.data[meshlet_id];
     let mesh_id = (*meshlet).mesh_index;
-    
-    if (meshes_flags.data[mesh_id] != culling_data.mesh_flags) {
+    let mesh = &meshes.data[mesh_id];
+    let flags = ((*mesh).flags_and_vertices_attribute_layout & 0xFFFF0000u) >> 16u;
+
+    if (flags != culling_data.mesh_flags) {
         return;        
     }
 
-    let mesh = &meshes.data[mesh_id];
-    let bb_id = (*mesh).blas_index + (*meshlet).blas_index;
+    let meshlet_index = (*mesh).meshlets_offset - meshlet_id;
+    let bb_id = (*meshlet).triangles_bhv_index;
     let bb = &bhv.data[bb_id];
     let max = transform_vector((*bb).max, (*mesh).position, (*mesh).orientation, (*mesh).scale);
     let min = transform_vector((*bb).min, (*mesh).position, (*mesh).orientation, (*mesh).scale);
@@ -127,13 +125,15 @@ fn main(
         return;
     }
 
-    let cone_culling = &meshlets_culling.data[meshlet_id];
-    let cone_axis_cutoff = unpack4x8snorm((*cone_culling).cone_axis_cutoff);
-    let cone_axis = rotate_vector(cone_axis_cutoff.xyz, (*mesh).orientation);    
-    if (is_cone_visible((*cone_culling).center, cone_axis, cone_axis_cutoff.w, radius))
+    let cone_axis_cutoff = unpack4x8snorm((*meshlet).cone_axis_cutoff) / 127.;
+    let cone_axis = rotate_vector(cone_axis_cutoff.xyz, (*mesh).orientation); 
+    let meshlet_center = transform_vector((*meshlet).center, (*mesh).position, (*mesh).orientation, (*mesh).scale);;    
+    if (!is_cone_visible(meshlet_center, cone_axis, cone_axis_cutoff.w, radius))
     {
-        atomicAdd(&count, 1u);
-        let draw_group_index = workgroup_id.x;
-        atomicOr(&culling_result[draw_group_index], 1u << local_invocation_id.x);
+        return;
     }
+    
+    atomicAdd(&count, 1u);
+    let draw_group_index = workgroup_id.x;
+    atomicOr(&culling_result[draw_group_index], 1u << local_invocation_id.x);
 }

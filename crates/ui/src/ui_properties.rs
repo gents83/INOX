@@ -403,19 +403,26 @@ impl UIProperties for Light {
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label("Type: ");
-                    if self.data().light_type == LightType::Directional as u32 {
+                    let t = LightType::from(self.data().light_type);
+                    if t == LightType::Directional {
                         ui.label("Directional");
-                    } else if self.data().light_type == LightType::Point as u32 {
+                    } else if t == LightType::Point {
                         ui.label("Point");
-                    } else if self.data().light_type == LightType::Spot as u32 {
+                    } else if t == LightType::Spot {
                         ui.label("Spot");
                     }
                 });
                 ui.horizontal(|ui| {
                     ui.label("Color: ");
-                    let mut color: Vector4 = self.data().color.into();
+                    let mut color: Vector3 = self.data().color.into();
                     color.show(id, ui_registry, ui, collapsed);
                     self.data_mut().color = color.into();
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Direction: ");
+                    let mut direction: Vector3 = self.data().direction.into();
+                    direction.show(id, ui_registry, ui, collapsed);
+                    self.data_mut().direction = direction.into();
                 });
                 ui.horizontal(|ui| {
                     ui.label("Intensity: ");

@@ -1,8 +1,8 @@
 use inox_core::{implement_unique_system_uid, ContextRc, System};
 
-use inox_math::Vector2;
+use inox_math::{VecBase, Vector2};
 use inox_messenger::{Listener, MessageHubRc};
-use inox_platform::WindowEvent;
+use inox_platform::{MouseEvent, MouseState, WindowEvent};
 use inox_resources::{
     ConfigBase, ConfigEvent, DataTypeResource, DataTypeResourceEvent, ReloadEvent, Resource,
     ResourceEvent, SerializableResourceEvent, SharedData, SharedDataRc,
@@ -25,7 +25,7 @@ pub struct UpdateSystem {
     message_hub: MessageHubRc,
     listener: Listener,
     view: Resource<View>,
-    scale_factor: f32,
+    mouse_coords: Vector2,
     width: u32,
     height: u32,
     resolution_changed: bool,
@@ -49,7 +49,7 @@ impl UpdateSystem {
             message_hub: context.message_hub().clone(),
             listener,
             resolution_changed: false,
-            scale_factor: 1.0,
+            mouse_coords: Vector2::default_zero(),
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
         }
@@ -59,17 +59,17 @@ impl UpdateSystem {
         inox_profiler::scoped_profile!("update_system::handle_events");
         //REMINDER: message processing order is important - RenderPass must be processed before Texture
         self.listener
-            .process_messages(|e: &WindowEvent| match e {
-                WindowEvent::SizeChanged(width, height) => {
+            .process_messages(|e: &WindowEvent| {
+                if let WindowEvent::SizeChanged(width, height) = e {
                     self.width = *width;
                     self.height = *height;
                     self.resolution_changed = true;
                 }
-                WindowEvent::ScaleFactorChanged(v) => {
-                    self.scale_factor = *v;
-                    self.resolution_changed = true;
+            })
+            .process_messages(|e: &MouseEvent| {
+                if e.state == MouseState::Move {
+                    self.mouse_coords = [e.x as f32, e.y as f32].into();
                 }
-                _ => {}
             })
             .process_messages(|e: &ReloadEvent| {
                 let ReloadEvent::Reload(path) = e;
@@ -104,21 +104,21 @@ impl UpdateSystem {
                 ResourceEvent::Destroyed(id) => {
                     let renderer = self.renderer.read().unwrap();
                     let render_context = renderer.render_context();
-                    render_context.render_buffers.remove_texture(id);
+                    render_context.global_buffers.remove_texture(id);
                 }
             })
             .process_messages(|e: &DataTypeResourceEvent<Light>| {
                 let DataTypeResourceEvent::Loaded(id, light_data) = e;
                 let renderer = self.renderer.read().unwrap();
                 let render_context = renderer.render_context();
-                render_context.render_buffers.update_light(id, light_data);
+                render_context.global_buffers.update_light(id, light_data);
             })
             .process_messages(|e: &ResourceEvent<Light>| match e {
                 ResourceEvent::Created(l) => {
                     let renderer = self.renderer.read().unwrap();
                     let render_context = renderer.render_context();
                     render_context
-                        .render_buffers
+                        .global_buffers
                         .add_light(l.id(), &mut l.get_mut());
                 }
                 ResourceEvent::Changed(id) => {
@@ -127,14 +127,14 @@ impl UpdateSystem {
 
                         let render_context = renderer.render_context();
                         render_context
-                            .render_buffers
+                            .global_buffers
                             .update_light(id, light.get().data());
                     }
                 }
                 ResourceEvent::Destroyed(id) => {
                     let renderer = self.renderer.read().unwrap();
                     let render_context = renderer.render_context();
-                    render_context.render_buffers.remove_light(id);
+                    render_context.global_buffers.remove_light(id);
                 }
             })
             .process_messages(|e: &ResourceEvent<Material>| match e {
@@ -142,7 +142,7 @@ impl UpdateSystem {
                     let renderer = self.renderer.read().unwrap();
                     let render_context = renderer.render_context();
                     render_context
-                        .render_buffers
+                        .global_buffers
                         .add_material(m.id(), &mut m.get_mut());
                 }
                 ResourceEvent::Changed(id) => {
@@ -150,14 +150,14 @@ impl UpdateSystem {
                         let renderer = self.renderer.read().unwrap();
                         let render_context = renderer.render_context();
                         render_context
-                            .render_buffers
+                            .global_buffers
                             .add_material(m.id(), &mut m.get_mut());
                     }
                 }
                 ResourceEvent::Destroyed(id) => {
                     let renderer = self.renderer.read().unwrap();
                     let render_context = renderer.render_context();
-                    render_context.render_buffers.remove_material(id);
+                    render_context.global_buffers.remove_material(id);
                 }
             })
             .process_messages(|e: &DataTypeResourceEvent<Material>| {
@@ -165,14 +165,14 @@ impl UpdateSystem {
                 let renderer = self.renderer.read().unwrap();
                 let render_context = renderer.render_context();
                 render_context
-                    .render_buffers
+                    .global_buffers
                     .update_material(id, material_data);
             })
             .process_messages(|e: &DataTypeResourceEvent<Mesh>| {
                 let DataTypeResourceEvent::Loaded(id, mesh_data) = e;
                 let renderer = self.renderer.read().unwrap();
                 let render_context = renderer.render_context();
-                render_context.render_buffers.add_mesh(id, mesh_data);
+                render_context.global_buffers.add_mesh(id, mesh_data);
             })
             .process_messages(|e: &ResourceEvent<Mesh>| match e {
                 ResourceEvent::Changed(id) => {
@@ -180,14 +180,14 @@ impl UpdateSystem {
                         let renderer = self.renderer.read().unwrap();
                         let render_context = renderer.render_context();
                         render_context
-                            .render_buffers
+                            .global_buffers
                             .change_mesh(id, &mut mesh.get_mut());
                     }
                 }
                 ResourceEvent::Destroyed(id) => {
                     let renderer = self.renderer.read().unwrap();
                     let render_context = renderer.render_context();
-                    render_context.render_buffers.remove_mesh(id, true);
+                    render_context.global_buffers.remove_mesh(id, true);
                 }
                 _ => {}
             });
@@ -219,6 +219,7 @@ impl System for UpdateSystem {
     fn init(&mut self) {
         self.listener
             .register::<WindowEvent>()
+            .register::<MouseEvent>()
             .register::<ReloadEvent>()
             .register::<ConfigEvent<Config>>()
             .register::<DataTypeResourceEvent<Light>>()
@@ -278,10 +279,10 @@ impl System for UpdateSystem {
                     self.view.get().view(),
                     self.view.get().proj(),
                     screen_size,
+                    self.mouse_coords,
                 );
             }
 
-            renderer.prepare();
             renderer.update_passes(command_buffer);
         }
 
@@ -295,6 +296,7 @@ impl System for UpdateSystem {
     fn uninit(&mut self) {
         self.listener
             .unregister::<WindowEvent>()
+            .unregister::<MouseEvent>()
             .unregister::<ReloadEvent>()
             .unregister::<DataTypeResourceEvent<Light>>()
             .unregister::<DataTypeResourceEvent<Material>>()

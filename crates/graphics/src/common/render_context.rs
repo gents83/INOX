@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
+    sync::{atomic::Ordering, Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
 use inox_math::{Matrix4, Vector2};
@@ -10,7 +10,7 @@ use inox_resources::Resource;
 use crate::{
     platform::{platform_limits, required_gpu_features, setup_env},
     BindingDataBuffer, BindingDataBufferRc, BufferId, ConstantData, ConstantDataRw,
-    DrawCommandType, GpuBuffer, MeshFlags, RenderBuffers, Renderer, RendererRw, Texture,
+    DrawCommandType, GlobalBuffers, GpuBuffer, MeshFlags, Renderer, RendererRw, Texture,
     TextureHandler, TextureHandlerRc, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, DEFAULT_HEIGHT,
     DEFAULT_WIDTH,
 };
@@ -64,7 +64,7 @@ pub struct RenderContext {
     pub core: RenderCoreContextRc,
     pub texture_handler: TextureHandlerRc,
     pub binding_data_buffer: BindingDataBufferRc,
-    pub render_buffers: RenderBuffers,
+    pub global_buffers: GlobalBuffers,
     pub constant_data: ConstantDataRw,
 }
 
@@ -152,7 +152,7 @@ impl RenderContext {
             view_formats: vec![format],
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode: wgpu::PresentMode::Immediate,
             alpha_mode: *capabilities.alpha_modes.first().unwrap(),
         };
 
@@ -179,19 +179,32 @@ impl RenderContext {
                 core: Arc::new(render_core_context),
                 constant_data: Arc::new(RwLock::new(ConstantData::default())),
                 binding_data_buffer: Arc::new(BindingDataBuffer::default()),
-                render_buffers: RenderBuffers::default(),
+                global_buffers: GlobalBuffers::default(),
             })));
 
         let mut renderer = renderer.write().unwrap();
         on_create_func(&mut renderer);
     }
 
-    pub fn update_constant_data(&self, view: Matrix4, proj: Matrix4, screen_size: Vector2) {
+    pub fn update_constant_data(
+        &self,
+        view: Matrix4,
+        proj: Matrix4,
+        screen_size: Vector2,
+        debug_coords: Vector2,
+    ) {
         inox_profiler::scoped_profile!("render_context::update_constant_data");
-        self.constant_data
-            .write()
-            .unwrap()
-            .update(view, proj, screen_size);
+        self.constant_data.write().unwrap().update(
+            view,
+            proj,
+            screen_size,
+            debug_coords,
+            self.global_buffers
+                .tlas_start_index
+                .read()
+                .unwrap()
+                .load(Ordering::Relaxed),
+        );
         if self.core.config.read().unwrap().format.is_srgb() {
             self.constant_data
                 .write()
@@ -210,7 +223,13 @@ impl RenderContext {
         draw_command_type: &DrawCommandType,
         mesh_flags: &MeshFlags,
     ) -> bool {
-        if let Some(commands) = self.render_buffers.commands.read().unwrap().get(mesh_flags) {
+        if let Some(commands) = self
+            .global_buffers
+            .draw_commands
+            .read()
+            .unwrap()
+            .get(mesh_flags)
+        {
             if let Some(entry) = commands.map.get(draw_command_type) {
                 return !entry.commands.is_empty();
             }
@@ -231,6 +250,23 @@ impl RenderContext {
         self.binding_data_buffer.buffers.write().unwrap()
     }
 
+    pub fn update_image(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        texture: &Resource<Texture>,
+    ) {
+        let texture_id = texture.id();
+        let texture_blocks = texture.get_mut().blocks_to_update();
+        for block in texture_blocks {
+            self.texture_handler.update_texture_atlas(
+                &self.core.device,
+                encoder,
+                texture_id,
+                &block,
+            );
+        }
+    }
+
     pub fn add_image(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
@@ -240,27 +276,42 @@ impl RenderContext {
         let width = texture.get().width();
         let height = texture.get().height();
         let format = texture.get().format();
-        let index = if let Some(image_data) = texture.get().image_data() {
-            let info = self.texture_handler.add_image_to_texture_atlas(
+        let sample_count = texture.get().sample_count();
+        let mut blocks_to_update = texture.get_mut().blocks_to_update();
+        let image_data = blocks_to_update.remove(0);
+        let info = self.texture_handler.add_image_to_texture_atlas(
+            &self.core.device,
+            encoder,
+            texture_id,
+            (width, height, format, sample_count),
+            &image_data.data,
+        );
+        for block in blocks_to_update {
+            self.texture_handler.update_texture_atlas(
                 &self.core.device,
                 encoder,
                 texture_id,
-                (width, height),
-                format,
-                image_data,
+                &block,
             );
-            info.texture_index as _
-        } else {
-            let usage = texture.get().usage();
-            let index = self.texture_handler.add_render_target(
-                &self.core.device,
-                texture_id,
-                (width, height),
-                format,
-                usage,
-            );
-            index as _
-        };
-        index
+        }
+        info.texture_index as _
+    }
+
+    pub fn add_render_target(&mut self, texture: &Resource<Texture>) -> usize {
+        let texture_id = texture.id();
+        let width = texture.get().width();
+        let height = texture.get().height();
+        let format = texture.get().format();
+        let usage = texture.get().usage();
+        let sample_count = texture.get().sample_count();
+        let index = self.texture_handler.add_render_target(
+            &self.core.device,
+            texture_id,
+            (width, height),
+            format,
+            usage,
+            sample_count,
+        );
+        index as _
     }
 }

@@ -2,13 +2,23 @@ use inox_bitmask::bitmask;
 use inox_math::{Mat4Ops, Matrix4};
 
 use crate::{
-    MaterialAlphaMode, TextureType, VertexBufferLayoutBuilder, VertexFormat, INVALID_INDEX,
+    declare_as_dirty_binding, MaterialFlags, TextureType, VertexBufferLayoutBuilder, VertexFormat,
+    INVALID_INDEX,
 };
 
 // Pipeline has a list of meshes to process
 // Meshes can switch pipeline at runtime
 // Material doesn't know pipeline anymore
 // Material is now generic data for several purposes
+
+#[repr(C)]
+#[derive(Default, PartialEq, Eq, Clone, Copy, Debug)]
+pub struct DispatchCommandSize {
+    pub x: u32,
+    pub y: u32,
+    pub z: u32,
+}
+declare_as_dirty_binding!(DispatchCommandSize);
 
 #[bitmask]
 pub enum DrawCommandType {
@@ -35,12 +45,12 @@ pub struct DrawCommand {
     pub base_instance: u32,
 }
 
-#[repr(C, align(4))]
+#[repr(C, align(16))]
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub struct GPUMesh {
     pub vertices_position_offset: u32,
     pub vertices_attribute_offset: u32,
-    pub vertices_attribute_layout: u32,
+    pub flags_and_vertices_attribute_layout: u32, // 16 bits | 16 bits
     pub material_index: i32,
     pub orientation: [f32; 4],
     pub position: [f32; 3],
@@ -59,7 +69,7 @@ impl Default for GPUMesh {
             position: [0.; 3],
             meshlets_offset: 0,
             scale: [1.; 3],
-            vertices_attribute_layout: 0,
+            flags_and_vertices_attribute_layout: 0,
             orientation: [0., 0., 0., 1.],
         }
     }
@@ -75,20 +85,15 @@ impl GPUMesh {
     }
 }
 
-#[repr(C, align(4))]
-#[derive(Default, PartialEq, Clone, Copy, Debug)]
-pub struct ConeCulling {
-    pub center: [f32; 3],
-    pub cone_axis_cutoff: [i8; 4],
-}
-
-#[repr(C, align(4))]
+#[repr(C, align(16))]
 #[derive(Default, PartialEq, Clone, Copy, Debug)]
 pub struct GPUMeshlet {
     pub mesh_index: u32,
     pub indices_offset: u32,
     pub indices_count: u32,
-    pub blas_index: u32,
+    pub triangles_bhv_index: u32,
+    pub center: [f32; 3],
+    pub cone_axis_cutoff: [i8; 4],
 }
 
 impl GPUMeshlet {
@@ -99,60 +104,81 @@ impl GPUMeshlet {
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<[f32; 3]>(VertexFormat::Float32x3.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
         layout_builder
     }
 }
 
-#[repr(C, align(4))]
-#[derive(Default, PartialEq, Clone, Copy, Debug)]
-pub struct GPUBHVNode {
-    pub min: [f32; 3],
-    pub miss: i32,
-    pub max: [f32; 3],
-    pub reference: i32,
-}
-
-#[repr(C, align(4))]
+#[repr(C, align(16))]
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub struct GPUMaterial {
-    pub textures_indices: [i32; TextureType::Count as _],
-    pub textures_coord_set: [u32; TextureType::Count as _],
     pub roughness_factor: f32,
     pub metallic_factor: f32,
-    pub alpha_cutoff: f32,
-    pub alpha_mode: u32,
+    pub ior: f32,
+    pub transmission_factor: f32,
     pub base_color: [f32; 4],
     pub emissive_color: [f32; 3],
-    pub occlusion_strength: f32,
+    pub emissive_strength: f32,
     pub diffuse_color: [f32; 4],
     pub specular_color: [f32; 4],
+    pub specular_factors: [f32; 4],
+    pub attenuation_color_and_distance: [f32; 4],
+    pub thickness_factor: f32,
+    pub alpha_cutoff: f32,
+    pub occlusion_strength: f32,
+    pub flags: u32,
+    pub textures_index_and_coord_set: [u32; TextureType::Count as _],
 }
 
 impl Default for GPUMaterial {
     fn default() -> Self {
         Self {
-            textures_indices: [INVALID_INDEX; TextureType::Count as _],
-            textures_coord_set: [0; TextureType::Count as _],
-            roughness_factor: 0.,
-            metallic_factor: 0.,
-            alpha_cutoff: 1.,
-            alpha_mode: MaterialAlphaMode::Opaque.into(),
+            textures_index_and_coord_set: [0; TextureType::Count as _],
+            roughness_factor: 1.0,
+            metallic_factor: 1.0,
+            ior: 1.5,
+            transmission_factor: 0.,
             base_color: [1.; 4],
             emissive_color: [1.; 3],
-            occlusion_strength: 0.0,
+            emissive_strength: 1.0,
             diffuse_color: [1.; 4],
             specular_color: [1.; 4],
+            specular_factors: [1.; 4],
+            attenuation_color_and_distance: [1., 1., 1., 0.],
+            thickness_factor: 0.,
+            alpha_cutoff: 1.,
+            occlusion_strength: 0.0,
+            flags: MaterialFlags::Unlit.into(),
         }
     }
 }
 
-#[repr(C, align(4))]
-#[derive(Default, PartialEq, Clone, Copy, Debug)]
-pub struct GPURay {
-    pub origin: [f32; 3],
-    pub t_min: f32,
-    pub direction: [f32; 3],
-    pub t_max: f32,
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub struct RadianceData {
+    origin: [f32; 3],
+    seed_x: u32,
+    direction: [f32; 3],
+    seed_y: u32,
+    radiance: [f32; 3],
+    pixel_x: u32,
+    throughput_weight: [f32; 3],
+    pixel_y: u32,
+}
+
+impl Default for RadianceData {
+    fn default() -> Self {
+        Self {
+            origin: [0.; 3],
+            direction: [0.; 3],
+            radiance: [1.; 3],
+            throughput_weight: [1.; 3],
+            seed_x: 0,
+            seed_y: 0,
+            pixel_x: 0,
+            pixel_y: 0,
+        }
+    }
 }
 
 #[repr(C, align(4))]

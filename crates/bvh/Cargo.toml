@@ -1,0 +1,16 @@
+[package]
+name = "inox_bvh"
+build = "build.rs"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+keywords.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+inox_math = { path = "../math" }
+inox_serialize = { path = "../serialize" }

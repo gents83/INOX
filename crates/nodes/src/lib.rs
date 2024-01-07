@@ -12,7 +12,6 @@ pub use link::*;
 pub use logic_context::*;
 pub use logic_data::*;
 pub use logic_nodes::*;
-pub use macros::*;
 pub use node::*;
 pub use node_registry::*;
 pub use node_tree::*;

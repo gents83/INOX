@@ -1,7 +1,7 @@
 use inox_log::debug_log;
 use inox_uid::generate_random_uid;
 
-use crate::{TextureFormat, TextureId, TextureInfo, TextureView};
+use crate::{TextureBlock, TextureFormat, TextureId, TextureInfo, TextureView};
 
 use super::{
     area::{Area, AreaAllocator, DEFAULT_AREA_SIZE},
@@ -17,7 +17,7 @@ pub struct TextureAtlas {
 }
 
 impl TextureAtlas {
-    pub fn create_default(device: &wgpu::Device, format: TextureFormat) -> Self {
+    pub fn create_default(device: &wgpu::Device, format: TextureFormat, sample_count: u32) -> Self {
         let mut allocators: Vec<AreaAllocator> = Vec::new();
         for _i in 0..DEFAULT_LAYER_COUNT {
             allocators.push(AreaAllocator::new(DEFAULT_AREA_SIZE, DEFAULT_AREA_SIZE));
@@ -25,11 +25,14 @@ impl TextureAtlas {
         let texture = GpuTexture::create(
             device,
             generate_random_uid(),
-            DEFAULT_AREA_SIZE,
-            DEFAULT_AREA_SIZE,
-            DEFAULT_LAYER_COUNT,
-            format,
-            wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            (
+                DEFAULT_AREA_SIZE,
+                DEFAULT_AREA_SIZE,
+                DEFAULT_LAYER_COUNT,
+                sample_count,
+                format,
+                wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            ),
         );
         Self {
             texture,
@@ -89,6 +92,34 @@ impl TextureAtlas {
             }
         }
         None
+    }
+
+    pub fn update(
+        &mut self,
+        device: &wgpu::Device,
+        encoder: &mut wgpu::CommandEncoder,
+        texture_id: &TextureId,
+        layer_index: usize,
+        texture_block: &TextureBlock,
+    ) {
+        if let Some(area) = self.allocators[layer_index].get_area(texture_id) {
+            let mut real_area = *area;
+            debug_assert!(texture_block.x < area.width);
+            debug_assert!(texture_block.y < area.height);
+            debug_assert!(texture_block.width <= area.width);
+            debug_assert!(texture_block.height <= area.height);
+            real_area.x += texture_block.x;
+            real_area.y += texture_block.y;
+            real_area.width = texture_block.width;
+            real_area.height = texture_block.height;
+            self.texture.send_to_gpu(
+                device,
+                encoder,
+                layer_index as _,
+                &real_area,
+                &texture_block.data,
+            );
+        }
     }
 
     pub fn texture_info(&self, texture_index: u32, texture_id: &TextureId) -> Option<TextureInfo> {

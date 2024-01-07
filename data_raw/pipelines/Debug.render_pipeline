@@ -1,0 +1,16 @@
+{
+    "vertex_shader": "shaders/wgsl/debug.shader",
+    "fragment_shader": "shaders/wgsl/debug.shader",
+    "front_face": "Clockwise",
+    "culling": "Back",
+    "mode": "Fill",
+    "depth_write_enabled": true,
+    "depth_compare": "Always",
+    "src_color_blend_factor": "SrcAlpha",
+    "dst_color_blend_factor": "OneMinusSrcAlpha",
+    "color_blend_operation": "Add",
+    "src_alpha_blend_factor": "SrcAlpha",
+    "dst_alpha_blend_factor": "OneMinusSrcAlpha",
+    "alpha_blend_operation": "Add",
+    "mesh_flags": { "bits":3 }
+}

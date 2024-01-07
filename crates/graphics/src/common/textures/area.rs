@@ -1,4 +1,4 @@
-use inox_math::Vector4;
+use inox_math::Vector4u;
 use inox_uid::{generate_random_uid, Uid, INVALID_UID};
 
 use crate::TextureId;
@@ -25,44 +25,24 @@ impl Default for Area {
         }
     }
 }
-impl From<Area> for [f32; 4] {
+impl From<Area> for [u32; 4] {
     fn from(area: Area) -> Self {
-        [
-            area.x as f32,
-            area.y as f32,
-            area.width as f32,
-            area.height as f32,
-        ]
+        [area.x, area.y, area.width, area.height]
     }
 }
-impl From<&Area> for [f32; 4] {
+impl From<&Area> for [u32; 4] {
     fn from(area: &Area) -> Self {
-        [
-            area.x as f32,
-            area.y as f32,
-            area.width as f32,
-            area.height as f32,
-        ]
+        [area.x, area.y, area.width, area.height]
     }
 }
-impl From<Area> for Vector4 {
+impl From<Area> for Vector4u {
     fn from(area: Area) -> Self {
-        Vector4::new(
-            area.x as f32,
-            area.y as f32,
-            area.width as f32,
-            area.height as f32,
-        )
+        Vector4u::new(area.x, area.y, area.width, area.height)
     }
 }
-impl From<&Area> for Vector4 {
+impl From<&Area> for Vector4u {
     fn from(area: &Area) -> Self {
-        Vector4::new(
-            area.x as f32,
-            area.y as f32,
-            area.width as f32,
-            area.height as f32,
-        )
+        Vector4u::new(area.x, area.y, area.width, area.height)
     }
 }
 

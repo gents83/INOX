@@ -166,6 +166,7 @@ impl UISystem {
                 if let Some(key) = convert_key(event.code) {
                     self.ui_input.events.push(Event::Key {
                         key,
+                        physical_key: None,
                         pressed,
                         repeat: is_repeat,
                         modifiers: self.ui_input_modifiers,
@@ -265,7 +266,7 @@ impl UISystem {
             let color32 = match &image_delta.image {
                 egui::ImageData::Color(image) => {
                     assert_eq!(
-                        image.width() * image.height(),
+                        image_delta.image.width() * image_delta.image.height(),
                         image.pixels.len(),
                         "Mismatch between texture size and texel count"
                     );
@@ -274,21 +275,35 @@ impl UISystem {
                 egui::ImageData::Font(image) => Cow::Owned(image.srgba_pixels(None).collect()),
             };
             let pixels: &[u8] = to_slice(color32.as_slice());
-            let texture_data = TextureData {
-                width: image_delta.image.width() as _,
-                height: image_delta.image.height() as _,
-                data: Some(pixels.to_vec()),
-                format: TextureFormat::Rgba8Unorm,
-                usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
-            };
-            let texture = Texture::new_resource(
-                &self.shared_data,
-                &self.message_hub,
-                generate_random_uid(),
-                &texture_data,
-                None,
-            );
-            self.ui_textures.insert(egui_texture_id, texture);
+            if let Some(pos) = image_delta.pos {
+                let texture = self.ui_textures.get(&egui_texture_id).unwrap();
+                texture.get_mut().update(
+                    [pos[0] as u32, pos[1] as u32].into(),
+                    [
+                        image_delta.image.width() as u32,
+                        image_delta.image.height() as u32,
+                    ]
+                    .into(),
+                    pixels,
+                );
+            } else {
+                let texture_data = TextureData {
+                    width: image_delta.image.width() as _,
+                    height: image_delta.image.height() as _,
+                    data: Some(pixels.to_vec()),
+                    format: TextureFormat::Rgba8Unorm,
+                    usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
+                    sample_count: 1,
+                };
+                let texture = Texture::new_resource(
+                    &self.shared_data,
+                    &self.message_hub,
+                    generate_random_uid(),
+                    &texture_data,
+                    None,
+                );
+                self.ui_textures.insert(egui_texture_id, texture);
+            }
         }
 
         self

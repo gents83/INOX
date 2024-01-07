@@ -40,6 +40,7 @@ var visibility_buffer_texture: texture_2d<f32>;
 #import "material_utils.inc"
 #import "pbr_utils.inc"
 
+
 @vertex
 fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
     //only one triangle, exceeding the viewport size
@@ -78,23 +79,17 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
             f32((meshlet_color >> 16u) & 255u)
         ) / 255., 1.);
     }
-    else 
-    {
-        var pixel_data = visibility_to_gbuffer(visibility_id, v_in.uv.xy);
-        let material_id = pixel_data.material_id;
-        let material = &materials.data[material_id];
-        pixel_data.color *= (*material).base_color;
-        if (has_texture(material_id, TEXTURE_TYPE_BASE_COLOR)) {  
-            let uv = material_texture_uv(&pixel_data, TEXTURE_TYPE_BASE_COLOR);
-            let texture_color = sample_texture(uv);
-            pixel_data.color *= texture_color * (*material).diffuse_color;
-        }
-        let alpha = material_alpha(material_id, pixel_data.color.a);
-        if (alpha < 0.) {
-            discard;
-        }
-        let pbr_data = compute_color(material_id, &pixel_data);
-        color = compute_brdf(pbr_data);
-    }
+    //else 
+    //{
+    //    let mvp = constant_data.proj * constant_data.view;
+    //    var pixel_data = visibility_to_gbuffer(visibility_id, v_in.uv.xy, mvp);
+    //    let material_id = pixel_data.material_id;
+    //    let alpha = material_alpha(material_id, pixel_data.color.a);
+    //    if (alpha < 0.) {
+    //        discard;
+    //    }
+    //    let pbr_data = compute_color(material_id, &pixel_data);
+    //    color = compute_brdf(pbr_data);
+    //}
     return color;
 }

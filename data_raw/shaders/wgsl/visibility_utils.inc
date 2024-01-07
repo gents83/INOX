@@ -1,6 +1,6 @@
 // Need constant_data, meshlets, meshes, indices, runtime_vertices, vertices_attributes
 
-fn visibility_to_gbuffer(visibility_id: u32, screen_uv: vec2<f32>) -> PixelData 
+fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData 
 {     
     var uv_set: array<vec2<f32>, 4>;
     var normal = vec3<f32>(0.);
@@ -17,7 +17,9 @@ fn visibility_to_gbuffer(visibility_id: u32, screen_uv: vec2<f32>) -> PixelData
     let material_id = u32((*mesh).material_index);
     let position_offset = (*mesh).vertices_position_offset;
     let attributes_offset = (*mesh).vertices_attribute_offset;
-    let vertex_layout = (*mesh).vertices_attribute_layout;
+    let vertex_layout = (*mesh).flags_and_vertices_attribute_layout;
+    let orientation = (*mesh).orientation;
+    let scale = (*mesh).scale;
     let vertex_attribute_stride = vertex_layout_stride(vertex_layout);   
     let offset_color = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_COLOR);
     let offset_normal = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_NORMAL);
@@ -27,35 +29,15 @@ fn visibility_to_gbuffer(visibility_id: u32, screen_uv: vec2<f32>) -> PixelData
     let offset_uv3 = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_UV4); 
 
     let vert_indices = vec3<u32>(indices.data[index_offset], indices.data[index_offset + 1u], indices.data[index_offset + 2u]);
-    let pos_indices = vert_indices + vec3<u32>(position_offset, position_offset, position_offset);
     let attr_indices = vec3<u32>(attributes_offset + vert_indices.x * vertex_attribute_stride, 
                                  attributes_offset + vert_indices.y * vertex_attribute_stride,
                                  attributes_offset + vert_indices.z * vertex_attribute_stride);
     
-    let v1 = runtime_vertices.data[pos_indices.x].world_pos;
-    let v2 = runtime_vertices.data[pos_indices.y].world_pos;
-    let v3 = runtime_vertices.data[pos_indices.z].world_pos;
+    let p1 = runtime_vertices.data[vert_indices.x + position_offset].world_pos;
+    let p2 = runtime_vertices.data[vert_indices.y + position_offset].world_pos;
+    let p3 = runtime_vertices.data[vert_indices.z + position_offset].world_pos;
     
-    let mvp = constant_data.proj * constant_data.view;
-    var p1 = mvp * vec4<f32>(v1, 1.);
-    var p2 = mvp * vec4<f32>(v2, 1.);
-    var p3 = mvp * vec4<f32>(v3, 1.);
-
-    // Calculate the inverse of w, since it's going to be used several times
-    let one_over_w = 1. / vec3<f32>(p1.w, p2.w, p3.w);
-    p1 = (p1 * one_over_w.x + 1.) * 0.5;
-    p2 = (p2 * one_over_w.y + 1.) * 0.5;
-    p3 = (p3 * one_over_w.z + 1.) * 0.5;
-    
-    // Get delta vector that describes current screen point relative to vertex 0
-    var screen_pixel = screen_uv.xy;
-    screen_pixel.y = 1. - screen_pixel.y;
-    let delta = screen_pixel + -p1.xy;
-    let barycentrics = compute_barycentrics(p1.xy, p2.xy, p3.xy, screen_pixel);
-    let deriv = compute_partial_derivatives(p1.xy, p2.xy, p3.xy);   
-
-    let world_pos = barycentrics.x * v1 + barycentrics.y * v2 + barycentrics.z * v3; 
-    let depth = barycentrics.x * p1.z + barycentrics.y * p2.z + barycentrics.z * p3.z;  
+    let barycentrics = compute_barycentrics_3d(p1,p2,p3,hit_point); 
 
     if (offset_color >= 0) {
         let a1 = vertices_attributes.data[attr_indices.x + u32(offset_color)];
@@ -74,7 +56,8 @@ fn visibility_to_gbuffer(visibility_id: u32, screen_uv: vec2<f32>) -> PixelData
         let n2 = unpack_snorm_to_3_f32(a2);
         let n3 = unpack_snorm_to_3_f32(a3);
         normal = barycentrics.x * n1 + barycentrics.y * n2 + barycentrics.z * n3;
-        normal = rotate_vector(normal, (*mesh).orientation); 
+        normal = rotate_vector(normal, orientation); 
+        normal = normalize(normal);
     }
     if(offset_uv0 >= 0) {
         let a1 = vertices_attributes.data[attr_indices.x + u32(offset_uv0)];
@@ -83,7 +66,7 @@ fn visibility_to_gbuffer(visibility_id: u32, screen_uv: vec2<f32>) -> PixelData
         let uv1 = unpack2x16float(a1);
         let uv2 = unpack2x16float(a2);
         let uv3 = unpack2x16float(a3);
-        uv_set[0] = interpolate_2d_attribute(uv1, uv2, uv3, deriv, delta);
+        uv_set[0] = barycentrics.x * uv1 + barycentrics.y * uv2 + barycentrics.z * uv3;
     }
     if(offset_uv1 >= 0) {
         let a1 = vertices_attributes.data[attr_indices.x + u32(offset_uv1)];
@@ -92,7 +75,7 @@ fn visibility_to_gbuffer(visibility_id: u32, screen_uv: vec2<f32>) -> PixelData
         let uv1 = unpack2x16float(a1);
         let uv2 = unpack2x16float(a2);
         let uv3 = unpack2x16float(a3);
-        uv_set[1] = interpolate_2d_attribute(uv1, uv2, uv3, deriv, delta);
+        uv_set[1] = barycentrics.x * uv1 + barycentrics.y * uv2 + barycentrics.z * uv3;
     }
     if(offset_uv2 >= 0) {
         let a1 = vertices_attributes.data[attr_indices.x + u32(offset_uv2)];
@@ -101,7 +84,7 @@ fn visibility_to_gbuffer(visibility_id: u32, screen_uv: vec2<f32>) -> PixelData
         let uv1 = unpack2x16float(a1);
         let uv2 = unpack2x16float(a2);
         let uv3 = unpack2x16float(a3);
-        uv_set[2] = interpolate_2d_attribute(uv1, uv2, uv3, deriv, delta);
+        uv_set[2] = barycentrics.x * uv1 + barycentrics.y * uv2 + barycentrics.z * uv3;
     }
     if(offset_uv3 >= 0) {
         let a1 = vertices_attributes.data[attr_indices.x + u32(offset_uv3)];
@@ -110,8 +93,8 @@ fn visibility_to_gbuffer(visibility_id: u32, screen_uv: vec2<f32>) -> PixelData
         let uv1 = unpack2x16float(a1);
         let uv2 = unpack2x16float(a2);
         let uv3 = unpack2x16float(a3);
-        uv_set[3] = interpolate_2d_attribute(uv1, uv2, uv3, deriv, delta);
+        uv_set[3] = barycentrics.x * uv1 + barycentrics.y * uv2 + barycentrics.z * uv3;
     }    
 
-    return PixelData(world_pos, depth, normal, material_id, color, uv_set);
+    return PixelData(hit_point, material_id, color, normal, scale.x, uv_set);
 }

@@ -1,56 +1,72 @@
-const MAX_PATH_BOUNCES: u32 = 8u;
-const NUM_SAMPLES_PER_PIXEL: u32 = 1u;
-const ADDITIONAL_EMISSIVE: f32 = 0.25;
-
-
-struct RadianceData {
-    ray: Ray,
-    seed: vec2<u32>,
+struct RadianceResult {
+    direction: vec3<f32>,
     radiance: vec3<f32>, 
     throughput_weight: vec3<f32>, 
 }
 
+fn pixarOnb(n: vec3f) -> mat3x3f {
+    // https://www.jcgt.org/published/0006/01/01/paper-lowres.pdf
+    let s = select(-1f, 1f, n.z >= 0f);
+    let a = -1f / (s + n.z);
+    let b = n.x * n.y * a;
+    let u = vec3(1f + s * n.x * n.x * a, s * b, -s * n.x);
+    let v = vec3(b, s + n.y * n.y * a, -n.y);
+
+    return mat3x3(u, v, n);
+}
+
 fn sample_sphere(random_numbers: vec2<f32>) -> vec3<f32> {
     let z = 2. * random_numbers.y - 1.;
-    let phi = 2. * PI * random_numbers.x;
+    let phi = 2. * MATH_PI * random_numbers.x;
     let s = sqrt(1. - z * z);
     let x = cos(phi) * s;
     let y = sin(phi) * s;
-    return vec3<f32>(x, y, z);
+    return normalize(vec3<f32>(x, y, z));
 }
 
-fn sample_hemisphere(random_numbers: vec2<f32>, normal: vec3<f32>) -> vec3<f32> {
-    var direction = sample_sphere(random_numbers);
-    let d = dot(normal, direction);
-    return select(direction, direction - 2. * d * normal, d < 0.);
+fn sample_hemisphere(random_numbers: vec2<f32>, n: vec3<f32>) -> vec3<f32> {
+    let v = sample_sphere(random_numbers);
+    return v * sign(dot(v, n));
+}
+
+fn sample_cosine_wheighted_hemisphere(random_numbers: vec2<f32>, n: vec3<f32>) -> vec3<f32> {
+    let phi = 2. * MATH_PI * random_numbers.y;
+    let sin_theta = sqrt(1. - random_numbers.x);
+
+    let x = cos(phi) * sin_theta;
+    let y = sin(phi) * sin_theta;
+    let z = sqrt(random_numbers.x);
+
+    let v = vec3<f32>(x, y, z);
+    let onb = pixarOnb(n);
+    return normalize(onb * v);
+}
+
+fn sample_in_cone(random_numbers: vec2<f32>, cos_max: f32, n: vec3<f32>) -> vec3<f32> {
+    let cos_theta = 1. - random_numbers.x * (1. - cos_max);
+    let sin_theta = sqrt(1. - cos_theta * cos_theta);
+    let phi = 2. * MATH_PI * random_numbers.y;
+
+    let x = cos(phi) * sin_theta;
+    let y = sin(phi) * sin_theta;
+    let z = cos_theta;
+    
+    let v = vec3<f32>(x, y, z);
+    let onb = pixarOnb(n);
+    return normalize(onb * v);
 }
 
 // Need constant_data, meshlets, meshes, indices, runtime_vertices, vertices_attributes
-fn compute_radiance_from_visibility(visibility_id: u32, screen_uv: vec2<f32>, data: RadianceData) -> RadianceData { 
-    var pixel_data = visibility_to_gbuffer(visibility_id, screen_uv);
-    
-    let material = &materials.data[pixel_data.material_id];
-    var emissive_color = (*material).emissive_color + vec3<f32>(ADDITIONAL_EMISSIVE);
-    if (has_texture(pixel_data.material_id, TEXTURE_TYPE_EMISSIVE)) {
-        let t = material_texture_uv(&pixel_data, TEXTURE_TYPE_EMISSIVE);
-        emissive_color *= t.rgb;
-    }
-    pixel_data.color *= (*material).base_color;
-    if (has_texture(pixel_data.material_id, TEXTURE_TYPE_BASE_COLOR)) {  
-        let uv = material_texture_uv(&pixel_data, TEXTURE_TYPE_BASE_COLOR);
-        let texture_color = sample_texture(uv);
-        pixel_data.color *= texture_color * (*material).diffuse_color;
-    }
-    pixel_data.normal = compute_normal(&pixel_data);
+fn compute_radiance_from_visibility(visibility_id: u32, hit_point: vec3<f32>, seed: vec2<f32>, old_radiance: vec3<f32>, old_throughput_weight: vec3<f32>) -> RadianceResult { 
+    var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
+    let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data);
 
-    let seed = get_random_numbers(data.seed);    
-    let rnd = vec2<f32>(seed) * 2.32830643654e-10;
-    let direction = sample_hemisphere(rnd, pixel_data.normal);
+    let direction = sample_in_cone(seed, 0.5, pixel_data.normal);
+    //let direction = sample_hemisphere(seed, pixel_data.normal);
 
-    let rad = data.radiance + data.throughput_weight * emissive_color;
+    let radiance = old_throughput_weight * material_info.emissive_color; 
     let d = dot(pixel_data.normal, direction);
-    let weight = data.throughput_weight * (pixel_data.color.rgb * 2. * d);
-    let origin = data.ray.origin + (data.ray.direction * data.ray.t_max) + direction * HIT_EPSILON;
-    let ray = Ray(origin, 0., direction, MAX_FLOAT);
-    return RadianceData(ray, seed, rad, weight);
+    let throughput_weight = (material_info.base_color.rgb * 2. * d);
+
+    return RadianceResult(direction, radiance, throughput_weight);
 }

@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, GPURuntimeVertexData,
-    IndicesBuffer, MeshFlags, OutputRenderPass, Pass, RenderContext, RenderPass,
+    BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, DrawCommandsBuffer,
+    GPURuntimeVertexData, IndicesBuffer, MeshFlags, Pass, RenderContext, RenderPass,
     RenderPassBeginData, RenderPassData, RenderTarget, RuntimeVerticesBuffer, ShaderStage,
-    StoreOperation, TextureView,
+    StoreOperation, Texture, TextureView,
 };
 
 use inox_core::ContextRc;
@@ -19,6 +19,7 @@ pub struct VisibilityBufferPass {
     binding_data: BindingData,
     constant_data: ConstantDataRw,
     indices: IndicesBuffer,
+    commands_buffers: DrawCommandsBuffer,
     runtime_vertices: RuntimeVerticesBuffer,
 }
 unsafe impl Send for VisibilityBufferPass {}
@@ -65,14 +66,18 @@ impl Pass for VisibilityBufferPass {
             ),
             binding_data: BindingData::new(render_context, VISIBILITY_BUFFER_PASS_NAME),
             constant_data: render_context.constant_data.clone(),
-            indices: render_context.render_buffers.indices.clone(),
-            runtime_vertices: render_context.render_buffers.runtime_vertices.clone(),
+            indices: render_context.global_buffers.indices.clone(),
+            commands_buffers: render_context.global_buffers.draw_commands.clone(),
+            runtime_vertices: render_context.global_buffers.runtime_vertices.clone(),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("visibility_buffer_pass::init");
 
         let mut pass = self.render_pass.get_mut();
+
+        let mut command_buffers = self.commands_buffers.write().unwrap();
+        let commands = command_buffers.entry(self.mesh_flags()).or_default();
 
         self.binding_data
             .add_uniform_buffer(
@@ -90,7 +95,8 @@ impl Pass for VisibilityBufferPass {
                 &mut *self.runtime_vertices.write().unwrap(),
                 Some("Runtime Vertices"),
             )
-            .set_index_buffer(&mut *self.indices.write().unwrap(), Some("Indices"));
+            .set_index_buffer(&mut *self.indices.write().unwrap(), Some("Indices"))
+            .bind_render_commands(commands, Some("Commands"));
 
         let vertex_layout = GPURuntimeVertexData::descriptor(0);
         pass.init(
@@ -136,8 +142,13 @@ impl Pass for VisibilityBufferPass {
     }
 }
 
-impl OutputRenderPass for VisibilityBufferPass {
-    fn render_pass(&self) -> &Resource<RenderPass> {
-        &self.render_pass
+impl VisibilityBufferPass {
+    pub fn add_render_target(&self, texture: &Resource<Texture>) -> &Self {
+        self.render_pass.get_mut().add_render_target(texture);
+        self
+    }
+    pub fn add_depth_target(&self, texture: &Resource<Texture>) -> &Self {
+        self.render_pass.get_mut().add_depth_target(texture);
+        self
     }
 }

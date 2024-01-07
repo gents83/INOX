@@ -8,8 +8,16 @@ const TEXTURE_TYPE_EMISSIVE: u32 = 3u;
 const TEXTURE_TYPE_OCCLUSION: u32 = 4u;
 const TEXTURE_TYPE_SPECULAR_GLOSSINESS: u32 = 5u;
 const TEXTURE_TYPE_DIFFUSE: u32 = 6u;
-const TEXTURE_TYPE_EMPTY_FOR_PADDING: u32 = 7u;
-const TEXTURE_TYPE_COUNT: u32 = 8u;
+const TEXTURE_TYPE_SPECULAR: u32 = 7u;
+const TEXTURE_TYPE_SPECULAR_COLOR: u32 = 8u;
+const TEXTURE_TYPE_TRANSMISSION: u32 = 9u;
+const TEXTURE_TYPE_THICKNESS: u32 = 10u;
+const TEXTURE_TYPE_EMPTY_FOR_PADDING_3: u32 = 11u;
+const TEXTURE_TYPE_EMPTY_FOR_PADDING_4: u32 = 12u;
+const TEXTURE_TYPE_EMPTY_FOR_PADDING_5: u32 = 13u;
+const TEXTURE_TYPE_EMPTY_FOR_PADDING_6: u32 = 14u;
+const TEXTURE_TYPE_EMPTY_FOR_PADDING_7: u32 = 15u;
+const TEXTURE_TYPE_COUNT: u32 = 16u;
 
 const MATERIAL_ALPHA_BLEND_OPAQUE = 0u;
 const MATERIAL_ALPHA_BLEND_MASK = 1u;
@@ -17,28 +25,60 @@ const MATERIAL_ALPHA_BLEND_BLEND = 2u;
 
 const MESH_FLAGS_NONE: u32 = 0u;
 const MESH_FLAGS_VISIBLE: u32 = 1u;
-const MESH_FLAGS_OPAQUE: u32 = 2u; // 1 << 1
-const MESH_FLAGS_TRANSPARENT: u32 = 4u;  // 1 << 2
-const MESH_FLAGS_WIREFRAME: u32 = 8u; // 1 << 3
-const MESH_FLAGS_DEBUG: u32 = 16u; // 1 << 4
-const MESH_FLAGS_UI: u32 = 32u; // 1 << 5
+const MESH_FLAGS_OPAQUE: u32 = 1u << 1u;
+const MESH_FLAGS_TRANSPARENT: u32 = 1u << 2u;
+const MESH_FLAGS_WIREFRAME: u32 = 1u << 3u;
+const MESH_FLAGS_DEBUG: u32 = 1u << 4u;
+const MESH_FLAGS_UI: u32 = 1u << 5u;
 
 const CONSTANT_DATA_FLAGS_NONE: u32 = 0u;
 const CONSTANT_DATA_FLAGS_SUPPORT_SRGB: u32 = 1u;
-const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 2u;
-const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE: u32 = 4u;
-const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 8u;
+const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 1u << 1u;
+const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 1u << 2u;
+const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS: u32 = 1u << 3u;
+const CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER: u32 = 1u << 4u;
+const CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER: u32 = 1u << 5u;
+const CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER: u32 = 1u << 6u;
+const CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE: u32 = 1u << 7u;
+const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1u << 8u;
 
-const PI: f32 = 3.141592653589793238462643;
+
+const MATH_PI: f32 = 3.14159265359;
+const MATH_EPSILON = 0.00001;
 const MAX_FLOAT: f32 = 3.402823466e+38;
+const MAX_TRACING_DISTANCE: f32 = 500.;
+const HIT_EPSILON: f32 = 0.0001;
+const INVALID_NODE: i32 = -1;
 
 const VERTEX_ATTRIBUTE_HAS_POSITION: u32 = 0u;
 const VERTEX_ATTRIBUTE_HAS_COLOR: u32 = 1u;
-const VERTEX_ATTRIBUTE_HAS_NORMAL: u32 = 2u; // 1 << 1
-const VERTEX_ATTRIBUTE_HAS_UV1: u32 = 4u; // 1 << 2
-const VERTEX_ATTRIBUTE_HAS_UV2: u32 = 8u;  // 1 << 3
-const VERTEX_ATTRIBUTE_HAS_UV3: u32 = 16u; // 1 << 4
-const VERTEX_ATTRIBUTE_HAS_UV4: u32 = 32u; // 1 << 5
+const VERTEX_ATTRIBUTE_HAS_NORMAL: u32 = 1u << 1u;
+const VERTEX_ATTRIBUTE_HAS_UV1: u32 = 1u << 2u;
+const VERTEX_ATTRIBUTE_HAS_UV2: u32 = 1u << 3u;
+const VERTEX_ATTRIBUTE_HAS_UV3: u32 = 1u << 4u;
+const VERTEX_ATTRIBUTE_HAS_UV4: u32 = 1u << 5u;
+
+const MATERIAL_FLAGS_NONE: u32 = 0u;
+const MATERIAL_FLAGS_UNLIT: u32 = 1u;
+const MATERIAL_FLAGS_IRIDESCENCE: u32 = 1u << 1u;
+const MATERIAL_FLAGS_ANISOTROPY: u32 = 1u << 2u;
+const MATERIAL_FLAGS_CLEARCOAT: u32 = 1u << 3u;
+const MATERIAL_FLAGS_SHEEN: u32 = 1u << 4u;
+const MATERIAL_FLAGS_TRANSMISSION: u32 = 1u << 5u;
+const MATERIAL_FLAGS_VOLUME: u32 = 1u << 6u;
+const MATERIAL_FLAGS_EMISSIVE_STRENGTH: u32 = 1u << 7u;
+const MATERIAL_FLAGS_METALLICROUGHNESS: u32 = 1u << 8u;
+const MATERIAL_FLAGS_SPECULAR: u32 = 1u << 9u;
+const MATERIAL_FLAGS_SPECULARGLOSSINESS: u32 = 1u << 10u;
+const MATERIAL_FLAGS_IOR: u32 = 1u << 11u;
+const MATERIAL_FLAGS_ALPHAMODE_OPAQUE: u32 = 1u << 12u;
+const MATERIAL_FLAGS_ALPHAMODE_MASK: u32 = 1u << 13u;
+const MATERIAL_FLAGS_ALPHAMODE_BLEND: u32 = 1u << 14u;
+
+const LIGHT_TYPE_INVALID: u32 = 0u;
+const LIGHT_TYPE_DIRECTIONAL: u32 = 1u;
+const LIGHT_TYPE_POINT: u32 = 1u << 1u;
+const LIGHT_TYPE_SPOT: u32 = 1u << 2u;
 
 struct ConstantData {
     view: mat4x4<f32>,
@@ -48,6 +88,9 @@ struct ConstantData {
     screen_height: f32,
     frame_index: u32,
     flags: u32,
+    debug_uv_coords: vec2<f32>,
+    tlas_starting_index: u32,
+    indirect_light_num_bounces: u32
 };
 
 struct RuntimeVertexData {
@@ -70,10 +113,16 @@ struct DrawIndexedCommand {
     base_instance: u32,
 };
 
+struct DispatchCommandSize {
+    x: atomic<u32>,
+    y: atomic<u32>,
+    z: atomic<u32>,
+};
+
 struct Mesh {
     vertices_position_offset: u32,
     vertices_attribute_offset: u32,
-    vertices_attribute_layout: u32,
+    flags_and_vertices_attribute_layout: u32,
     material_index: i32,
     orientation: vec4<f32>,
     position: vec3<f32>,
@@ -82,16 +131,13 @@ struct Mesh {
     blas_index: u32,
 };
 
-struct ConeCulling {
-    center: vec3<f32>,
-    cone_axis_cutoff: u32,
-};
-
 struct Meshlet {
     @location(5) mesh_index: u32,
     @location(6) indices_offset: u32,
     @location(7) indices_count: u32,
-    @location(8) blas_index: u32,
+    @location(8) triangles_bhv_index: u32,
+    @location(9) center: vec3<f32>,
+    @location(10) cone_axis_cutoff: u32,
 };
 
 struct BHVNode {
@@ -105,33 +151,41 @@ struct BHVNode {
 struct LightData {
     position: vec3<f32>,
     light_type: u32,
-    color: vec4<f32>,
+    direction: vec3<f32>,
     intensity: f32,
+    color: vec3<f32>,
     range: f32,
     inner_cone_angle: f32,
     outer_cone_angle: f32,
+    _padding1: f32,
+    _padding2: f32,
 };
 
 struct TextureData {
     texture_index: u32,
     layer_index: u32,
-    total_width: f32,
-    total_height: f32,
-    area: vec4<f32>,
+    total_width: u32,
+    total_height: u32,
+    area: vec4<u32>,
 };
 
 struct Material {
-    textures_indices: array<i32, 8>,//TEXTURE_TYPE_COUNT>,
-    textures_coord_set: array<u32, 8>,//TEXTURE_TYPE_COUNT>,
     roughness_factor: f32,
     metallic_factor: f32,
-    alpha_cutoff: f32,
-    alpha_mode: u32,
+    ior: f32,
+    transmission_factor: f32,
     base_color: vec4<f32>,
     emissive_color: vec3<f32>,
-    occlusion_strength: f32,
+    emissive_strength: f32,
     diffuse_color: vec4<f32>,
     specular_color: vec4<f32>,
+    specular_factors: vec4<f32>,
+    attenuation_color_and_distance: vec4<f32>,
+    thickness_factor: f32,
+    alpha_cutoff: f32,
+    occlusion_strength: f32,
+    flags: u32,
+    textures_index_and_coord_set: array<u32, TEXTURE_TYPE_COUNT>,
 };
 
 
@@ -179,20 +233,8 @@ struct VerticesAttributes {
     data: array<u32>,
 };
 
-struct MeshletsCulling {
-    data: array<ConeCulling>,
-};
-
-struct Matrices {
-    data: array<mat4x4<f32>>,
-};
-
 struct BHV {
     data: array<BHVNode>,
-};
-
-struct MeshFlags {
-    data: array<u32>,
 };
 
 
@@ -203,20 +245,70 @@ struct Ray {
     t_max: f32,
 };
 
-struct Rays {
-    data: array<Ray>,
+struct RadianceData {
+    origin: vec3<f32>,
+    seed_x: u32,
+    direction: vec3<f32>,
+    seed_y: u32,
+    radiance: vec3<f32>,
+    pixel: u32,
+    throughput_weight: vec3<f32>,
+    bounce: u32,
 };
 
-struct RayJob {
-    index: u32,
-    step: u32,
-}
+struct RadianceDataBuffer {
+    data: array<RadianceData>,
+};
 
 struct PixelData {
     world_pos: vec3<f32>,
-    depth: f32,
-    normal: vec3<f32>,
     material_id: u32,
     color: vec4<f32>,
+    normal: vec3<f32>,
+    mesh_scale: f32, 
     uv_set: array<vec2<f32>, 4>,
 };
+
+struct TBN {
+    normal: vec3<f32>,
+    tangent: vec3<f32>,
+    binormal: vec3<f32>,
+}
+
+struct MaterialInfo {
+    base_color: vec4<f32>,
+
+    f0: vec3<f32>,
+    ior: f32,
+
+    c_diff: vec3<f32>,
+    perceptual_roughness: f32,
+
+    metallic: f32,
+    specular_weight_and_anisotropy_strength: u32,
+    transmission_factor: f32,
+    thickness_factor: f32,
+
+    attenuation_color_and_distance: vec4<f32>,
+    sheen_color_and_roughness_factor: vec4<f32>,
+
+    clear_coat_f0: vec3<f32>,
+    clear_coat_factor: f32,
+
+    clear_coat_f90: vec3<f32>,
+    clear_coat_roughness_factor: f32,
+
+    clear_coat_normal: vec3<f32>,
+    iridescence_factor: f32,
+
+    anisotropicT: vec3<f32>,
+    iridescence_ior: f32,
+
+    anisotropicB: vec3<f32>,
+    iridescence_thickness: f32,
+
+    alpha_roughness: f32,
+    f90: vec3<f32>,
+    
+    emissive_color: vec3<f32>,
+}

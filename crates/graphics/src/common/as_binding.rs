@@ -79,7 +79,7 @@ where
     }
 }
 
-impl<T> AsBinding for Buffer<T>
+impl<T, const MAX_COUNT: usize> AsBinding for Buffer<T, MAX_COUNT>
 where
     T: Sized + Clone,
 {
@@ -104,7 +104,8 @@ where
     }
 }
 
-impl<T, const ARRAY_SIZE: usize> AsBinding for [Buffer<T>; ARRAY_SIZE]
+impl<T, const MAX_COUNT: usize, const ARRAY_SIZE: usize> AsBinding
+    for [Buffer<T, MAX_COUNT>; ARRAY_SIZE]
 where
     T: Sized + Clone,
 {
@@ -179,7 +180,7 @@ macro_rules! declare_as_binding_vector {
             pub fn data(&self) -> &[$Type] {
                 &self.data
             }
-            pub fn data_mut(&mut self) -> &mut [$Type] {
+            pub fn data_mut(&mut self) -> &mut Vec<$Type> {
                 &mut self.data
             }
             pub fn set(&mut self, data: Vec<$Type>) -> &mut Self {
@@ -196,7 +197,7 @@ macro_rules! declare_as_binding_vector {
 #[macro_export]
 macro_rules! declare_as_dirty_binding {
     ($Type:ident) => {
-        impl AsBinding for $Type {
+        impl $crate::AsBinding for $Type {
             fn is_dirty(&self) -> bool {
                 true
             }
@@ -220,3 +221,4 @@ macro_rules! declare_as_dirty_binding {
 
 declare_as_dirty_binding!(u32);
 declare_as_dirty_binding!(i32);
+declare_as_binding_vector!(VecU32, u32);
