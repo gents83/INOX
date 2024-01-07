@@ -20,9 +20,8 @@ pub struct ComputeFinalizePass {
     radiance_data_buffer: RadianceDataBuffer,
     finalize_texture: TextureId,
     dimensions: (u32, u32),
-    visibility_texture: TextureId,
+    binding_texture: TextureId,
     radiance_texture: TextureId,
-    depth_texture: TextureId,
 }
 unsafe impl Send for ComputeFinalizePass {}
 unsafe impl Sync for ComputeFinalizePass {}
@@ -65,9 +64,8 @@ impl Pass for ComputeFinalizePass {
             binding_data: BindingData::new(render_context, COMPUTE_FINALIZE_NAME),
             finalize_texture: INVALID_UID,
             dimensions: (0, 0),
-            visibility_texture: INVALID_UID,
+            binding_texture: INVALID_UID,
             radiance_texture: INVALID_UID,
-            depth_texture: INVALID_UID,
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -111,7 +109,7 @@ impl Pass for ComputeFinalizePass {
                 },
             )
             .add_texture(
-                &self.visibility_texture,
+                &self.binding_texture,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 3,
@@ -126,15 +124,6 @@ impl Pass for ComputeFinalizePass {
                     binding_index: 4,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
-                },
-            )
-            .add_texture(
-                &self.depth_texture,
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 5,
-                    stage: ShaderStage::Compute,
-                    ..Default::default()
                 },
             );
 
@@ -180,16 +169,12 @@ impl Pass for ComputeFinalizePass {
 }
 
 impl ComputeFinalizePass {
-    pub fn set_visibility_texture(&mut self, texture_id: &TextureId) -> &mut Self {
-        self.visibility_texture = *texture_id;
+    pub fn set_binding_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.binding_texture = *texture_id;
         self
     }
     pub fn set_radiance_texture(&mut self, texture_id: &TextureId) -> &mut Self {
         self.radiance_texture = *texture_id;
-        self
-    }
-    pub fn set_depth_texture(&mut self, texture_id: &TextureId) -> &mut Self {
-        self.depth_texture = *texture_id;
         self
     }
     pub fn set_finalize_texture(

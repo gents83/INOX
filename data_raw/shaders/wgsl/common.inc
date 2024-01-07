@@ -253,7 +253,7 @@ struct RadianceData {
     radiance: vec3<f32>,
     pixel: u32,
     throughput_weight: vec3<f32>,
-    visibility_id: u32,
+    bounce: u32,
 };
 
 struct RadianceDataBuffer {

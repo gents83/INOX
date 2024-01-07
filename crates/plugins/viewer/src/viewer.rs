@@ -24,8 +24,9 @@ enum RenderTargetType {
     Visibility = 0,
     Depth = 1,
     Radiance = 2,
-    Finalize = 3,
-    DebugData = 4,
+    Binding = 3,
+    Finalize = 4,
+    DebugData = 5,
 }
 
 pub struct Viewer {
@@ -181,7 +182,16 @@ impl Viewer {
             single_sample,
         );
         debug_assert!(_radiance == RenderTargetType::Radiance as usize);
-        //Finalize = 3,
+        //Binding = 3,
+        let _binding = renderer.add_render_target(
+            half_dims.0,
+            half_dims.1,
+            TextureFormat::Rgba8Unorm,
+            usage | TextureUsage::StorageBinding,
+            multi_sample,
+        );
+        debug_assert!(_binding == RenderTargetType::Binding as usize);
+        //Finalize = 4,
         let _finalize = renderer.add_render_target(
             half_dims.0,
             half_dims.1,
@@ -190,7 +200,7 @@ impl Viewer {
             multi_sample,
         );
         debug_assert!(_finalize == RenderTargetType::Finalize as usize);
-        //Debug = 4,
+        //Debug = 5,
         let _debug_data = renderer.add_render_target(
             half_dims.0,
             half_dims.1,
@@ -246,6 +256,7 @@ impl Viewer {
         let radiance_texture = renderer.render_target(RenderTargetType::Radiance as usize);
         compute_pathtracing_direct_pass
             .set_radiance_texture_size(radiance_texture.get().dimensions())
+            .set_binding_texture(renderer.render_target_id(RenderTargetType::Binding as usize))
             .set_visibility_texture(
                 renderer.render_target_id(RenderTargetType::Visibility as usize),
             )
@@ -258,6 +269,7 @@ impl Viewer {
         let radiance_texture = renderer.render_target(RenderTargetType::Radiance as usize);
         compute_pathtracing_indirect_pass
             .set_radiance_texture(radiance_texture.id(), radiance_texture.get().dimensions())
+            .set_binding_texture(renderer.render_target_id(RenderTargetType::Binding as usize))
             .set_debug_data_texture(
                 renderer.render_target_id(RenderTargetType::DebugData as usize),
             );
@@ -269,11 +281,8 @@ impl Viewer {
         let finalize_texture = renderer.render_target(RenderTargetType::Finalize as usize);
         compute_finalize_pass
             .set_finalize_texture(finalize_texture.id(), finalize_texture.get().dimensions())
-            .set_visibility_texture(
-                renderer.render_target_id(RenderTargetType::Visibility as usize),
-            )
-            .set_radiance_texture(renderer.render_target_id(RenderTargetType::Radiance as usize))
-            .set_depth_texture(renderer.render_target_id(RenderTargetType::Depth as usize));
+            .set_binding_texture(renderer.render_target_id(RenderTargetType::Binding as usize))
+            .set_radiance_texture(renderer.render_target_id(RenderTargetType::Radiance as usize));
         renderer.add_pass(compute_finalize_pass, true);
     }
     fn create_blit_pass(context: &ContextRc, renderer: &mut Renderer) {

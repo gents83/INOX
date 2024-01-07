@@ -31,6 +31,8 @@ var<storage, read> bhv: BHV;
 var visibility_texture: texture_storage_2d<rgba8unorm, read_write>;
 @group(1) @binding(5)
 var depth_texture: texture_depth_2d;
+@group(1) @binding(6)
+var binding_texture: texture_storage_2d<rgba8unorm, read_write>;
 
 #import "texture_utils.inc"
 #import "matrix_utils.inc"
@@ -57,7 +59,7 @@ fn main(
     }     
 
     var seed = (pixel * dimensions) ^ vec2<u32>(constant_data.frame_index << 16u);
-    var index = 0u;
+    var index = global_invocation_id.y * dimensions.x + global_invocation_id.x;
 
     let visibility_value = textureLoad(visibility_texture, pixel);
     let visibility_id = pack4x8unorm(visibility_value);
@@ -72,7 +74,9 @@ fn main(
         let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data);   
         let radiance_data = compute_radiance_from_visibility(visibility_id, hit_point, get_random_numbers(&seed), vec3<f32>(0.), vec3<f32>(1.)); 
         
-        index = atomicAdd(&atomic_counters[0], 1u);
+        if(constant_data.indirect_light_num_bounces > 0u) {
+            index = atomicAdd(&atomic_counters[0], 1u);
+        }
         radiance_data_buffer.data[index].origin = hit_point + radiance_data.direction * HIT_EPSILON;
         radiance_data_buffer.data[index].direction = radiance_data.direction;
         radiance_data_buffer.data[index].radiance = material_info.base_color.rgb + radiance_data.radiance;
@@ -80,8 +84,10 @@ fn main(
         radiance_data_buffer.data[index].seed_x = seed.x;
         radiance_data_buffer.data[index].seed_y = seed.y;
         radiance_data_buffer.data[index].pixel = ((pixel.x & 0x0000FFFFu) << 16u) | pixel.y;
-        radiance_data_buffer.data[index].visibility_id = visibility_id;  
+        radiance_data_buffer.data[index].bounce = 0u;  
         index += 1u;
+    } else {
+        index = 0u;
     }
-    textureStore(visibility_texture, pixel, unpack4x8unorm(index));
+    textureStore(binding_texture, pixel, unpack4x8unorm(index));
 }

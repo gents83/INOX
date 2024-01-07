@@ -29,6 +29,8 @@ var<storage, read> bhv: BHV;
 @group(1) @binding(4)
 var radiance_texture: texture_storage_2d<rgba8unorm, read_write>;
 @group(1) @binding(5)
+var binding_texture: texture_storage_2d<rgba8unorm, read_write>;
+@group(1) @binding(6)
 var debug_data_texture: texture_storage_2d<r32float, read_write>;
 
 #import "texture_utils.inc"
@@ -76,10 +78,10 @@ fn main(
 ) {
     let dimensions = textureDimensions(radiance_texture);
     
-    let tail = atomicLoad(&atomic_counters[0u]) - 1u;
+    var tail = atomicLoad(&atomic_counters[0u]);
     var head = atomicAdd(&atomic_counters[1u], 1u);
-    var debug_index = 0u;
-    var num_bounces = 0u;
+    var debug_index = 1u;
+    
     while (head < tail) 
     {
         var buffer_data = radiance_data_buffer.data[head]; 
@@ -88,15 +90,14 @@ fn main(
         var radiance = buffer_data.radiance;
         var throughput_weight = buffer_data.throughput_weight; 
         var seed = vec2<u32>(buffer_data.seed_x, buffer_data.seed_y);  
-        let pixel_x = (buffer_data.pixel & 0xFFFF0000u) >> 16u; 
-        let pixel_y = buffer_data.pixel & 0x0000FFFFu;      
-
+        let pixel = vec2<u32>((buffer_data.pixel & 0xFFFF0000u) >> 16u, buffer_data.pixel & 0x0000FFFFu);
+        
         var is_pixel_to_debug = (constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE) != 0;
         if (is_pixel_to_debug) {
             let debug_pixel = vec2<u32>(constant_data.debug_uv_coords * vec2<f32>(dimensions));
-            is_pixel_to_debug &= debug_pixel.x == pixel_x && debug_pixel.y == pixel_y;
+            is_pixel_to_debug &= debug_pixel.x == pixel.x && debug_pixel.y == pixel.y;
         }     
-
+        
         let result = traverse_bvh(origin, direction, constant_data.tlas_starting_index);  
         var should_skip =  result.visibility_id == 0u || (result.visibility_id & 0xFFFFFFFFu) == 0xFF000000u;
         if (!should_skip) {
@@ -112,23 +113,20 @@ fn main(
                 debug_index = write_vec3_on_debug_data_texture(debug_index, origin);
                 debug_index = write_vec3_on_debug_data_texture(debug_index, direction);
             }
-
             buffer_data.origin = hit_point + radiance_data.direction * HIT_EPSILON;
             buffer_data.direction = radiance_data.direction;
             buffer_data.radiance = radiance;
             buffer_data.throughput_weight = throughput_weight;
             buffer_data.seed_x = seed.x;
             buffer_data.seed_y = seed.y;
-            
-            radiance_data_buffer.data[head] = buffer_data;
-            num_bounces += 1u;
-            should_skip = num_bounces >= constant_data.indirect_light_num_bounces;
+            buffer_data.bounce += 1u;
+            should_skip = buffer_data.bounce >= constant_data.indirect_light_num_bounces;
+            radiance_data_buffer.data[head] = buffer_data;            
         } 
-        if (should_skip) {
+        if(should_skip) {
+            textureStore(binding_texture, pixel, unpack4x8unorm(head + 1u));
             head = atomicAdd(&atomic_counters[1u], 1u);
-            num_bounces = 0u;
         }
-        
         if (is_pixel_to_debug) {
             write_value_on_debug_data_texture(0u, f32(debug_index));
         }   

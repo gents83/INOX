@@ -8,11 +8,9 @@ var<storage, read_write> radiance_data_buffer: RadianceDataBuffer;
 @group(0) @binding(2)
 var finalize_texture: texture_storage_2d<rgba8unorm, read_write>;
 @group(0) @binding(3)
-var visibility_texture: texture_2d<f32>;
+var binding_texture: texture_2d<f32>;
 @group(0) @binding(4)
 var radiance_texture: texture_storage_2d<rgba8unorm, read_write>;
-@group(0) @binding(5)
-var depth_texture: texture_depth_2d;
 
 const WORKGROUP_SIZE: u32 = 8u;
 
@@ -26,9 +24,12 @@ fn main(
     let dimensions = textureDimensions(finalize_texture);
 
     let pixel = vec2<u32>(global_invocation_id.x, global_invocation_id.y);
+    if (pixel.x >= dimensions.x || pixel.y >= dimensions.y) {
+        return;
+    }     
             
-    let visibility_value = textureLoad(visibility_texture, pixel, 0);
-    var index = pack4x8unorm(visibility_value);
+    let binding_value = textureLoad(binding_texture, pixel, 0);
+    var index = pack4x8unorm(binding_value);
     
     var radiance = vec4<f32>(0.,0.,0.,1.);
     if(index != 0u) {

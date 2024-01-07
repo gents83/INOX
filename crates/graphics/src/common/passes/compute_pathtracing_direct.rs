@@ -33,6 +33,7 @@ pub struct ComputePathTracingDirectPass {
     lights: LightsBuffer,
     visibility_texture: TextureId,
     depth_texture: TextureId,
+    binding_texture: TextureId,
     dimensions: (u32, u32),
 }
 unsafe impl Send for ComputePathTracingDirectPass {}
@@ -85,6 +86,7 @@ impl Pass for ComputePathTracingDirectPass {
             lights: render_context.global_buffers.lights.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_DIRECT_NAME),
             visibility_texture: INVALID_UID,
+            binding_texture: INVALID_UID,
             depth_texture: INVALID_UID,
             dimensions: (0, 0),
         }
@@ -239,6 +241,15 @@ impl Pass for ComputePathTracingDirectPass {
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
+            )
+            .add_texture(
+                &self.binding_texture,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 6,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                },
             );
 
         self.binding_data
@@ -306,6 +317,10 @@ impl ComputePathTracingDirectPass {
     }
     pub fn set_depth_texture(&mut self, texture_id: &TextureId) -> &mut Self {
         self.depth_texture = *texture_id;
+        self
+    }
+    pub fn set_binding_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.binding_texture = *texture_id;
         self
     }
     pub fn set_radiance_texture_size(&mut self, dimensions: (u32, u32)) -> &mut Self {
