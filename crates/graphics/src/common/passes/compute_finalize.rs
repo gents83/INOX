@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use crate::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DispatchCommandBuffer, DrawCommandType, MeshFlags, Pass, RadianceDataBuffer,
-    RenderContext, ShaderStage, TextureId, TextureView, RADIANCE_DISPATCH_UID,
+    ConstantDataRw, DrawCommandType, MeshFlags, Pass, RadianceDataBuffer, RenderContext,
+    ShaderStage, TextureId, TextureView,
 };
 
 use inox_core::ContextRc;
@@ -18,7 +18,6 @@ pub struct ComputeFinalizePass {
     binding_data: BindingData,
     constant_data: ConstantDataRw,
     radiance_data_buffer: RadianceDataBuffer,
-    dispatch_commands: DispatchCommandBuffer,
     finalize_texture: TextureId,
     dimensions: (u32, u32),
     visibility_texture: TextureId,
@@ -63,7 +62,6 @@ impl Pass for ComputeFinalizePass {
             ),
             constant_data: render_context.constant_data.clone(),
             radiance_data_buffer: render_context.global_buffers.radiance_data_buffer.clone(),
-            dispatch_commands: render_context.global_buffers.dispatch_commands.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_FINALIZE_NAME),
             finalize_texture: INVALID_UID,
             dimensions: (0, 0),
@@ -78,12 +76,6 @@ impl Pass for ComputeFinalizePass {
         if self.finalize_texture.is_nil()
             || self.radiance_texture.is_nil()
             || self.radiance_data_buffer.read().unwrap().data().is_empty()
-            || self
-                .dispatch_commands
-                .read()
-                .unwrap()
-                .get(&RADIANCE_DISPATCH_UID)
-                .is_none()
         {
             return;
         }
@@ -109,25 +101,11 @@ impl Pass for ComputeFinalizePass {
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
             )
-            .add_storage_buffer(
-                self.dispatch_commands
-                    .write()
-                    .unwrap()
-                    .get_mut(&RADIANCE_DISPATCH_UID)
-                    .unwrap(),
-                Some("Radiance Dispatch"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 2,
-                    stage: ShaderStage::Compute,
-                    ..Default::default()
-                },
-            )
             .add_texture(
                 &self.finalize_texture,
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 3,
+                    binding_index: 2,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
@@ -136,7 +114,7 @@ impl Pass for ComputeFinalizePass {
                 &self.visibility_texture,
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 4,
+                    binding_index: 3,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -145,7 +123,7 @@ impl Pass for ComputeFinalizePass {
                 &self.radiance_texture,
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 5,
+                    binding_index: 4,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
@@ -154,7 +132,7 @@ impl Pass for ComputeFinalizePass {
                 &self.depth_texture,
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 6,
+                    binding_index: 5,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -173,12 +151,6 @@ impl Pass for ComputeFinalizePass {
         if self.finalize_texture.is_nil()
             || self.radiance_texture.is_nil()
             || self.radiance_data_buffer.read().unwrap().data().is_empty()
-            || self
-                .dispatch_commands
-                .read()
-                .unwrap()
-                .get(&RADIANCE_DISPATCH_UID)
-                .is_none()
         {
             return;
         }

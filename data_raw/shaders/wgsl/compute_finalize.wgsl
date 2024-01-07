@@ -6,14 +6,12 @@ var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
 var<storage, read_write> radiance_data_buffer: RadianceDataBuffer;
 @group(0) @binding(2)
-var<storage, read> indirect_dispatch_size: DispatchCommandSize;
-@group(0) @binding(3)
 var finalize_texture: texture_storage_2d<rgba8unorm, read_write>;
-@group(0) @binding(4)
+@group(0) @binding(3)
 var visibility_texture: texture_2d<f32>;
-@group(0) @binding(5)
+@group(0) @binding(4)
 var radiance_texture: texture_storage_2d<rgba8unorm, read_write>;
-@group(0) @binding(6)
+@group(0) @binding(5)
 var depth_texture: texture_depth_2d;
 
 const WORKGROUP_SIZE: u32 = 8u;

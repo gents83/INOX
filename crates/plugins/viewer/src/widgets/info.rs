@@ -295,6 +295,8 @@ impl Info {
                 let tlas_index = render_context
                     .global_buffers
                     .tlas_start_index
+                    .read()
+                    .unwrap()
                     .load(Ordering::Relaxed);
                 let bhv = render_context.global_buffers.bvh.read().unwrap();
                 bhv.for_each_data(|i, _id, n| {

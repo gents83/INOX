@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
 use crate::{
-    BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DispatchCommandBuffer, DispatchCommandSize, DrawCommandType, IndicesBuffer,
-    LightsBuffer, MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass,
-    RadianceDataBuffer, RenderContext, RuntimeVerticesBuffer, SamplerType, ShaderStage, TextureId,
-    TextureView, TexturesBuffer, VertexAttributesBuffer, RADIANCE_DISPATCH_UID,
+    AtomicCounters, BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass,
+    ComputePassData, ConstantDataRw, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer,
+    MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RadianceDataBuffer, RenderContext,
+    RuntimeVerticesBuffer, SamplerType, ShaderStage, TextureId, TextureView, TexturesBuffer,
+    VertexAttributesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -23,7 +23,7 @@ pub struct ComputePathTracingDirectPass {
     meshes: MeshesBuffer,
     meshlets: MeshletsBuffer,
     radiance_data_buffer: RadianceDataBuffer,
-    dispatch_commands: DispatchCommandBuffer,
+    atomic_counters: AtomicCounters,
     bhv: BVHBuffer,
     indices: IndicesBuffer,
     runtime_vertices: RuntimeVerticesBuffer,
@@ -75,7 +75,7 @@ impl Pass for ComputePathTracingDirectPass {
             meshes: render_context.global_buffers.meshes.clone(),
             meshlets: render_context.global_buffers.meshlets.clone(),
             radiance_data_buffer: render_context.global_buffers.radiance_data_buffer.clone(),
-            dispatch_commands: render_context.global_buffers.dispatch_commands.clone(),
+            atomic_counters: render_context.global_buffers.atomic_counters.clone(),
             bhv: render_context.global_buffers.bvh.clone(),
             indices: render_context.global_buffers.indices.clone(),
             runtime_vertices: render_context.global_buffers.runtime_vertices.clone(),
@@ -98,6 +98,8 @@ impl Pass for ComputePathTracingDirectPass {
         {
             return;
         }
+
+        self.atomic_counters.write().unwrap().set(vec![0u32; 2]);
 
         self.binding_data
             .add_uniform_buffer(
@@ -201,12 +203,8 @@ impl Pass for ComputePathTracingDirectPass {
                 },
             )
             .add_storage_buffer(
-                self.dispatch_commands
-                    .write()
-                    .unwrap()
-                    .get_mut(&RADIANCE_DISPATCH_UID)
-                    .unwrap(),
-                Some("Radiance Dispatch"),
+                &mut *self.atomic_counters.write().unwrap(),
+                Some("Atomic Counters"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 2,
@@ -319,21 +317,6 @@ impl ComputePathTracingDirectPass {
             (dimensions.0 * dimensions.1 * RADIANCE_DATA_STRIDE)
                 as usize
         ]);
-        {
-            let mut dispatch_commands = self.dispatch_commands.write().unwrap();
-            dispatch_commands.insert(
-                RADIANCE_DISPATCH_UID,
-                DispatchCommandSize {
-                    x: dimensions.0,
-                    y: dimensions.1,
-                    z: 1,
-                },
-            );
-            self.binding_data.bind_dispatch_commands(
-                dispatch_commands.get_mut(&RADIANCE_DISPATCH_UID).unwrap(),
-                Some("Dispatch Commands"),
-            );
-        }
         self
     }
 }

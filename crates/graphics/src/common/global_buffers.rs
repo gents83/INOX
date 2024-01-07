@@ -31,11 +31,10 @@ pub type CullingResults = Arc<RwLock<VecU32>>;
 pub type LightsBuffer = Arc<RwLock<HashBuffer<LightId, LightData, 0>>>;
 pub type RuntimeVerticesBuffer = Arc<RwLock<Buffer<GPURuntimeVertexData, 0>>>;
 pub type RadianceDataBuffer = Arc<RwLock<VecU32>>;
+pub type AtomicCounter = Arc<RwLock<AtomicU32>>;
+pub type AtomicCounters = Arc<RwLock<VecU32>>;
 
 pub const TLAS_UID: ResourceId = generate_static_uid_from_string("TLAS");
-pub const RADIANCE_DISPATCH_UID: ResourceId =
-    generate_static_uid_from_string("RADIANCE_DISPATCH_UID");
-
 pub const ATOMIC_SIZE: u32 = 32;
 
 //Alignment should be 4, 8, 16 or 32 bytes
@@ -55,8 +54,9 @@ pub struct GlobalBuffers {
     pub vertex_attributes: VertexAttributesBuffer,
     pub runtime_vertices: RuntimeVerticesBuffer,
     pub culling_result: CullingResults,
-    pub tlas_start_index: AtomicU32,
+    pub tlas_start_index: AtomicCounter,
     pub radiance_data_buffer: RadianceDataBuffer,
+    pub atomic_counters: AtomicCounters,
 }
 
 impl GlobalBuffers {
@@ -259,6 +259,8 @@ impl GlobalBuffers {
         let tlas_range = bvh.allocate(&TLAS_UID, &linearized_bhv).1;
         let tlas_starting_index = tlas_range.start as _;
         self.tlas_start_index
+            .write()
+            .unwrap()
             .store(tlas_starting_index, Ordering::SeqCst);
         bvh.data_mut()[tlas_range].iter_mut().for_each(|n| {
             if n.miss >= 0 {

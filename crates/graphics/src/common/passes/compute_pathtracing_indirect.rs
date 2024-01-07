@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
 use crate::{
-    AsBinding, BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass,
-    ComputePassData, ConstantDataRw, DispatchCommandBuffer, DrawCommandType, IndicesBuffer,
-    LightsBuffer, MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass,
-    RadianceDataBuffer, RenderContext, RuntimeVerticesBuffer, SamplerType, ShaderStage, TextureId,
-    TextureView, TexturesBuffer, VertexAttributesBuffer, RADIANCE_DISPATCH_UID,
+    AtomicCounters, BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass,
+    ComputePassData, ConstantDataRw, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer,
+    MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RadianceDataBuffer, RenderContext,
+    RuntimeVerticesBuffer, SamplerType, ShaderStage, TextureId, TextureView, TexturesBuffer,
+    VertexAttributesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -26,7 +26,7 @@ pub struct ComputePathTracingIndirectPass {
     indices: IndicesBuffer,
     runtime_vertices: RuntimeVerticesBuffer,
     radiance_data_buffer: RadianceDataBuffer,
-    dispatch_commands: DispatchCommandBuffer,
+    atomic_counters: AtomicCounters,
     vertices_attributes: VertexAttributesBuffer,
     textures: TexturesBuffer,
     materials: MaterialsBuffer,
@@ -78,7 +78,7 @@ impl Pass for ComputePathTracingIndirectPass {
             indices: render_context.global_buffers.indices.clone(),
             runtime_vertices: render_context.global_buffers.runtime_vertices.clone(),
             radiance_data_buffer: render_context.global_buffers.radiance_data_buffer.clone(),
-            dispatch_commands: render_context.global_buffers.dispatch_commands.clone(),
+            atomic_counters: render_context.global_buffers.atomic_counters.clone(),
             vertices_attributes: render_context.global_buffers.vertex_attributes.clone(),
             textures: render_context.global_buffers.textures.clone(),
             materials: render_context.global_buffers.materials.clone(),
@@ -191,11 +191,21 @@ impl Pass for ComputePathTracingIndirectPass {
                 },
             )
             .add_storage_buffer(
+                &mut *self.atomic_counters.write().unwrap(),
+                Some("Atomic Counters"),
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 1,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                },
+            )
+            .add_storage_buffer(
                 &mut *self.runtime_vertices.write().unwrap(),
                 Some("Runtime Vertices"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 1,
+                    binding_index: 2,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Read | BindingFlags::Vertex,
                 },
@@ -205,7 +215,7 @@ impl Pass for ComputePathTracingIndirectPass {
                 Some("BHV"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 2,
+                    binding_index: 3,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -214,7 +224,7 @@ impl Pass for ComputePathTracingIndirectPass {
                 &self.radiance_texture,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 3,
+                    binding_index: 4,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
@@ -223,7 +233,7 @@ impl Pass for ComputePathTracingIndirectPass {
                 &self.debug_data_texture,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 4,
+                    binding_index: 5,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
@@ -259,12 +269,6 @@ impl Pass for ComputePathTracingIndirectPass {
         if self.radiance_texture.is_nil()
             || self.meshlets.read().unwrap().is_empty()
             || self.radiance_data_buffer.read().unwrap().data().is_empty()
-            || self
-                .dispatch_commands
-                .read()
-                .unwrap()
-                .get(&RADIANCE_DISPATCH_UID)
-                .is_none()
         {
             return;
         }
@@ -272,22 +276,24 @@ impl Pass for ComputePathTracingIndirectPass {
         inox_profiler::scoped_profile!("pathtracing_indirect_pass::update");
 
         let pass = self.compute_pass.get();
-        let buffers = render_context.buffers();
 
-        for _ in 0..self.constant_data.read().unwrap().num_bounces() {
-            pass.dispatch_indirect(
-                render_context,
-                &mut self.binding_data,
-                command_buffer,
-                &buffers,
-                self.dispatch_commands
-                    .read()
-                    .unwrap()
-                    .get(&RADIANCE_DISPATCH_UID)
-                    .unwrap()
-                    .id(),
-            );
-        }
+        let x_pixels_managed_in_shader = 8;
+        let y_pixels_managed_in_shader = 8;
+        let x = (x_pixels_managed_in_shader
+            * ((self.dimensions.0 + x_pixels_managed_in_shader - 1) / x_pixels_managed_in_shader))
+            / x_pixels_managed_in_shader;
+        let y = (y_pixels_managed_in_shader
+            * ((self.dimensions.1 + y_pixels_managed_in_shader - 1) / y_pixels_managed_in_shader))
+            / y_pixels_managed_in_shader;
+
+        pass.dispatch(
+            render_context,
+            &mut self.binding_data,
+            command_buffer,
+            x,
+            y,
+            1,
+        );
     }
 }
 

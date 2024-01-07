@@ -199,7 +199,11 @@ impl RenderContext {
             proj,
             screen_size,
             debug_coords,
-            self.global_buffers.tlas_start_index.load(Ordering::Relaxed),
+            self.global_buffers
+                .tlas_start_index
+                .read()
+                .unwrap()
+                .load(Ordering::Relaxed),
         );
         if self.core.config.read().unwrap().format.is_srgb() {
             self.constant_data
