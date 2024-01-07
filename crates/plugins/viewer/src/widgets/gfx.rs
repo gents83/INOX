@@ -43,25 +43,25 @@ impl Gfx {
                 let renderer = self.renderer.read().unwrap();
                 let render_context = renderer.render_context();
                 data.vertices_count = render_context
-                    .render_buffers
+                    .global_buffers
                     .vertex_positions
                     .read()
                     .unwrap()
                     .item_count();
                 data.indices_count = render_context
-                    .render_buffers
+                    .global_buffers
                     .indices
                     .read()
                     .unwrap()
                     .item_count();
                 data.meshes_count = render_context
-                    .render_buffers
+                    .global_buffers
                     .meshes
                     .read()
                     .unwrap()
                     .item_count();
                 data.meshlets_count = render_context
-                    .render_buffers
+                    .global_buffers
                     .meshlets
                     .read()
                     .unwrap()

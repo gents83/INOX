@@ -61,10 +61,10 @@ impl Pass for ComputeRuntimeVerticesPass {
             ),
             binding_data: BindingData::new(render_context, COMPUTE_RUNTIME_VERTICES_PASS_NAME),
             constant_data: render_context.constant_data.clone(),
-            bhv: render_context.render_buffers.bvh.clone(),
-            meshes: render_context.render_buffers.meshes.clone(),
-            vertices_positions: render_context.render_buffers.vertex_positions.clone(),
-            runtime_vertices: render_context.render_buffers.runtime_vertices.clone(),
+            bhv: render_context.global_buffers.bvh.clone(),
+            meshes: render_context.global_buffers.meshes.clone(),
+            vertices_positions: render_context.global_buffers.vertex_positions.clone(),
+            runtime_vertices: render_context.global_buffers.runtime_vertices.clone(),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {

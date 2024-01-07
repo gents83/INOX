@@ -38,11 +38,9 @@ const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 1u << 2u;
 const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS: u32 = 1u << 3u;
 const CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER: u32 = 1u << 4u;
 const CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER: u32 = 1u << 5u;
-const CONSTANT_DATA_FLAGS_DISPLAY_GBUFFER: u32 = 1u << 6u;
-const CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER: u32 = 1u << 7u;
-const CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE: u32 = 1u << 8u;
-const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1u << 9u;
-const CONSTANT_DATA_FLAGS_USE_PUNCTUAL: u32 = CONSTANT_DATA_FLAGS_NONE; // Today we want by default punctual lights
+const CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER: u32 = 1u << 6u;
+const CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE: u32 = 1u << 7u;
+const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1u << 8u;
 
 
 const MATH_PI: f32 = 3.14159265359;
@@ -113,6 +111,12 @@ struct DrawIndexedCommand {
     base_index: u32,
     vertex_offset: i32,
     base_instance: u32,
+};
+
+struct DispatchCommandSize {
+    x: atomic<u32>,
+    y: atomic<u32>,
+    z: atomic<u32>,
 };
 
 struct Mesh {
@@ -247,9 +251,9 @@ struct RadianceData {
     direction: vec3<f32>,
     seed_y: u32,
     radiance: vec3<f32>,
-    _padding1: u32,
+    pixel: u32,
     throughput_weight: vec3<f32>,
-    _padding2: u32,
+    visibility_id: u32,
 };
 
 struct RadianceDataBuffer {

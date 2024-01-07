@@ -1,11 +1,14 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, Resource, ResourceId, ResourceTrait, SerializableResource, SharedDataRc,
 };
 
-use crate::{BindingData, CommandBuffer, ComputePassData, ComputePipeline, RenderContext};
+use crate::{
+    BindingData, BufferId, CommandBuffer, ComputePassData, ComputePipeline, GpuBuffer,
+    RenderContext,
+};
 
 pub type ComputePassId = ResourceId;
 
@@ -155,6 +158,79 @@ impl ComputePass {
             "compute_pass::dispatch_workgroups",
         );
         compute_pass.dispatch_workgroups(x, y, z);
+        drop(compute_pass);
+    }
+
+    pub fn dispatch_indirect<'a>(
+        &'a self,
+        _render_context: &RenderContext,
+        binding_data: &'a mut BindingData,
+        command_buffer: &'a mut CommandBuffer,
+        buffers: &'a HashMap<BufferId, GpuBuffer>,
+        indirect_args_id: BufferId,
+    ) {
+        let mut is_ready = true;
+
+        let label = format!("ComputePass {}", self.name);
+        let pipelines = self.pipelines().iter().map(|h| h.get()).collect::<Vec<_>>();
+        let mut compute_pass = {
+            inox_profiler::gpu_scoped_profile!(
+                &mut command_buffer.encoder,
+                &_render_context.core.device,
+                "encoder::begin_compute_pass",
+            );
+            command_buffer
+                .encoder
+                .begin_compute_pass(&wgpu::ComputePassDescriptor {
+                    label: Some(label.as_str()),
+                    ..Default::default()
+                })
+        };
+
+        pipelines.iter().for_each(|pipeline| {
+            is_ready &= pipeline.is_initialized();
+            if is_ready {
+                inox_profiler::gpu_scoped_profile!(
+                    &mut compute_pass,
+                    &_render_context.core.device,
+                    "compute_pass::set_pipeline",
+                );
+                compute_pass.set_pipeline(pipeline.compute_pipeline());
+            }
+        });
+
+        if !is_ready {
+            return;
+        }
+
+        binding_data.set_bind_groups();
+
+        binding_data
+            .bind_groups()
+            .iter()
+            .enumerate()
+            .for_each(|(index, bind_group)| {
+                inox_profiler::gpu_scoped_profile!(
+                    &mut compute_pass,
+                    &_render_context.core.device,
+                    "compute_pass::set_bind_group",
+                );
+                compute_pass.set_bind_group(index as _, bind_group, &[]);
+            });
+
+        inox_profiler::gpu_scoped_profile!(
+            &mut compute_pass,
+            &_render_context.core.device,
+            "compute_pass::dispatch_workgroups",
+        );
+        compute_pass.dispatch_workgroups_indirect(
+            buffers
+                .get(&indirect_args_id)
+                .unwrap()
+                .gpu_buffer()
+                .unwrap(),
+            0,
+        );
         drop(compute_pass);
     }
 }

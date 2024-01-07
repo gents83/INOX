@@ -3,7 +3,7 @@ use std::num::NonZeroU32;
 use inox_bitmask::bitmask;
 
 use crate::{
-    platform::required_gpu_features, AsBinding, BindingDataBufferRc, BufferId,
+    platform::required_gpu_features, AsBinding, BindingDataBufferRc, BufferId, DispatchCommandSize,
     RenderCommandsPerType, RenderContext, RenderCoreContextRc, SamplerType, ShaderStage,
     TextureHandlerRc, TextureId, MAX_TEXTURE_ATLAS_COUNT,
 };
@@ -130,14 +130,30 @@ impl BindingData {
                 .resize(group_index + 1, Default::default());
         }
     }
-    pub fn bind_commands(
+    pub fn bind_render_commands(
         &mut self,
         data: &mut RenderCommandsPerType,
         label: Option<&str>,
     ) -> &mut Self {
-        inox_profiler::scoped_profile!("binding_data::bind_commands");
+        inox_profiler::scoped_profile!("binding_data::bind_render_commands");
 
         data.bind(&self.binding_data_buffer, &self.render_core_context, label);
+
+        self
+    }
+    pub fn bind_dispatch_commands(
+        &mut self,
+        data: &mut DispatchCommandSize,
+        label: Option<&str>,
+    ) -> &mut Self {
+        inox_profiler::scoped_profile!("binding_data::bind_dispatch_commands");
+
+        let usage = wgpu::BufferUsages::STORAGE
+            | wgpu::BufferUsages::COPY_SRC
+            | wgpu::BufferUsages::COPY_DST
+            | wgpu::BufferUsages::INDIRECT;
+        self.binding_data_buffer
+            .bind_buffer(label, data, usage, &self.render_core_context);
 
         self
     }

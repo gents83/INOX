@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
 use crate::{
-    AsBinding, BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, CommandsBuffer,
-    ComputePass, ComputePassData, ConstantDataRw, CullingResults, DrawCommandType, GpuBuffer,
-    MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderCoreContext, ShaderStage,
-    TextureView, ATOMIC_SIZE,
+    AsBinding, BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass,
+    ComputePassData, ConstantDataRw, CullingResults, DrawCommandType, DrawCommandsBuffer,
+    GpuBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderCoreContext,
+    ShaderStage, TextureView, ATOMIC_SIZE,
 };
 
 use inox_commands::CommandParser;
@@ -75,7 +75,7 @@ pub struct CullingPass {
     compact_pass: Resource<ComputePass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    commands: CommandsBuffer,
+    commands: DrawCommandsBuffer,
     meshes: MeshesBuffer,
     meshlets: MeshletsBuffer,
     bhv: BVHBuffer,
@@ -135,13 +135,13 @@ impl Pass for CullingPass {
                 None,
             ),
             constant_data: render_context.constant_data.clone(),
-            commands: render_context.render_buffers.commands.clone(),
-            meshes: render_context.render_buffers.meshes.clone(),
-            meshlets: render_context.render_buffers.meshlets.clone(),
-            bhv: render_context.render_buffers.bvh.clone(),
+            commands: render_context.global_buffers.draw_commands.clone(),
+            meshes: render_context.global_buffers.meshes.clone(),
+            meshlets: render_context.global_buffers.meshlets.clone(),
+            bhv: render_context.global_buffers.bvh.clone(),
             binding_data: BindingData::new(render_context, CULLING_PASS_NAME),
             culling_data: CullingData::default(),
-            culling_result: render_context.render_buffers.culling_result.clone(),
+            culling_result: render_context.global_buffers.culling_result.clone(),
             listener,
             update_camera: true,
         }

@@ -2,9 +2,10 @@ use std::path::PathBuf;
 
 use crate::{
     BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer, MeshFlags,
-    MeshesBuffer, MeshletsBuffer, Pass, RadianceDataBuffer, RenderContext, RuntimeVerticesBuffer,
-    SamplerType, ShaderStage, TextureId, TextureView, TexturesBuffer, VertexAttributesBuffer,
+    ConstantDataRw, DispatchCommandBuffer, DispatchCommandSize, DrawCommandType, IndicesBuffer,
+    LightsBuffer, MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass,
+    RadianceDataBuffer, RenderContext, RuntimeVerticesBuffer, SamplerType, ShaderStage, TextureId,
+    TextureView, TexturesBuffer, VertexAttributesBuffer, RADIANCE_DISPATCH_UID,
 };
 
 use inox_core::ContextRc;
@@ -22,6 +23,7 @@ pub struct ComputePathTracingDirectPass {
     meshes: MeshesBuffer,
     meshlets: MeshletsBuffer,
     radiance_data_buffer: RadianceDataBuffer,
+    dispatch_commands: DispatchCommandBuffer,
     bhv: BVHBuffer,
     indices: IndicesBuffer,
     runtime_vertices: RuntimeVerticesBuffer,
@@ -31,7 +33,6 @@ pub struct ComputePathTracingDirectPass {
     lights: LightsBuffer,
     visibility_texture: TextureId,
     depth_texture: TextureId,
-    gbuffer_texture: TextureId,
     dimensions: (u32, u32),
 }
 unsafe impl Send for ComputePathTracingDirectPass {}
@@ -71,18 +72,18 @@ impl Pass for ComputePathTracingDirectPass {
                 None,
             ),
             constant_data: render_context.constant_data.clone(),
-            meshes: render_context.render_buffers.meshes.clone(),
-            meshlets: render_context.render_buffers.meshlets.clone(),
-            radiance_data_buffer: render_context.render_buffers.radiance_data_buffer.clone(),
-            bhv: render_context.render_buffers.bvh.clone(),
-            indices: render_context.render_buffers.indices.clone(),
-            runtime_vertices: render_context.render_buffers.runtime_vertices.clone(),
-            vertices_attributes: render_context.render_buffers.vertex_attributes.clone(),
-            textures: render_context.render_buffers.textures.clone(),
-            materials: render_context.render_buffers.materials.clone(),
-            lights: render_context.render_buffers.lights.clone(),
+            meshes: render_context.global_buffers.meshes.clone(),
+            meshlets: render_context.global_buffers.meshlets.clone(),
+            radiance_data_buffer: render_context.global_buffers.radiance_data_buffer.clone(),
+            dispatch_commands: render_context.global_buffers.dispatch_commands.clone(),
+            bhv: render_context.global_buffers.bvh.clone(),
+            indices: render_context.global_buffers.indices.clone(),
+            runtime_vertices: render_context.global_buffers.runtime_vertices.clone(),
+            vertices_attributes: render_context.global_buffers.vertex_attributes.clone(),
+            textures: render_context.global_buffers.textures.clone(),
+            materials: render_context.global_buffers.materials.clone(),
+            lights: render_context.global_buffers.lights.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_DIRECT_NAME),
-            gbuffer_texture: INVALID_UID,
             visibility_texture: INVALID_UID,
             depth_texture: INVALID_UID,
             dimensions: (0, 0),
@@ -91,7 +92,7 @@ impl Pass for ComputePathTracingDirectPass {
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("pathtracing_direct_pass::init");
 
-        if self.gbuffer_texture.is_nil()
+        if self.visibility_texture.is_nil()
             || self.meshlets.read().unwrap().is_empty()
             || self.radiance_data_buffer.read().unwrap().data().is_empty()
         {
@@ -200,22 +201,27 @@ impl Pass for ComputePathTracingDirectPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.bhv.write().unwrap(),
-                Some("BHV"),
+                self.dispatch_commands
+                    .write()
+                    .unwrap()
+                    .get_mut(&RADIANCE_DISPATCH_UID)
+                    .unwrap(),
+                Some("Radiance Dispatch"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 2,
                     stage: ShaderStage::Compute,
-                    ..Default::default()
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
             )
-            .add_texture(
-                &self.gbuffer_texture,
+            .add_storage_buffer(
+                &mut *self.bhv.write().unwrap(),
+                Some("BHV"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 3,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                    ..Default::default()
                 },
             )
             .add_texture(
@@ -224,7 +230,7 @@ impl Pass for ComputePathTracingDirectPass {
                     group_index: 1,
                     binding_index: 4,
                     stage: ShaderStage::Compute,
-                    ..Default::default()
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
             )
             .add_texture(
@@ -264,7 +270,7 @@ impl Pass for ComputePathTracingDirectPass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        if self.gbuffer_texture.is_nil()
+        if self.visibility_texture.is_nil()
             || self.meshlets.read().unwrap().is_empty()
             || self.radiance_data_buffer.read().unwrap().data().is_empty()
         {
@@ -313,10 +319,21 @@ impl ComputePathTracingDirectPass {
             (dimensions.0 * dimensions.1 * RADIANCE_DATA_STRIDE)
                 as usize
         ]);
-        self
-    }
-    pub fn set_gbuffer_texture(&mut self, texture_id: &TextureId) -> &mut Self {
-        self.gbuffer_texture = *texture_id;
+        {
+            let mut dispatch_commands = self.dispatch_commands.write().unwrap();
+            dispatch_commands.insert(
+                RADIANCE_DISPATCH_UID,
+                DispatchCommandSize {
+                    x: dimensions.0,
+                    y: dimensions.1,
+                    z: 1,
+                },
+            );
+            self.binding_data.bind_dispatch_commands(
+                dispatch_commands.get_mut(&RADIANCE_DISPATCH_UID).unwrap(),
+                Some("Dispatch Commands"),
+            );
+        }
         self
     }
 }

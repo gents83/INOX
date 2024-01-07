@@ -88,13 +88,13 @@ impl RenderCommands {
             );
         }
     }
-    fn remove_commands(&mut self, id: &ResourceId) -> &mut Self {
+    fn remove_draw_commands(&mut self, id: &ResourceId) -> &mut Self {
         self.commands.remove(id);
         self.rebind();
         self
     }
 
-    fn add_commands(&mut self, id: &ResourceId, commands: &[DrawIndexedCommand]) -> &mut Self {
+    fn add_draw_commands(&mut self, id: &ResourceId, commands: &[DrawIndexedCommand]) -> &mut Self {
         if commands.is_empty() {
             return self;
         }
@@ -156,7 +156,7 @@ impl RenderCommands {
             }
             _ => {}
         }
-        self.add_commands(id, commands.as_slice())
+        self.add_draw_commands(id, commands.as_slice())
     }
 }
 
@@ -172,16 +172,20 @@ impl RenderCommandsPerType {
         }
         self
     }
-    pub fn remove_commands(&mut self, id: &ResourceId) -> &mut Self {
+    pub fn remove_draw_commands(&mut self, id: &ResourceId) -> &mut Self {
         self.map.iter_mut().for_each(|(_, entry)| {
-            entry.remove_commands(id);
+            entry.remove_draw_commands(id);
         });
         self
     }
-    pub fn add_commands(&mut self, id: &ResourceId, commands: &[DrawIndexedCommand]) -> &mut Self {
+    pub fn add_draw_commands(
+        &mut self,
+        id: &ResourceId,
+        commands: &[DrawIndexedCommand],
+    ) -> &mut Self {
         let entry = self.map.entry(DrawCommandType::PerMeshlet).or_default();
-        entry.remove_commands(id);
-        entry.add_commands(id, commands);
+        entry.remove_draw_commands(id);
+        entry.add_draw_commands(id, commands);
         self
     }
     pub fn add_mesh_commands<const MAX_COUNT: usize>(
@@ -192,11 +196,11 @@ impl RenderCommandsPerType {
     ) -> &mut Self {
         if let Some(meshlets) = meshlets.items(id) {
             let meshlet_entry = self.map.entry(DrawCommandType::PerMeshlet).or_default();
-            meshlet_entry.remove_commands(id);
+            meshlet_entry.remove_draw_commands(id);
             meshlet_entry.add_mesh_commands(id, mesh, meshlets, DrawCommandType::PerMeshlet);
 
             let triangle_entry = self.map.entry(DrawCommandType::PerTriangle).or_default();
-            triangle_entry.remove_commands(id);
+            triangle_entry.remove_draw_commands(id);
             triangle_entry.add_mesh_commands(id, mesh, meshlets, DrawCommandType::PerTriangle);
         }
 

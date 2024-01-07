@@ -29,10 +29,8 @@ var visibility_texture: texture_2d<f32>;
 @group(1) @binding(2)
 var radiance_texture: texture_2d<f32>;
 @group(1) @binding(3)
-var gbuffer_texture: texture_2d<f32>;
-@group(1) @binding(4)
 var depth_texture: texture_depth_2d;
-@group(1) @binding(5)
+@group(1) @binding(4)
 var debug_data_texture: texture_2d<f32>;
 
 #import "geom_utils.inc"
@@ -115,12 +113,6 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>, dimensions: vec2<u32
         let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
         let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
         out_color = textureLoad(visibility_texture, visibility_pixel, 0);
-    } 
-    else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_GBUFFER) != 0) {
-        let gbuffer_dimensions = textureDimensions(gbuffer_texture);
-        let gbuffer_scale = vec2<f32>(gbuffer_dimensions) / vec2<f32>(dimensions);
-        let gbuffer_pixel = vec2<u32>(vec2<f32>(pixel) * gbuffer_scale); 
-        out_color = textureLoad(gbuffer_texture, gbuffer_pixel, 0);
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER) != 0) {
         let radiance_dimensions = textureDimensions(radiance_texture);

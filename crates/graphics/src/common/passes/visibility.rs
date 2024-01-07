@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, CommandsBuffer, ConstantDataRw, DrawCommandType,
+    BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, DrawCommandsBuffer,
     GPURuntimeVertexData, IndicesBuffer, MeshFlags, Pass, RenderContext, RenderPass,
     RenderPassBeginData, RenderPassData, RenderTarget, RuntimeVerticesBuffer, ShaderStage,
     StoreOperation, Texture, TextureView,
@@ -19,7 +19,7 @@ pub struct VisibilityBufferPass {
     binding_data: BindingData,
     constant_data: ConstantDataRw,
     indices: IndicesBuffer,
-    commands_buffers: CommandsBuffer,
+    commands_buffers: DrawCommandsBuffer,
     runtime_vertices: RuntimeVerticesBuffer,
 }
 unsafe impl Send for VisibilityBufferPass {}
@@ -66,9 +66,9 @@ impl Pass for VisibilityBufferPass {
             ),
             binding_data: BindingData::new(render_context, VISIBILITY_BUFFER_PASS_NAME),
             constant_data: render_context.constant_data.clone(),
-            indices: render_context.render_buffers.indices.clone(),
-            commands_buffers: render_context.render_buffers.commands.clone(),
-            runtime_vertices: render_context.render_buffers.runtime_vertices.clone(),
+            indices: render_context.global_buffers.indices.clone(),
+            commands_buffers: render_context.global_buffers.draw_commands.clone(),
+            runtime_vertices: render_context.global_buffers.runtime_vertices.clone(),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -96,7 +96,7 @@ impl Pass for VisibilityBufferPass {
                 Some("Runtime Vertices"),
             )
             .set_index_buffer(&mut *self.indices.write().unwrap(), Some("Indices"))
-            .bind_commands(commands, Some("Commands"));
+            .bind_render_commands(commands, Some("Commands"));
 
         let vertex_layout = GPURuntimeVertexData::descriptor(0);
         pass.init(

@@ -3,9 +3,9 @@ use std::path::PathBuf;
 use crate::{
     create_arrow, create_circumference, create_colored_quad, create_cube_from_min_max, create_line,
     create_sphere, declare_as_binding_vector, AsBinding, BindingData, BindingInfo, CommandBuffer,
-    CommandsBuffer, ConstantDataRw, DrawCommandType, DrawEvent, DrawIndexedCommand, LoadOperation,
-    MeshData, MeshFlags, Pass, RenderContext, RenderPass, RenderPassBeginData, RenderPassData,
-    RenderTarget, ShaderStage, StoreOperation, TextureView, VecDrawIndexedCommand,
+    ConstantDataRw, DrawCommandType, DrawCommandsBuffer, DrawEvent, DrawIndexedCommand,
+    LoadOperation, MeshData, MeshFlags, Pass, RenderContext, RenderPass, RenderPassBeginData,
+    RenderPassData, RenderTarget, ShaderStage, StoreOperation, TextureView, VecDrawIndexedCommand,
     VertexBufferLayoutBuilder, VertexFormat, View,
 };
 
@@ -46,7 +46,7 @@ pub struct WireframePass {
     constant_data: ConstantDataRw,
     vertices: VecDebugVertex,
     indices: VecDebugIndex,
-    commands_buffers: CommandsBuffer,
+    commands_buffers: DrawCommandsBuffer,
     listener: Listener,
 }
 unsafe impl Send for WireframePass {}
@@ -100,7 +100,7 @@ impl Pass for WireframePass {
             constant_data: render_context.constant_data.clone(),
             vertices: VecDebugVertex::default(),
             indices: VecDebugIndex::default(),
-            commands_buffers: render_context.render_buffers.commands.clone(),
+            commands_buffers: render_context.global_buffers.draw_commands.clone(),
             listener,
             binding_data: BindingData::new(render_context, WIREFRAME_PASS_NAME),
         }
@@ -305,8 +305,8 @@ impl WireframePass {
 
         let mut command_buffers = self.commands_buffers.write().unwrap();
         let commands = command_buffers.entry(self.mesh_flags()).or_default();
-        commands.add_commands(&WIREFRAME_CPU_SIDE_COMMANDS_UID, new_instances.data());
+        commands.add_draw_commands(&WIREFRAME_CPU_SIDE_COMMANDS_UID, new_instances.data());
         self.binding_data
-            .bind_commands(commands, Some("Wireframe Commands"));
+            .bind_render_commands(commands, Some("Wireframe Commands"));
     }
 }

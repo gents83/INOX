@@ -3,11 +3,11 @@ use std::sync::atomic::Ordering;
 use inox_core::ContextRc;
 use inox_graphics::{
     CullingEvent, DrawEvent, Light, Mesh, MeshFlags, MeshId, RendererRw,
-    CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_GBUFFER,
-    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
+    CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
+    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS, CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE,
     CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER,
-    CONSTANT_DATA_FLAGS_NONE, CONSTANT_DATA_FLAGS_USE_IBL,
+    CONSTANT_DATA_FLAGS_NONE,
 };
 use inox_math::{
     compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle, Quat, VecBase, Vector2,
@@ -70,12 +70,10 @@ pub struct InfoParams {
 enum VisualizationDebug {
     #[default]
     None = 0,
-    UseIBL = CONSTANT_DATA_FLAGS_USE_IBL as _,
-    Color = CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS as _,
+    Meshlets = CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS as _,
     BoundingBox = CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX as _,
     ConeAxis = CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS as _,
     VisibilityBuffer = CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER as _,
-    GBuffer = CONSTANT_DATA_FLAGS_DISPLAY_GBUFFER as _,
     RadianceBuffer = CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER as _,
     DepthBuffer = CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER as _,
     PathTrace = CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE as _,
@@ -295,10 +293,10 @@ impl Info {
                 let renderer = data.params.renderer.read().unwrap();
                 let render_context = renderer.render_context();
                 let tlas_index = render_context
-                    .render_buffers
+                    .global_buffers
                     .tlas_start_index
                     .load(Ordering::Relaxed);
-                let bhv = render_context.render_buffers.bvh.read().unwrap();
+                let bhv = render_context.global_buffers.bvh.read().unwrap();
                 bhv.for_each_data(|i, _id, n| {
                     if i >= tlas_index as _ {
                         data.context
@@ -314,9 +312,9 @@ impl Info {
             if data.show_blas {
                 let renderer = data.params.renderer.read().unwrap();
                 let render_context = renderer.render_context();
-                let bhv = render_context.render_buffers.bvh.read().unwrap();
+                let bhv = render_context.global_buffers.bvh.read().unwrap();
                 let bhv_data = bhv.data();
-                let meshes = render_context.render_buffers.meshes.read().unwrap();
+                let meshes = render_context.global_buffers.meshes.read().unwrap();
                 meshes.for_each_entry(|_, mesh| {
                     let node = &bhv_data[mesh.blas_index as usize];
                     let matrix = Matrix4::from_translation_orientation_scale(
@@ -360,7 +358,7 @@ impl Info {
             } else {
                 let renderer = data.params.renderer.read().unwrap();
                 let render_context = renderer.render_context();
-                let bhv = render_context.render_buffers.bvh.read().unwrap();
+                let bhv = render_context.global_buffers.bvh.read().unwrap();
                 meshes.iter().for_each(|mesh| {
                     if let Some(nodes) = bhv.items(mesh.id()) {
                         nodes.iter().for_each(|n| {
@@ -607,13 +605,6 @@ impl Info {
                                     is_changed |= ui
                                         .selectable_value(
                                             &mut data.visualization_debug,
-                                            VisualizationDebug::GBuffer,
-                                            "G-Buffer",
-                                        )
-                                        .changed();
-                                    is_changed |= ui
-                                        .selectable_value(
-                                            &mut data.visualization_debug,
                                             VisualizationDebug::PathTrace,
                                             "PathTrace",
                                         )
@@ -621,8 +612,8 @@ impl Info {
                                     is_changed |= ui
                                         .selectable_value(
                                             &mut data.visualization_debug,
-                                            VisualizationDebug::Color,
-                                            "Color",
+                                            VisualizationDebug::Meshlets,
+                                            "Meshlets",
                                         )
                                         .changed();
                                     is_changed |= ui
@@ -639,13 +630,6 @@ impl Info {
                                             "Cone Axis",
                                         )
                                         .changed();
-                                    is_changed |= ui
-                                        .selectable_value(
-                                            &mut data.visualization_debug,
-                                            VisualizationDebug::UseIBL,
-                                            "Use IBL",
-                                        )
-                                        .changed();
                                     is_changed
                                 });
                             if let Some(is_changed) = combo_box.inner {
@@ -658,14 +642,7 @@ impl Info {
                                         .unwrap()
                                         .set_flags(CONSTANT_DATA_FLAGS_NONE);
                                     match &data.visualization_debug {
-                                        VisualizationDebug::UseIBL => {
-                                            render_context
-                                                .constant_data
-                                                .write()
-                                                .unwrap()
-                                                .add_flag(CONSTANT_DATA_FLAGS_USE_IBL);
-                                        }
-                                        VisualizationDebug::Color
+                                        VisualizationDebug::Meshlets
                                         | VisualizationDebug::ConeAxis => {
                                             render_context
                                                 .constant_data
@@ -687,13 +664,6 @@ impl Info {
                                             render_context.constant_data.write().unwrap().add_flag(
                                                 CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER,
                                             );
-                                        }
-                                        VisualizationDebug::GBuffer => {
-                                            render_context
-                                                .constant_data
-                                                .write()
-                                                .unwrap()
-                                                .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_GBUFFER);
                                         }
                                         VisualizationDebug::RadianceBuffer => {
                                             render_context.constant_data.write().unwrap().add_flag(

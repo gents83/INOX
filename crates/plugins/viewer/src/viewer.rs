@@ -23,10 +23,9 @@ const ADD_UI_PASS: bool = true;
 enum RenderTargetType {
     Visibility = 0,
     Depth = 1,
-    GBuffer = 2,
-    Radiance = 3,
+    Radiance = 2,
+    Finalize = 3,
     DebugData = 4,
-    Finalize = 5,
 }
 
 pub struct Viewer {
@@ -160,7 +159,7 @@ impl Viewer {
             half_dims.0,
             half_dims.1,
             TextureFormat::Rgba8Unorm,
-            usage,
+            usage | TextureUsage::StorageBinding,
             single_sample,
         );
         debug_assert!(_visibility == RenderTargetType::Visibility as usize);
@@ -173,24 +172,24 @@ impl Viewer {
             single_sample,
         );
         debug_assert!(_depth == RenderTargetType::Depth as usize);
-        //GBuffer = 2,
-        let _gbuffer = renderer.add_render_target(
+        //Radiance = 2,
+        let _radiance = renderer.add_render_target(
             half_dims.0,
             half_dims.1,
             TextureFormat::Rgba8Unorm,
             usage | TextureUsage::StorageBinding,
             single_sample,
         );
-        debug_assert!(_gbuffer == RenderTargetType::GBuffer as usize);
-        //Radiance = 3,
-        let _radiance = renderer.add_render_target(
+        debug_assert!(_radiance == RenderTargetType::Radiance as usize);
+        //Finalize = 3,
+        let _finalize = renderer.add_render_target(
             half_dims.0,
             half_dims.1,
-            TextureFormat::Rgba32Float,
+            TextureFormat::Rgba8Unorm,
             usage | TextureUsage::StorageBinding,
-            single_sample,
+            multi_sample,
         );
-        debug_assert!(_radiance == RenderTargetType::Radiance as usize);
+        debug_assert!(_finalize == RenderTargetType::Finalize as usize);
         //Debug = 4,
         let _debug_data = renderer.add_render_target(
             half_dims.0,
@@ -200,15 +199,6 @@ impl Viewer {
             single_sample,
         );
         debug_assert!(_debug_data == RenderTargetType::DebugData as usize);
-        //Finalize = 5,
-        let _finalize = renderer.add_render_target(
-            half_dims.0,
-            half_dims.1,
-            TextureFormat::Rgba8Unorm,
-            usage | TextureUsage::StorageBinding,
-            multi_sample,
-        );
-        debug_assert!(_finalize == RenderTargetType::Finalize as usize);
     }
     fn create_render_passes(context: &ContextRc, renderer: &mut Renderer) {
         Self::create_compute_runtime_vertices_pass(context, renderer, true);
@@ -256,7 +246,6 @@ impl Viewer {
         let radiance_texture = renderer.render_target(RenderTargetType::Radiance as usize);
         compute_pathtracing_direct_pass
             .set_radiance_texture_size(radiance_texture.get().dimensions())
-            .set_gbuffer_texture(renderer.render_target_id(RenderTargetType::GBuffer as usize))
             .set_visibility_texture(
                 renderer.render_target_id(RenderTargetType::Visibility as usize),
             )
@@ -269,10 +258,6 @@ impl Viewer {
         let radiance_texture = renderer.render_target(RenderTargetType::Radiance as usize);
         compute_pathtracing_indirect_pass
             .set_radiance_texture(radiance_texture.id(), radiance_texture.get().dimensions())
-            .set_visibility_texture(
-                renderer.render_target_id(RenderTargetType::Visibility as usize),
-            )
-            .set_depth_texture(renderer.render_target_id(RenderTargetType::Depth as usize))
             .set_debug_data_texture(
                 renderer.render_target_id(RenderTargetType::DebugData as usize),
             );
@@ -287,7 +272,6 @@ impl Viewer {
             .set_visibility_texture(
                 renderer.render_target_id(RenderTargetType::Visibility as usize),
             )
-            .set_gbuffer_texture(renderer.render_target_id(RenderTargetType::GBuffer as usize))
             .set_radiance_texture(renderer.render_target_id(RenderTargetType::Radiance as usize))
             .set_depth_texture(renderer.render_target_id(RenderTargetType::Depth as usize));
         renderer.add_pass(compute_finalize_pass, true);
@@ -305,7 +289,6 @@ impl Viewer {
                 renderer.render_target_id(RenderTargetType::Visibility as usize),
             )
             .set_radiance_texture(renderer.render_target_id(RenderTargetType::Radiance as usize))
-            .set_gbuffer_texture(renderer.render_target_id(RenderTargetType::GBuffer as usize))
             .set_depth_texture(renderer.render_target_id(RenderTargetType::Depth as usize))
             .set_debug_data_texture(
                 renderer.render_target_id(RenderTargetType::DebugData as usize),

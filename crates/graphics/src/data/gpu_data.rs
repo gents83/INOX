@@ -1,12 +1,24 @@
 use inox_bitmask::bitmask;
 use inox_math::{Mat4Ops, Matrix4};
 
-use crate::{MaterialFlags, TextureType, VertexBufferLayoutBuilder, VertexFormat, INVALID_INDEX};
+use crate::{
+    declare_as_dirty_binding, MaterialFlags, TextureType, VertexBufferLayoutBuilder, VertexFormat,
+    INVALID_INDEX,
+};
 
 // Pipeline has a list of meshes to process
 // Meshes can switch pipeline at runtime
 // Material doesn't know pipeline anymore
 // Material is now generic data for several purposes
+
+#[repr(C)]
+#[derive(Default, PartialEq, Eq, Clone, Copy, Debug)]
+pub struct DispatchCommandSize {
+    pub x: u32,
+    pub y: u32,
+    pub z: u32,
+}
+declare_as_dirty_binding!(DispatchCommandSize);
 
 #[bitmask]
 pub enum DrawCommandType {
@@ -149,9 +161,9 @@ pub struct RadianceData {
     direction: [f32; 3],
     seed_y: u32,
     radiance: [f32; 3],
-    _padding1: u32,
+    pixel_x: u32,
     throughput_weight: [f32; 3],
-    _padding2: u32,
+    pixel_y: u32,
 }
 
 impl Default for RadianceData {
@@ -163,8 +175,8 @@ impl Default for RadianceData {
             throughput_weight: [1.; 3],
             seed_x: 0,
             seed_y: 0,
-            _padding1: 0,
-            _padding2: 0,
+            pixel_x: 0,
+            pixel_y: 0,
         }
     }
 }

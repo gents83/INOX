@@ -104,21 +104,21 @@ impl UpdateSystem {
                 ResourceEvent::Destroyed(id) => {
                     let renderer = self.renderer.read().unwrap();
                     let render_context = renderer.render_context();
-                    render_context.render_buffers.remove_texture(id);
+                    render_context.global_buffers.remove_texture(id);
                 }
             })
             .process_messages(|e: &DataTypeResourceEvent<Light>| {
                 let DataTypeResourceEvent::Loaded(id, light_data) = e;
                 let renderer = self.renderer.read().unwrap();
                 let render_context = renderer.render_context();
-                render_context.render_buffers.update_light(id, light_data);
+                render_context.global_buffers.update_light(id, light_data);
             })
             .process_messages(|e: &ResourceEvent<Light>| match e {
                 ResourceEvent::Created(l) => {
                     let renderer = self.renderer.read().unwrap();
                     let render_context = renderer.render_context();
                     render_context
-                        .render_buffers
+                        .global_buffers
                         .add_light(l.id(), &mut l.get_mut());
                 }
                 ResourceEvent::Changed(id) => {
@@ -127,14 +127,14 @@ impl UpdateSystem {
 
                         let render_context = renderer.render_context();
                         render_context
-                            .render_buffers
+                            .global_buffers
                             .update_light(id, light.get().data());
                     }
                 }
                 ResourceEvent::Destroyed(id) => {
                     let renderer = self.renderer.read().unwrap();
                     let render_context = renderer.render_context();
-                    render_context.render_buffers.remove_light(id);
+                    render_context.global_buffers.remove_light(id);
                 }
             })
             .process_messages(|e: &ResourceEvent<Material>| match e {
@@ -142,7 +142,7 @@ impl UpdateSystem {
                     let renderer = self.renderer.read().unwrap();
                     let render_context = renderer.render_context();
                     render_context
-                        .render_buffers
+                        .global_buffers
                         .add_material(m.id(), &mut m.get_mut());
                 }
                 ResourceEvent::Changed(id) => {
@@ -150,14 +150,14 @@ impl UpdateSystem {
                         let renderer = self.renderer.read().unwrap();
                         let render_context = renderer.render_context();
                         render_context
-                            .render_buffers
+                            .global_buffers
                             .add_material(m.id(), &mut m.get_mut());
                     }
                 }
                 ResourceEvent::Destroyed(id) => {
                     let renderer = self.renderer.read().unwrap();
                     let render_context = renderer.render_context();
-                    render_context.render_buffers.remove_material(id);
+                    render_context.global_buffers.remove_material(id);
                 }
             })
             .process_messages(|e: &DataTypeResourceEvent<Material>| {
@@ -165,14 +165,14 @@ impl UpdateSystem {
                 let renderer = self.renderer.read().unwrap();
                 let render_context = renderer.render_context();
                 render_context
-                    .render_buffers
+                    .global_buffers
                     .update_material(id, material_data);
             })
             .process_messages(|e: &DataTypeResourceEvent<Mesh>| {
                 let DataTypeResourceEvent::Loaded(id, mesh_data) = e;
                 let renderer = self.renderer.read().unwrap();
                 let render_context = renderer.render_context();
-                render_context.render_buffers.add_mesh(id, mesh_data);
+                render_context.global_buffers.add_mesh(id, mesh_data);
             })
             .process_messages(|e: &ResourceEvent<Mesh>| match e {
                 ResourceEvent::Changed(id) => {
@@ -180,14 +180,14 @@ impl UpdateSystem {
                         let renderer = self.renderer.read().unwrap();
                         let render_context = renderer.render_context();
                         render_context
-                            .render_buffers
+                            .global_buffers
                             .change_mesh(id, &mut mesh.get_mut());
                     }
                 }
                 ResourceEvent::Destroyed(id) => {
                     let renderer = self.renderer.read().unwrap();
                     let render_context = renderer.render_context();
-                    render_context.render_buffers.remove_mesh(id, true);
+                    render_context.global_buffers.remove_mesh(id, true);
                 }
                 _ => {}
             });

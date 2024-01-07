@@ -12,16 +12,15 @@ use inox_resources::{to_slice, Buffer, HashBuffer, ResourceId};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string};
 
 use crate::{
-    declare_as_binding_vector, AsBinding, GPUMaterial, GPUMesh, GPUMeshlet, GPURuntimeVertexData,
-    Light, LightData, LightId, Material, MaterialData, MaterialFlags, MaterialId, Mesh, MeshData,
-    MeshFlags, MeshId, RenderCommandsPerType, TextureId, TextureInfo, TextureType,
+    AsBinding, DispatchCommandSize, GPUMaterial, GPUMesh, GPUMeshlet, GPURuntimeVertexData, Light,
+    LightData, LightId, Material, MaterialData, MaterialFlags, MaterialId, Mesh, MeshData,
+    MeshFlags, MeshId, RenderCommandsPerType, TextureId, TextureInfo, TextureType, VecU32,
 };
-
-declare_as_binding_vector!(VecU32, u32);
 
 pub type TexturesBuffer = Arc<RwLock<HashBuffer<TextureId, TextureInfo, 0>>>;
 pub type MaterialsBuffer = Arc<RwLock<HashBuffer<MaterialId, GPUMaterial, 0>>>;
-pub type CommandsBuffer = Arc<RwLock<HashMap<MeshFlags, RenderCommandsPerType>>>;
+pub type DrawCommandsBuffer = Arc<RwLock<HashMap<MeshFlags, RenderCommandsPerType>>>;
+pub type DispatchCommandBuffer = Arc<RwLock<HashMap<ResourceId, DispatchCommandSize>>>;
 pub type MeshesBuffer = Arc<RwLock<HashBuffer<MeshId, GPUMesh, 0>>>;
 pub type MeshletsBuffer = Arc<RwLock<Buffer<GPUMeshlet, 0>>>; //MeshId <-> [GPUMeshlet]
 pub type BVHBuffer = Arc<RwLock<Buffer<GPUBVHNode, 0>>>;
@@ -34,15 +33,19 @@ pub type RuntimeVerticesBuffer = Arc<RwLock<Buffer<GPURuntimeVertexData, 0>>>;
 pub type RadianceDataBuffer = Arc<RwLock<VecU32>>;
 
 pub const TLAS_UID: ResourceId = generate_static_uid_from_string("TLAS");
+pub const RADIANCE_DISPATCH_UID: ResourceId =
+    generate_static_uid_from_string("RADIANCE_DISPATCH_UID");
+
 pub const ATOMIC_SIZE: u32 = 32;
 
 //Alignment should be 4, 8, 16 or 32 bytes
 #[derive(Default)]
-pub struct RenderBuffers {
+pub struct GlobalBuffers {
     pub textures: TexturesBuffer,
     pub lights: LightsBuffer,
     pub materials: MaterialsBuffer,
-    pub commands: CommandsBuffer,
+    pub draw_commands: DrawCommandsBuffer,
+    pub dispatch_commands: DispatchCommandBuffer,
     pub meshes: MeshesBuffer,
     pub meshlets: MeshletsBuffer,
     pub bvh: BVHBuffer,
@@ -56,7 +59,7 @@ pub struct RenderBuffers {
     pub radiance_data_buffer: RadianceDataBuffer,
 }
 
-impl RenderBuffers {
+impl GlobalBuffers {
     fn extract_meshlets(
         &self,
         mesh_data: &MeshData,
@@ -311,9 +314,9 @@ impl RenderBuffers {
                 let flags: u32 = (*mesh_flags).into();
                 m.flags_and_vertices_attribute_layout = vertex_attribute_layout | (flags << 16);
                 {
-                    let mut commands = self.commands.write().unwrap();
+                    let mut commands = self.draw_commands.write().unwrap();
                     commands.iter_mut().for_each(|(_, v)| {
-                        v.remove_commands(mesh_id);
+                        v.remove_draw_commands(mesh_id);
                     });
                     let entry = commands.entry(*mesh_flags).or_default();
                     entry.add_mesh_commands(mesh_id, m, &self.meshlets.read().unwrap());
@@ -330,12 +333,12 @@ impl RenderBuffers {
         inox_profiler::scoped_profile!("render_buffers::remove_mesh");
 
         if self.meshes.write().unwrap().remove(mesh_id).is_some() {
-            self.commands
+            self.draw_commands
                 .write()
                 .unwrap()
                 .iter_mut()
                 .for_each(|(_, entry)| {
-                    entry.remove_commands(mesh_id);
+                    entry.remove_draw_commands(mesh_id);
                 });
             self.meshlets.write().unwrap().remove(mesh_id);
             {

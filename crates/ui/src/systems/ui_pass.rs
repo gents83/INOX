@@ -132,7 +132,7 @@ impl Pass for UIPass {
                 None,
             ),
             constant_data: render_context.constant_data.clone(),
-            textures: render_context.render_buffers.textures.clone(),
+            textures: render_context.global_buffers.textures.clone(),
             binding_data: BindingData::new(render_context, UI_PASS_NAME),
             custom_data: UIPassData {
                 ui_scale: 1.,

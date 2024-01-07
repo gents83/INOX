@@ -10,7 +10,7 @@ use inox_resources::Resource;
 use crate::{
     platform::{platform_limits, required_gpu_features, setup_env},
     BindingDataBuffer, BindingDataBufferRc, BufferId, ConstantData, ConstantDataRw,
-    DrawCommandType, GpuBuffer, MeshFlags, RenderBuffers, Renderer, RendererRw, Texture,
+    DrawCommandType, GlobalBuffers, GpuBuffer, MeshFlags, Renderer, RendererRw, Texture,
     TextureHandler, TextureHandlerRc, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, DEFAULT_HEIGHT,
     DEFAULT_WIDTH,
 };
@@ -64,7 +64,7 @@ pub struct RenderContext {
     pub core: RenderCoreContextRc,
     pub texture_handler: TextureHandlerRc,
     pub binding_data_buffer: BindingDataBufferRc,
-    pub render_buffers: RenderBuffers,
+    pub global_buffers: GlobalBuffers,
     pub constant_data: ConstantDataRw,
 }
 
@@ -179,7 +179,7 @@ impl RenderContext {
                 core: Arc::new(render_core_context),
                 constant_data: Arc::new(RwLock::new(ConstantData::default())),
                 binding_data_buffer: Arc::new(BindingDataBuffer::default()),
-                render_buffers: RenderBuffers::default(),
+                global_buffers: GlobalBuffers::default(),
             })));
 
         let mut renderer = renderer.write().unwrap();
@@ -199,7 +199,7 @@ impl RenderContext {
             proj,
             screen_size,
             debug_coords,
-            self.render_buffers.tlas_start_index.load(Ordering::Relaxed),
+            self.global_buffers.tlas_start_index.load(Ordering::Relaxed),
         );
         if self.core.config.read().unwrap().format.is_srgb() {
             self.constant_data
@@ -219,7 +219,13 @@ impl RenderContext {
         draw_command_type: &DrawCommandType,
         mesh_flags: &MeshFlags,
     ) -> bool {
-        if let Some(commands) = self.render_buffers.commands.read().unwrap().get(mesh_flags) {
+        if let Some(commands) = self
+            .global_buffers
+            .draw_commands
+            .read()
+            .unwrap()
+            .get(mesh_flags)
+        {
             if let Some(entry) = commands.map.get(draw_command_type) {
                 return !entry.commands.is_empty();
             }

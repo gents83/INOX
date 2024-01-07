@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use crate::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DrawCommandType, MeshFlags, Pass, RadianceDataBuffer, RenderContext,
-    ShaderStage, TextureId, TextureView,
+    ConstantDataRw, DispatchCommandBuffer, DrawCommandType, MeshFlags, Pass, RadianceDataBuffer,
+    RenderContext, ShaderStage, TextureId, TextureView, RADIANCE_DISPATCH_UID,
 };
 
 use inox_core::ContextRc;
@@ -18,10 +18,10 @@ pub struct ComputeFinalizePass {
     binding_data: BindingData,
     constant_data: ConstantDataRw,
     radiance_data_buffer: RadianceDataBuffer,
+    dispatch_commands: DispatchCommandBuffer,
     finalize_texture: TextureId,
     dimensions: (u32, u32),
     visibility_texture: TextureId,
-    gbuffer_texture: TextureId,
     radiance_texture: TextureId,
     depth_texture: TextureId,
 }
@@ -62,12 +62,12 @@ impl Pass for ComputeFinalizePass {
                 None,
             ),
             constant_data: render_context.constant_data.clone(),
-            radiance_data_buffer: render_context.render_buffers.radiance_data_buffer.clone(),
+            radiance_data_buffer: render_context.global_buffers.radiance_data_buffer.clone(),
+            dispatch_commands: render_context.global_buffers.dispatch_commands.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_FINALIZE_NAME),
             finalize_texture: INVALID_UID,
             dimensions: (0, 0),
             visibility_texture: INVALID_UID,
-            gbuffer_texture: INVALID_UID,
             radiance_texture: INVALID_UID,
             depth_texture: INVALID_UID,
         }
@@ -78,6 +78,12 @@ impl Pass for ComputeFinalizePass {
         if self.finalize_texture.is_nil()
             || self.radiance_texture.is_nil()
             || self.radiance_data_buffer.read().unwrap().data().is_empty()
+            || self
+                .dispatch_commands
+                .read()
+                .unwrap()
+                .get(&RADIANCE_DISPATCH_UID)
+                .is_none()
         {
             return;
         }
@@ -100,6 +106,20 @@ impl Pass for ComputeFinalizePass {
                     group_index: 0,
                     binding_index: 1,
                     stage: ShaderStage::Compute,
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                },
+            )
+            .add_storage_buffer(
+                self.dispatch_commands
+                    .write()
+                    .unwrap()
+                    .get_mut(&RADIANCE_DISPATCH_UID)
+                    .unwrap(),
+                Some("Radiance Dispatch"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 2,
+                    stage: ShaderStage::Compute,
                     ..Default::default()
                 },
             )
@@ -107,22 +127,13 @@ impl Pass for ComputeFinalizePass {
                 &self.finalize_texture,
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 2,
+                    binding_index: 3,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
             )
             .add_texture(
                 &self.visibility_texture,
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 3,
-                    stage: ShaderStage::Compute,
-                    ..Default::default()
-                },
-            )
-            .add_texture(
-                &self.gbuffer_texture,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 4,
@@ -162,6 +173,12 @@ impl Pass for ComputeFinalizePass {
         if self.finalize_texture.is_nil()
             || self.radiance_texture.is_nil()
             || self.radiance_data_buffer.read().unwrap().data().is_empty()
+            || self
+                .dispatch_commands
+                .read()
+                .unwrap()
+                .get(&RADIANCE_DISPATCH_UID)
+                .is_none()
         {
             return;
         }
@@ -193,10 +210,6 @@ impl Pass for ComputeFinalizePass {
 impl ComputeFinalizePass {
     pub fn set_visibility_texture(&mut self, texture_id: &TextureId) -> &mut Self {
         self.visibility_texture = *texture_id;
-        self
-    }
-    pub fn set_gbuffer_texture(&mut self, texture_id: &TextureId) -> &mut Self {
-        self.gbuffer_texture = *texture_id;
         self
     }
     pub fn set_radiance_texture(&mut self, texture_id: &TextureId) -> &mut Self {

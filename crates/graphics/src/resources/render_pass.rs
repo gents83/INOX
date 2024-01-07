@@ -403,12 +403,12 @@ impl RenderPass {
 
         let mesh_flags = self.pipeline().get().data().mesh_flags;
         render_context
-            .render_buffers
+            .global_buffers
             .meshes
             .read()
             .unwrap()
             .for_each_id(|mesh_id, _, mesh| {
-                let meshlets = render_context.render_buffers.meshlets.read().unwrap();
+                let meshlets = render_context.global_buffers.meshlets.read().unwrap();
                 if let Some(meshlets) = meshlets.items(mesh_id) {
                     let flags = (mesh.flags_and_vertices_attribute_layout & 0xFFFF0000) >> 16;
                     if MeshFlags::from(flags) == mesh_flags {
@@ -446,8 +446,8 @@ impl RenderPass {
         if is_indirect_mode_enabled() && self.render_mode == RenderMode::Indirect {
             let mesh_flags = self.pipeline().get().data().mesh_flags;
             if let Some(commands) = render_context
-                .render_buffers
-                .commands
+                .global_buffers
+                .draw_commands
                 .read()
                 .unwrap()
                 .get(&mesh_flags)
@@ -502,9 +502,9 @@ impl RenderPass {
         inox_profiler::scoped_profile!("render_pass::draw_meshes");
 
         let mesh_flags = self.pipeline().get().data().mesh_flags;
-        let meshlets = render_context.render_buffers.meshlets.read().unwrap();
+        let meshlets = render_context.global_buffers.meshlets.read().unwrap();
         render_context
-            .render_buffers
+            .global_buffers
             .meshes
             .read()
             .unwrap()
