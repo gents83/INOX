@@ -6,10 +6,10 @@
     "mode": "Fill",
     "depth_write_enabled": true,
     "depth_compare": "Less",
-    "src_color_blend_factor": "One",
+    "src_color_blend_factor": "Zero",
     "dst_color_blend_factor": "Zero",
     "color_blend_operation": "Add",
-    "src_alpha_blend_factor": "One",
+    "src_alpha_blend_factor": "Zero",
     "dst_alpha_blend_factor": "Zero",
     "alpha_blend_operation": "Add",
     "mesh_flags": { "bits":3 }

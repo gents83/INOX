@@ -1,1 +1,39 @@
-{"transform":{"x":{"x":1.0,"y":0.0,"z":0.0,"w":0.0},"y":{"x":0.0,"y":1.0,"z":0.0,"w":0.0},"z":{"x":0.0,"y":0.0,"z":1.0,"w":0.0},"w":{"x":0.0,"y":0.0,"z":0.0,"w":1.0}},"components":[],"children":["models/cornell_box/object/Object_2.object","models/cornell_box/object/Object_3.object","models/cornell_box/object/Object_4.object","models/cornell_box/object/Object_5.object","models/cornell_box/object/Object_6.object","models/cornell_box/object/Object_7.object","models/cornell_box/object/Object_8.object","models/cornell_box/object/Object_9.object"]}
+{
+  "transform": {
+    "x": {
+      "x": 1.0,
+      "y": 0.0,
+      "z": 0.0,
+      "w": 0.0
+    },
+    "y": {
+      "x": 0.0,
+      "y": 1.0,
+      "z": 0.0,
+      "w": 0.0
+    },
+    "z": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 1.0,
+      "w": 0.0
+    },
+    "w": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0,
+      "w": 1.0
+    }
+  },
+  "components": [],
+  "children": [
+    "models/cornell_box/object/back_wall.object",
+    "models/cornell_box/object/ceiling.object",
+    "models/cornell_box/object/floor.object",
+    "models/cornell_box/object/left_wall.object",
+    "models/cornell_box/object/light.object",
+    "models/cornell_box/object/right_wall.object",
+    "models/cornell_box/object/short_box.object",
+    "models/cornell_box/object/tall_box.object"
+  ]
+}

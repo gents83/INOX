@@ -1,0 +1,38 @@
+{
+  "transform": {
+    "x": {
+      "x": 174.36697,
+      "y": 0.0,
+      "z": 0.0,
+      "w": 0.0
+    },
+    "y": {
+      "x": 0.0,
+      "y": 174.36697,
+      "z": 0.0,
+      "w": 0.0
+    },
+    "z": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 174.36697,
+      "w": 0.0
+    },
+    "w": {
+      "x": -1.2,
+      "y": 0.0,
+      "z": -0.0012048334,
+      "w": 1.0
+    }
+  },
+  "components": [],
+  "children": [
+    "models/spheres/object/m0%.object",
+    "models/spheres/object/m100%.object",
+    "models/spheres/object/m16%.object",
+    "models/spheres/object/m33%.object",
+    "models/spheres/object/m50%.object",
+    "models/spheres/object/m66%.object",
+    "models/spheres/object/m83%.object"
+  ]
+}

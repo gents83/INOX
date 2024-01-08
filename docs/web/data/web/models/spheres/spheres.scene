@@ -1,0 +1,10 @@
+{
+  "objects": [
+    "models/spheres/object/Gray Spheres.object",
+    "models/spheres/object/Golden Spheres.object",
+    "models/spheres/object/Light.object",
+    "models/spheres/object/Camera.object"
+  ],
+  "cameras": [],
+  "lights": []
+}

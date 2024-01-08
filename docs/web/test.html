@@ -42,7 +42,7 @@
         } else {
             window.addEventListener("load", () => {
                 init().then(wasm => {
-                    var s = '-load_file models/craftman/craftman.scene';
+                    var s = '-load_file models/cornell_box/cornell_box.scene';
                     send_event_from_string(s);
                 }).catch(console.error);
             });

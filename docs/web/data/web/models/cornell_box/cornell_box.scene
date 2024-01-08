@@ -1,1 +1,8 @@
-{"objects":["models/cornell_box/object/Sketchfab_model.object","models/cornell_box/object/Camera.object"],"cameras":[],"lights":[]}
+{
+  "objects": [
+    "models/cornell_box/object/Sketchfab_model.object",
+    "models/cornell_box/object/Camera.object"
+  ],
+  "cameras": [],
+  "lights": []
+}
