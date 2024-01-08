@@ -1,0 +1,84 @@
+{
+  "textures": [
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    ""
+  ],
+  "texcoords_set": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "roughness_factor": 0.6666667,
+  "metallic_factor": 0.0,
+  "ior": 1.5,
+  "transmission_factor": 0.0,
+  "base_color": {
+    "x": 0.603827,
+    "y": 0.603827,
+    "z": 0.603827,
+    "w": 1.0
+  },
+  "emissive_color": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+  },
+  "emissive_strength": 1.0,
+  "diffuse_factor": {
+    "x": 1.0,
+    "y": 1.0,
+    "z": 1.0,
+    "w": 1.0
+  },
+  "specular_glossiness_factor": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "w": 1.0
+  },
+  "specular_factors": {
+    "x": 1.0,
+    "y": 1.0,
+    "z": 1.0,
+    "w": 0.0
+  },
+  "attenuation_color_and_distance": {
+    "x": 1.0,
+    "y": 1.0,
+    "z": 1.0,
+    "w": 0.0
+  },
+  "thickness_factor": 0.0,
+  "occlusion_strength": 0.0,
+  "alpha_cutoff": 1.0,
+  "flags": {
+    "bits": 4352
+  }
+}

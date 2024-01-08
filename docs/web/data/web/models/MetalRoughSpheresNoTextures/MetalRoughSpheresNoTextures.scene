@@ -1,0 +1,10 @@
+{
+  "objects": [
+    "models/MetalRoughSpheresNoTextures/object/Gray Spheres.object",
+    "models/MetalRoughSpheresNoTextures/object/Golden Spheres.object",
+    "models/MetalRoughSpheresNoTextures/object/Labels.object",
+    "models/MetalRoughSpheresNoTextures/object/Camera.object"
+  ],
+  "cameras": [],
+  "lights": []
+}
