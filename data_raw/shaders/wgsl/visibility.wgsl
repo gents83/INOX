@@ -7,7 +7,7 @@ struct VertexOutput {
 };
 
 struct FragmentOutput {
-    @location(0) output: vec4<f32>,
+    @location(0) output: u32,
 };
 
 @group(0) @binding(0)
@@ -34,6 +34,6 @@ fn fs_main(
 ) -> FragmentOutput {    
     var fragment_out: FragmentOutput;
     let visibility_id = v_in.id << 8u | primitive_index;   
-    fragment_out.output = unpack4x8unorm(visibility_id);    
+    fragment_out.output = visibility_id;    
     return fragment_out;
 }

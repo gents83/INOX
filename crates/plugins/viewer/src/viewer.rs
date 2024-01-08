@@ -159,7 +159,7 @@ impl Viewer {
         let _visibility = renderer.add_render_target(
             half_dims.0,
             half_dims.1,
-            TextureFormat::Rgba8Unorm,
+            TextureFormat::R32Uint,
             usage | TextureUsage::StorageBinding,
             single_sample,
         );

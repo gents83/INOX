@@ -575,7 +575,7 @@ impl Info {
                         ui.horizontal(|ui| {
                             ui.label("Debug mode:");
                             let combo_box = ComboBox::from_id_source("Debug mode")
-                                .selected_text(format!("{}", data.visualization_debug_choices[data.visualization_debug_selected].1))
+                                .selected_text(data.visualization_debug_choices[data.visualization_debug_selected].1.to_string())
                                 .show_ui(ui, |ui| {
                                     let mut is_changed = false;
                                     data.visualization_debug_choices.iter().enumerate().for_each(|(i, v)| {

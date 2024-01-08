@@ -9,7 +9,7 @@ use inox_resources::{
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 
 use crate::{
-    BindingData, RenderContext, RenderPipelineData, Shader, TextureFormat,
+    BindingData, BlendFactor, RenderContext, RenderPipelineData, Shader, TextureFormat,
     VertexBufferLayoutBuilder, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT,
     VERTEX_SHADER_ENTRY_POINT,
 };
@@ -258,18 +258,24 @@ impl RenderPipeline {
                             .map(|&render_format| {
                                 Some(wgpu::ColorTargetState {
                                     format: render_format,
-                                    blend: Some(wgpu::BlendState {
-                                        color: wgpu::BlendComponent {
-                                            src_factor: self.data.src_color_blend_factor.into(),
-                                            dst_factor: self.data.dst_color_blend_factor.into(),
-                                            operation: self.data.color_blend_operation.into(),
-                                        },
-                                        alpha: wgpu::BlendComponent {
-                                            src_factor: self.data.src_alpha_blend_factor.into(),
-                                            dst_factor: self.data.dst_alpha_blend_factor.into(),
-                                            operation: self.data.alpha_blend_operation.into(),
-                                        },
-                                    }),
+                                    blend: if self.data.src_color_blend_factor == BlendFactor::Zero
+                                        && self.data.dst_color_blend_factor == BlendFactor::Zero
+                                    {
+                                        None
+                                    } else {
+                                        Some(wgpu::BlendState {
+                                            color: wgpu::BlendComponent {
+                                                src_factor: self.data.src_color_blend_factor.into(),
+                                                dst_factor: self.data.dst_color_blend_factor.into(),
+                                                operation: self.data.color_blend_operation.into(),
+                                            },
+                                            alpha: wgpu::BlendComponent {
+                                                src_factor: self.data.src_alpha_blend_factor.into(),
+                                                dst_factor: self.data.dst_alpha_blend_factor.into(),
+                                                operation: self.data.alpha_blend_operation.into(),
+                                            },
+                                        })
+                                    },
                                     write_mask: wgpu::ColorWrites::ALL,
                                 })
                             })
