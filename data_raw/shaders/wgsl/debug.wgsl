@@ -45,6 +45,8 @@ var debug_data_texture: texture_2d<f32>;
 #import "matrix_utils.inc"
 #import "material_utils.inc"
 #import "visibility_utils.inc"
+#import "color_utils.inc"
+
 
 fn read_value_from_debug_data_texture(i: ptr<function, u32>) -> f32 {
     let dimensions = textureDimensions(debug_data_texture);
@@ -122,7 +124,7 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>, dimensions: vec2<u32
         let visibility_dimensions = textureDimensions(visibility_texture);
         let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
         let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
-        out_color = vec4<f32>(textureLoad(visibility_texture, visibility_pixel, 0).r);
+        out_color = vec4<f32>(textureLoad(visibility_texture, visibility_pixel, 0));
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_NORMALS) != 0) {
         let depth_dimensions = textureDimensions(depth_texture);
@@ -140,7 +142,7 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>, dimensions: vec2<u32
             var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
             var material = materials.data[pixel_data.material_id];
             let tbn = compute_tbn(&material, &pixel_data);
-            out_color = vec4<f32>(tbn.normal, 1.);
+            out_color = vec4<f32>((vec3<f32>(1.) + tbn.normal) / vec3<f32>(2.), 1.);
         }
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_TANGENT) != 0) {
@@ -159,7 +161,7 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>, dimensions: vec2<u32
             var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
             var material = materials.data[pixel_data.material_id];
             let tbn = compute_tbn(&material, &pixel_data);
-            out_color = vec4<f32>(tbn.tangent, 1.);
+            out_color = vec4<f32>((vec3<f32>(1.) + tbn.tangent) / vec3<f32>(2.), 1.);
         }
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT) != 0) {
@@ -178,7 +180,7 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>, dimensions: vec2<u32
             var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
             var material = materials.data[pixel_data.material_id];
             let tbn = compute_tbn(&material, &pixel_data);
-            out_color = vec4<f32>(tbn.binormal, 1.);
+            out_color = vec4<f32>((vec3<f32>(1.) + tbn.binormal) / vec3<f32>(2.), 1.);
         }
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER) != 0) {

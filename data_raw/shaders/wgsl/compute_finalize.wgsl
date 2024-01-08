@@ -1,5 +1,6 @@
 #import "common.inc"
 #import "utils.inc"
+#import "color_utils.inc"
 
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
@@ -45,6 +46,6 @@ fn main(
      
     var out_color = vec4<f32>(radiance.rgb, 1.);   
     //out_color = vec4<f32>(tonemap_ACES_Hill(out_color.rgb), 1.);
-    //out_color = vec4<f32>(pow(out_color.rgb, vec3<f32>(INV_GAMMA)), 1.); 
+    out_color = vec4<f32>(linearTosRGB(out_color.rgb), 1.); 
     textureStore(finalize_texture, pixel, out_color);
 }

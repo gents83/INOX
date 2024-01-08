@@ -24,10 +24,19 @@ fn material_texture_uv(material: ptr<function, Material>, pixel_data: ptr<functi
 
 fn compute_tbn(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>) -> TBN {
     var n = normalize((*pixel_data).normal);
-    var t = cross(n, vec3(1.,0.,1.));
+    let s = select(-1f, 1f, n.z >= 0f);
+    let a = -1f / (s + n.z);
+    let b = n.x * n.y * a;
+    let u = vec3(1f + s * n.x * n.x * a, s * b, -s * n.x);
+    let v = vec3(b, s + n.y * n.y * a, -n.y);
+
+    return TBN(n, normalize(u), normalize(v));
+
+    /*
+    var n = normalize((*pixel_data).normal);
+    var t = normalize(cross(n, vec3(1.,0.,1.)));
     var b = normalize(cross(n,  t));
     t = normalize(cross(n, b));
-
     //if (has_texture(material, TEXTURE_TYPE_NORMAL)) {  
     //    let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_NORMAL);
     //    var uv_dx = dpdx(uv);
@@ -49,6 +58,7 @@ fn compute_tbn(material: ptr<function, Material>, pixel_data: ptr<function, Pixe
     //    n = normalize(mat3x3<f32>(t, b, n) * ntex);
     //}
     return TBN(n, t, b);
+    */
 }
 
 fn compute_normal(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>) -> vec3<f32> {
