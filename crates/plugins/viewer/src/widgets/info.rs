@@ -7,7 +7,7 @@ use inox_graphics::{
     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS, CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE,
     CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER,
-    CONSTANT_DATA_FLAGS_NONE,
+    CONSTANT_DATA_FLAGS_NONE, CONSTANT_DATA_FLAGS_DISPLAY_VERTEX_COLOR, CONSTANT_DATA_FLAGS_DISPLAY_TANGENT, CONSTANT_DATA_FLAGS_DISPLAY_NORMALS, CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT,
 };
 use inox_math::{
     compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle, Quat, VecBase, Vector2,
@@ -66,19 +66,6 @@ pub struct InfoParams {
     pub renderer: RendererRw,
 }
 
-#[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
-enum VisualizationDebug {
-    #[default]
-    None = 0,
-    Meshlets = CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS as _,
-    BoundingBox = CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX as _,
-    ConeAxis = CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS as _,
-    VisibilityBuffer = CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER as _,
-    RadianceBuffer = CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER as _,
-    DepthBuffer = CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER as _,
-    PathTrace = CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE as _,
-}
-
 #[derive(Clone)]
 struct Data {
     context: ContextRc,
@@ -90,7 +77,8 @@ struct Data {
     show_frustum: bool,
     show_lights: bool,
     freeze_culling_camera: bool,
-    visualization_debug: VisualizationDebug,
+    visualization_debug_selected: usize,
+    visualization_debug_choices: Vec<(u32, &'static str)>,
     mouse_coords: Vector2,
     screen_size: Vector2,
     fps: u32,
@@ -136,7 +124,21 @@ impl Info {
             show_frustum: false,
             show_lights: false,
             freeze_culling_camera: false,
-            visualization_debug: VisualizationDebug::None,
+            visualization_debug_selected: 0,
+            visualization_debug_choices: vec![
+                (CONSTANT_DATA_FLAGS_NONE, "None"),
+                (CONSTANT_DATA_FLAGS_DISPLAY_VERTEX_COLOR, "VertexColor"),
+                (CONSTANT_DATA_FLAGS_DISPLAY_NORMALS, "Normals"),
+                (CONSTANT_DATA_FLAGS_DISPLAY_TANGENT, "Tangents"),
+                (CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT, "Bitangent"),
+                (CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS, "Meshlets"),
+                (CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX, "BoundingBox"),
+                (CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS, "ConeAxis"),
+                (CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER, "VisibilityBuffer"),
+                (CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, "DepthBuffer"),
+                (CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER, "RadianceBuffer"),
+                (CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE, "PathTrace"),
+            ],
             mouse_coords: Vector2::default_zero(),
             screen_size: Vector2::default_one(),
             fps: 0,
@@ -338,11 +340,11 @@ impl Info {
             if !data.selected_object_id.is_nil() {
                 Self::show_object_in_scene(data, &data.selected_object_id);
             }
-            match data.visualization_debug {
-                VisualizationDebug::BoundingBox => {
+            match data.visualization_debug_choices[data.visualization_debug_selected].0 {
+                CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX => {
                     Self::show_meshlets_bounding_box(data, &self.meshes)
                 }
-                VisualizationDebug::ConeAxis => Self::show_meshlets_cone_axis(data, &self.meshes),
+                CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS => Self::show_meshlets_cone_axis(data, &self.meshes),
                 _ => {}
             }
         }
@@ -572,66 +574,19 @@ impl Info {
                         });
                         ui.horizontal(|ui| {
                             ui.label("Debug mode:");
-                            let combo_box = ComboBox::from_id_source("Meshlet Debug")
-                                .selected_text(format!("{:?}", data.visualization_debug))
+                            let combo_box = ComboBox::from_id_source("Debug mode")
+                                .selected_text(format!("{}", data.visualization_debug_choices[data.visualization_debug_selected].1))
                                 .show_ui(ui, |ui| {
                                     let mut is_changed = false;
-                                    is_changed |= ui
-                                        .selectable_value(
-                                            &mut data.visualization_debug,
-                                            VisualizationDebug::None,
-                                            "None",
-                                        )
-                                        .changed();
-                                    is_changed |= ui
-                                        .selectable_value(
-                                            &mut data.visualization_debug,
-                                            VisualizationDebug::VisibilityBuffer,
-                                            "Visibility Buffer",
-                                        )
-                                        .changed();
-                                    is_changed |= ui
-                                        .selectable_value(
-                                            &mut data.visualization_debug,
-                                            VisualizationDebug::DepthBuffer,
-                                            "Depth Buffer",
-                                        )
-                                        .changed();
-                                    is_changed |= ui
-                                        .selectable_value(
-                                            &mut data.visualization_debug,
-                                            VisualizationDebug::RadianceBuffer,
-                                            "Radiance Buffer",
-                                        )
-                                        .changed();
-                                    is_changed |= ui
-                                        .selectable_value(
-                                            &mut data.visualization_debug,
-                                            VisualizationDebug::PathTrace,
-                                            "PathTrace",
-                                        )
-                                        .changed();
-                                    is_changed |= ui
-                                        .selectable_value(
-                                            &mut data.visualization_debug,
-                                            VisualizationDebug::Meshlets,
-                                            "Meshlets",
-                                        )
-                                        .changed();
-                                    is_changed |= ui
-                                        .selectable_value(
-                                            &mut data.visualization_debug,
-                                            VisualizationDebug::BoundingBox,
-                                            "Bounding Box",
-                                        )
-                                        .changed();
-                                    is_changed |= ui
-                                        .selectable_value(
-                                            &mut data.visualization_debug,
-                                            VisualizationDebug::ConeAxis,
-                                            "Cone Axis",
-                                        )
-                                        .changed();
+                                    data.visualization_debug_choices.iter().enumerate().for_each(|(i, v)| {
+                                        is_changed |= ui
+                                            .selectable_value(
+                                                &mut data.visualization_debug_selected,
+                                                i,
+                                                v.1,
+                                            )
+                                            .changed();
+                                    });
                                     is_changed
                                 });
                             if let Some(is_changed) = combo_box.inner {
@@ -643,55 +598,19 @@ impl Info {
                                         .write()
                                         .unwrap()
                                         .set_flags(CONSTANT_DATA_FLAGS_NONE);
-                                    match &data.visualization_debug {
-                                        VisualizationDebug::Meshlets
-                                        | VisualizationDebug::ConeAxis => {
-                                            render_context
-                                                .constant_data
-                                                .write()
-                                                .unwrap()
-                                                .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS)
-                                                .add_flag(
-                                                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS,
-                                                );
-                                        }
-                                        VisualizationDebug::BoundingBox => {
-                                            render_context.constant_data.write().unwrap()
-                                            .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS)
-                                            .add_flag(
-                                                CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
-                                            );
-                                        }
-                                        VisualizationDebug::VisibilityBuffer => {
-                                            render_context.constant_data.write().unwrap().add_flag(
-                                                CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER,
-                                            );
-                                        }
-                                        VisualizationDebug::RadianceBuffer => {
-                                            render_context.constant_data.write().unwrap().add_flag(
-                                                CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER,
-                                            );
-                                        }
-                                        VisualizationDebug::DepthBuffer => {
-                                            render_context
-                                                .constant_data
-                                                .write()
-                                                .unwrap()
-                                                .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER);
-                                        }
-                                        VisualizationDebug::PathTrace => {
-                                            let mut constant_data =
-                                                render_context.constant_data.write().unwrap();
-                                            constant_data
-                                                .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE);
-                                        }
-                                        VisualizationDebug::None => {
+                                    match data.visualization_debug_choices[data.visualization_debug_selected].0 {
+                                        CONSTANT_DATA_FLAGS_NONE => {
                                             render_context
                                                 .constant_data
                                                 .write()
                                                 .unwrap()
                                                 .set_frame_index(0);
                                         }
+                                        _ => {
+                                            render_context.constant_data.write().unwrap().add_flag(
+                                                data.visualization_debug_choices[data.visualization_debug_selected].0
+                                            );
+                                        }   
                                     }
                                 }
                             }

@@ -16,7 +16,11 @@ pub const CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER: u32 = 1 << 4;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER: u32 = 1 << 5;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER: u32 = 1 << 6;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE: u32 = 1 << 7;
-pub const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1 << 8;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_NORMALS: u32 = 1 << 8;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_TANGENT: u32 = 1 << 9;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT: u32 = 1 << 10;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_VERTEX_COLOR: u32 = 1 << 11;
+pub const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1 << 12;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -43,7 +47,7 @@ impl Default for Data {
             flags: 0,
             debug_uv_coords: [0.; 2],
             tlas_starting_index: 0,
-            num_bounces: 5,
+            num_bounces: 0,
         }
     }
 }

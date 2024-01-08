@@ -100,7 +100,7 @@ impl Exporter {
     fn export_logic(&self, py: Python, logic: &PyObject, path: &Path) -> PyResult<bool> {
         let export_dir = path.join(LogicData::extension());
         if !logic.is_none(py) && create_dir_all(export_dir.as_path()).is_ok() {
-            let mut data: String = logic.call_method(py, "serialize", (), None)?.extract(py)?;
+            let mut data: String = logic.call_method_bound(py, "serialize", (), None)?.extract(py)?;
             data = data.replace(": ", ":");
             data = data.replace(", ", ",");
             let name: String = logic.getattr(py, "name")?.extract(py)?;

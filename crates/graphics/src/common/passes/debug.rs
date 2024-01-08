@@ -4,7 +4,7 @@ use crate::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
     IndicesBuffer, LoadOperation, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext,
     RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, RuntimeVerticesBuffer,
-    ShaderStage, StoreOperation, TextureId, TextureView,
+    ShaderStage, StoreOperation, TextureId, TextureView, VertexAttributesBuffer, TexturesBuffer, MaterialsBuffer, SamplerType,
 };
 
 use inox_core::ContextRc;
@@ -22,6 +22,9 @@ pub struct DebugPass {
     meshlets: MeshletsBuffer,
     indices: IndicesBuffer,
     runtime_vertices: RuntimeVerticesBuffer,
+    vertices_attributes: VertexAttributesBuffer,
+    textures: TexturesBuffer,
+    materials: MaterialsBuffer,
     finalize_texture: TextureId,
     visibility_texture: TextureId,
     radiance_texture: TextureId,
@@ -76,8 +79,11 @@ impl Pass for DebugPass {
             constant_data: render_context.constant_data.clone(),
             meshes: render_context.global_buffers.meshes.clone(),
             meshlets: render_context.global_buffers.meshlets.clone(),
+            textures: render_context.global_buffers.textures.clone(),
+            materials: render_context.global_buffers.materials.clone(),
             indices: render_context.global_buffers.indices.clone(),
             runtime_vertices: render_context.global_buffers.runtime_vertices.clone(),
+            vertices_attributes: render_context.global_buffers.vertex_attributes.clone(),
             finalize_texture: INVALID_UID,
             debug_data_texture: INVALID_UID,
             visibility_texture: INVALID_UID,
@@ -130,11 +136,21 @@ impl Pass for DebugPass {
                 },
             )
             .add_storage_buffer(
+                &mut *self.vertices_attributes.write().unwrap(),
+                Some("Runtime Vertices"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 3,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
                 &mut *self.meshes.write().unwrap(),
                 Some("Meshes"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 3,
+                    binding_index: 4,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
@@ -144,7 +160,27 @@ impl Pass for DebugPass {
                 Some("Meshlets"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 4,
+                    binding_index: 5,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.materials.write().unwrap(),
+                Some("Materials"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 6,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.textures.write().unwrap(),
+                Some("Textures"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 7,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
@@ -195,6 +231,23 @@ impl Pass for DebugPass {
                 },
             );
 
+
+            self.binding_data
+            .add_default_sampler(
+                BindingInfo {
+                    group_index: 2,
+                    binding_index: 0,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+                SamplerType::Unfiltered,
+            )
+            .add_material_textures(BindingInfo {
+                group_index: 2,
+                binding_index: 1,
+                stage: ShaderStage::Fragment,
+                ..Default::default()
+            });
         pass.init(render_context, &mut self.binding_data, None, None);
     }
     fn update(
