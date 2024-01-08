@@ -23,20 +23,22 @@ var<storage, read> vertices_attributes: VerticesAttributes;
 var<storage, read> meshes: Meshes;
 @group(0) @binding(5)
 var<storage, read> meshlets: Meshlets;
-@group(0) @binding(6)
-var<storage, read> materials: Materials;
-@group(0) @binding(7)
-var<storage, read> textures: Textures;
 
 @group(1) @binding(0)
-var finalize_texture: texture_2d<f32>;
+var<storage, read> materials: Materials;
 @group(1) @binding(1)
-var visibility_texture: texture_2d<u32>;
+var<storage, read> textures: Textures;
 @group(1) @binding(2)
-var radiance_texture: texture_2d<f32>;
+var<storage, read> lights: Lights;
 @group(1) @binding(3)
-var depth_texture: texture_depth_2d;
+var finalize_texture: texture_2d<f32>;
 @group(1) @binding(4)
+var visibility_texture: texture_2d<u32>;
+@group(1) @binding(5)
+var radiance_texture: texture_2d<f32>;
+@group(1) @binding(6)
+var depth_texture: texture_depth_2d;
+@group(1) @binding(7)
 var debug_data_texture: texture_2d<f32>;
 
 #import "texture_utils.inc"
@@ -44,6 +46,7 @@ var debug_data_texture: texture_2d<f32>;
 #import "shape_utils.inc"
 #import "matrix_utils.inc"
 #import "material_utils.inc"
+#import "pbr_utils.inc"
 #import "visibility_utils.inc"
 #import "color_utils.inc"
 
@@ -181,6 +184,60 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>, dimensions: vec2<u32
             var material = materials.data[pixel_data.material_id];
             let tbn = compute_tbn(&material, &pixel_data);
             out_color = vec4<f32>((vec3<f32>(1.) + tbn.binormal) / vec3<f32>(2.), 1.);
+        }
+    } 
+    else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_VERTEX_COLOR) != 0) {
+        let depth_dimensions = textureDimensions(depth_texture);
+        let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
+        let depth_pixel = vec2<u32>(vec2<f32>(pixel) * depth_scale);
+        let depth = textureLoad(depth_texture, depth_pixel, 0);
+        let hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth); 
+
+        let visibility_dimensions = textureDimensions(visibility_texture);
+        let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
+        let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
+        let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
+        let visibility_id = visibility_value.r;
+        if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
+            var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
+            let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data);
+            out_color = vec4<f32>(vec3<f32>(material_info.base_color.rgb), 1.);
+        }
+    } 
+    else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_METALLIC) != 0) {
+        let depth_dimensions = textureDimensions(depth_texture);
+        let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
+        let depth_pixel = vec2<u32>(vec2<f32>(pixel) * depth_scale);
+        let depth = textureLoad(depth_texture, depth_pixel, 0);
+        let hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth); 
+
+        let visibility_dimensions = textureDimensions(visibility_texture);
+        let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
+        let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
+        let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
+        let visibility_id = visibility_value.r;
+        if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
+            var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
+            let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data);
+            out_color = vec4<f32>(vec3<f32>(material_info.metallic), 1.);
+        }
+    } 
+    else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_ROUGHNESS) != 0) {
+        let depth_dimensions = textureDimensions(depth_texture);
+        let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
+        let depth_pixel = vec2<u32>(vec2<f32>(pixel) * depth_scale);
+        let depth = textureLoad(depth_texture, depth_pixel, 0);
+        let hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth); 
+
+        let visibility_dimensions = textureDimensions(visibility_texture);
+        let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
+        let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
+        let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
+        let visibility_id = visibility_value.r;
+        if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
+            var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
+            let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data);
+            out_color = vec4<f32>(vec3<f32>(material_info.perceptual_roughness), 1.);
         }
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER) != 0) {

@@ -64,9 +64,9 @@ fn compute_radiance_from_visibility(visibility_id: u32, hit_point: vec3<f32>, se
     let direction = sample_in_cone(seed, 0.5, pixel_data.normal);
     //let direction = sample_hemisphere(seed, pixel_data.normal);
 
-    let radiance = old_throughput_weight * material_info.emissive_color; 
+    let radiance = old_throughput_weight * material_info.f_emissive.rgb; 
     let d = dot(pixel_data.normal, direction);
-    let throughput_weight = (material_info.base_color.rgb * 2. * d);
+    let throughput_weight = (material_info.f_color.rgb * 2. * d);
 
     return RadianceResult(direction, radiance, throughput_weight);
 }

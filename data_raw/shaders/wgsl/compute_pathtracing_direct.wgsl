@@ -79,7 +79,7 @@ fn main(
         }
         radiance_data_buffer.data[index].origin = hit_point + radiance_data.direction * HIT_EPSILON;
         radiance_data_buffer.data[index].direction = radiance_data.direction;
-        radiance_data_buffer.data[index].radiance = material_info.base_color.rgb + radiance_data.radiance;
+        radiance_data_buffer.data[index].radiance = material_info.f_color.rgb + radiance_data.radiance;
         radiance_data_buffer.data[index].throughput_weight = radiance_data.throughput_weight;
         radiance_data_buffer.data[index].seed_x = seed.x;
         radiance_data_buffer.data[index].seed_y = seed.y;

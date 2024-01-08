@@ -44,6 +44,8 @@ const CONSTANT_DATA_FLAGS_DISPLAY_NORMALS: u32 = 1u << 8u;
 const CONSTANT_DATA_FLAGS_DISPLAY_TANGENT: u32 = 1u << 9u;
 const CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT: u32 = 1u << 10u;
 const CONSTANT_DATA_FLAGS_DISPLAY_VERTEX_COLOR: u32 = 1u << 11u;
+const CONSTANT_DATA_FLAGS_DISPLAY_METALLIC: u32 = 1u << 12u;
+const CONSTANT_DATA_FLAGS_DISPLAY_ROUGHNESS: u32 = 1u << 13u;
 const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1u << 12u;
 
 
@@ -314,5 +316,9 @@ struct MaterialInfo {
     alpha_roughness: f32,
     f90: vec3<f32>,
     
-    emissive_color: vec3<f32>,
+    f_color: vec4<f32>,
+    f_emissive: vec3<f32>,
+    f_diffuse: vec3<f32>,
+    f_diffuse_ibl: vec3<f32>,
+    f_specular: vec3<f32>,
 }

@@ -398,7 +398,7 @@ impl GlobalBuffers {
                 material.textures_index_and_coord_set[i] |= (*t << 28) as u32;
             }
             material.roughness_factor = material_data.roughness_factor;
-            material.metallic_factor = material_data.roughness_factor;
+            material.metallic_factor = material_data.metallic_factor;
             material.ior = material_data.ior;
             material.transmission_factor = material_data.transmission_factor;
             material.base_color = material_data.base_color.into();

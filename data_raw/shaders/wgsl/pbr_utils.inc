@@ -441,6 +441,16 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
     // Anything less than 2% is physically impossible and is instead considered to be shadowing. Compare to "Real-Time-Rendering" 4th editon on page 325.
     material_info.f90 = vec3<f32>(1.);
 
+    // LIGHTING
+    var f_specular = vec3<f32>(0.0);
+    var f_diffuse = vec3<f32>(0.0);
+    var f_emissive = vec3<f32>(0.0);
+    var f_clearcoat = vec3<f32>(0.0);
+    var f_sheen = vec3<f32>(0.0);
+    var f_transmission = vec3<f32>(0.0);
+
+    var albedo_sheen_scaling = 1.0;
+
     var iridescence_fresnel = vec3<f32>(0.);
     var iridescence_f0 = vec3<f32>(0.);
     if((material.flags & MATERIAL_FLAGS_IRIDESCENCE) != 0u) {
@@ -448,23 +458,18 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
         iridescence_f0 = schlick_to_f0_vec3(iridescence_fresnel, vec3<f32>(1.), NdotV);
         if(material_info.iridescence_thickness == 0.) { material_info.iridescence_factor = 0.; }
     }
-  
-    // LIGHTING
-    var f_diffuse_ibl = vec3<f32>(0.0);
-    var f_specular_ibl = vec3<f32>(0.0);
-    var f_sheen_ibl = vec3<f32>(0.0);
-    var f_clearcoat_ibl = vec3<f32>(0.0);
-    var f_transmission = vec3<f32>(0.0);
-   
+     
     // TODO - Calculate lighting contribution from image based lighting source (IBL)
     
-    var f_diffuse = material_info.base_color.rgb;
-    var f_specular = vec3<f32>(0.0);
-    var f_sheen = vec3<f32>(0.0);
-    var f_clearcoat = vec3<f32>(0.0);
-    var f_emissive = material_info.emissive_color.rgb;
+    var f_diffuse_ibl = f_diffuse;
+    var f_specular_ibl = f_specular;
+    var f_sheen_ibl = f_sheen;
+    var f_clearcoat_ibl = f_clearcoat;
+    f_diffuse = vec3<f32>(0.0);
+    f_specular = vec3<f32>(0.0);
+    f_sheen = vec3<f32>(0.0);
+    f_clearcoat = vec3<f32>(0.0);
    
-    var albedo_sheen_scaling = 1.0;
 
     let num_lights = arrayLength(&lights.data);
     
@@ -536,7 +541,7 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
         }
     }
     
-    f_emissive = material.emissive_color * material.emissive_strength;
+    f_emissive = material.emissive_color.rgb * material.emissive_strength;
     if (has_texture(&material, TEXTURE_TYPE_EMISSIVE)) {  
       let uv = material_texture_uv(&material, pixel_data, TEXTURE_TYPE_EMISSIVE);
       let texture_color = sample_texture(uv);
@@ -589,7 +594,10 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
         color = color * (1.0 - clearcoatFactor * clearcoatFresnel) + clearcoat;
     }
 
-    material_info.base_color = vec4<f32>(color, material_info.base_color.a);
-    material_info.emissive_color = f_emissive;
+    material_info.f_color = vec4<f32>(color, material_info.base_color.a);
+    material_info.f_emissive = f_emissive;
+    material_info.f_diffuse = f_diffuse;
+    material_info.f_diffuse_ibl = f_diffuse_ibl;
+    material_info.f_specular = f_specular;
     return material_info;
 }

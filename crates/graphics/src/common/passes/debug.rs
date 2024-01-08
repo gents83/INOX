@@ -2,9 +2,10 @@ use std::path::PathBuf;
 
 use crate::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
-    IndicesBuffer, LoadOperation, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext,
-    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, RuntimeVerticesBuffer,
-    ShaderStage, StoreOperation, TextureId, TextureView, VertexAttributesBuffer, TexturesBuffer, MaterialsBuffer, SamplerType,
+    IndicesBuffer, LightsBuffer, LoadOperation, MaterialsBuffer, MeshFlags, MeshesBuffer,
+    MeshletsBuffer, Pass, RenderContext, RenderPass, RenderPassBeginData, RenderPassData,
+    RenderTarget, RuntimeVerticesBuffer, SamplerType, ShaderStage, StoreOperation, TextureId,
+    TextureView, TexturesBuffer, VertexAttributesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -25,6 +26,7 @@ pub struct DebugPass {
     vertices_attributes: VertexAttributesBuffer,
     textures: TexturesBuffer,
     materials: MaterialsBuffer,
+    lights: LightsBuffer,
     finalize_texture: TextureId,
     visibility_texture: TextureId,
     radiance_texture: TextureId,
@@ -81,6 +83,7 @@ impl Pass for DebugPass {
             meshlets: render_context.global_buffers.meshlets.clone(),
             textures: render_context.global_buffers.textures.clone(),
             materials: render_context.global_buffers.materials.clone(),
+            lights: render_context.global_buffers.lights.clone(),
             indices: render_context.global_buffers.indices.clone(),
             runtime_vertices: render_context.global_buffers.runtime_vertices.clone(),
             vertices_attributes: render_context.global_buffers.vertex_attributes.clone(),
@@ -137,7 +140,7 @@ impl Pass for DebugPass {
             )
             .add_storage_buffer(
                 &mut *self.vertices_attributes.write().unwrap(),
-                Some("Runtime Vertices"),
+                Some("Vertices Attributes"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 3,
@@ -169,8 +172,8 @@ impl Pass for DebugPass {
                 &mut *self.materials.write().unwrap(),
                 Some("Materials"),
                 BindingInfo {
-                    group_index: 0,
-                    binding_index: 6,
+                    group_index: 1,
+                    binding_index: 0,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
@@ -179,32 +182,15 @@ impl Pass for DebugPass {
                 &mut *self.textures.write().unwrap(),
                 Some("Textures"),
                 BindingInfo {
-                    group_index: 0,
-                    binding_index: 7,
-                    stage: ShaderStage::Fragment,
-                    ..Default::default()
-                },
-            )
-            .add_texture(
-                &self.finalize_texture,
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 0,
-                    stage: ShaderStage::Fragment,
-                    ..Default::default()
-                },
-            )
-            .add_texture(
-                &self.visibility_texture,
-                BindingInfo {
                     group_index: 1,
                     binding_index: 1,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
             )
-            .add_texture(
-                &self.radiance_texture,
+            .add_storage_buffer(
+                &mut *self.lights.write().unwrap(),
+                Some("Lights"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 2,
@@ -213,7 +199,7 @@ impl Pass for DebugPass {
                 },
             )
             .add_texture(
-                &self.depth_texture,
+                &self.finalize_texture,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 3,
@@ -222,17 +208,43 @@ impl Pass for DebugPass {
                 },
             )
             .add_texture(
-                &self.debug_data_texture,
+                &self.visibility_texture,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 4,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
+            )
+            .add_texture(
+                &self.radiance_texture,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 5,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+            )
+            .add_texture(
+                &self.depth_texture,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 6,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+            )
+            .add_texture(
+                &self.debug_data_texture,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 7,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
             );
 
-
-            self.binding_data
+        self.binding_data
             .add_default_sampler(
                 BindingInfo {
                     group_index: 2,

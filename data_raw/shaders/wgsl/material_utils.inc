@@ -71,7 +71,11 @@ fn init_material_info_default(info: ptr<function, MaterialInfo>) {
     (*info).c_diff = (*info).base_color.rgb;
     (*info).metallic = 1.;
     (*info).perceptual_roughness = 1.;
-    (*info).emissive_color = vec3<f32>(0.);
+    (*info).f_color = vec4<f32>(0.);
+    (*info).f_emissive = vec3<f32>(0.);
+    (*info).f_diffuse = vec3<f32>(0.);
+    (*info).f_diffuse_ibl = vec3<f32>(0.);
+    (*info).f_specular = vec3<f32>(0.);
     (*info).ior = 1.5;
     (*info).sheen_color_and_roughness_factor = vec4<f32>(1.,1.,1.,0.);
     (*info).attenuation_color_and_distance = vec4<f32>(1.,1.,1.,0.);
