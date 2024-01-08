@@ -63,7 +63,7 @@ fn is_box_inside_frustum(min: vec3<f32>, max: vec3<f32>, frustum: array<vec4<f32
 
 fn is_cone_visible(center: vec3<f32>, cone_axis: vec3<f32>, cone_cutoff: f32, radius: f32) -> bool {
     let direction = center - culling_data.view[3].xyz;
-    return dot(normalize(direction), cone_axis) < (cone_cutoff * length(direction) + radius);
+    return dot(normalize(direction), cone_axis) >= (cone_cutoff * length(direction) * radius);
 }
 
 
@@ -125,14 +125,16 @@ fn main(
         return;
     }
 
+    //TODO: To be revisited
+    /*
     let cone_axis_cutoff = unpack4x8snorm((*meshlet).cone_axis_cutoff) / 127.;
     let cone_axis = rotate_vector(cone_axis_cutoff.xyz, (*mesh).orientation); 
     let meshlet_center = transform_vector((*meshlet).center, (*mesh).position, (*mesh).orientation, (*mesh).scale);;    
-    if (!is_cone_visible(meshlet_center, cone_axis, cone_axis_cutoff.w, radius))
+    if (!is_cone_visible(meshlet_center, cone_axis, cone_axis_cutoff.w / 127., radius))
     {
         return;
     }
-    
+    */
     atomicAdd(&count, 1u);
     let draw_group_index = workgroup_id.x;
     atomicOr(&culling_result[draw_group_index], 1u << local_invocation_id.x);

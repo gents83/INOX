@@ -2,14 +2,15 @@ use std::sync::atomic::Ordering;
 
 use inox_core::ContextRc;
 use inox_graphics::{
-    CullingEvent, DrawEvent, Light, Mesh, MeshFlags, MeshId, RendererRw,
-    CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT, CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER,
-    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
+    CullingEvent, DrawEvent, Light, LightType, Mesh, MeshFlags, MeshId, RendererRw,
+    CONSTANT_DATA_FLAGS_DISPLAY_BASE_COLOR, CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT,
+    CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
+    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS, CONSTANT_DATA_FLAGS_DISPLAY_METALLIC,
     CONSTANT_DATA_FLAGS_DISPLAY_NORMALS, CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE,
     CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_ROUGHNESS,
-    CONSTANT_DATA_FLAGS_DISPLAY_TANGENT, CONSTANT_DATA_FLAGS_DISPLAY_VERTEX_COLOR,
-    CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER, CONSTANT_DATA_FLAGS_NONE,
+    CONSTANT_DATA_FLAGS_DISPLAY_TANGENT, CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER,
+    CONSTANT_DATA_FLAGS_NONE,
 };
 use inox_math::{
     compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle, Quat, VecBase, Vector2,
@@ -18,7 +19,7 @@ use inox_math::{
 use inox_messenger::Listener;
 use inox_platform::{MouseEvent, MouseState, WindowEvent};
 use inox_resources::{DataTypeResourceEvent, HashBuffer, Resource, ResourceEvent};
-use inox_scene::{Camera, Object, ObjectId, SceneId};
+use inox_scene::{Camera, Object, ObjectId, Scene};
 use inox_ui::{implement_widget_data, ComboBox, DragValue, UIWidget, Window};
 use inox_uid::INVALID_UID;
 
@@ -64,7 +65,7 @@ impl Default for MeshletInfo {
 #[derive(Clone)]
 pub struct InfoParams {
     pub is_active: bool,
-    pub scene_id: SceneId,
+    pub scene: Resource<Scene>,
     pub renderer: RendererRw,
 }
 
@@ -129,7 +130,7 @@ impl Info {
             visualization_debug_selected: 0,
             visualization_debug_choices: vec![
                 (CONSTANT_DATA_FLAGS_NONE, "None"),
-                (CONSTANT_DATA_FLAGS_DISPLAY_VERTEX_COLOR, "VertexColor"),
+                (CONSTANT_DATA_FLAGS_DISPLAY_BASE_COLOR, "Base Color"),
                 (CONSTANT_DATA_FLAGS_DISPLAY_METALLIC, "Metallic"),
                 (CONSTANT_DATA_FLAGS_DISPLAY_ROUGHNESS, "Roughness"),
                 (CONSTANT_DATA_FLAGS_DISPLAY_NORMALS, "Normals"),
@@ -138,9 +139,12 @@ impl Info {
                 (CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS, "Meshlets"),
                 (
                     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
-                    "BoundingBox",
+                    "Meshlets BoundingBox",
                 ),
-                (CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS, "ConeAxis"),
+                (
+                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS,
+                    "Meshlets ConeAxis",
+                ),
                 (
                     CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER,
                     "VisibilityBuffer",
@@ -181,9 +185,9 @@ impl Info {
             data.params.is_active = is_active;
         }
     }
-    pub fn set_scene_id(&self, scene_id: &SceneId) {
+    pub fn set_scene(&self, scene: Resource<Scene>) {
         if let Some(data) = self.ui_page.get_mut().data_mut::<Data>() {
-            data.params.scene_id = *scene_id;
+            data.params.scene = scene;
         }
     }
 
@@ -587,6 +591,57 @@ impl Info {
                                     .set_frame_index(0);
                             }
                         });
+                        ui.vertical(|ui| {
+                            let renderer = data.params.renderer.read().unwrap();
+                            let render_context = renderer.render_context();
+                            let mut lights = render_context.global_buffers.lights.write().unwrap();
+                            let lights_label = format!("Num Lights: {}", lights.buffer_len());
+                            ui.label(&lights_label);
+                            lights.for_each_entry_mut(|i, l| {
+                                let mut is_changed = false;
+                                ui.horizontal(|ui| {
+                                    let light_name = format!("Light[{}]: ", i);
+                                    ui.label(&light_name);
+                                    let directional: u32 = LightType::Directional.into();
+                                    let mut v = if l.light_type == directional {
+                                        l.direction
+                                    } else {
+                                        l.position
+                                    };
+                                    let old_v = v;
+                                    ui.vertical(|ui| {
+                                        ui.horizontal(|ui| {
+                                            ui.add(
+                                                DragValue::new(&mut v[0])
+                                                    .prefix("x: ")
+                                                    .speed(0.01)
+                                                    .fixed_decimals(3),
+                                            );
+                                            ui.add(
+                                                DragValue::new(&mut v[1])
+                                                    .prefix("y: ")
+                                                    .speed(0.01)
+                                                    .fixed_decimals(3),
+                                            );
+                                            ui.add(
+                                                DragValue::new(&mut v[2])
+                                                    .prefix("z: ")
+                                                    .speed(0.01)
+                                                    .fixed_decimals(3),
+                                            );
+                                        });
+                                    });
+                                    is_changed = old_v != v;
+                                    if l.light_type == directional {
+                                        l.direction = v;
+                                    } else {
+                                        l.position = v;
+                                    };
+                                });
+                                is_changed
+                            });
+                        });
+
                         ui.horizontal(|ui| {
                             ui.label("Debug mode:");
                             let combo_box = ComboBox::from_id_source("Debug mode")

@@ -157,8 +157,8 @@ impl Viewer {
 
         //Visibility = 0,
         let _visibility = renderer.add_render_target(
-            half_dims.0,
-            half_dims.1,
+            width,
+            height,
             TextureFormat::R32Uint,
             usage | TextureUsage::StorageBinding,
             single_sample,
@@ -166,8 +166,8 @@ impl Viewer {
         debug_assert!(_visibility == RenderTargetType::Visibility as usize);
         //Depth = 1,
         let _depth = renderer.add_render_target(
-            half_dims.0,
-            half_dims.1,
+            width,
+            height,
             TextureFormat::Depth32Float,
             usage,
             single_sample,
@@ -193,8 +193,8 @@ impl Viewer {
         debug_assert!(_binding == RenderTargetType::Binding as usize);
         //Finalize = 4,
         let _finalize = renderer.add_render_target(
-            half_dims.0,
-            half_dims.1,
+            width,
+            height,
             TextureFormat::Rgba8Unorm,
             usage | TextureUsage::StorageBinding,
             multi_sample,

@@ -183,6 +183,16 @@ where
             }
         });
     }
+    pub fn for_each_entry_mut(&mut self, mut f: impl FnMut(usize, &mut Data) -> bool) {
+        let mut is_changed = self.is_changed();
+        self.buffer.iter_mut().enumerate().for_each(|(i, d)| {
+            is_changed |= f(i, d);
+            self.is_empty[i] |= is_changed;
+        });
+        if is_changed {
+            self.mark_as_changed(is_changed);
+        }
+    }
 }
 
 #[allow(dead_code)]

@@ -68,20 +68,28 @@ fn compute_normal(material: ptr<function, Material>, pixel_data: ptr<function, P
 
 fn init_material_info_default(info: ptr<function, MaterialInfo>) {
     (*info).base_color = vec4<f32>(1.);
-    (*info).c_diff = (*info).base_color.rgb;
-    (*info).metallic = 1.;
+    (*info).f0 = vec3<f32>(0.04);
+    (*info).ior = 1.5;
+    (*info).c_diff = vec3<f32>(1.);
     (*info).perceptual_roughness = 1.;
+    (*info).metallic = 1.;
+    (*info).specular_weight_and_anisotropy_strength = pack2x16float(vec2<f32>(1., 0.));
+    (*info).transmission_factor = 0.;
+    (*info).thickness_factor = 0.;
+    (*info).attenuation_color_and_distance = vec4<f32>(1.,1.,1.,0.);
+    (*info).sheen_color_and_roughness_factor = vec4<f32>(1.,1.,1.,0.);
+    (*info).clear_coat_factor = 0.;
+    (*info).clear_coat_roughness_factor = 0.;
+    (*info).iridescence_ior = 1.3;
+    (*info).iridescence_thickness = 100.;
+    (*info).alpha_roughness = 0.;
+    (*info).f90 = vec3<f32>(1.);
+
     (*info).f_color = vec4<f32>(0.);
     (*info).f_emissive = vec3<f32>(0.);
     (*info).f_diffuse = vec3<f32>(0.);
     (*info).f_diffuse_ibl = vec3<f32>(0.);
     (*info).f_specular = vec3<f32>(0.);
-    (*info).ior = 1.5;
-    (*info).sheen_color_and_roughness_factor = vec4<f32>(1.,1.,1.,0.);
-    (*info).attenuation_color_and_distance = vec4<f32>(1.,1.,1.,0.);
-    (*info).iridescence_ior = 1.3;
-    (*info).iridescence_thickness = 100.;
-    (*info).f0 = vec3<f32>(0.04);
 }
 
 fn compute_base_color(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) {

@@ -76,7 +76,7 @@ fn main(
     @builtin(workgroup_id) workgroup_id: vec3<u32>,
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
 ) {
-    let dimensions = textureDimensions(radiance_texture);
+    let dimensions = textureDimensions(binding_texture);
     
     var tail = atomicLoad(&atomic_counters[0u]);
     var head = atomicAdd(&atomic_counters[1u], 1u);

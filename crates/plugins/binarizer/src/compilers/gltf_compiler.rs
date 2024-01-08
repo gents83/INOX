@@ -540,6 +540,7 @@ impl GltfCompiler {
 
         let material = primitive.material().pbr_metallic_roughness();
         material_data.flags = MaterialFlags::MetallicRoughness;
+        //println!("Flags = MetallicRoughness");
         material_data.base_color = material.base_color_factor().into();
         material_data.roughness_factor = material.roughness_factor();
         material_data.metallic_factor = material.metallic_factor();
@@ -558,6 +559,7 @@ impl GltfCompiler {
         let material = primitive.material();
         if material.unlit() {
             material_data.flags |= MaterialFlags::Unlit;
+            //println!("Flags |= Unlit");
         }
         if let Some(texture) = material.normal_texture() {
             material_data.textures[TextureType::Normal as usize] =
@@ -577,12 +579,19 @@ impl GltfCompiler {
         };
         material_data.alpha_cutoff = 0.5;
         match material.alpha_mode() {
-            AlphaMode::Opaque => material_data.flags |= MaterialFlags::AlphaModeOpaque,
+            AlphaMode::Opaque => {
+                material_data.flags |= MaterialFlags::AlphaModeOpaque;
+                //println!("Flags |= AlphaModeOpaque");
+            }
             AlphaMode::Mask => {
                 material_data.alpha_cutoff = 0.5;
                 material_data.flags |= MaterialFlags::AlphaModeMask;
+                //println!("Flags |= AlphaModeMask");
             }
-            AlphaMode::Blend => material_data.flags |= MaterialFlags::AlphaModeBlend,
+            AlphaMode::Blend => {
+                material_data.flags |= MaterialFlags::AlphaModeBlend;
+                //println!("Flags |= AlphaModeBlend");
+            }
         };
         material_data.alpha_cutoff = primitive.material().alpha_cutoff().unwrap_or(1.);
         material_data.emissive_color = [
@@ -593,6 +602,7 @@ impl GltfCompiler {
         .into();
         if let Some(pbr) = material.pbr_specular_glossiness() {
             material_data.flags |= MaterialFlags::SpecularGlossiness;
+            //println!("Flags |= SpecularGlossiness");
             if let Some(texture) = pbr.specular_glossiness_texture() {
                 material_data.textures[TextureType::SpecularGlossiness as usize] =
                     self.process_texture(path, texture.texture());
@@ -617,12 +627,14 @@ impl GltfCompiler {
 
         material_data.ior = if let Some(ior) = material.ior() {
             material_data.flags |= MaterialFlags::Ior;
+            //println!("Flags |= Ior");
             ior
         } else {
             1.5
         };
         if let Some(specular) = material.specular() {
             material_data.flags |= MaterialFlags::Specular;
+            //println!("Flags |= Specular");
             material_data.specular_factors = [
                 specular.specular_color_factor()[0],
                 specular.specular_color_factor()[1],
@@ -645,6 +657,7 @@ impl GltfCompiler {
         }
         if let Some(transmission) = material.transmission() {
             material_data.flags |= MaterialFlags::Transmission;
+            //println!("Flags |= Transmission");
             material_data.transmission_factor = transmission.transmission_factor();
             if let Some(texture) = transmission.transmission_texture() {
                 material_data.textures[TextureType::Transmission as usize] =
@@ -655,6 +668,7 @@ impl GltfCompiler {
         }
         if let Some(volume) = material.volume() {
             material_data.flags |= MaterialFlags::Volume;
+            //println!("Flags |= Volume");
             material_data.attenuation_color_and_distance = [
                 volume.attenuation_color()[0],
                 volume.attenuation_color()[1],
@@ -670,6 +684,8 @@ impl GltfCompiler {
             }
         }
 
+        //let flags: u32 = material_data.flags.into();
+        //println!("Flags = {} = {:b}", flags, material_data.flags);
         let name = format!("Material_{}", self.material_index);
         self.create_file(
             path,
@@ -818,8 +834,8 @@ impl GltfCompiler {
             color: [light.color()[0], light.color()[1], light.color()[2]],
             direction: (-transform.forward()).into(),
             position: transform.translation().into(),
-            intensity: light.intensity().max(1.),
-            range: light.range().unwrap_or(10.),
+            intensity: light.intensity(),
+            range: light.range().unwrap_or(0.),
             ..Default::default()
         };
         match light.kind() {
@@ -834,8 +850,8 @@ impl GltfCompiler {
                 outer_cone_angle,
             } => {
                 light_data.light_type = LightType::Spot.into();
-                light_data.inner_cone_angle = inner_cone_angle;
-                light_data.outer_cone_angle = outer_cone_angle;
+                light_data.inner_cone_angle = inner_cone_angle.cos();
+                light_data.outer_cone_angle = outer_cone_angle.cos();
             }
         }
 

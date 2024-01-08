@@ -29,7 +29,10 @@ fn main(
         return;
     }     
             
-    let binding_value = textureLoad(binding_texture, pixel, 0);
+    let binding_dimensions = textureDimensions(binding_texture);
+    let binding_scale = vec2<f32>(binding_dimensions) / vec2<f32>(dimensions);
+    let binding_pixel = vec2<u32>(vec2<f32>(pixel) * binding_scale);
+    let binding_value = textureLoad(binding_texture, binding_pixel, 0);
     var index = pack4x8unorm(binding_value);
     
     var radiance = vec4<f32>(0.,0.,0.,1.);
@@ -37,12 +40,15 @@ fn main(
         index -= 1u;
         radiance = vec4<f32>(radiance_data_buffer.data[index].radiance, 1.);
     }
-    if(constant_data.frame_index > 0u) {
-        let prev_value = textureLoad(radiance_texture, pixel);
-        let weight = 1. / f32(constant_data.frame_index + 1u);
-        radiance = mix(prev_value, radiance, weight);
-    }
-    textureStore(radiance_texture, pixel, radiance);     
+    let radiance_dimensions = textureDimensions(radiance_texture);
+    let radiance_scale = vec2<f32>(radiance_dimensions) / vec2<f32>(dimensions);
+    let radiance_pixel = vec2<u32>(vec2<f32>(pixel) * radiance_scale);
+    //if(constant_data.frame_index > 0u) {
+    //    let prev_value = textureLoad(radiance_texture, radiance_pixel);
+    //    let weight = 1. / f32(constant_data.frame_index + 1u);
+    //    radiance = mix(prev_value, radiance, weight);
+    //}
+    textureStore(radiance_texture, radiance_pixel, radiance);     
      
     var out_color = vec4<f32>(radiance.rgb, 1.);   
     //out_color = vec4<f32>(tonemap_ACES_Hill(out_color.rgb), 1.);

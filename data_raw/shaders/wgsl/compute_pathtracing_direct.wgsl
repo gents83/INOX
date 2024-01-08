@@ -51,7 +51,7 @@ fn main(
     @builtin(workgroup_id) workgroup_id: vec3<u32>,
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
 ) {
-    let dimensions = textureDimensions(visibility_texture);
+    let dimensions = textureDimensions(binding_texture);
 
     let pixel = vec2<u32>(global_invocation_id.x, global_invocation_id.y);
     if (pixel.x >= dimensions.x || pixel.y >= dimensions.y) {
@@ -61,7 +61,10 @@ fn main(
     var seed = (pixel * dimensions) ^ vec2<u32>(constant_data.frame_index << 16u);
     var index = global_invocation_id.y * dimensions.x + global_invocation_id.x;
 
-    let visibility_value = textureLoad(visibility_texture, pixel);
+    let visibility_dimensions = textureDimensions(visibility_texture);
+    let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
+    let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
+    let visibility_value = textureLoad(visibility_texture, visibility_pixel);
     let visibility_id = visibility_value.r;
     if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
         let depth_dimensions = textureDimensions(depth_texture);
@@ -79,7 +82,7 @@ fn main(
         }
         radiance_data_buffer.data[index].origin = hit_point + radiance_data.direction * HIT_EPSILON;
         radiance_data_buffer.data[index].direction = radiance_data.direction;
-        radiance_data_buffer.data[index].radiance = material_info.f_color.rgb + radiance_data.radiance;
+        radiance_data_buffer.data[index].radiance = material_info.f_color.rgb;
         radiance_data_buffer.data[index].throughput_weight = radiance_data.throughput_weight;
         radiance_data_buffer.data[index].seed_x = seed.x;
         radiance_data_buffer.data[index].seed_y = seed.y;

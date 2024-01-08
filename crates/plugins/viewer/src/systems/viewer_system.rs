@@ -119,7 +119,7 @@ impl ViewerSystem {
             context,
             InfoParams {
                 is_active: true,
-                scene_id: *scene.id(),
+                scene: scene.clone(),
                 renderer: renderer.clone(),
             },
         ));
@@ -319,7 +319,7 @@ impl ViewerSystem {
                 None,
             );
             if let Some(info) = &mut self.info {
-                info.set_scene_id(self.scene.id());
+                info.set_scene(self.scene.clone());
             }
         }
     }
@@ -359,7 +359,7 @@ impl ViewerSystem {
                         );
 
                         if let Some(info) = &mut self.info {
-                            info.set_scene_id(self.scene.id());
+                            info.set_scene(self.scene.clone());
                         }
                     }
                 }

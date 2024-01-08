@@ -389,10 +389,6 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
     let TdotV = clamped_dot(tbn.tangent,v);
     let BdotV = clamped_dot(tbn.binormal,v);
 
-    let ior = 1.5;
-    let f0 = vec3<f32>(0.04);
-    let specular_weight = 1.0;
-
     var material_info: MaterialInfo;
 
     init_material_info_default(&material_info);
@@ -438,6 +434,7 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
 
     // Compute reflectance.
     let reflectance = max(max(material_info.f0.r, material_info.f0.g), material_info.f0.b);
+    
     // Anything less than 2% is physically impossible and is instead considered to be shadowing. Compare to "Real-Time-Rendering" 4th editon on page 325.
     material_info.f90 = vec3<f32>(1.);
 
@@ -475,7 +472,7 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
     
     let i = hash(constant_data.frame_index) % num_lights;
 
-    var light = lights.data[i];
+    var light = lights.data[0u];
     if (light.light_type != LIGHT_TYPE_INVALID) { 
         var pointToLight: vec3<f32>;
         if (light.light_type != LIGHT_TYPE_DIRECTIONAL) { 

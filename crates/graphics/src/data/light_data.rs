@@ -39,13 +39,13 @@ impl Default for LightData {
     fn default() -> Self {
         Self {
             position: [0.; 3],
-            light_type: LightType::Point.into(),
-            direction: [0., 0., -1.],
-            intensity: 100.,
+            light_type: LightType::Directional.into(),
+            direction: [-0.074, -0.198, -0.643],
+            intensity: 1.,
             color: [1.; 3],
-            range: 100.,
+            range: -1.,
             inner_cone_angle: 0.,
-            outer_cone_angle: 1.,
+            outer_cone_angle: core::f32::consts::PI / 4.,
             _padding1: 0.,
             _padding2: 0.,
         }
