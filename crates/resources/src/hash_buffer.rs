@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 
-pub struct HashBuffer<Id, Data, const MAX_COUNT: usize>
+pub struct HashBuffer<Id, Data, const PREALLOCATED_SIZE: usize>
 where
     Id: Eq + Hash + Copy,
 {
@@ -11,7 +11,7 @@ where
     is_changed: bool,
 }
 
-impl<Id, Data, const MAX_COUNT: usize> Default for HashBuffer<Id, Data, MAX_COUNT>
+impl<Id, Data, const PREALLOCATED_SIZE: usize> Default for HashBuffer<Id, Data, PREALLOCATED_SIZE>
 where
     Id: Eq + Hash + Copy,
     Data: Default,
@@ -19,7 +19,7 @@ where
     fn default() -> Self {
         let mut buffer = Vec::new();
         let mut is_empty = Vec::new();
-        for _ in 0..MAX_COUNT {
+        for _ in 0..PREALLOCATED_SIZE {
             buffer.push(Data::default());
             is_empty.push(true);
         }
@@ -32,7 +32,7 @@ where
     }
 }
 
-impl<Id, Data, const MAX_COUNT: usize> HashBuffer<Id, Data, MAX_COUNT>
+impl<Id, Data, const PREALLOCATED_SIZE: usize> HashBuffer<Id, Data, PREALLOCATED_SIZE>
 where
     Id: Eq + Hash + Copy,
     Data: Default,
@@ -44,9 +44,6 @@ where
         self.is_changed = is_changed;
     }
     pub fn collapse(&mut self) {
-        if MAX_COUNT != 0 {
-            return;
-        }
         let old_map = self.map.clone();
         self.map.clear();
         let mut index = 0;
@@ -84,7 +81,7 @@ where
             let index = self.new_index();
             self.map.insert(*id, index);
             //inox_log::debug_log!("Inserting [{:?}] = {} ", *id, index);
-            if MAX_COUNT == 0 && index >= self.buffer.len() {
+            if index >= self.buffer.len() {
                 self.buffer.push(data);
                 self.is_empty.push(false);
             } else {
@@ -130,10 +127,8 @@ where
     }
     pub fn clear(&mut self) {
         self.map.clear();
-        if MAX_COUNT == 0 {
-            self.buffer.clear();
-            self.is_empty.clear();
-        }
+        self.buffer.clear();
+        self.is_empty.clear();
     }
     pub fn index_of(&self, id: &Id) -> Option<usize> {
         self.map.get(id).copied()

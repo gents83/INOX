@@ -382,7 +382,7 @@ fn apply_volume_attenuation(radiance: vec3<f32>, transmissionDistance: f32, atte
 fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, PixelData>) -> MaterialInfo {
     var material = materials.data[material_id];
 
-    let v = normalize(constant_data.view[3].xyz - (*pixel_data).world_pos);
+    let v = normalize(matrix_row(constant_data.view, 2u).xyz - (*pixel_data).world_pos);
     let tbn = compute_tbn(&material, pixel_data);
 
     let NdotV = clamped_dot(tbn.normal,v);
@@ -462,18 +462,17 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
     var f_specular_ibl = f_specular;
     var f_sheen_ibl = f_sheen;
     var f_clearcoat_ibl = f_clearcoat;
-    f_diffuse = vec3<f32>(0.0);
+    f_diffuse = material_info.base_color.rgb;
     f_specular = vec3<f32>(0.0);
     f_sheen = vec3<f32>(0.0);
     f_clearcoat = vec3<f32>(0.0);
    
-
     let num_lights = arrayLength(&lights.data);
-    
     let i = hash(constant_data.frame_index) % num_lights;
-
-    var light = lights.data[0u];
+    
+    var light = lights.data[i];
     if (light.light_type != LIGHT_TYPE_INVALID) { 
+        f_diffuse = vec3<f32>(0.0);
         var pointToLight: vec3<f32>;
         if (light.light_type != LIGHT_TYPE_DIRECTIONAL) { 
             pointToLight = light.position - (*pixel_data).world_pos;
@@ -486,6 +485,7 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
         let h = normalize(l + v);          // Direction of the vector between l and v, called halfway vector
         let NdotL = clamped_dot(tbn.normal, l);
         let NdotH = clamped_dot(tbn.normal, h);
+        let NdotV = clamped_dot(tbn.normal, v);
         let LdotH = clamped_dot(l, h);
         let VdotH = clamped_dot(v, h);
         if (NdotL > 0.0 || NdotV > 0.0)
@@ -498,14 +498,13 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
                 f_diffuse += intensity * NdotL *  BRDF_lambertian_iridescence(material_info.f0, material_info.f90, iridescence_fresnel, material_info.iridescence_factor, material_info.c_diff, specular_weight, VdotH);
                 f_specular += intensity * NdotL * BRDF_specular_GGX_iridescence(material_info.f0, material_info.f90, iridescence_fresnel, material_info.alpha_roughness,  material_info.iridescence_factor, specular_weight, VdotH, NdotL, NdotV, NdotH);
             }
-            else {
+            else if((material.flags & MATERIAL_FLAGS_ANISOTROPY) != 0u) {
+                let anisotropy_strength = specular_weight_and_anisotropy_strength.y;
                 f_diffuse += intensity * NdotL *  BRDF_lambertian(material_info.f0, material_info.f90, material_info.c_diff, specular_weight, VdotH);
-                if((material.flags & MATERIAL_FLAGS_ANISOTROPY) != 0u) {
-                    let anisotropy_strength = specular_weight_and_anisotropy_strength.y;
-                    f_specular += intensity * NdotL * BRDF_specular_GGX_anisotropy(material_info.f0, material_info.f90, material_info.alpha_roughness, anisotropy_strength, tbn.normal, v, l, h, material_info.anisotropicT, material_info.anisotropicB);
-                } else {
-                    f_specular += intensity * NdotL * BRDF_specular_GGX(material_info.f0, material_info.f90, material_info.alpha_roughness, specular_weight, VdotH, NdotL, NdotV, NdotH);
-                }
+                f_specular += intensity * NdotL * BRDF_specular_GGX_anisotropy(material_info.f0, material_info.f90, material_info.alpha_roughness, anisotropy_strength, tbn.normal, v, l, h, material_info.anisotropicT, material_info.anisotropicB);
+            } else {
+                f_diffuse += intensity * NdotL *  BRDF_lambertian(material_info.f0, material_info.f90, material_info.c_diff, specular_weight, VdotH);
+                f_specular += intensity * NdotL * BRDF_specular_GGX(material_info.f0, material_info.f90, material_info.alpha_roughness, specular_weight, VdotH, NdotL, NdotV, NdotH);
             }
             
             if((material.flags & MATERIAL_FLAGS_SHEEN) != 0u) {

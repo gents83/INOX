@@ -841,6 +841,7 @@ impl GltfCompiler {
         match light.kind() {
             Kind::Directional => {
                 light_data.light_type = LightType::Directional.into();
+                light_data.range = -1.;
             }
             Kind::Point => {
                 light_data.light_type = LightType::Point.into();

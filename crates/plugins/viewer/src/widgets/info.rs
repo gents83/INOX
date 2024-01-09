@@ -595,51 +595,90 @@ impl Info {
                             let renderer = data.params.renderer.read().unwrap();
                             let render_context = renderer.render_context();
                             let mut lights = render_context.global_buffers.lights.write().unwrap();
-                            let lights_label = format!("Num Lights: {}", lights.buffer_len());
-                            ui.label(&lights_label);
+                            let light_type_none: u32 = LightType::None.into();
+                            let mut num_lights = 0;
                             lights.for_each_entry_mut(|i, l| {
+                                if l.light_type == light_type_none {
+                                    return false;
+                                }
+                                num_lights += 1;
                                 let mut is_changed = false;
                                 ui.horizontal(|ui| {
                                     let light_name = format!("Light[{}]: ", i);
                                     ui.label(&light_name);
-                                    let directional: u32 = LightType::Directional.into();
-                                    let mut v = if l.light_type == directional {
-                                        l.direction
-                                    } else {
-                                        l.position
-                                    };
-                                    let old_v = v;
+                                    let old_l = *l;
                                     ui.vertical(|ui| {
+                                        let directional: u32 = LightType::Directional.into();
+                                        if l.light_type == directional {
+                                            ui.horizontal(|ui| {
+                                                ui.label("Direction: ");
+                                                ui.add(
+                                                    DragValue::new(&mut l.direction[0])
+                                                        .prefix("x: ")
+                                                        .speed(0.01)
+                                                        .fixed_decimals(3),
+                                                );
+                                                ui.add(
+                                                    DragValue::new(&mut l.direction[1])
+                                                        .prefix("y: ")
+                                                        .speed(0.01)
+                                                        .fixed_decimals(3),
+                                                );
+                                                ui.add(
+                                                    DragValue::new(&mut l.direction[2])
+                                                        .prefix("z: ")
+                                                        .speed(0.01)
+                                                        .fixed_decimals(3),
+                                                );
+                                            });
+                                        } else {
+                                            ui.horizontal(|ui| {
+                                                ui.label("Position: ");
+                                                ui.add(
+                                                    DragValue::new(&mut l.position[0])
+                                                        .prefix("x: ")
+                                                        .speed(0.01)
+                                                        .fixed_decimals(3),
+                                                );
+                                                ui.add(
+                                                    DragValue::new(&mut l.position[1])
+                                                        .prefix("y: ")
+                                                        .speed(0.01)
+                                                        .fixed_decimals(3),
+                                                );
+                                                ui.add(
+                                                    DragValue::new(&mut l.position[2])
+                                                        .prefix("z: ")
+                                                        .speed(0.01)
+                                                        .fixed_decimals(3),
+                                                );
+                                            });
+                                        }
                                         ui.horizontal(|ui| {
+                                            ui.label("Intensity: ");
                                             ui.add(
-                                                DragValue::new(&mut v[0])
+                                                DragValue::new(&mut l.intensity)
                                                     .prefix("x: ")
                                                     .speed(0.01)
                                                     .fixed_decimals(3),
                                             );
+                                        });
+                                        ui.horizontal(|ui| {
+                                            ui.label("Range: ");
                                             ui.add(
-                                                DragValue::new(&mut v[1])
-                                                    .prefix("y: ")
-                                                    .speed(0.01)
-                                                    .fixed_decimals(3),
-                                            );
-                                            ui.add(
-                                                DragValue::new(&mut v[2])
-                                                    .prefix("z: ")
+                                                DragValue::new(&mut l.range)
+                                                    .prefix("x: ")
                                                     .speed(0.01)
                                                     .fixed_decimals(3),
                                             );
                                         });
                                     });
-                                    is_changed = old_v != v;
-                                    if l.light_type == directional {
-                                        l.direction = v;
-                                    } else {
-                                        l.position = v;
-                                    };
+                                    is_changed = old_l != *l;
                                 });
                                 is_changed
                             });
+                            let lights_label = format!("Total Num Lights: {}", num_lights);
+                            ui.label(&lights_label);
                         });
 
                         ui.horizontal(|ui| {

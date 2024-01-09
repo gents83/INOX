@@ -1,7 +1,7 @@
 use inox_commands::CommandParser;
 use inox_core::{implement_unique_system_uid, ContextRc, System};
 use inox_graphics::{
-    create_quad, Light, Material, MaterialData, Mesh, MeshData, MeshFlags, RendererRw, Texture,
+    create_quad, Material, MaterialData, Mesh, MeshData, MeshFlags, RendererRw, Texture,
     VertexAttributeLayout, View,
 };
 use inox_log::debug_log;
@@ -147,30 +147,7 @@ impl ViewerSystem {
         } else {
             self.create_default_scene();
         }
-        let mut has_lights = false;
-        self.scene.get().objects().iter().for_each(|o| {
-            has_lights |= o.get().has_component_recursive::<Light>();
-        });
 
-        if !has_lights {
-            //Add default light
-            let light_id = generate_random_uid();
-            let light_object = self.context.shared_data().add_resource::<Object>(
-                self.context.message_hub(),
-                light_id,
-                Object::new(
-                    light_id,
-                    self.context.shared_data(),
-                    self.context.message_hub(),
-                ),
-            );
-            let light = light_object.get_mut().add_default_component::<Light>(
-                self.context.shared_data(),
-                self.context.message_hub(),
-            );
-            light.get_mut().set_active(true);
-            self.scene.get_mut().add_object(light_object);
-        }
         self
     }
 

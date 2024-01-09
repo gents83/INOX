@@ -88,31 +88,35 @@ impl BufferData {
     }
 }
 
-pub struct Buffer<T, const MAX_COUNT: usize> {
+pub struct Buffer<T, const PREALLOCATED_SIZE: usize> {
     occupied: Vec<BufferData>,
     free: Vec<BufferData>,
     data: Vec<T>,
     is_changed: bool,
 }
 
-unsafe impl<T, const MAX_COUNT: usize> Sync for Buffer<T, MAX_COUNT> {}
-unsafe impl<T, const MAX_COUNT: usize> Send for Buffer<T, MAX_COUNT> {}
+unsafe impl<T, const PREALLOCATED_SIZE: usize> Sync for Buffer<T, PREALLOCATED_SIZE> {}
+unsafe impl<T, const PREALLOCATED_SIZE: usize> Send for Buffer<T, PREALLOCATED_SIZE> {}
 
-impl<T, const MAX_COUNT: usize> Default for Buffer<T, MAX_COUNT>
+impl<T, const PREALLOCATED_SIZE: usize> Default for Buffer<T, PREALLOCATED_SIZE>
 where
     T: Sized + Clone + Default,
 {
     fn default() -> Self {
         Self {
             occupied: Vec::new(),
-            free: vec![BufferData::new(&generate_random_uid(), 0, MAX_COUNT)],
-            data: vec![T::default(); MAX_COUNT],
+            free: vec![BufferData::new(
+                &generate_random_uid(),
+                0,
+                PREALLOCATED_SIZE,
+            )],
+            data: vec![T::default(); PREALLOCATED_SIZE],
             is_changed: false,
         }
     }
 }
 
-impl<T, const MAX_COUNT: usize> Buffer<T, MAX_COUNT>
+impl<T, const PREALLOCATED_SIZE: usize> Buffer<T, PREALLOCATED_SIZE>
 where
     T: Sized + Clone,
 {
@@ -157,7 +161,6 @@ where
         let end = start + size;
         //inox_log::debug_log!("[{:?}] added, [start {} : end {}]", id, start, end);
 
-        debug_assert!(MAX_COUNT == 0, "Trying to modify a Buffer with fixed size");
         self.is_changed = true;
         self.data.extend_from_slice(data);
         self.occupied.push(BufferData::new(id, start, end));
@@ -356,7 +359,6 @@ where
         self.is_changed = true;
     }
     pub fn defrag(&mut self) {
-        debug_assert!(MAX_COUNT == 0, "Trying to modify a Buffer with fixed size");
         if !self.free.is_empty() {
             self.free.clear();
             let mut new_data = Vec::<T>::new();
