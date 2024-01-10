@@ -12,5 +12,6 @@
     "src_alpha_blend_factor": "SrcAlpha",
     "dst_alpha_blend_factor": "OneMinusSrcAlpha",
     "alpha_blend_operation": "Add",
+    "sampling_count": 1,
     "mesh_flags": { "bits":3 }
 }
