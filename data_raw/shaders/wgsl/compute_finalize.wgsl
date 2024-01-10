@@ -53,6 +53,6 @@ fn main(
      
     var out_color = vec4<f32>(radiance.rgb, 1.);   
     //out_color = vec4<f32>(tonemap_ACES_Hill(out_color.rgb), 1.);
-    out_color = vec4<f32>(linearTosRGB(out_color.rgb), 1.); 
+    //out_color = vec4<f32>(linearTosRGB(out_color.rgb), 1.); 
     textureStore(finalize_texture, pixel, out_color);
 }

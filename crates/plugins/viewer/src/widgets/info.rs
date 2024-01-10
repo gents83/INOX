@@ -9,8 +9,9 @@ use inox_graphics::{
     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS, CONSTANT_DATA_FLAGS_DISPLAY_METALLIC,
     CONSTANT_DATA_FLAGS_DISPLAY_NORMALS, CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE,
     CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_ROUGHNESS,
-    CONSTANT_DATA_FLAGS_DISPLAY_TANGENT, CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER,
-    CONSTANT_DATA_FLAGS_NONE,
+    CONSTANT_DATA_FLAGS_DISPLAY_TANGENT, CONSTANT_DATA_FLAGS_DISPLAY_UV_0,
+    CONSTANT_DATA_FLAGS_DISPLAY_UV_1, CONSTANT_DATA_FLAGS_DISPLAY_UV_2,
+    CONSTANT_DATA_FLAGS_DISPLAY_UV_3, CONSTANT_DATA_FLAGS_NONE,
 };
 use inox_math::{
     compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle, Quat, VecBase, Vector2,
@@ -136,7 +137,16 @@ impl Info {
                 (CONSTANT_DATA_FLAGS_DISPLAY_NORMALS, "Normals"),
                 (CONSTANT_DATA_FLAGS_DISPLAY_TANGENT, "Tangents"),
                 (CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT, "Bitangent"),
+                (CONSTANT_DATA_FLAGS_DISPLAY_UV_0, "TexCoord UV 0"),
+                (CONSTANT_DATA_FLAGS_DISPLAY_UV_1, "TexCoord UV 1"),
+                (CONSTANT_DATA_FLAGS_DISPLAY_UV_2, "TexCoord UV 2"),
+                (CONSTANT_DATA_FLAGS_DISPLAY_UV_3, "TexCoord UV 3"),
                 (CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS, "Meshlets"),
+                (CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, "DepthBuffer"),
+                (
+                    CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER,
+                    "RadianceBuffer",
+                ),
                 (
                     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
                     "Meshlets BoundingBox",
@@ -144,15 +154,6 @@ impl Info {
                 (
                     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS,
                     "Meshlets ConeAxis",
-                ),
-                (
-                    CONSTANT_DATA_FLAGS_DISPLAY_VISIBILITY_BUFFER,
-                    "VisibilityBuffer",
-                ),
-                (CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, "DepthBuffer"),
-                (
-                    CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER,
-                    "RadianceBuffer",
                 ),
                 (CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE, "PathTrace"),
             ],

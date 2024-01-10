@@ -260,7 +260,7 @@ impl Pass for ComputePathTracingDirectPass {
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
-                SamplerType::Unfiltered,
+                SamplerType::Default,
             )
             .add_material_textures(BindingInfo {
                 group_index: 2,

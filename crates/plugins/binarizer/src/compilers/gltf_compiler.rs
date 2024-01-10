@@ -269,6 +269,12 @@ impl GltfCompiler {
                 Semantic::TexCoords(texture_index) => {
                     let num = self.num_from_type(&accessor);
                     let num_bytes = self.bytes_from_dimension(&accessor);
+                    let min = if let Some(min) = accessor.min() {
+                        min.as_array().unwrap().iter().map(|v| v.as_f64().unwrap() as f32).collect()
+                    } else {
+                        vec![0.; 2]
+                    };
+                    let min: Vector2 = Vector2::new(min[0], min[1]);
                     debug_assert!(num == 2 && num_bytes == 4);
                     if let Some(tex) = self.read_accessor_from_path::<Vector2>(path, &accessor) {
                         if vertices.is_empty() {
@@ -277,22 +283,22 @@ impl GltfCompiler {
                         match texture_index {
                             0 => {
                                 tex.iter().enumerate().for_each(|(i, v)| {
-                                    vertices[i].uv_0 = Some(*v);
+                                    vertices[i].uv_0 = Some(v - min);
                                 });
                             }
                             1 => {
                                 tex.iter().enumerate().for_each(|(i, v)| {
-                                    vertices[i].uv_1 = Some(*v);
+                                    vertices[i].uv_0 = Some(v - min);
                                 });
                             }
                             2 => {
                                 tex.iter().enumerate().for_each(|(i, v)| {
-                                    vertices[i].uv_2 = Some(*v);
+                                    vertices[i].uv_0 = Some(v - min);
                                 });
                             }
                             3 => {
                                 tex.iter().enumerate().for_each(|(i, v)| {
-                                    vertices[i].uv_3 = Some(*v);
+                                    vertices[i].uv_0 = Some(v - min);
                                 });
                             }
                             _ => {
