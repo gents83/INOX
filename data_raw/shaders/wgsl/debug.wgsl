@@ -157,7 +157,7 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>, dimensions: vec2<u32
             out_color = vec4<f32>(vec3<f32>(pixel_data.uv_set[1], 0.), 1.);
         }
     } 
-    else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_UV_1) != 0) {
+    else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_UV_2) != 0) {
         let depth_dimensions = textureDimensions(depth_texture);
         let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
         let depth_pixel = vec2<u32>(vec2<f32>(pixel) * depth_scale);

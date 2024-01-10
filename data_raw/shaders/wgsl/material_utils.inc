@@ -25,7 +25,7 @@ fn material_texture_uv(material: ptr<function, Material>, pixel_data: ptr<functi
 fn compute_tbn(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>) -> TBN {
     var n = (*pixel_data).normal;
     var t = (*pixel_data).tangent.xyz;
-    var b = cross(n,  -t) * -(*pixel_data).tangent.w;
+    var b = cross(n,  t) * -(*pixel_data).tangent.w;
     return TBN(n, t, b);
     /*
     var n = normalize((*pixel_data).normal);

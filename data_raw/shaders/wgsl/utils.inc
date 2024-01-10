@@ -153,6 +153,11 @@ fn swap_f32(ptr_a: ptr<function, f32>, ptr_b: ptr<function, f32>)
     *ptr_b = c;
 }
 
+fn mod_f32(v: f32, m: f32) -> f32
+{
+    return v - (m * floor(v/m));
+}
+
 fn clamped_dot(a: vec3<f32>, b: vec3<f32>) -> f32 {
     return clamp(dot(a,b), 0., 1.);
 }
