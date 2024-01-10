@@ -10,11 +10,11 @@ crate-type = ["rlib", "cdylib"]
 
 [target.'cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))'.dependencies]
 meshopt = { workspace = true }
+mikktspace = { worspace = true } 
 naga = { workspace = true }
 rspirv = { workspace = true }
 regex = { workspace = true }
 gltf = { workspace = true }
-mikktspace = { worspace = true } 
 inox_bvh = { path = "../../bvh" }
 inox_commands = { path = "../../commands" }
 inox_core = { path = "../../core" }

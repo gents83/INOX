@@ -179,6 +179,7 @@ pub struct RenderPipelineData {
     pub src_alpha_blend_factor: BlendFactor,
     pub dst_alpha_blend_factor: BlendFactor,
     pub alpha_blend_operation: BlendOperation,
+    pub sampling_count: u32,
     pub mesh_flags: MeshFlags,
 }
 
@@ -204,6 +205,7 @@ impl Default for RenderPipelineData {
             src_alpha_blend_factor: BlendFactor::One,
             dst_alpha_blend_factor: BlendFactor::OneMinusSrcAlpha,
             alpha_blend_operation: BlendOperation::Add,
+            sampling_count: 1,
             mesh_flags: MeshFlags::Visible | MeshFlags::Opaque,
         }
     }

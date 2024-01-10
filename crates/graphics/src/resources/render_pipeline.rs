@@ -187,6 +187,9 @@ impl RenderPipeline {
             return true;
         }
         let pipeline_render_formats = if render_formats.is_empty() {
+            if self.data.sampling_count > 1 {
+                return false;
+            }
             vec![context.core.config.read().unwrap().format]
         } else {
             render_formats
@@ -302,9 +305,8 @@ impl RenderPipeline {
                         bias: wgpu::DepthBiasState::default(),
                     }),
                     multisample: wgpu::MultisampleState {
-                        count: 1,
-                        mask: !0,
-                        alpha_to_coverage_enabled: false,
+                        count: self.data.sampling_count,
+                        ..Default::default()
                     },
                     // If the pipeline will be used with a multiview render pass, this
                     // indicates how many array layers the attachments will have.

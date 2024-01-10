@@ -147,9 +147,8 @@ impl Plugin for Viewer {
 
 impl Viewer {
     fn create_render_targets(renderer: &mut Renderer, width: u32, height: u32) {
-        let half_dims = (width / 4, height / 4);
+        let half_dims = (width / 2, height / 2);
         let single_sample = 1;
-        let multi_sample = 4;
         let usage = TextureUsage::TextureBinding
             | TextureUsage::CopySrc
             | TextureUsage::CopyDst
@@ -188,7 +187,7 @@ impl Viewer {
             half_dims.1,
             TextureFormat::Rgba8Unorm,
             usage | TextureUsage::StorageBinding,
-            multi_sample,
+            single_sample,
         );
         debug_assert!(_binding == RenderTargetType::Binding as usize);
         //Finalize = 4,
@@ -197,7 +196,7 @@ impl Viewer {
             height,
             TextureFormat::Rgba8Unorm,
             usage | TextureUsage::StorageBinding,
-            multi_sample,
+            single_sample,
         );
         debug_assert!(_finalize == RenderTargetType::Finalize as usize);
         //Debug = 5,

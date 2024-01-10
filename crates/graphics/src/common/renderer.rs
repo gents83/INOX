@@ -11,8 +11,8 @@ use inox_resources::{Resource, ResourceTrait, SharedData, SharedDataRc};
 
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
-pub const DEFAULT_WIDTH: u32 = 3840;
-pub const DEFAULT_HEIGHT: u32 = 2160;
+pub const DEFAULT_WIDTH: u32 = 1920;
+pub const DEFAULT_HEIGHT: u32 = 1080;
 pub const DEFAULT_FOV: f32 = 45.;
 pub const DEFAULT_ASPECT_RATIO: f32 = DEFAULT_WIDTH as f32 / DEFAULT_HEIGHT as f32;
 pub const DEFAULT_NEAR: f32 = 0.01;

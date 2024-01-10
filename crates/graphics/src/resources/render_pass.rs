@@ -115,6 +115,7 @@ impl RenderPass {
             width,
             height,
             format,
+            sample_count,
         } = render_target
         {
             let texture = Texture::create_from_format(
@@ -127,7 +128,7 @@ impl RenderPass {
                     | TextureUsage::CopySrc
                     | TextureUsage::CopyDst
                     | TextureUsage::RenderTarget,
-                1,
+                sample_count,
             );
             self.render_textures.push(texture)
         }
@@ -144,6 +145,7 @@ impl RenderPass {
                 width,
                 height,
                 format,
+                sample_count,
             } => {
                 let texture = Texture::create_from_format(
                     &self.shared_data,
@@ -155,7 +157,7 @@ impl RenderPass {
                         | TextureUsage::CopySrc
                         | TextureUsage::CopyDst
                         | TextureUsage::RenderTarget,
-                    1,
+                    sample_count,
                 );
                 Some(texture)
             }
@@ -219,11 +221,11 @@ impl RenderPass {
                 depth_format = Some(texture.format());
             }
         }
-
+        let mut sample_count = 0;
         if let Some(pipeline) = &self.pipeline {
             binding_data.set_bind_group_layout();
-
-            pipeline.get_mut().init(
+            let mut pipeline = pipeline.get_mut();
+            pipeline.init(
                 render_context,
                 render_formats,
                 depth_format,
@@ -231,6 +233,15 @@ impl RenderPass {
                 vertex_layout,
                 instance_layout,
             );
+            sample_count = pipeline.data().sampling_count;
+        }
+        if render_textures.is_empty() && sample_count > 1 {
+            self.create_render_target(RenderTarget::Texture {
+                width: render_context.core.config.read().unwrap().width,
+                height: render_context.core.config.read().unwrap().height,
+                format: render_context.core.config.read().unwrap().format.into(),
+                sample_count,
+            });
         }
     }
     pub fn color_operations(&self) -> wgpu::Operations<wgpu::Color> {

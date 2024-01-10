@@ -85,6 +85,7 @@ impl DataTypeResource for Texture {
         texture.height = data.height;
         texture.format = data.format;
         texture.usage = data.usage;
+        texture.sample_count = data.sample_count;
         if let Some(image_data) = &data.data {
             texture.blocks_to_update = vec![TextureBlock {
                 x: 0,

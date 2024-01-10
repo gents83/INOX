@@ -80,8 +80,8 @@ impl Window {
                 WS_OVERLAPPEDWINDOW, // dwStyle
                 x as i32,       // Int x
                 y as i32,       // Int y
-                *width as i32,  // Int nWidth
-                *height as i32, // Int nHeight
+                ((*width as f32) * *scale_factor) as i32, // Int nWidth
+                ((*height as f32) * *scale_factor) as i32, // Int nHeight
                 ::std::ptr::null_mut(), // hWndParent
                 ::std::ptr::null_mut(), // hMenu
                 win_hinstance,  // hInstance
@@ -91,8 +91,8 @@ impl Window {
             let mut rc: RECT = RECT {
                 left: 0,
                 top: 0,
-                right: *width as _,
-                bottom: *height as _,
+                right: ((*width as f32) * *scale_factor) as _,
+                bottom: ((*height as f32) * *scale_factor) as _,
             };
             GetClientRect(win_handle, &mut rc);
             *width = rc.right as _;

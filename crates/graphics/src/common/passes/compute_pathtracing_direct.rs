@@ -326,7 +326,7 @@ impl ComputePathTracingDirectPass {
     pub fn set_radiance_texture_size(&mut self, dimensions: (u32, u32)) -> &mut Self {
         self.dimensions = dimensions;
         //origin(3f), direction(3f), radiance(3f), throughput_weight(3f), seed(2u) = 14
-        const RADIANCE_DATA_STRIDE: u32 = std::mem::size_of::<u32>() as u32 * 14;
+        const RADIANCE_DATA_STRIDE: u32 = std::mem::size_of::<u32>() as u32 * 8;
         self.radiance_data_buffer.write().unwrap().set(vec![
             0u32;
             (dimensions.0 * dimensions.1 * RADIANCE_DATA_STRIDE)
