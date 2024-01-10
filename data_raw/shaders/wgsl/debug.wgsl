@@ -105,12 +105,13 @@ fn draw_cube_from_min_max(min: vec3<f32>, max:vec3<f32>, pixel: vec2<u32>, dimen
     return color;
 }
 
-fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<f32> {
+fn debug_color_override(color: vec4<f32>, screen_pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<f32> {
     var out_color = color;
+    let pixel = vec2<f32>(0.5) + vec2<f32>(screen_pixel);
     if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS) != 0) {
         let visibility_dimensions = textureDimensions(visibility_texture);
         let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
-        let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
+        let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
@@ -126,13 +127,13 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>, dimensions: vec2<u32
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_UV_0) != 0) {
         let depth_dimensions = textureDimensions(depth_texture);
         let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
-        let depth_pixel = vec2<u32>(vec2<f32>(pixel) * depth_scale);
+        let depth_pixel = vec2<u32>(pixel * depth_scale);
         let depth = textureLoad(depth_texture, depth_pixel, 0);
         let hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth); 
 
         let visibility_dimensions = textureDimensions(visibility_texture);
         let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
-        let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
+        let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
@@ -143,13 +144,13 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>, dimensions: vec2<u32
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_UV_1) != 0) {
         let depth_dimensions = textureDimensions(depth_texture);
         let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
-        let depth_pixel = vec2<u32>(vec2<f32>(pixel) * depth_scale);
+        let depth_pixel = vec2<u32>(pixel * depth_scale);
         let depth = textureLoad(depth_texture, depth_pixel, 0);
         let hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth); 
 
         let visibility_dimensions = textureDimensions(visibility_texture);
         let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
-        let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
+        let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
@@ -160,13 +161,13 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>, dimensions: vec2<u32
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_UV_2) != 0) {
         let depth_dimensions = textureDimensions(depth_texture);
         let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
-        let depth_pixel = vec2<u32>(vec2<f32>(pixel) * depth_scale);
+        let depth_pixel = vec2<u32>(pixel * depth_scale);
         let depth = textureLoad(depth_texture, depth_pixel, 0);
         let hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth); 
 
         let visibility_dimensions = textureDimensions(visibility_texture);
         let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
-        let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
+        let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
@@ -177,13 +178,13 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>, dimensions: vec2<u32
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_UV_3) != 0) {
         let depth_dimensions = textureDimensions(depth_texture);
         let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
-        let depth_pixel = vec2<u32>(vec2<f32>(pixel) * depth_scale);
+        let depth_pixel = vec2<u32>(pixel * depth_scale);
         let depth = textureLoad(depth_texture, depth_pixel, 0);
         let hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth); 
 
         let visibility_dimensions = textureDimensions(visibility_texture);
         let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
-        let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
+        let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
@@ -194,13 +195,13 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>, dimensions: vec2<u32
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_NORMALS) != 0) {
         let depth_dimensions = textureDimensions(depth_texture);
         let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
-        let depth_pixel = vec2<u32>(vec2<f32>(pixel) * depth_scale);
+        let depth_pixel = vec2<u32>(pixel * depth_scale);
         let depth = textureLoad(depth_texture, depth_pixel, 0);
         let hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth); 
 
         let visibility_dimensions = textureDimensions(visibility_texture);
         let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
-        let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
+        let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
@@ -213,13 +214,13 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>, dimensions: vec2<u32
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_TANGENT) != 0) {
         let depth_dimensions = textureDimensions(depth_texture);
         let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
-        let depth_pixel = vec2<u32>(vec2<f32>(pixel) * depth_scale);
+        let depth_pixel = vec2<u32>(pixel * depth_scale);
         let depth = textureLoad(depth_texture, depth_pixel, 0);
         let hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth); 
 
         let visibility_dimensions = textureDimensions(visibility_texture);
         let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
-        let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
+        let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
@@ -232,13 +233,13 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>, dimensions: vec2<u32
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT) != 0) {
         let depth_dimensions = textureDimensions(depth_texture);
         let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
-        let depth_pixel = vec2<u32>(vec2<f32>(pixel) * depth_scale);
+        let depth_pixel = vec2<u32>(pixel * depth_scale);
         let depth = textureLoad(depth_texture, depth_pixel, 0);
         let hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth); 
 
         let visibility_dimensions = textureDimensions(visibility_texture);
         let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
-        let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
+        let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
@@ -251,13 +252,13 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>, dimensions: vec2<u32
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_BASE_COLOR) != 0) {
         let depth_dimensions = textureDimensions(depth_texture);
         let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
-        let depth_pixel = vec2<u32>(vec2<f32>(pixel) * depth_scale);
+        let depth_pixel = vec2<u32>(pixel * depth_scale);
         let depth = textureLoad(depth_texture, depth_pixel, 0);
         let hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth); 
 
         let visibility_dimensions = textureDimensions(visibility_texture);
         let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
-        let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
+        let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
@@ -269,13 +270,13 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>, dimensions: vec2<u32
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_METALLIC) != 0) {
         let depth_dimensions = textureDimensions(depth_texture);
         let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
-        let depth_pixel = vec2<u32>(vec2<f32>(pixel) * depth_scale);
+        let depth_pixel = vec2<u32>(pixel * depth_scale);
         let depth = textureLoad(depth_texture, depth_pixel, 0);
         let hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth); 
 
         let visibility_dimensions = textureDimensions(visibility_texture);
         let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
-        let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
+        let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
@@ -287,13 +288,13 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>, dimensions: vec2<u32
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_ROUGHNESS) != 0) {
         let depth_dimensions = textureDimensions(depth_texture);
         let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
-        let depth_pixel = vec2<u32>(vec2<f32>(pixel) * depth_scale);
+        let depth_pixel = vec2<u32>(pixel * depth_scale);
         let depth = textureLoad(depth_texture, depth_pixel, 0);
         let hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth); 
 
         let visibility_dimensions = textureDimensions(visibility_texture);
         let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
-        let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
+        let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
@@ -305,13 +306,13 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>, dimensions: vec2<u32
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER) != 0) {
         let radiance_dimensions = textureDimensions(radiance_texture);
         let radiance_scale = vec2<f32>(radiance_dimensions) / vec2<f32>(dimensions);
-        let radiance_pixel = vec2<u32>(vec2<f32>(pixel) * radiance_scale);
+        let radiance_pixel = vec2<u32>(pixel * radiance_scale);
         out_color = textureLoad(radiance_texture, radiance_pixel, 0);
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER) != 0) {
         let depth_dimensions = textureDimensions(depth_texture);
         let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
-        let depth_pixel = vec2<u32>(vec2<f32>(pixel) * depth_scale);
+        let depth_pixel = vec2<u32>(pixel * depth_scale);
         let depth = textureLoad(depth_texture, depth_pixel, 0);
         let v = vec3<f32>(1. - depth) * 10.;
         out_color = vec4<f32>(v, 1.);
@@ -319,7 +320,7 @@ fn debug_color_override(color: vec4<f32>, pixel: vec2<u32>, dimensions: vec2<u32
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE) != 0) {
         let debug_dimensions = textureDimensions(debug_data_texture);
         let debug_scale = vec2<f32>(debug_dimensions) / vec2<f32>(dimensions);
-        let debug_pixel = vec2<u32>(vec2<f32>(pixel) * debug_scale);
+        let debug_pixel = vec2<u32>(pixel * debug_scale);
         var origin = vec3<f32>(0.);
         var direction = vec3<f32>(0.);
         let line_color = vec3<f32>(0., 1., 0.);

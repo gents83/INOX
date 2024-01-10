@@ -63,13 +63,13 @@ fn main(
 
     let visibility_dimensions = textureDimensions(visibility_texture);
     let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
-    let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
+    let visibility_pixel = vec2<u32>((vec2<f32>(0.5) + vec2<f32>(pixel)) * visibility_scale);
     let visibility_value = textureLoad(visibility_texture, visibility_pixel);
     let visibility_id = visibility_value.r;
     if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
         let depth_dimensions = textureDimensions(depth_texture);
         let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
-        let depth_pixel = vec2<u32>(vec2<f32>(pixel) * depth_scale);
+        let depth_pixel = vec2<u32>((vec2<f32>(0.5) + vec2<f32>(pixel)) * depth_scale);
         let depth = textureLoad(depth_texture, depth_pixel, 0);
         let hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth); 
 

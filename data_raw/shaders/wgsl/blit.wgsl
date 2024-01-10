@@ -26,7 +26,7 @@ fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
 @fragment
 fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     let d = vec2<f32>(textureDimensions(source_texture));
-    let pixel_coords = vec2<i32>(i32(v_in.uv.x * d.x), i32(v_in.uv.y * d.y));
+    let pixel_coords = vec2<i32>(i32(v_in.uv.x * d.x + 0.5), i32(v_in.uv.y * d.y + 0.5));
 
     let texture_color = textureLoad(source_texture, pixel_coords, 0);     
     return texture_color;

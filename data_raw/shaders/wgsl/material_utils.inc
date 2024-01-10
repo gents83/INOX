@@ -26,35 +26,6 @@ fn compute_tbn(material: ptr<function, Material>, pixel_data: ptr<function, Pixe
     var n = (*pixel_data).normal;
     var t = (*pixel_data).tangent.xyz;
     var b = cross(n,  t) * -(*pixel_data).tangent.w;
-    return TBN(n, t, b);
-    /*
-    var n = normalize((*pixel_data).normal);
-    let s = select(-1f, 1f, n.z >= 0f);
-    let a = -1f / (s + n.z);
-    let b = n.x * n.y * a;
-    let u = vec3(1f + s * n.x * n.x * a, s * b, -s * n.x);
-    let v = vec3(b, s + n.y * n.y * a, -n.y);
-
-    return TBN(n, normalize(u), normalize(v));
-    */
-    /*
-    var b = vec3<f32>(0.0, 1.0, 0.0);
-    let NdotUp = dot((*pixel_data).normal, vec3<f32>(0.0, 1.0, 0.0));
-    if (1.0 - abs(NdotUp) <= MATH_EPSILON)
-    {
-        // Sampling +Y or -Y, so we need a more robust bitangent.
-        if (NdotUp > 0.0)
-        {
-            b = vec3<f32>(0.0, 0.0, 1.0);
-        }
-        else
-        {
-            b = vec3<f32>(0.0, 0.0, -1.0);
-        }
-    }
-    let t = normalize(cross(b, (*pixel_data).normal));
-    b = cross((*pixel_data).normal, t);
-    return TBN((*pixel_data).normal, t, b);
     //if (has_texture(material, TEXTURE_TYPE_NORMAL)) {  
     //    let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_NORMAL);
     //    var uv_dx = dpdx(uv);
@@ -76,7 +47,6 @@ fn compute_tbn(material: ptr<function, Material>, pixel_data: ptr<function, Pixe
     //    n = normalize(mat3x3<f32>(t, b, n) * ntex);
     //}
     return TBN(n, t, b);
-    */
 }
 
 fn compute_normal(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>) -> vec3<f32> {

@@ -6,7 +6,6 @@ pub use self::compute_pathtracing_indirect::*;
 pub use self::compute_runtime_vertices::*;
 pub use self::debug::*;
 pub use self::pass::*;
-pub use self::pbr::*;
 pub use self::visibility::*;
 pub use self::wireframe::*;
 
@@ -18,6 +17,5 @@ pub mod compute_pathtracing_indirect;
 pub mod compute_runtime_vertices;
 pub mod debug;
 pub mod pass;
-pub mod pbr;
 pub mod visibility;
 pub mod wireframe;
