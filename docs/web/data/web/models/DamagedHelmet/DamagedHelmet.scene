@@ -1,0 +1,9 @@
+{
+  "objects": [
+    "models/DamagedHelmet/object/node_damagedHelmet_-6514.object",
+    "models/DamagedHelmet/object/Camera.001.object",
+    "models/DamagedHelmet/object/Point.object"
+  ],
+  "cameras": [],
+  "lights": []
+}
