@@ -358,17 +358,17 @@ impl GltfCompiler {
                             }
                             1 => {
                                 tex.iter().enumerate().for_each(|(i, v)| {
-                                    vertices[i].uv_0 = Some(v - (max - min));
+                                    vertices[i].uv_1 = Some(v - (max - min));
                                 });
                             }
                             2 => {
                                 tex.iter().enumerate().for_each(|(i, v)| {
-                                    vertices[i].uv_0 = Some(v - (max - min));
+                                    vertices[i].uv_2 = Some(v - (max - min));
                                 });
                             }
                             3 => {
                                 tex.iter().enumerate().for_each(|(i, v)| {
-                                    vertices[i].uv_0 = Some(v - (max - min));
+                                    vertices[i].uv_3 = Some(v - (max - min));
                                 });
                             }
                             _ => {
