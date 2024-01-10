@@ -110,7 +110,7 @@
     268317028
   ],
   "vertex_layout": {
-    "bits": 6
+    "bits": 10
   },
   "vertex_attributes": [
     649566321,

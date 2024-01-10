@@ -98,7 +98,7 @@
     1072819962
   ],
   "vertex_layout": {
-    "bits": 6
+    "bits": 10
   },
   "vertex_attributes": [
     28326398,
