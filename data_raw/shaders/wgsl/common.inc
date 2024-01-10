@@ -53,7 +53,7 @@ const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1u << 17u;
 
 
 const MATH_PI: f32 = 3.14159265359;
-const MATH_EPSILON = 0.00001;
+const MATH_EPSILON = 0.0000001;
 const MAX_FLOAT: f32 = 3.402823466e+38;
 const MAX_TRACING_DISTANCE: f32 = 500.;
 const HIT_EPSILON: f32 = 0.0001;
@@ -62,10 +62,11 @@ const INVALID_NODE: i32 = -1;
 const VERTEX_ATTRIBUTE_HAS_POSITION: u32 = 0u;
 const VERTEX_ATTRIBUTE_HAS_COLOR: u32 = 1u;
 const VERTEX_ATTRIBUTE_HAS_NORMAL: u32 = 1u << 1u;
-const VERTEX_ATTRIBUTE_HAS_UV1: u32 = 1u << 2u;
-const VERTEX_ATTRIBUTE_HAS_UV2: u32 = 1u << 3u;
-const VERTEX_ATTRIBUTE_HAS_UV3: u32 = 1u << 4u;
-const VERTEX_ATTRIBUTE_HAS_UV4: u32 = 1u << 5u;
+const VERTEX_ATTRIBUTE_HAS_TANGENT: u32 = 1u << 2u;
+const VERTEX_ATTRIBUTE_HAS_UV1: u32 = 1u << 3u;
+const VERTEX_ATTRIBUTE_HAS_UV2: u32 = 1u << 4u;
+const VERTEX_ATTRIBUTE_HAS_UV3: u32 = 1u << 5u;
+const VERTEX_ATTRIBUTE_HAS_UV4: u32 = 1u << 6u;
 
 const MATERIAL_FLAGS_NONE: u32 = 0u;
 const MATERIAL_FLAGS_UNLIT: u32 = 1u;
@@ -275,6 +276,7 @@ struct PixelData {
     color: vec4<f32>,
     normal: vec3<f32>,
     mesh_scale: f32, 
+    tangent: vec4<f32>,
     uv_set: array<vec2<f32>, 4>,
 };
 

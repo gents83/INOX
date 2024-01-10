@@ -33,6 +33,7 @@ use inox_scene::{CameraData, ObjectData, SceneData};
 use inox_serialize::{
     deserialize, inox_serializable::SerializableRegistryRc, Deserialize, Serialize, SerializeFile,
 };
+use mikktspace::{generate_tangents, Geometry};
 
 const GLTF_EXTENSION: &str = "gltf";
 
@@ -68,6 +69,7 @@ struct GltfVertex {
     pos: Vector3,
     color: Option<Vector4>,
     normal: Option<Vector3>,
+    tangent: Option<Vector4>,
     uv_0: Option<Vector2>,
     uv_1: Option<Vector2>,
     uv_2: Option<Vector2>,
@@ -80,11 +82,47 @@ impl Default for GltfVertex {
             pos: Vector3::default_zero(),
             color: None,
             normal: None,
+            tangent: None,
             uv_0: None,
             uv_1: None,
             uv_2: None,
             uv_3: None,
         }
+    }
+}
+
+struct GltfGeometry {
+    vertices: Vec<GltfVertex>,
+    indices: Vec<u32>,
+}
+
+impl Geometry for GltfGeometry {
+    fn num_faces(&self) -> usize {
+        self.indices.len() / 3
+    }
+
+    fn num_vertices_of_face(&self, _face: usize) -> usize {
+        3
+    }
+
+    fn position(&self, face: usize, vert: usize) -> [f32; 3] {
+        self.vertices[self.indices[face * 3 + vert] as usize]
+            .pos
+            .into()
+    }
+
+    fn normal(&self, face: usize, vert: usize) -> [f32; 3] {
+        self.vertices[self.indices[face * 3 + vert] as usize]
+            .normal
+            .unwrap_or_else(Vector3::default_zero)
+            .into()
+    }
+
+    fn tex_coord(&self, face: usize, vert: usize) -> [f32; 2] {
+        self.vertices[self.indices[face * 3 + vert] as usize]
+            .uv_0
+            .unwrap_or_else(Vector2::default_zero)
+            .into()
     }
 }
 
@@ -240,6 +278,32 @@ impl GltfCompiler {
                         });
                     }
                 }
+                Semantic::Tangents => {
+                    let num = self.num_from_type(&accessor);
+                    let num_bytes = self.bytes_from_dimension(&accessor);
+                    debug_assert!(num == 4);
+                    if num_bytes == 2 {
+                        debug_assert!(num_bytes == 2);
+                        if let Some(tan) = self.read_accessor_from_path::<Vector4h>(path, &accessor)
+                        {
+                            if vertices.is_empty() {
+                                vertices.resize(tan.len(), GltfVertex::default());
+                            }
+                            tan.iter().enumerate().for_each(|(i, v)| {
+                                vertices[i].tangent =
+                                    Some([v.x as f32, v.y as f32, v.z as f32, v.z as f32].into());
+                            });
+                        }
+                    } else {
+                        debug_assert!(num_bytes == 4);
+                        if let Some(tan) = self.read_accessor_from_path::<Vector4>(path, &accessor)
+                        {
+                            tan.iter().enumerate().for_each(|(i, v)| {
+                                vertices[i].tangent = Some(*v);
+                            });
+                        }
+                    }
+                }
                 Semantic::Colors(_color_index) => {
                     let num = self.num_from_type(&accessor);
                     let num_bytes = self.bytes_from_dimension(&accessor);
@@ -269,12 +333,18 @@ impl GltfCompiler {
                 Semantic::TexCoords(texture_index) => {
                     let num = self.num_from_type(&accessor);
                     let num_bytes = self.bytes_from_dimension(&accessor);
+                    let max = if let Some(max) = accessor.max() {
+                        max.as_array().unwrap().iter().map(|v| v.as_f64().unwrap() as f32).collect()
+                    } else {
+                        vec![0.; 2]
+                    };
                     let min = if let Some(min) = accessor.min() {
                         min.as_array().unwrap().iter().map(|v| v.as_f64().unwrap() as f32).collect()
                     } else {
                         vec![0.; 2]
                     };
                     let min: Vector2 = Vector2::new(min[0], min[1]);
+                    let max: Vector2 = Vector2::new(max[0], max[1]);
                     debug_assert!(num == 2 && num_bytes == 4);
                     if let Some(tex) = self.read_accessor_from_path::<Vector2>(path, &accessor) {
                         if vertices.is_empty() {
@@ -283,22 +353,22 @@ impl GltfCompiler {
                         match texture_index {
                             0 => {
                                 tex.iter().enumerate().for_each(|(i, v)| {
-                                    vertices[i].uv_0 = Some(v - min);
+                                    vertices[i].uv_0 = Some(v - (max - min));
                                 });
                             }
                             1 => {
                                 tex.iter().enumerate().for_each(|(i, v)| {
-                                    vertices[i].uv_0 = Some(v - min);
+                                    vertices[i].uv_0 = Some(v - (max - min));
                                 });
                             }
                             2 => {
                                 tex.iter().enumerate().for_each(|(i, v)| {
-                                    vertices[i].uv_0 = Some(v - min);
+                                    vertices[i].uv_0 = Some(v - (max - min));
                                 });
                             }
                             3 => {
                                 tex.iter().enumerate().for_each(|(i, v)| {
-                                    vertices[i].uv_0 = Some(v - min);
+                                    vertices[i].uv_0 = Some(v - (max - min));
                                 });
                             }
                             _ => {
@@ -375,6 +445,10 @@ impl GltfCompiler {
             if let Some(n) = v.normal {
                 mesh_data.vertex_layout |= VertexAttributeLayout::HasNormal;
                 mesh_data.insert_normal(n);
+            }
+            if let Some(t) = v.tangent {
+                mesh_data.vertex_layout |= VertexAttributeLayout::HasTangent;
+                mesh_data.insert_tangent(t);
             }
             if let Some(uv) = v.uv_0 {
                 mesh_data.vertex_layout |= VertexAttributeLayout::HasUV1;
@@ -509,9 +583,10 @@ impl GltfCompiler {
     ) -> PathBuf {
         let vertices = self.extract_vertices(path, primitive);
         let indices = self.extract_indices(path, primitive);
-        let mut mesh_data = self.optimize_mesh(&vertices, &indices);
+        let mut geometry = GltfGeometry { vertices, indices };
+        generate_tangents(&mut geometry);
+        let mut mesh_data = self.optimize_mesh(&geometry.vertices, &geometry.indices);
         self.compute_meshlets(&mut mesh_data);
-
         mesh_data.material = material_path.to_path_buf();
 
         self.create_file(

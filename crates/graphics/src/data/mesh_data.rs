@@ -2,7 +2,8 @@ use std::path::PathBuf;
 
 use inox_bvh::GPUBVHNode;
 use inox_math::{
-    decode_unorm, quantize_half, quantize_snorm, quantize_unorm, VecBase, Vector2, Vector3, Vector4,
+    decode_unorm, pack_4_f32_to_snorm, quantize_half, quantize_snorm, quantize_unorm, VecBase,
+    Vector2, Vector3, Vector4,
 };
 
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
@@ -114,6 +115,11 @@ impl MeshData {
         let ny = quantize_snorm(n.y, 10);
         let nz = quantize_snorm(n.z, 10);
         self.vertex_attributes.push(nx << 20 | ny << 10 | nz);
+    }
+
+    pub fn insert_tangent(&mut self, t: Vector4) {
+        let v = pack_4_f32_to_snorm(t);
+        self.vertex_attributes.push(v);
     }
 
     pub fn insert_color(&mut self, c: Vector4) {
@@ -244,8 +250,8 @@ impl MeshData {
         let a = quantize_unorm(color.w, 8);
         let c = r << 24 | g << 16 | b << 8 | a;
 
-        let stride_in_count =
-            self.vertex_layout.stride_in_count() + VertexAttributeLayout::color_offset();
+        let stride_in_count = self.vertex_layout.stride_in_count()
+            + self.vertex_layout.offset(VertexAttributeLayout::HasColor);
         self.vertex_attributes
             .iter_mut()
             .step_by(stride_in_count)
@@ -267,8 +273,8 @@ impl MeshData {
     }
 
     pub fn packed_color(&self, i: usize) -> u32 {
-        let index =
-            i * self.vertex_layout.stride_in_count() + VertexAttributeLayout::color_offset();
+        let index = i * self.vertex_layout.stride_in_count()
+            + self.vertex_layout.offset(VertexAttributeLayout::HasColor);
         self.vertex_attributes[index]
     }
 }

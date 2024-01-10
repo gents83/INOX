@@ -8,10 +8,12 @@ pub enum VertexAttributeLayout {
     HasPosition = 0, // 	1 packed u32 with xyz in 0..1 in min-max (at runtime then 3 float)
     HasColor = 1,    // 	1 packed u32 in rgba 255bit (at runtime then 4 float)
     HasNormal = 1 << 1, // 	1 packed u32 with xy in 2f16 and z recomputed  (at runtime then 3 float)
-    HasUV1 = 1 << 2, //	1 packed u32 with uv in 2f16 (at runtime then 2 float)
-    HasUV2 = 1 << 3, //	1 packed u32 with uv in 2f16 (at runtime then 2 float)
-    HasUV3 = 1 << 4, //	1 packed u32 with uv in 2f16 (at runtime then 2 float)
-    HasUV4 = 1 << 5, //	1 packed u32 with uv in 2f16 (at runtime then 2 float)
+    HasTangent = 1 << 2, // 	1 packed u32 in rgba 255bit (at runtime then 4 float)
+    HasUV1 = 1 << 3, //	1 packed u32 with uv in 2f16 (at runtime then 2 float)
+    HasUV2 = 1 << 4, //	1 packed u32 with uv in 2f16 (at runtime then 2 float)
+    HasUV3 = 1 << 5, //	1 packed u32 with uv in 2f16 (at runtime then 2 float)
+    HasUV4 = 1 << 6, //	1 packed u32 with uv in 2f16 (at runtime then 2 float)
+    MaxAttributesShift = 7,
 }
 
 impl VertexAttributeLayout {
@@ -27,23 +29,14 @@ impl VertexAttributeLayout {
     pub fn pos_color_normal_uv1_uv2() -> Self {
         Self::HasPosition | Self::HasColor | Self::HasNormal | Self::HasUV1 | Self::HasUV2
     }
-    pub const fn color_offset() -> usize {
-        0
-    }
-    pub const fn normal_offset() -> usize {
-        1
-    }
-    pub const fn uv1_offset() -> usize {
-        2
-    }
-    pub const fn uv2_offset() -> usize {
-        3
-    }
-    pub const fn uv3_offset() -> usize {
-        4
-    }
-    pub const fn uv4_offset() -> usize {
-        5
+    pub fn offset(&self, attribute: VertexAttributeLayout) -> usize {
+        let mut offset = 0;
+        for i in 0u32..attribute.into() {
+            if self.intersects(VertexAttributeLayout::from(i)) {
+                offset += 1;
+            }
+        }
+        offset
     }
     pub fn stride_in_count(&self) -> usize {
         let mut stride = 0;
@@ -97,6 +90,9 @@ impl VertexAttributeLayout {
             layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
         }
         if self.intersects(VertexAttributeLayout::HasNormal) {
+            layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        }
+        if self.intersects(VertexAttributeLayout::HasTangent) {
             layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
         }
         if self.intersects(VertexAttributeLayout::HasUV1) {

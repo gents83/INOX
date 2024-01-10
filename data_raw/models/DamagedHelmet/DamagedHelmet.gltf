@@ -1,6 +1,6 @@
 {
 	"asset":{
-		"generator":"Khronos glTF Blender I/O v3.6.27",
+		"generator":"Khronos glTF Blender I/O v4.0.44",
 		"version":"2.0"
 	},
 	"extensionsUsed":[
@@ -51,9 +51,9 @@
 			"camera":0,
 			"name":"Camera.001",
 			"rotation":[
-				-0.1585708111524582,
-				0.3354138433933258,
-				0.05738423019647598,
+				-0.15857070684432983,
+				0.3354139029979706,
+				0.05738421529531479,
 				0.9268548488616943
 			],
 			"translation":[
@@ -127,12 +127,13 @@
 			"primitives":[
 				{
 					"attributes":{
-						"POSITION":0,
-						"NORMAL":1,
-						"TEXCOORD_0":2,
-						"TANGENT":3
+						"COLOR_0":0,
+						"POSITION":1,
+						"NORMAL":2,
+						"TEXCOORD_0":3,
+						"TANGENT":4
 					},
-					"indices":4,
+					"indices":5,
 					"material":0
 				}
 			]
@@ -181,6 +182,13 @@
 	"accessors":[
 		{
 			"bufferView":0,
+			"componentType":5123,
+			"count":16495,
+			"normalized":true,
+			"type":"VEC4"
+		},
+		{
+			"bufferView":1,
 			"componentType":5126,
 			"count":16495,
 			"max":[
@@ -196,25 +204,25 @@
 			"type":"VEC3"
 		},
 		{
-			"bufferView":1,
+			"bufferView":2,
 			"componentType":5126,
 			"count":16495,
 			"type":"VEC3"
 		},
 		{
-			"bufferView":2,
+			"bufferView":3,
 			"componentType":5126,
 			"count":16495,
 			"type":"VEC2"
 		},
 		{
-			"bufferView":3,
+			"bufferView":4,
 			"componentType":5126,
 			"count":16495,
 			"type":"VEC4"
 		},
 		{
-			"bufferView":4,
+			"bufferView":5,
 			"componentType":5123,
 			"count":46356,
 			"type":"SCALAR"
@@ -223,32 +231,38 @@
 	"bufferViews":[
 		{
 			"buffer":0,
-			"byteLength":197940,
+			"byteLength":131960,
 			"byteOffset":0,
 			"target":34962
 		},
 		{
 			"buffer":0,
 			"byteLength":197940,
-			"byteOffset":197940,
+			"byteOffset":131960,
+			"target":34962
+		},
+		{
+			"buffer":0,
+			"byteLength":197940,
+			"byteOffset":329900,
 			"target":34962
 		},
 		{
 			"buffer":0,
 			"byteLength":131960,
-			"byteOffset":395880,
-			"target":34962
-		},
-		{
-			"buffer":0,
-			"byteLength":263920,
 			"byteOffset":527840,
 			"target":34962
 		},
 		{
 			"buffer":0,
+			"byteLength":263920,
+			"byteOffset":659800,
+			"target":34962
+		},
+		{
+			"buffer":0,
 			"byteLength":92712,
-			"byteOffset":791760,
+			"byteOffset":923720,
 			"target":34963
 		}
 	],
@@ -260,7 +274,7 @@
 	],
 	"buffers":[
 		{
-			"byteLength":884472,
+			"byteLength":1016432,
 			"uri":"DamagedHelmet.bin"
 		}
 	]

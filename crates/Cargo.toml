@@ -55,6 +55,7 @@ naga = { git = "https://github.com/gfx-rs/wgpu", features = ["default", "wgsl-in
 wgpu-profiler = { git = "https://github.com/Wumpf/wgpu-profiler" }
 regex = { git = "https://github.com/rust-lang/regex" }
 gltf = { git = "https://github.com/gltf-rs/gltf", features = ["extras", "names", "KHR_materials_unlit", "KHR_lights_punctual", "KHR_materials_pbrSpecularGlossiness", "KHR_materials_transmission", "KHR_materials_variants", "KHR_materials_ior", "KHR_materials_emissive_strength", "KHR_materials_volume", "KHR_materials_specular"] }
+mikktspace = { git = "https://github.com/gltf-rs/mikktspace.git" }
 meshopt = { git = "https://github.com/gwihlidal/meshopt-rs" }
 
 futures = { git = "https://github.com/rust-lang/futures-rs", features = ["std", "thread-pool"] }

@@ -4,6 +4,7 @@ fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData
 {     
     var uv_set: array<vec2<f32>, 4>;
     var normal = vec3<f32>(0.);
+    var tangent = vec4<f32>(0.);
     var color = vec4<f32>(1.);
 
     let meshlet_id = (visibility_id >> 8u) - 1u; 
@@ -23,6 +24,7 @@ fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData
     let vertex_attribute_stride = vertex_layout_stride(vertex_layout);   
     let offset_color = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_COLOR);
     let offset_normal = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_NORMAL);
+    let offset_tangent = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_TANGENT);
     let offset_uv0 = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_UV1);
     let offset_uv1 = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_UV2);
     let offset_uv2 = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_UV3);
@@ -57,7 +59,24 @@ fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData
         let n3 = unpack_snorm_to_3_f32(a3);
         normal = barycentrics.x * n1 + barycentrics.y * n2 + barycentrics.z * n3;
         normal = rotate_vector(normal, orientation); 
-        normal = normalize(normal);
+        normal = normal;
+    }
+    if (offset_tangent >= 0) {
+        let a1 = vertices_attributes.data[attr_indices.x + u32(offset_tangent)];
+        let a2 = vertices_attributes.data[attr_indices.y + u32(offset_tangent)];
+        let a3 = vertices_attributes.data[attr_indices.z + u32(offset_tangent)];
+        let t1 = unpack_snorm_to_4_f32(a1);
+        let t2 = unpack_snorm_to_4_f32(a2);
+        let t3 = unpack_snorm_to_4_f32(a3);
+        let t = barycentrics.x * t1 + barycentrics.y * t2 + barycentrics.z * t3;
+        let rot_t = rotate_vector(t.xyz, orientation); 
+        tangent = vec4<f32>(rot_t, t.w);
+    } else {
+        var n = normalize(normal);
+        let s = select(-1., 1., n.z >= 0.);
+        let a = -1. / (s + n.z);
+        let b = n.x * n.y * a;
+        tangent = vec4<f32>(1f + s * n.x * n.x * a, s * b, -s * n.x, 1.);
     }
     if(offset_uv0 >= 0) {
         let a1 = vertices_attributes.data[attr_indices.x + u32(offset_uv0)];
@@ -96,5 +115,5 @@ fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData
         uv_set[3] = barycentrics.x * uv1 + barycentrics.y * uv2 + barycentrics.z * uv3;
     }    
 
-    return PixelData(hit_point, material_id, color, normal, scale.x, uv_set);
+    return PixelData(hit_point, material_id, color, normal, scale.x, tangent, uv_set);
 }
