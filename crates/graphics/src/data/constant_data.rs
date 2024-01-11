@@ -8,7 +8,7 @@ use inox_math::{matrix4_to_array, Mat4Ops, MatBase, Matrix4, VecBase, Vector2};
 use crate::{AsBinding, GpuBuffer, RenderCoreContext, DEFAULT_HEIGHT, DEFAULT_WIDTH};
 
 pub const CONSTANT_DATA_FLAGS_NONE: u32 = 0;
-pub const CONSTANT_DATA_FLAGS_SUPPORT_SRGB: u32 = 1;
+pub const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 1 << 1;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 1 << 2;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS: u32 = 1 << 3;
@@ -25,7 +25,6 @@ pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_0: u32 = 1 << 13;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_1: u32 = 1 << 14;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_2: u32 = 1 << 15;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_3: u32 = 1 << 16;
-pub const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1 << 17;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]

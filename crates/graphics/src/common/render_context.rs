@@ -1,17 +1,15 @@
 use std::{
     collections::HashMap,
-    sync::{atomic::Ordering, Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
+    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
-use inox_math::{Matrix4, Vector2};
 use inox_platform::Handle;
 use inox_resources::Resource;
 
 use crate::{
     platform::{platform_limits, required_gpu_features, setup_env},
-    BindingDataBuffer, BindingDataBufferRc, BufferId, ConstantData, ConstantDataRw,
-    DrawCommandType, GlobalBuffers, GpuBuffer, MeshFlags, Renderer, RendererRw, Texture,
-    TextureHandler, TextureHandlerRc, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, DEFAULT_HEIGHT,
+    BindingDataBuffer, BindingDataBufferRc, BufferId, DrawCommandType, GlobalBuffers, GpuBuffer,
+    MeshFlags, Renderer, RendererRw, Texture, TextureHandler, TextureHandlerRc, DEFAULT_HEIGHT,
     DEFAULT_WIDTH,
 };
 
@@ -65,7 +63,6 @@ pub struct RenderContext {
     pub texture_handler: TextureHandlerRc,
     pub binding_data_buffer: BindingDataBufferRc,
     pub global_buffers: GlobalBuffers,
-    pub constant_data: ConstantDataRw,
 }
 
 pub type RenderContextRw = Arc<RwLock<RenderContext>>;
@@ -177,45 +174,12 @@ impl RenderContext {
             .set_render_context(Arc::new(RwLock::new(RenderContext {
                 texture_handler: Arc::new(TextureHandler::create(&render_core_context.device)),
                 core: Arc::new(render_core_context),
-                constant_data: Arc::new(RwLock::new(ConstantData::default())),
                 binding_data_buffer: Arc::new(BindingDataBuffer::default()),
                 global_buffers: GlobalBuffers::default(),
             })));
 
         let mut renderer = renderer.write().unwrap();
         on_create_func(&mut renderer);
-    }
-
-    pub fn update_constant_data(
-        &self,
-        view: Matrix4,
-        proj: Matrix4,
-        screen_size: Vector2,
-        debug_coords: Vector2,
-    ) {
-        inox_profiler::scoped_profile!("render_context::update_constant_data");
-        self.constant_data.write().unwrap().update(
-            view,
-            proj,
-            screen_size,
-            debug_coords,
-            self.global_buffers
-                .tlas_start_index
-                .read()
-                .unwrap()
-                .load(Ordering::Relaxed),
-        );
-        if self.core.config.read().unwrap().format.is_srgb() {
-            self.constant_data
-                .write()
-                .unwrap()
-                .add_flag(CONSTANT_DATA_FLAGS_SUPPORT_SRGB);
-        } else {
-            self.constant_data
-                .write()
-                .unwrap()
-                .remove_flag(CONSTANT_DATA_FLAGS_SUPPORT_SRGB);
-        }
     }
 
     pub fn has_commands(

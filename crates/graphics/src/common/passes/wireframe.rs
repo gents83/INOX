@@ -97,7 +97,7 @@ impl Pass for WireframePass {
                 &data,
                 None,
             ),
-            constant_data: render_context.constant_data.clone(),
+            constant_data: render_context.global_buffers.constant_data.clone(),
             vertices: VecDebugVertex::default(),
             indices: VecDebugIndex::default(),
             commands_buffers: render_context.global_buffers.draw_commands.clone(),

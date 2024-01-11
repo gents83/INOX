@@ -60,7 +60,7 @@ impl Pass for ComputeRuntimeVerticesPass {
                 None,
             ),
             binding_data: BindingData::new(render_context, COMPUTE_RUNTIME_VERTICES_PASS_NAME),
-            constant_data: render_context.constant_data.clone(),
+            constant_data: render_context.global_buffers.constant_data.clone(),
             bhv: render_context.global_buffers.bvh.clone(),
             meshes: render_context.global_buffers.meshes.clone(),
             vertices_positions: render_context.global_buffers.vertex_positions.clone(),

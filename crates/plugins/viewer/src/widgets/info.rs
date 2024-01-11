@@ -118,7 +118,12 @@ impl Info {
             indirect_light_num_bounces: {
                 let renderer = params.renderer.read().unwrap();
                 let render_context = renderer.render_context();
-                let v = render_context.constant_data.read().unwrap().num_bounces();
+                let v = render_context
+                    .global_buffers
+                    .constant_data
+                    .read()
+                    .unwrap()
+                    .num_bounces();
                 v
             },
             params,
@@ -587,6 +592,7 @@ impl Info {
                                 let renderer = data.params.renderer.read().unwrap();
                                 let render_context = renderer.render_context();
                                 render_context
+                                    .global_buffers
                                     .constant_data
                                     .write()
                                     .unwrap()
@@ -717,6 +723,7 @@ impl Info {
                                     let renderer = data.params.renderer.read().unwrap();
                                     let render_context = renderer.render_context();
                                     render_context
+                                        .global_buffers
                                         .constant_data
                                         .write()
                                         .unwrap()
@@ -727,21 +734,28 @@ impl Info {
                                     {
                                         CONSTANT_DATA_FLAGS_NONE => {
                                             render_context
+                                                .global_buffers
                                                 .constant_data
                                                 .write()
                                                 .unwrap()
                                                 .set_frame_index(0);
                                         }
                                         _ => {
-                                            render_context.constant_data.write().unwrap().add_flag(
-                                                data.visualization_debug_choices
-                                                    [data.visualization_debug_selected]
-                                                    .0,
-                                            );
+                                            render_context
+                                                .global_buffers
+                                                .constant_data
+                                                .write()
+                                                .unwrap()
+                                                .add_flag(
+                                                    data.visualization_debug_choices
+                                                        [data.visualization_debug_selected]
+                                                        .0,
+                                                );
                                         }
                                     }
                                     if data.use_image_base_lighting_source {
                                         render_context
+                                            .global_buffers
                                             .constant_data
                                             .write()
                                             .unwrap()

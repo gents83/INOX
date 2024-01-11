@@ -65,7 +65,7 @@ impl Pass for VisibilityBufferPass {
                 None,
             ),
             binding_data: BindingData::new(render_context, VISIBILITY_BUFFER_PASS_NAME),
-            constant_data: render_context.constant_data.clone(),
+            constant_data: render_context.global_buffers.constant_data.clone(),
             indices: render_context.global_buffers.indices.clone(),
             commands_buffers: render_context.global_buffers.draw_commands.clone(),
             runtime_vertices: render_context.global_buffers.runtime_vertices.clone(),

@@ -78,7 +78,7 @@ impl Pass for DebugPass {
                 None,
             ),
             binding_data: BindingData::new(render_context, DEBUG_PASS_NAME),
-            constant_data: render_context.constant_data.clone(),
+            constant_data: render_context.global_buffers.constant_data.clone(),
             meshes: render_context.global_buffers.meshes.clone(),
             meshlets: render_context.global_buffers.meshlets.clone(),
             textures: render_context.global_buffers.textures.clone(),

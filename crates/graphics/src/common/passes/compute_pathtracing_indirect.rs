@@ -71,7 +71,7 @@ impl Pass for ComputePathTracingIndirectPass {
                 &data,
                 None,
             ),
-            constant_data: render_context.constant_data.clone(),
+            constant_data: render_context.global_buffers.constant_data.clone(),
             meshes: render_context.global_buffers.meshes.clone(),
             meshlets: render_context.global_buffers.meshlets.clone(),
             bhv: render_context.global_buffers.bvh.clone(),

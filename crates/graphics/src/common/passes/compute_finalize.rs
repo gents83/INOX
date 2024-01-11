@@ -59,7 +59,7 @@ impl Pass for ComputeFinalizePass {
                 &data,
                 None,
             ),
-            constant_data: render_context.constant_data.clone(),
+            constant_data: render_context.global_buffers.constant_data.clone(),
             radiance_data_buffer: render_context.global_buffers.radiance_data_buffer.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_FINALIZE_NAME),
             finalize_texture: INVALID_UID,

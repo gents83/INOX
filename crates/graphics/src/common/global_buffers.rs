@@ -7,14 +7,15 @@ use std::{
 };
 
 use inox_bvh::{create_linearized_bvh, BVHTree, GPUBVHNode, AABB};
-use inox_math::{quantize_snorm, InnerSpace, Mat4Ops, Matrix4, VecBase};
+use inox_math::{quantize_snorm, InnerSpace, Mat4Ops, Matrix4, VecBase, Vector2};
 use inox_resources::{to_slice, Buffer, HashBuffer, Resource, ResourceId};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string};
 
 use crate::{
-    AsBinding, DispatchCommandSize, GPUMaterial, GPUMesh, GPUMeshlet, GPURuntimeVertexData, Light,
-    LightData, LightId, Material, MaterialData, MaterialFlags, MaterialId, Mesh, MeshData,
-    MeshFlags, MeshId, RenderCommandsPerType, Texture, TextureId, TextureInfo, TextureType, VecU32,
+    AsBinding, ConstantDataRw, DispatchCommandSize, GPUMaterial, GPUMesh, GPUMeshlet,
+    GPURuntimeVertexData, Light, LightData, LightId, Material, MaterialData, MaterialFlags,
+    MaterialId, Mesh, MeshData, MeshFlags, MeshId, RenderCommandsPerType, Texture, TextureId,
+    TextureInfo, TextureType, VecU32,
 };
 
 pub const TLAS_UID: ResourceId = generate_static_uid_from_string("TLAS");
@@ -43,6 +44,7 @@ pub type AtomicCounters = Arc<RwLock<VecU32>>;
 //Alignment should be 4, 8, 16 or 32 bytes
 #[derive(Default)]
 pub struct GlobalBuffers {
+    pub constant_data: ConstantDataRw,
     pub textures: TexturesBuffer,
     pub lut_textures: TexturesLUT,
     pub lights: LightsBuffer,
@@ -469,5 +471,25 @@ impl GlobalBuffers {
     #[allow(non_snake_case)]
     pub fn get_LUT_texture_id(&self, lut_id: &ResourceId) -> TextureId {
         *self.lut_textures.read().unwrap().get(lut_id).unwrap().id()
+    }
+
+    pub fn update_constant_data(
+        &self,
+        view: Matrix4,
+        proj: Matrix4,
+        screen_size: Vector2,
+        debug_coords: Vector2,
+    ) {
+        inox_profiler::scoped_profile!("render_context::update_constant_data");
+        self.constant_data.write().unwrap().update(
+            view,
+            proj,
+            screen_size,
+            debug_coords,
+            self.tlas_start_index
+                .read()
+                .unwrap()
+                .load(Ordering::Relaxed),
+        );
     }
 }

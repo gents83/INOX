@@ -257,7 +257,7 @@ impl System for UpdateSystem {
                 let screen_size = Vector2::new(self.width as _, self.height as _);
 
                 let render_context = renderer.render_context();
-                render_context.update_constant_data(
+                render_context.global_buffers.update_constant_data(
                     self.view.get().view(),
                     self.view.get().proj(),
                     screen_size,

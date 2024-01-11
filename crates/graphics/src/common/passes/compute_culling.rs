@@ -134,7 +134,7 @@ impl Pass for CullingPass {
                 &compact_data,
                 None,
             ),
-            constant_data: render_context.constant_data.clone(),
+            constant_data: render_context.global_buffers.constant_data.clone(),
             commands: render_context.global_buffers.draw_commands.clone(),
             meshes: render_context.global_buffers.meshes.clone(),
             meshlets: render_context.global_buffers.meshlets.clone(),
