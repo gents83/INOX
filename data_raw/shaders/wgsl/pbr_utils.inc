@@ -377,13 +377,27 @@ fn apply_volume_attenuation(radiance: vec3<f32>, transmissionDistance: f32, atte
         return transmittance * radiance;
     }
 }
-
+/*
+fn get_IBL_radiance_GGX_iridescence(n: vec3<f32>, v: vec3<f32>, roughness: f32, F0: vec3<f32>, iridescenceFresnel: vec3<f32>, iridescenceFactor: f32, specularWeight: f32) -> vec3<f32> {
+	let NdotV: f32 = clampedDot(n, v);
+	let lod: f32 = roughness * f32(u_MipCount - 1.);
+	let reflection: vec3<f32> = normalize(reflect(-v, n));
+	let brdfSamplePoint: vec2<f32> = clamp(vec2<f32>(NdotV, roughness), vec2<f32>(0., 0.), vec2<f32>(1., 1.));
+	let f_ab: vec2<f32> = sample_texture(BUFFER_u_GGXLUT, brdfSamplePoint).rg;
+	let specularSample: vec4<f32> = getSpecularSample(reflection, lod);
+	let specularLight: vec3<f32> = specularSample.rgb;
+	let Fr: vec3<f32> = max(vec3<f32>(1. - roughness), F0) - F0;
+	let k_S: vec3<f32> = mix(F0 + Fr * pow(1. - NdotV, 5.), iridescenceFresnel, iridescenceFactor);
+	let FssEss: vec3<f32> = k_S * f_ab.x + f_ab.y;
+	return specularWeight * specularLight * FssEss;
+} 
+*/
 //Inspired from glTF-Sample-Viewer
 fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, PixelData>) -> MaterialInfo {
     var material = materials.data[material_id];
 
     let v = normalize(matrix_row(constant_data.view, 2u).xyz - (*pixel_data).world_pos);
-    let tbn = compute_tbn(&material, pixel_data);
+    var tbn = compute_tbn(&material, pixel_data);
 
     let NdotV = clamped_dot(tbn.normal,v);
     let TdotV = clamped_dot(tbn.tangent,v);
@@ -407,7 +421,7 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
         compute_sheen(&material, pixel_data, &material_info);
     }
     if((material.flags & MATERIAL_FLAGS_CLEARCOAT) != 0u) {
-        compute_clear_coat(&material, pixel_data, &material_info);
+        compute_clear_coat(&material, tbn.normal, pixel_data, &material_info);
     }
     if((material.flags & MATERIAL_FLAGS_SPECULAR) != 0u) {
         compute_specular(&material, pixel_data, &material_info);
@@ -422,7 +436,7 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
         compute_iridescence(&material, pixel_data, &material_info);
     }
     if((material.flags & MATERIAL_FLAGS_ANISOTROPY) != 0u) {
-        compute_anisotropy(&material, pixel_data, &material_info);
+        compute_anisotropy(&material, &tbn, &material_info);
     }
 
     material_info.perceptual_roughness = clamp(material_info.perceptual_roughness, 0.0, 1.0);
@@ -455,9 +469,44 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
         iridescence_f0 = schlick_to_f0_vec3(iridescence_fresnel, vec3<f32>(1.), NdotV);
         if(material_info.iridescence_thickness == 0.) { material_info.iridescence_factor = 0.; }
     }
-     
+
+    let specular_weight_and_anisotropy_strength = unpack2x16float(material_info.specular_weight_and_anisotropy_strength);
+    let specular_weight = specular_weight_and_anisotropy_strength.x;
+    let anisotropy_strength = specular_weight_and_anisotropy_strength.y;
+
+/*
     // TODO - Calculate lighting contribution from image based lighting source (IBL)
-    
+    if ((constant_data.flags & CONSTANT_DATA_FLAGS_USE_IBL) != 0) {      
+        if((material.flags & MATERIAL_FLAGS_IRIDESCENCE) != 0u) {
+            f_specular += get_IBL_radiance_GGX_iridescence(tbn.normal, v, material_info.perceptual_roughness, material_info.f0, iridescence_fresnel, material_info.iridescence_factor, specular_weight);
+            f_diffuse += get_IBL_radiance_lambertian_iridescence(tbn.normal, v, material_info.perceptual_roughness, material_info.c_diff, material_info.f0, iridescence_f0, material_info.iridescence_factor, specular_weight);
+        }
+        else if((material.flags & MATERIAL_FLAGS_ANISOTROPY) != 0u) {
+            f_specular += get_IBL_radiance_anisotropy(tbn.normal, v, material_info.perceptual_roughness, material_info.anisotropy_strength, material_info.anisotropicB, material_info.f0, specular_weight);
+            f_diffuse += get_IBL_radiance_lambertian(tbn.normal, v, material_info.perceptual_roughness, material_info.c_diff, material_info.f0, specular_weight);
+        }
+        else {
+            f_specular += get_IBL_radiance_GGX(tbn.normal, v, material_info.perceptual_roughness, material_info.f0, specular_weight);
+            f_diffuse += get_IBL_radiance_lambertian(tbn.normal, v, material_info.perceptual_roughness, material_info.c_diff, material_info.f0, specular_weight);
+        }
+        if((material.flags & MATERIAL_FLAGS_CLEARCOAT) != 0u) {
+            f_clearcoat += get_IBL_radiance_GGX(material_info.clear_coat_normal, v, material_info.clear_coat_roughness_factor, material_info.clear_coat_f0, 1.0);
+        }
+        if((material.flags & MATERIAL_FLAGS_SHEEN) != 0u) {
+            f_sheen += get_IBL_radiance_charlie(tbn.normal, v, material_info.sheen_color_and_roughness_factor.z, material_info.sheen_color_and_roughness_factor.rgb);
+        }
+        if((material.flags & MATERIAL_FLAGS_TRANSMISSION) != 0u) {
+            let mesh = &meshes.data[(*pixel_data).mesh_id];
+            let mesh_matrix = transform_matrix((*mesh).position, (*mesh).orientation, (*mesh).scale);
+            f_transmission += get_IBL_volume_refraction(
+                tbn.normal, v,
+                material_info.perceptual_roughness,
+                material_info.c_diff, material_info.f0, material_info.f90,
+                (*pixel_data.world_pos), mesh_matrix, constant_data.view, constant_data.proj,
+                material_info.ior, material_info.thickness_factor, material_info.attenuation_color_and_distance.rgb, material_info.attenuation_color_and_distance.z);
+        }
+    }
+*/  
     var f_diffuse_ibl = f_diffuse;
     var f_specular_ibl = f_specular;
     var f_sheen_ibl = f_sheen;
@@ -492,14 +541,11 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
         {
             // Calculation of analytical light
             let intensity = get_light_intensity(&light, pointToLight);
-            let specular_weight_and_anisotropy_strength = unpack2x16float(material_info.specular_weight_and_anisotropy_strength);
-            let specular_weight = specular_weight_and_anisotropy_strength.x;
             if((material.flags & MATERIAL_FLAGS_IRIDESCENCE) != 0u) {
                 f_diffuse += intensity * NdotL *  BRDF_lambertian_iridescence(material_info.f0, material_info.f90, iridescence_fresnel, material_info.iridescence_factor, material_info.c_diff, specular_weight, VdotH);
                 f_specular += intensity * NdotL * BRDF_specular_GGX_iridescence(material_info.f0, material_info.f90, iridescence_fresnel, material_info.alpha_roughness,  material_info.iridescence_factor, specular_weight, VdotH, NdotL, NdotV, NdotH);
             }
             else if((material.flags & MATERIAL_FLAGS_ANISOTROPY) != 0u) {
-                let anisotropy_strength = specular_weight_and_anisotropy_strength.y;
                 f_diffuse += intensity * NdotL *  BRDF_lambertian(material_info.f0, material_info.f90, material_info.c_diff, specular_weight, VdotH);
                 f_specular += intensity * NdotL * BRDF_specular_GGX_anisotropy(material_info.f0, material_info.f90, material_info.alpha_roughness, anisotropy_strength, tbn.normal, v, l, h, material_info.anisotropicT, material_info.anisotropicB);
             } else {
@@ -524,7 +570,9 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
         if((material.flags & MATERIAL_FLAGS_TRANSMISSION) != 0u) {
             // If the light ray travels through the geometry, use the point it exits the geometry again.
             // That will change the angle to the light source, if the material refracts the light ray.
-            let transmission_ray = get_volume_transmission_ray(tbn.normal, v, material_info.thickness_factor, material_info.ior, (*pixel_data).mesh_scale);
+            let mesh = &meshes.data[(*pixel_data).mesh_id];
+            let mesh_scale = (*mesh).scale.x;
+            let transmission_ray = get_volume_transmission_ray(tbn.normal, v, material_info.thickness_factor, material_info.ior, mesh_scale);
             pointToLight -= transmission_ray;
             l = normalize(pointToLight);
             let intensity = get_light_intensity(&light, pointToLight);

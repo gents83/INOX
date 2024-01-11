@@ -49,11 +49,6 @@ fn compute_tbn(material: ptr<function, Material>, pixel_data: ptr<function, Pixe
     return TBN(n, t, b);
 }
 
-fn compute_normal(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>) -> vec3<f32> {
-    let tbn = compute_tbn(material, pixel_data);
-    return tbn.normal;
-}
-
 fn init_material_info_default(info: ptr<function, MaterialInfo>) {
     (*info).base_color = vec4<f32>(1.);
     (*info).f0 = vec3<f32>(0.04);
@@ -143,12 +138,12 @@ fn compute_sheen(material: ptr<function, Material>, pixel_data: ptr<function, Pi
     //NOT SUPPORTED TILL NOW - need gltf-rs support for KHR_materials_sheen
 }
 
-fn compute_clear_coat(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) {   
+fn compute_clear_coat(material: ptr<function, Material>, normal: vec3<f32>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) {   
     (*info).clear_coat_factor = 0.;
     (*info).clear_coat_roughness_factor = 0.;
     (*info).clear_coat_f0 = vec3<f32>(pow(((*info).ior - 1.0) / ((*info).ior + 1.0), 2.0));
     (*info).clear_coat_f90 = vec3<f32>(1.0);
-    (*info).clear_coat_normal = (*pixel_data).normal;
+    (*info).clear_coat_normal = normal;
     
     //NOT SUPPORTED TILL NOW - need gltf-rs support for KHR_materials_clearcoat
 }
@@ -199,11 +194,10 @@ fn compute_iridescence(material: ptr<function, Material>, pixel_data: ptr<functi
     //NOT SUPPORTED TILL NOW - need gltf-rs support for KHR_materials_iridescence 
 }
 
-fn compute_anisotropy(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) { 
+fn compute_anisotropy(material: ptr<function, Material>, tbn: ptr<function, TBN>, info: ptr<function, MaterialInfo>) { 
     let specular_weight = unpack2x16float((*info).specular_weight_and_anisotropy_strength).x;
-    let tbn = compute_tbn(material, pixel_data);
-    (*info).anisotropicT = tbn.tangent;
-    (*info).anisotropicB = tbn.binormal;
+    (*info).anisotropicT = (*tbn).tangent;
+    (*info).anisotropicB = (*tbn).binormal;
     (*info).specular_weight_and_anisotropy_strength = pack2x16float(vec2<f32>(specular_weight, 0.));
 
     //NOT SUPPORTED TILL NOW - need gltf-rs support for KHR_materials_anisotropy

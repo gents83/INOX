@@ -11,7 +11,7 @@ use inox_graphics::{
     CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_ROUGHNESS,
     CONSTANT_DATA_FLAGS_DISPLAY_TANGENT, CONSTANT_DATA_FLAGS_DISPLAY_UV_0,
     CONSTANT_DATA_FLAGS_DISPLAY_UV_1, CONSTANT_DATA_FLAGS_DISPLAY_UV_2,
-    CONSTANT_DATA_FLAGS_DISPLAY_UV_3, CONSTANT_DATA_FLAGS_NONE,
+    CONSTANT_DATA_FLAGS_DISPLAY_UV_3, CONSTANT_DATA_FLAGS_NONE, CONSTANT_DATA_FLAGS_USE_IBL,
 };
 use inox_math::{
     compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle, Quat, VecBase, Vector2,
@@ -80,6 +80,7 @@ struct Data {
     show_blas: bool,
     show_frustum: bool,
     show_lights: bool,
+    use_image_base_lighting_source: bool,
     freeze_culling_camera: bool,
     visualization_debug_selected: usize,
     visualization_debug_choices: Vec<(u32, &'static str)>,
@@ -127,6 +128,7 @@ impl Info {
             show_blas: false,
             show_frustum: false,
             show_lights: false,
+            use_image_base_lighting_source: false,
             freeze_culling_camera: false,
             visualization_debug_selected: 0,
             visualization_debug_choices: vec![
@@ -592,6 +594,9 @@ impl Info {
                                     .set_frame_index(0);
                             }
                         });
+                        ui.horizontal(|ui| {
+                            ui.checkbox(&mut data.use_image_base_lighting_source, "Use IBL");
+                        });
                         ui.vertical(|ui| {
                             let renderer = data.params.renderer.read().unwrap();
                             let render_context = renderer.render_context();
@@ -734,6 +739,13 @@ impl Info {
                                                     .0,
                                             );
                                         }
+                                    }
+                                    if data.use_image_base_lighting_source {
+                                        render_context
+                                            .constant_data
+                                            .write()
+                                            .unwrap()
+                                            .add_flag(CONSTANT_DATA_FLAGS_USE_IBL);
                                     }
                                 }
                             }
