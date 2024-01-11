@@ -256,6 +256,7 @@ impl Viewer {
         compute_pathtracing_direct_pass
             .set_radiance_texture_size(radiance_texture.get().dimensions())
             .set_binding_texture(renderer.render_target_id(RenderTargetType::Binding as usize))
+            .set_finalize_texture(renderer.render_target_id(RenderTargetType::Finalize as usize))
             .set_visibility_texture(
                 renderer.render_target_id(RenderTargetType::Visibility as usize),
             )
@@ -269,6 +270,7 @@ impl Viewer {
         compute_pathtracing_indirect_pass
             .set_radiance_texture(radiance_texture.id(), radiance_texture.get().dimensions())
             .set_binding_texture(renderer.render_target_id(RenderTargetType::Binding as usize))
+            .set_finalize_texture(renderer.render_target_id(RenderTargetType::Finalize as usize))
             .set_debug_data_texture(
                 renderer.render_target_id(RenderTargetType::DebugData as usize),
             );

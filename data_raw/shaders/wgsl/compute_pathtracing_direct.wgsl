@@ -33,6 +33,8 @@ var visibility_texture: texture_storage_2d<r32uint, read_write>;
 var depth_texture: texture_depth_2d;
 @group(1) @binding(6)
 var binding_texture: texture_storage_2d<rgba8unorm, read_write>;
+@group(1) @binding(7)
+var finalize_texture: texture_2d<f32>;
 
 #import "texture_utils.inc"
 #import "matrix_utils.inc"

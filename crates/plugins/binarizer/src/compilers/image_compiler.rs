@@ -13,6 +13,7 @@ const IMAGE_DDS_EXTENSION: &str = "dds";
 const IMAGE_TIFF_EXTENSION: &str = "tiff";
 const IMAGE_GIF_EXTENSION: &str = "bmp";
 const IMAGE_ICO_EXTENSION: &str = "ico";
+const IMAGE_EXR_EXTENSION: &str = "exr";
 
 pub struct ImageCompiler {
     message_hub: MessageHubRc,
@@ -42,7 +43,8 @@ impl ExtensionHandler for ImageCompiler {
                 || extension.as_str() == IMAGE_TIFF_EXTENSION
                 || extension.as_str() == IMAGE_GIF_EXTENSION
                 || extension.as_str() == IMAGE_ICO_EXTENSION
-                || extension.as_str() == IMAGE_DDS_EXTENSION)
+                || extension.as_str() == IMAGE_DDS_EXTENSION
+                || extension.as_str() == IMAGE_EXR_EXTENSION)
                 && copy_into_data_folder(
                     &self.message_hub,
                     path,

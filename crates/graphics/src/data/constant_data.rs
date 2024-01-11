@@ -7,8 +7,8 @@ use inox_math::{matrix4_to_array, Mat4Ops, MatBase, Matrix4, VecBase, Vector2};
 use inox_uid::Uid;
 
 use crate::{
-    AsBinding, GpuBuffer, RenderCoreContext, DEFAULT_HEIGHT, DEFAULT_WIDTH, LUT_PBR_CHARLIE_UID,
-    LUT_PBR_GGX_UID,
+    AsBinding, GpuBuffer, RenderCoreContext, DEFAULT_HEIGHT, DEFAULT_WIDTH, ENV_MAP_UID,
+    LUT_PBR_CHARLIE_UID, LUT_PBR_GGX_UID,
 };
 
 pub const CONSTANT_DATA_FLAGS_NONE: u32 = 0;
@@ -44,7 +44,7 @@ struct Data {
     pub num_bounces: u32,
     pub lut_pbr_charlie_texture_index: u32,
     pub lut_pbr_ggx_texture_index: u32,
-    _padding1: u32,
+    pub env_map_texture_index: u32,
     _padding2: u32,
 }
 
@@ -62,7 +62,7 @@ impl Default for Data {
             num_bounces: 0,
             lut_pbr_charlie_texture_index: 0,
             lut_pbr_ggx_texture_index: 0,
-            _padding1: 0,
+            env_map_texture_index: 0,
             _padding2: 0,
         }
     }
@@ -143,6 +143,9 @@ impl ConstantData {
             self.set_dirty(true);
         } else if *lut_id == LUT_PBR_GGX_UID {
             self.data.lut_pbr_ggx_texture_index = texture_index;
+            self.set_dirty(true);
+        } else if *lut_id == ENV_MAP_UID {
+            self.data.env_map_texture_index = texture_index;
             self.set_dirty(true);
         }
         self

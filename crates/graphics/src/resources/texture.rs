@@ -163,6 +163,7 @@ impl SerializableResource for Texture {
         const IMAGE_TIFF_EXTENSION: &str = "tiff";
         const IMAGE_GIF_EXTENSION: &str = "bmp";
         const IMAGE_ICO_EXTENSION: &str = "ico";
+        const IMAGE_EXR_EXTENSION: &str = "exr";
 
         if let Some(ext) = path.extension().unwrap().to_str() {
             return ext == IMAGE_PNG_EXTENSION
@@ -173,7 +174,8 @@ impl SerializableResource for Texture {
                 || ext == IMAGE_DDS_EXTENSION
                 || ext == IMAGE_TIFF_EXTENSION
                 || ext == IMAGE_GIF_EXTENSION
-                || ext == IMAGE_ICO_EXTENSION;
+                || ext == IMAGE_ICO_EXTENSION
+                || ext == IMAGE_EXR_EXTENSION;
         }
         false
     }

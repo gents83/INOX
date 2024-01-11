@@ -21,6 +21,7 @@ use crate::{
 pub const TLAS_UID: ResourceId = generate_static_uid_from_string("TLAS");
 pub const LUT_PBR_CHARLIE_UID: ResourceId = generate_static_uid_from_string("LUT_PBR_CHARLIE_UID");
 pub const LUT_PBR_GGX_UID: ResourceId = generate_static_uid_from_string("LUT_PBR_GGX_UID");
+pub const ENV_MAP_UID: ResourceId = generate_static_uid_from_string("ENV_MAP_UID");
 
 pub const ATOMIC_SIZE: u32 = 32;
 pub const PREALLOCATED_MIN_SIZE: usize = 1;

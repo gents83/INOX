@@ -601,7 +601,24 @@ impl Info {
                             }
                         });
                         ui.horizontal(|ui| {
-                            ui.checkbox(&mut data.use_image_base_lighting_source, "Use IBL");
+                            let is_changed = ui
+                                .checkbox(&mut data.use_image_base_lighting_source, "Use IBL")
+                                .changed();
+                            if is_changed {
+                                let renderer = data.params.renderer.read().unwrap();
+                                let render_context = renderer.render_context();
+                                let mut constant_data =
+                                    render_context.global_buffers.constant_data.write().unwrap();
+                                if data.use_image_base_lighting_source {
+                                    constant_data
+                                        .add_flag(CONSTANT_DATA_FLAGS_USE_IBL)
+                                        .set_frame_index(0);
+                                } else {
+                                    constant_data
+                                        .remove_flag(CONSTANT_DATA_FLAGS_USE_IBL)
+                                        .set_frame_index(0);
+                                }
+                            }
                         });
                         ui.vertical(|ui| {
                             let renderer = data.params.renderer.read().unwrap();
@@ -695,6 +712,7 @@ impl Info {
 
                         ui.horizontal(|ui| {
                             ui.label("Debug mode:");
+                            let previous_debug_selected = data.visualization_debug_selected;
                             let combo_box = ComboBox::from_id_source("Debug mode")
                                 .selected_text(
                                     data.visualization_debug_choices
@@ -727,7 +745,11 @@ impl Info {
                                         .constant_data
                                         .write()
                                         .unwrap()
-                                        .set_flags(CONSTANT_DATA_FLAGS_NONE);
+                                        .remove_flag(
+                                            data.visualization_debug_choices
+                                                [previous_debug_selected]
+                                                .0,
+                                        );
                                     match data.visualization_debug_choices
                                         [data.visualization_debug_selected]
                                         .0
@@ -746,20 +768,13 @@ impl Info {
                                                 .constant_data
                                                 .write()
                                                 .unwrap()
+                                                .set_frame_index(0)
                                                 .add_flag(
                                                     data.visualization_debug_choices
                                                         [data.visualization_debug_selected]
                                                         .0,
                                                 );
                                         }
-                                    }
-                                    if data.use_image_base_lighting_source {
-                                        render_context
-                                            .global_buffers
-                                            .constant_data
-                                            .write()
-                                            .unwrap()
-                                            .add_flag(CONSTANT_DATA_FLAGS_USE_IBL);
                                     }
                                 }
                             }

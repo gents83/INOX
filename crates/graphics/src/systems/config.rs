@@ -9,6 +9,7 @@ pub struct Config {
     pub wireframe_pipeline: PathBuf,
     pub lut_pbr_charlie: PathBuf,
     pub lut_pbr_ggx: PathBuf,
+    pub env_map: PathBuf,
 }
 
 impl Default for Config {
@@ -17,6 +18,7 @@ impl Default for Config {
             wireframe_pipeline: PathBuf::new(),
             lut_pbr_charlie: PathBuf::new(),
             lut_pbr_ggx: PathBuf::new(),
+            env_map: PathBuf::new(),
         }
     }
 }

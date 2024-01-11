@@ -8,7 +8,9 @@ use inox_resources::{
 };
 use inox_serialize::read_from_file;
 
-use crate::{RendererRw, RendererState, Texture, LUT_PBR_CHARLIE_UID, LUT_PBR_GGX_UID};
+use crate::{
+    RendererRw, RendererState, Texture, ENV_MAP_UID, LUT_PBR_CHARLIE_UID, LUT_PBR_GGX_UID,
+};
 
 use super::config::Config;
 
@@ -22,6 +24,7 @@ pub struct RenderingSystem {
     job_handler: JobHandlerRw,
     pbr_lut_charlie: Handle<Texture>,
     pbr_lut_ggx: Handle<Texture>,
+    env_map: Handle<Texture>,
 }
 
 impl RenderingSystem {
@@ -35,6 +38,7 @@ impl RenderingSystem {
             job_handler: context.job_handler().clone(),
             pbr_lut_charlie: None,
             pbr_lut_ggx: None,
+            env_map: None,
         }
     }
 }
@@ -86,6 +90,14 @@ impl System for RenderingSystem {
                             &config.lut_pbr_ggx,
                             OnCreateData::create(|t: &mut Texture| {
                                 t.mark_as_LUT(&LUT_PBR_GGX_UID);
+                            }),
+                        ));
+                        self.env_map = Some(Texture::request_load(
+                            &self.shared_data,
+                            self.listener.message_hub(),
+                            &config.env_map,
+                            OnCreateData::create(|t: &mut Texture| {
+                                t.mark_as_LUT(&ENV_MAP_UID);
                             }),
                         ));
                     }

@@ -32,6 +32,8 @@ var radiance_texture: texture_storage_2d<rgba8unorm, read_write>;
 var binding_texture: texture_storage_2d<rgba8unorm, read_write>;
 @group(1) @binding(6)
 var debug_data_texture: texture_storage_2d<r32float, read_write>;
+@group(1) @binding(7)
+var finalize_texture: texture_2d<f32>;
 
 #import "texture_utils.inc"
 #import "matrix_utils.inc"

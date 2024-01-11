@@ -377,21 +377,166 @@ fn apply_volume_attenuation(radiance: vec3<f32>, transmissionDistance: f32, atte
         return transmittance * radiance;
     }
 }
-/*
-fn get_IBL_radiance_GGX_iridescence(n: vec3<f32>, v: vec3<f32>, roughness: f32, F0: vec3<f32>, iridescenceFresnel: vec3<f32>, iridescenceFactor: f32, specularWeight: f32) -> vec3<f32> {
-	let NdotV: f32 = clampedDot(n, v);
-	let lod: f32 = roughness * f32(u_MipCount - 1.);
-	let reflection: vec3<f32> = normalize(reflect(-v, n));
-	let brdfSamplePoint: vec2<f32> = clamp(vec2<f32>(NdotV, roughness), vec2<f32>(0., 0.), vec2<f32>(1., 1.));
-	let f_ab: vec2<f32> = sample_texture(BUFFER_u_GGXLUT, brdfSamplePoint).rg;
-	let specularSample: vec4<f32> = getSpecularSample(reflection, lod);
-	let specularLight: vec3<f32> = specularSample.rgb;
-	let Fr: vec3<f32> = max(vec3<f32>(1. - roughness), F0) - F0;
-	let k_S: vec3<f32> = mix(F0 + Fr * pow(1. - NdotV, 5.), iridescenceFresnel, iridescenceFactor);
-	let FssEss: vec3<f32> = k_S * f_ab.x + f_ab.y;
+
+fn get_IBL_radiance_GGX(n: vec3<f32>, v: vec3<f32>, roughness: f32, F0: vec3<f32>, specularWeight: f32) -> vec3<f32> {
+	let NdotV = clamped_dot(n, v);
+	let reflection = normalize(reflect(-v, n));
+    
+	let brdfSamplePoint = vec3<f32>(clamp(vec2<f32>(NdotV, roughness), vec2<f32>(0., 0.), vec2<f32>(1., 1.)), f32(constant_data.lut_pbr_ggx_texture_index));
+	let f_ab = sample_texture(brdfSamplePoint).rg;
+    let specular_env_uv = vec3<f32>(reflection.xy, f32(constant_data.environment_map_texture_index));	
+	let specularLight = sample_texture(specular_env_uv).rgb;
+
+    // see https://bruop.github.io/ibl/#single_scattering_results at Single Scattering Results
+    // Roughness dependent fresnel, from Fdez-Aguera
+	let Fr = max(vec3<f32>(1. - roughness), F0) - F0;
+	let k_S = F0 + Fr * pow(1. - NdotV, 5.);
+	let FssEss = k_S * f_ab.x + f_ab.y;
+
 	return specularWeight * specularLight * FssEss;
 } 
-*/
+
+
+fn get_IBL_radiance_GGX_iridescence(n: vec3<f32>, v: vec3<f32>, roughness: f32, F0: vec3<f32>, iridescenceFresnel: vec3<f32>, iridescenceFactor: f32, specularWeight: f32) -> vec3<f32> {
+	let NdotV = clamped_dot(n, v);
+	let reflection = normalize(reflect(-v, n));
+
+	let brdfSamplePoint = vec3<f32>(clamp(vec2<f32>(NdotV, roughness), vec2<f32>(0., 0.), vec2<f32>(1., 1.)), f32(constant_data.lut_pbr_ggx_texture_index));
+	let f_ab = sample_texture(brdfSamplePoint).rg;
+    let specular_env_uv = vec3<f32>(reflection.xy, f32(constant_data.environment_map_texture_index));	
+	let specularLight = sample_texture(specular_env_uv).rgb;
+    
+    // see https://bruop.github.io/ibl/#single_scattering_results at Single Scattering Results
+    // Roughness dependent fresnel, from Fdez-Aguera
+	let Fr = max(vec3<f32>(1. - roughness), F0) - F0;
+	let k_S = mix(F0 + Fr * pow(1. - NdotV, 5.), iridescenceFresnel, iridescenceFactor);
+	let FssEss = k_S * f_ab.x + f_ab.y;
+
+	return specularWeight * specularLight * FssEss;
+} 
+
+fn get_IBL_radiance_lambertian_iridescence(n: vec3<f32>, v: vec3<f32>, roughness: f32, diffuseColor: vec3<f32>, F0: vec3<f32>, iridescenceF0: vec3<f32>, iridescenceFactor: f32, specularWeight: f32) -> vec3<f32> {
+	let NdotV = clamped_dot(n, v);
+	let brdfSamplePoint = vec3<f32>(clamp(vec2<f32>(NdotV, roughness), vec2<f32>(0., 0.), vec2<f32>(1., 1.)), f32(constant_data.lut_pbr_ggx_texture_index));
+	let f_ab = sample_texture(brdfSamplePoint).rg;
+    
+    let irradiance_uv = vec3<f32>(n.xy, f32(constant_data.environment_map_texture_index));	
+	let irradiance = sample_texture(irradiance_uv).rgb;	
+
+    // Use the maximum component of the iridescence Fresnel color
+    // Maximum is used instead of the RGB value to not get inverse colors for the diffuse BRDF
+	let iridescenceF0Max = vec3<f32>(max(max(iridescenceF0.r, iridescenceF0.g), iridescenceF0.b));
+
+    // Blend between base F0 and iridescence F0
+	let mixedF0 = mix(F0, iridescenceF0Max, iridescenceFactor);
+
+    // see https://bruop.github.io/ibl/#single_scattering_results at Single Scattering Results
+    // Roughness dependent fresnel, from Fdez-Aguera
+
+	let Fr = max(vec3<f32>(1. - roughness), mixedF0) - mixedF0;
+	let k_S = mixedF0 + Fr * pow(1. - NdotV, 5.);
+	let FssEss = specularWeight * k_S * f_ab.x + f_ab.y; // <--- GGX / specular light contribution (scale it down if the specularWeight is low)
+	
+    // Multiple scattering, from Fdez-Aguera
+    let Ems = 1. - (f_ab.x + f_ab.y);
+	let F_avg = specularWeight * (mixedF0 + (1. - mixedF0) / 21.);
+	let FmsEms = Ems * FssEss * F_avg / (1. - F_avg * Ems);
+	let k_D = diffuseColor * (1. - FssEss + FmsEms); // we use +FmsEms as indicated by the formula in the blog post (might be a typo in the implementation)
+	
+    return (FmsEms + k_D) * irradiance;
+} 
+
+fn get_IBL_radiance_anisotropy(n: vec3<f32>, v: vec3<f32>, roughness: f32, anisotropy: f32, anisotropyDirection: vec3<f32>, F0: vec3<f32>, specularWeight: f32) -> vec3<f32> {
+	let NdotV = clamped_dot(n, v);
+
+	let tangentRoughness = mix(roughness, 1., anisotropy * anisotropy);
+	let anisotropicTangent = cross(anisotropyDirection, v);
+	let anisotropicNormal = cross(anisotropicTangent, anisotropyDirection);
+	let bendFactor = 1. - anisotropy * (1. - roughness);
+	let bendFactorPow4 = bendFactor * bendFactor * bendFactor * bendFactor;
+	let bentNormal = normalize(mix(anisotropicNormal, n, bendFactorPow4));
+    
+	let reflection = normalize(reflect(-v, bentNormal));
+
+    let brdfSamplePoint = vec3<f32>(clamp(vec2<f32>(NdotV, roughness), vec2<f32>(0., 0.), vec2<f32>(1., 1.)), f32(constant_data.lut_pbr_ggx_texture_index));
+	let f_ab = sample_texture(brdfSamplePoint).rg;
+    let specular_env_uv = vec3<f32>(reflection.xy, f32(constant_data.environment_map_texture_index));	
+	let specularLight = sample_texture(specular_env_uv).rgb;
+    
+    // see https://bruop.github.io/ibl/#single_scattering_results at Single Scattering Results
+    // Roughness dependent fresnel, from Fdez-Aguera
+	let Fr = max(vec3<f32>(1. - roughness), F0) - F0;
+	let k_S = F0 + Fr * pow(1. - NdotV, 5.);
+	let FssEss = k_S * f_ab.x + f_ab.y;
+
+	return specularWeight * specularLight * FssEss;
+} 
+
+// specularWeight is introduced with KHR_materials_specular
+fn get_IBL_radiance_lambertian(n: vec3<f32>, v: vec3<f32>, roughness: f32, diffuseColor: vec3<f32>, F0: vec3<f32>, specularWeight: f32) -> vec3<f32> {
+	let NdotV = clamped_dot(n, v);
+	let brdfSamplePoint = vec3<f32>(clamp(vec2<f32>(NdotV, roughness), vec2<f32>(0., 0.), vec2<f32>(1., 1.)), f32(constant_data.lut_pbr_ggx_texture_index));
+	let f_ab = sample_texture(brdfSamplePoint).rg;
+    
+    let irradiance_uv = vec3<f32>(n.xy, f32(constant_data.environment_map_texture_index));	
+	let irradiance = sample_texture(irradiance_uv).rgb;	
+
+    // see https://bruop.github.io/ibl/#single_scattering_results at Single Scattering Results
+    // Roughness dependent fresnel, from Fdez-Aguera
+
+	let Fr = max(vec3<f32>(1. - roughness), F0) - F0;
+	let k_S = F0 + Fr * pow(1. - NdotV, 5.);
+	let FssEss = specularWeight * k_S * f_ab.x + f_ab.y; // <--- GGX / specular light contribution (scale it down if the specularWeight is low)
+	
+    // Multiple scattering, from Fdez-Aguera
+    let Ems= 1. - (f_ab.x + f_ab.y);
+	let F_avg = specularWeight * (F0 + (1. - F0) / 21.);
+	let FmsEms = Ems * FssEss * F_avg / (1. - F_avg * Ems);
+	let k_D = diffuseColor * (1. - FssEss + FmsEms); // we use +FmsEms as indicated by the formula in the blog post (might be a typo in the implementation)
+
+	return (FmsEms + k_D) * irradiance;
+} 
+
+fn get_IBL_radiance_charlie(n: vec3<f32>, v: vec3<f32>, sheenRoughness: f32, sheenColor: vec3<f32>) -> vec3<f32> {
+	let NdotV = clamped_dot(n, v);
+	let reflection = normalize(reflect(-v, n));
+    
+	let brdfSamplePoint = vec3<f32>(clamp(vec2<f32>(NdotV, sheenRoughness), vec2<f32>(0., 0.), vec2<f32>(1., 1.)), f32(constant_data.lut_pbr_ggx_texture_index));
+	let brdf = sample_texture(brdfSamplePoint).b;
+    
+    let sheen_env_uv = vec3<f32>(reflection.xy, f32(constant_data.environment_map_texture_index));	
+	let sheenLight = sample_texture(sheen_env_uv).rgb;
+	return sheenLight * sheenColor * brdf;
+} 
+
+fn get_IBL_volume_refraction(n: vec3<f32>, v: vec3<f32>, perceptualRoughness: f32, baseColor: vec3<f32>, f0: vec3<f32>, f90: vec3<f32>, position: vec3<f32>, mesh_scale: f32, ior: f32, thickness: f32, attenuationColor: vec3<f32>, attenuationDistance: f32) -> vec3<f32> {
+	let transmissionRay = get_volume_transmission_ray(n, v, thickness, ior, mesh_scale);
+	let refractedRayExit = position + transmissionRay;
+    
+    // Project refracted vector on the framebuffer, while mapping to normalized device coordinates.
+	var refractionCoords = world_to_clip(refractedRayExit);
+	refractionCoords = refractionCoords + vec2<f32>(1.);
+	refractionCoords = refractionCoords / vec2<f32>(2.);
+    
+    // Sample framebuffer to get pixel the refracted ray hits.
+    let dimensions = vec2<f32>(textureDimensions(finalize_texture));
+    let framebufferLod = 0; //log2(dimensions.x) * apply_ior_to_roughness(perceptualRoughness, ior);
+	let transmittedLight = textureLoad(finalize_texture, vec2<u32>(dimensions * refractionCoords), 0).rgb;
+
+    let attenuatedColor = apply_volume_attenuation(transmittedLight, length(transmissionRay), attenuationColor, attenuationDistance);
+
+    // Sample GGX LUT to get the specular component.
+    let NdotV: f32 = clamped_dot(n, v);
+    let brdfSamplePoint = vec3<f32>(clamp(vec2<f32>(NdotV, perceptualRoughness), vec2<f32>(0., 0.), vec2<f32>(1., 1.)), f32(constant_data.lut_pbr_ggx_texture_index));
+    let brdf = sample_texture(brdfSamplePoint).rg;
+
+    let specularColor = f0 * brdf.x + f90 * brdf.y;
+    return (1. - specularColor) * attenuatedColor * baseColor;
+} 
+
+
+
+
 //Inspired from glTF-Sample-Viewer
 fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, PixelData>) -> MaterialInfo {
     var material = materials.data[material_id];
@@ -474,7 +619,6 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
     let specular_weight = specular_weight_and_anisotropy_strength.x;
     let anisotropy_strength = specular_weight_and_anisotropy_strength.y;
 
-/*
     // TODO - Calculate lighting contribution from image based lighting source (IBL)
     if ((constant_data.flags & CONSTANT_DATA_FLAGS_USE_IBL) != 0) {      
         if((material.flags & MATERIAL_FLAGS_IRIDESCENCE) != 0u) {
@@ -482,7 +626,7 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
             f_diffuse += get_IBL_radiance_lambertian_iridescence(tbn.normal, v, material_info.perceptual_roughness, material_info.c_diff, material_info.f0, iridescence_f0, material_info.iridescence_factor, specular_weight);
         }
         else if((material.flags & MATERIAL_FLAGS_ANISOTROPY) != 0u) {
-            f_specular += get_IBL_radiance_anisotropy(tbn.normal, v, material_info.perceptual_roughness, material_info.anisotropy_strength, material_info.anisotropicB, material_info.f0, specular_weight);
+            f_specular += get_IBL_radiance_anisotropy(tbn.normal, v, material_info.perceptual_roughness, anisotropy_strength, material_info.anisotropicB, material_info.f0, specular_weight);
             f_diffuse += get_IBL_radiance_lambertian(tbn.normal, v, material_info.perceptual_roughness, material_info.c_diff, material_info.f0, specular_weight);
         }
         else {
@@ -497,16 +641,16 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
         }
         if((material.flags & MATERIAL_FLAGS_TRANSMISSION) != 0u) {
             let mesh = &meshes.data[(*pixel_data).mesh_id];
-            let mesh_matrix = transform_matrix((*mesh).position, (*mesh).orientation, (*mesh).scale);
+            let mesh_scale = (*mesh).scale.x;
             f_transmission += get_IBL_volume_refraction(
                 tbn.normal, v,
                 material_info.perceptual_roughness,
                 material_info.c_diff, material_info.f0, material_info.f90,
-                (*pixel_data.world_pos), mesh_matrix, constant_data.view, constant_data.proj,
+                (*pixel_data).world_pos, mesh_scale,
                 material_info.ior, material_info.thickness_factor, material_info.attenuation_color_and_distance.rgb, material_info.attenuation_color_and_distance.z);
         }
     }
-*/  
+    
     var f_diffuse_ibl = f_diffuse;
     var f_specular_ibl = f_specular;
     var f_sheen_ibl = f_sheen;

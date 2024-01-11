@@ -32,6 +32,7 @@ pub struct ComputePathTracingIndirectPass {
     lights: LightsBuffer,
     radiance_texture: TextureId,
     binding_texture: TextureId,
+    finalize_texture: TextureId,
     debug_data_texture: TextureId,
     dimensions: (u32, u32),
 }
@@ -87,6 +88,7 @@ impl Pass for ComputePathTracingIndirectPass {
             radiance_texture: INVALID_UID,
             binding_texture: INVALID_UID,
             debug_data_texture: INVALID_UID,
+            finalize_texture: INVALID_UID,
             dimensions: (0, 0),
         }
     }
@@ -247,6 +249,15 @@ impl Pass for ComputePathTracingIndirectPass {
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
+            )
+            .add_texture(
+                &self.finalize_texture,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 7,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
             );
 
         self.binding_data
@@ -314,6 +325,10 @@ impl ComputePathTracingIndirectPass {
     }
     pub fn set_binding_texture(&mut self, texture_id: &TextureId) -> &mut Self {
         self.binding_texture = *texture_id;
+        self
+    }
+    pub fn set_finalize_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.finalize_texture = *texture_id;
         self
     }
     pub fn set_radiance_texture(
