@@ -250,9 +250,11 @@ impl Renderer {
                     if let Some(texture_info) =
                         render_context.texture_handler.texture_info(texture_id)
                     {
-                        let uniform_index = render_context
-                            .global_buffers
-                            .add_texture(texture_id, &texture_info);
+                        let uniform_index = render_context.global_buffers.add_texture(
+                            texture_id,
+                            &texture_info,
+                            texture.get().LUT_id(),
+                        );
                         texture
                             .get_mut()
                             .set_texture_index(uniform_index)

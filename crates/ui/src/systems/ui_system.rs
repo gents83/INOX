@@ -294,6 +294,7 @@ impl UISystem {
                     format: TextureFormat::Rgba8Unorm,
                     usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
                     sample_count: 1,
+                    is_LUT: false,
                 };
                 let texture = Texture::new_resource(
                     &self.shared_data,

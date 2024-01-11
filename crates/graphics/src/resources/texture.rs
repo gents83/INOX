@@ -10,7 +10,7 @@ use inox_resources::{
     SerializableResource, SharedData, SharedDataRc,
 };
 use inox_serialize::inox_serializable::SerializableRegistryRc;
-use inox_uid::generate_random_uid;
+use inox_uid::{generate_random_uid, Uid, INVALID_UID};
 
 use crate::{TextureData, TextureFormat, TextureUsage, INVALID_INDEX};
 
@@ -38,6 +38,7 @@ pub struct Texture {
     format: TextureFormat,
     usage: TextureUsage,
     sample_count: u32,
+    lut_id: Uid,
     update_from_gpu: bool,
 }
 
@@ -67,6 +68,7 @@ impl DataTypeResource for Texture {
             format: TextureFormat::Rgba8Unorm,
             usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
             sample_count: 1,
+            lut_id: INVALID_UID,
             update_from_gpu: false,
         }
     }
@@ -121,6 +123,13 @@ impl SerializableResource for Texture {
         let filepath = path.to_path_buf();
         file.load(move |bytes| {
             let image_format = ImageFormat::from_path(filepath.as_path()).unwrap();
+            #[allow(non_snake_case)]
+            let is_LUT = filepath
+                .file_stem()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .ends_with("_LUT");
             match image::load_from_memory_with_format(bytes.as_slice(), image_format) {
                 Ok(image_data) => {
                     f(TextureData {
@@ -130,6 +139,7 @@ impl SerializableResource for Texture {
                         data: Some(image_data.into_rgba8().to_vec()),
                         usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
                         sample_count: 1,
+                        is_LUT,
                     });
                 }
                 Err(e) => {
@@ -200,6 +210,19 @@ impl Texture {
     pub fn sample_count(&self) -> u32 {
         self.sample_count
     }
+    #[allow(non_snake_case)]
+    pub fn is_LUT(&self) -> bool {
+        !self.lut_id.is_nil()
+    }
+    #[allow(non_snake_case)]
+    pub fn LUT_id(&self) -> &Uid {
+        &self.lut_id
+    }
+    #[allow(non_snake_case)]
+    pub fn mark_as_LUT(&mut self, lut_id: &Uid) -> &mut Self {
+        self.lut_id = *lut_id;
+        self
+    }
     pub fn blocks_to_update(&mut self) -> Vec<TextureBlock> {
         let v = self.blocks_to_update.clone();
         self.blocks_to_update.clear();
@@ -239,6 +262,7 @@ impl Texture {
                 data: None,
                 usage,
                 sample_count,
+                is_LUT: false,
             },
         );
         shared_data.add_resource(message_hub, texture_id, texture)

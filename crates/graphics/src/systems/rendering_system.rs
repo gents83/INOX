@@ -3,7 +3,9 @@ use inox_core::{
     INDEPENDENT_JOB_ID,
 };
 use inox_messenger::Listener;
-use inox_resources::{ConfigBase, ConfigEvent, SerializableResource, SharedDataRc};
+use inox_resources::{
+    ConfigBase, ConfigEvent, Handle, OnCreateData, SerializableResource, SharedDataRc,
+};
 use inox_serialize::read_from_file;
 
 use crate::{RendererRw, RendererState, Texture, LUT_PBR_CHARLIE_UID, LUT_PBR_GGX_UID};
@@ -18,6 +20,8 @@ pub struct RenderingSystem {
     shared_data: SharedDataRc,
     renderer: RendererRw,
     job_handler: JobHandlerRw,
+    pbr_lut_charlie: Handle<Texture>,
+    pbr_lut_ggx: Handle<Texture>,
 }
 
 impl RenderingSystem {
@@ -29,6 +33,8 @@ impl RenderingSystem {
             shared_data: context.shared_data().clone(),
             listener,
             job_handler: context.job_handler().clone(),
+            pbr_lut_charlie: None,
+            pbr_lut_ggx: None,
         }
     }
 }
@@ -66,26 +72,22 @@ impl System for RenderingSystem {
                     if filename == self.config.get_filename() {
                         self.config = config.clone();
 
-                        let charlie = Texture::request_load(
+                        self.pbr_lut_charlie = Some(Texture::request_load(
                             &self.shared_data,
                             self.listener.message_hub(),
                             &config.lut_pbr_charlie,
-                            None,
-                        );
-                        let ggx = Texture::request_load(
+                            OnCreateData::create(|t: &mut Texture| {
+                                t.mark_as_LUT(&LUT_PBR_CHARLIE_UID);
+                            }),
+                        ));
+                        self.pbr_lut_ggx = Some(Texture::request_load(
                             &self.shared_data,
                             self.listener.message_hub(),
                             &config.lut_pbr_ggx,
-                            None,
-                        );
-                        let renderer = self.renderer.read().unwrap();
-                        let render_context = renderer.render_context();
-                        render_context
-                            .global_buffers
-                            .add_LUT_texture(LUT_PBR_CHARLIE_UID, charlie);
-                        render_context
-                            .global_buffers
-                            .add_LUT_texture(LUT_PBR_GGX_UID, ggx);
+                            OnCreateData::create(|t: &mut Texture| {
+                                t.mark_as_LUT(&LUT_PBR_GGX_UID);
+                            }),
+                        ));
                     }
                 }
             });

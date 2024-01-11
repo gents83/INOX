@@ -8,14 +8,14 @@ use std::{
 
 use inox_bvh::{create_linearized_bvh, BVHTree, GPUBVHNode, AABB};
 use inox_math::{quantize_snorm, InnerSpace, Mat4Ops, Matrix4, VecBase, Vector2};
-use inox_resources::{to_slice, Buffer, HashBuffer, Resource, ResourceId};
-use inox_uid::{generate_random_uid, generate_static_uid_from_string};
+use inox_resources::{to_slice, Buffer, HashBuffer, ResourceId};
+use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
 use crate::{
     AsBinding, ConstantDataRw, DispatchCommandSize, GPUMaterial, GPUMesh, GPUMeshlet,
     GPURuntimeVertexData, Light, LightData, LightId, Material, MaterialData, MaterialFlags,
-    MaterialId, Mesh, MeshData, MeshFlags, MeshId, RenderCommandsPerType, Texture, TextureId,
-    TextureInfo, TextureType, VecU32,
+    MaterialId, Mesh, MeshData, MeshFlags, MeshId, RenderCommandsPerType, TextureId, TextureInfo,
+    TextureType, VecU32,
 };
 
 pub const TLAS_UID: ResourceId = generate_static_uid_from_string("TLAS");
@@ -30,7 +30,6 @@ pub type MaterialsBuffer = Arc<RwLock<HashBuffer<MaterialId, GPUMaterial, PREALL
 pub type LightsBuffer = Arc<RwLock<HashBuffer<LightId, LightData, PREALLOCATED_MIN_SIZE>>>;
 pub type DrawCommandsBuffer = Arc<RwLock<HashMap<MeshFlags, RenderCommandsPerType>>>;
 pub type DispatchCommandBuffer = Arc<RwLock<HashMap<ResourceId, DispatchCommandSize>>>;
-pub type TexturesLUT = Arc<RwLock<HashMap<ResourceId, Resource<Texture>>>>;
 pub type MeshesBuffer = Arc<RwLock<HashBuffer<MeshId, GPUMesh, 0>>>;
 pub type MeshletsBuffer = Arc<RwLock<Buffer<GPUMeshlet, 0>>>; //MeshId <-> [GPUMeshlet]
 pub type BVHBuffer = Arc<RwLock<Buffer<GPUBVHNode, 0>>>;
@@ -46,7 +45,6 @@ pub type AtomicCounters = Arc<RwLock<VecU32>>;
 pub struct GlobalBuffers {
     pub constant_data: ConstantDataRw,
     pub textures: TexturesBuffer,
-    pub lut_textures: TexturesLUT,
     pub lights: LightsBuffer,
     pub materials: MaterialsBuffer,
     pub draw_commands: DrawCommandsBuffer,
@@ -451,26 +449,31 @@ impl GlobalBuffers {
         self.lights.write().unwrap().remove(light_id);
     }
 
-    pub fn add_texture(&self, texture_id: &TextureId, texture_data: &TextureInfo) -> usize {
+    pub fn add_texture(
+        &self,
+        texture_id: &TextureId,
+        texture_data: &TextureInfo,
+        lut_id: &Uid,
+    ) -> usize {
         inox_profiler::scoped_profile!("render_buffers::add_texture");
 
-        self.textures
+        let uniform_index = self
+            .textures
             .write()
             .unwrap()
-            .insert(texture_id, *texture_data)
+            .insert(texture_id, *texture_data);
+        if !lut_id.is_nil() {
+            self.constant_data
+                .write()
+                .unwrap()
+                .set_LUT(lut_id, uniform_index as _);
+        }
+        uniform_index
     }
     pub fn remove_texture(&self, texture_id: &TextureId) {
         inox_profiler::scoped_profile!("render_buffers::remove_texture");
 
         self.textures.write().unwrap().remove(texture_id);
-    }
-    #[allow(non_snake_case)]
-    pub fn add_LUT_texture(&self, lut_id: ResourceId, texture: Resource<Texture>) {
-        self.lut_textures.write().unwrap().insert(lut_id, texture);
-    }
-    #[allow(non_snake_case)]
-    pub fn get_LUT_texture_id(&self, lut_id: &ResourceId) -> TextureId {
-        *self.lut_textures.read().unwrap().get(lut_id).unwrap().id()
     }
 
     pub fn update_constant_data(

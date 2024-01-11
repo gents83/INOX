@@ -102,8 +102,8 @@ struct ConstantData {
     indirect_light_num_bounces: u32,
     lut_pbr_charlie_texture_index: u32,
     lut_pbr_ggx_texture_index: u32,
-    lut_pbr_sheen_texture_index: u32,
-    _padding: u32,
+    _padding1: u32,
+    _padding2: u32,
 };
 
 struct RuntimeVertexData {
@@ -175,7 +175,7 @@ struct LightData {
 };
 
 struct TextureData {
-    texture_index: u32,
+    texture_index: i32,
     layer_index: u32,
     total_width: u32,
     total_height: u32,

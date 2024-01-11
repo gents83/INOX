@@ -18,6 +18,7 @@ impl From<TextureUsage> for wgpu::TextureUsages {
     }
 }
 
+#[allow(non_snake_case)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TextureData {
     pub width: u32,
@@ -25,6 +26,7 @@ pub struct TextureData {
     pub format: TextureFormat,
     pub usage: TextureUsage,
     pub sample_count: u32,
+    pub is_LUT: bool,
     pub data: Option<Vec<u8>>,
 }
 
@@ -78,7 +80,7 @@ impl From<usize> for TextureType {
 #[repr(C, align(16))]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct TextureInfo {
-    pub texture_index: u32,
+    pub texture_index: i32, //negatives are LUT textures
     pub layer_index: u32,
     pub total_width: u32,
     pub total_height: u32,
@@ -98,8 +100,12 @@ impl Default for TextureInfo {
 }
 
 impl TextureInfo {
+    #[allow(non_snake_case)]
+    pub fn is_LUT(&self) -> bool {
+        self.texture_index.is_negative()
+    }
     pub fn get_texture_index(&self) -> u32 {
-        self.texture_index
+        self.texture_index.unsigned_abs()
     }
     pub fn get_layer_index(&self) -> u32 {
         self.layer_index

@@ -30,7 +30,11 @@ fn sample_texture(tex_coords_and_texture_index: vec3<f32>) -> vec4<f32> {
         return v;
     }
     let texture = &textures.data[texture_data_index];
-    let atlas_index = (*texture).texture_index;
+    var texture_index = (*texture).texture_index;
+    if (texture_index < 0) {
+        texture_index *= -1;
+    } 
+    let atlas_index = u32(texture_index);
     let layer_index = i32((*texture).layer_index);
 
     tex_coords.x = (f32((*texture).area.x) + mod_f32(tex_coords_and_texture_index.x, 1.) * f32((*texture).area.z)) / f32((*texture).total_width);

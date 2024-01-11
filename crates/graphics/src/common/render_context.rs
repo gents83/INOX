@@ -241,13 +241,14 @@ impl RenderContext {
         let height = texture.get().height();
         let format = texture.get().format();
         let sample_count = texture.get().sample_count();
+        let is_lut = texture.get().is_LUT();
         let mut blocks_to_update = texture.get_mut().blocks_to_update();
         let image_data = blocks_to_update.remove(0);
         let info = self.texture_handler.add_image_to_texture_atlas(
             &self.core.device,
             encoder,
             texture_id,
-            (width, height, format, sample_count),
+            (width, height, format, sample_count, is_lut),
             &image_data.data,
         );
         for block in blocks_to_update {

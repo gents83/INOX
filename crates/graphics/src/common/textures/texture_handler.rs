@@ -141,18 +141,23 @@ impl TextureHandler {
         device: &wgpu::Device,
         encoder: &mut wgpu::CommandEncoder,
         id: &TextureId,
-        texture_params: (u32, u32, TextureFormat, u32),
+        texture_params: (u32, u32, TextureFormat, u32, bool),
         image_data: &[u8],
     ) -> TextureInfo {
         for (texture_index, texture_atlas) in
             self.texture_atlas.write().unwrap().iter_mut().enumerate()
         {
+            let mut atlas_index = texture_index as i32;
+            if texture_params.4 {
+                // isLUT
+                atlas_index *= -1;
+            }
             if texture_atlas.texture_format() == &texture_params.2 {
                 if let Some(texture_data) = texture_atlas.allocate(
                     device,
                     encoder,
                     id,
-                    texture_index as _,
+                    atlas_index,
                     (texture_params.0, texture_params.1),
                     image_data,
                 ) {

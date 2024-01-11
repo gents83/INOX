@@ -74,7 +74,7 @@ impl TextureAtlas {
         device: &wgpu::Device,
         encoder: &mut wgpu::CommandEncoder,
         id: &TextureId,
-        texture_index: u32,
+        texture_index: i32,
         dimensions: (u32, u32),
         image_data: &[u8],
     ) -> Option<TextureInfo> {
@@ -83,7 +83,7 @@ impl TextureAtlas {
                 self.texture
                     .send_to_gpu(device, encoder, layer_index as _, area, image_data);
                 return Some(TextureInfo {
-                    texture_index: texture_index as _,
+                    texture_index,
                     layer_index: layer_index as _,
                     area: area.into(),
                     total_width: self.texture.width() as _,
