@@ -64,6 +64,15 @@ impl System for ViewerSystem {
             .register::<WindowEvent>()
             .register::<SerializableResourceEvent<Scene>>()
             .register::<WidgetEvent>();
+
+        self.info = Some(Info::new(
+            &self.context.clone(),
+            InfoParams {
+                is_active: true,
+                scene: self.scene.clone(),
+                renderer: self.renderer.clone(),
+            },
+        ));
     }
 
     fn run(&mut self) -> bool {
@@ -115,19 +124,11 @@ impl ViewerSystem {
         } else {
             None
         };
-        let info = Some(Info::new(
-            context,
-            InfoParams {
-                is_active: true,
-                scene: scene.clone(),
-                renderer: renderer.clone(),
-            },
-        ));
         Self {
             last_frame: u64::MAX,
             is_on_view3d: false,
             view_3d,
-            info,
+            info: None,
             hierarchy: None,
             graphics: None,
             context: context.clone(),
