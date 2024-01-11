@@ -94,7 +94,6 @@ struct Data {
     fov: Degrees,
     aspect_ratio: f32,
     selected_object_id: ObjectId,
-    indirect_light_num_bounces: u32,
 }
 implement_widget_data!(Data);
 
@@ -115,17 +114,6 @@ impl Info {
             .register::<MouseEvent>();
         let data = Data {
             context: context.clone(),
-            indirect_light_num_bounces: {
-                let renderer = params.renderer.read().unwrap();
-                let render_context = renderer.render_context();
-                let v = render_context
-                    .global_buffers
-                    .constant_data
-                    .read()
-                    .unwrap()
-                    .num_bounces();
-                v
-            },
             params,
             show_hierarchy: false,
             show_graphics: false,
@@ -583,12 +571,24 @@ impl Info {
                         }
                         ui.horizontal(|ui| {
                             ui.label("Indirect light bounces: ");
-                            let previous_value = data.indirect_light_num_bounces;
-                            ui.add(
-                                DragValue::new(&mut data.indirect_light_num_bounces)
-                                    .clamp_range(0..=1024),
-                            );
-                            if previous_value != data.indirect_light_num_bounces {
+                            let mut indirect_light_num_bounces = {
+                                let renderer = data.params.renderer.read().unwrap();
+                                let render_context = renderer.render_context();
+                                let v = render_context
+                                    .global_buffers
+                                    .constant_data
+                                    .read()
+                                    .unwrap()
+                                    .num_bounces();
+                                v
+                            };
+                            let is_changed = ui
+                                .add(
+                                    DragValue::new(&mut indirect_light_num_bounces)
+                                        .clamp_range(0..=1024),
+                                )
+                                .changed();
+                            if is_changed {
                                 let renderer = data.params.renderer.read().unwrap();
                                 let render_context = renderer.render_context();
                                 render_context
@@ -596,7 +596,7 @@ impl Info {
                                     .constant_data
                                     .write()
                                     .unwrap()
-                                    .set_num_bounces(data.indirect_light_num_bounces)
+                                    .set_num_bounces(indirect_light_num_bounces)
                                     .set_frame_index(0);
                             }
                         });
