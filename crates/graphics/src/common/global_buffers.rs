@@ -8,16 +8,19 @@ use std::{
 
 use inox_bvh::{create_linearized_bvh, BVHTree, GPUBVHNode, AABB};
 use inox_math::{quantize_snorm, InnerSpace, Mat4Ops, Matrix4, VecBase};
-use inox_resources::{to_slice, Buffer, HashBuffer, ResourceId};
+use inox_resources::{to_slice, Buffer, HashBuffer, Resource, ResourceId};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string};
 
 use crate::{
     AsBinding, DispatchCommandSize, GPUMaterial, GPUMesh, GPUMeshlet, GPURuntimeVertexData, Light,
     LightData, LightId, Material, MaterialData, MaterialFlags, MaterialId, Mesh, MeshData,
-    MeshFlags, MeshId, RenderCommandsPerType, TextureId, TextureInfo, TextureType, VecU32,
+    MeshFlags, MeshId, RenderCommandsPerType, Texture, TextureId, TextureInfo, TextureType, VecU32,
 };
 
 pub const TLAS_UID: ResourceId = generate_static_uid_from_string("TLAS");
+pub const LUT_PBR_CHARLIE_UID: ResourceId = generate_static_uid_from_string("LUT_PBR_CHARLIE_UID");
+pub const LUT_PBR_GGX_UID: ResourceId = generate_static_uid_from_string("LUT_PBR_GGX_UID");
+
 pub const ATOMIC_SIZE: u32 = 32;
 pub const PREALLOCATED_MIN_SIZE: usize = 1;
 
@@ -26,15 +29,14 @@ pub type MaterialsBuffer = Arc<RwLock<HashBuffer<MaterialId, GPUMaterial, PREALL
 pub type LightsBuffer = Arc<RwLock<HashBuffer<LightId, LightData, PREALLOCATED_MIN_SIZE>>>;
 pub type DrawCommandsBuffer = Arc<RwLock<HashMap<MeshFlags, RenderCommandsPerType>>>;
 pub type DispatchCommandBuffer = Arc<RwLock<HashMap<ResourceId, DispatchCommandSize>>>;
+pub type TexturesLUT = Arc<RwLock<HashMap<ResourceId, Resource<Texture>>>>;
 pub type MeshesBuffer = Arc<RwLock<HashBuffer<MeshId, GPUMesh, 0>>>;
 pub type MeshletsBuffer = Arc<RwLock<Buffer<GPUMeshlet, 0>>>; //MeshId <-> [GPUMeshlet]
 pub type BVHBuffer = Arc<RwLock<Buffer<GPUBVHNode, 0>>>;
 pub type IndicesBuffer = Arc<RwLock<Buffer<u32, 0>>>; //MeshId <-> [u32]
 pub type VertexPositionsBuffer = Arc<RwLock<Buffer<u32, 0>>>; //MeshId <-> [u32] (10 x, 10 y, 10 z, 2 null)
 pub type VertexAttributesBuffer = Arc<RwLock<Buffer<u32, 0>>>; //MeshId <-> [u32]
-pub type CullingResults = Arc<RwLock<VecU32>>;
 pub type RuntimeVerticesBuffer = Arc<RwLock<Buffer<GPURuntimeVertexData, 0>>>;
-pub type RadianceDataBuffer = Arc<RwLock<VecU32>>;
 pub type AtomicCounter = Arc<RwLock<AtomicU32>>;
 pub type AtomicCounters = Arc<RwLock<VecU32>>;
 
@@ -42,6 +44,7 @@ pub type AtomicCounters = Arc<RwLock<VecU32>>;
 #[derive(Default)]
 pub struct GlobalBuffers {
     pub textures: TexturesBuffer,
+    pub lut_textures: TexturesLUT,
     pub lights: LightsBuffer,
     pub materials: MaterialsBuffer,
     pub draw_commands: DrawCommandsBuffer,
@@ -54,9 +57,9 @@ pub struct GlobalBuffers {
     pub vertex_positions: VertexPositionsBuffer,
     pub vertex_attributes: VertexAttributesBuffer,
     pub runtime_vertices: RuntimeVerticesBuffer,
-    pub culling_result: CullingResults,
+    pub culling_result: AtomicCounters,
     pub tlas_start_index: AtomicCounter,
-    pub radiance_data_buffer: RadianceDataBuffer,
+    pub radiance_data_buffer: AtomicCounters,
     pub atomic_counters: AtomicCounters,
 }
 
@@ -458,5 +461,13 @@ impl GlobalBuffers {
         inox_profiler::scoped_profile!("render_buffers::remove_texture");
 
         self.textures.write().unwrap().remove(texture_id);
+    }
+    #[allow(non_snake_case)]
+    pub fn add_LUT_texture(&self, lut_id: ResourceId, texture: Resource<Texture>) {
+        self.lut_textures.write().unwrap().insert(lut_id, texture);
+    }
+    #[allow(non_snake_case)]
+    pub fn get_LUT_texture_id(&self, lut_id: &ResourceId) -> TextureId {
+        *self.lut_textures.read().unwrap().get(lut_id).unwrap().id()
     }
 }

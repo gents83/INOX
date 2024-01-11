@@ -3,9 +3,8 @@ use std::path::PathBuf;
 use crate::{
     AtomicCounters, BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass,
     ComputePassData, ConstantDataRw, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer,
-    MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RadianceDataBuffer, RenderContext,
-    RuntimeVerticesBuffer, SamplerType, ShaderStage, TextureId, TextureView, TexturesBuffer,
-    VertexAttributesBuffer,
+    MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RuntimeVerticesBuffer,
+    SamplerType, ShaderStage, TextureId, TextureView, TexturesBuffer, VertexAttributesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -25,7 +24,7 @@ pub struct ComputePathTracingIndirectPass {
     bhv: BVHBuffer,
     indices: IndicesBuffer,
     runtime_vertices: RuntimeVerticesBuffer,
-    radiance_data_buffer: RadianceDataBuffer,
+    radiance_data_buffer: AtomicCounters,
     atomic_counters: AtomicCounters,
     vertices_attributes: VertexAttributesBuffer,
     textures: TexturesBuffer,

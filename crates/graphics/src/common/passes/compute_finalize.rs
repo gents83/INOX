@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DrawCommandType, MeshFlags, Pass, RadianceDataBuffer, RenderContext,
-    ShaderStage, TextureId, TextureView,
+    AtomicCounters, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass,
+    ComputePassData, ConstantDataRw, DrawCommandType, MeshFlags, Pass, RenderContext, ShaderStage,
+    TextureId, TextureView,
 };
 
 use inox_core::ContextRc;
@@ -17,7 +17,7 @@ pub struct ComputeFinalizePass {
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    radiance_data_buffer: RadianceDataBuffer,
+    radiance_data_buffer: AtomicCounters,
     finalize_texture: TextureId,
     dimensions: (u32, u32),
     binding_texture: TextureId,

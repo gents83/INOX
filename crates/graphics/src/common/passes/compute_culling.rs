@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
 use crate::{
-    AsBinding, BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass,
-    ComputePassData, ConstantDataRw, CullingResults, DrawCommandType, DrawCommandsBuffer,
-    GpuBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderCoreContext,
-    ShaderStage, TextureView, ATOMIC_SIZE,
+    AsBinding, AtomicCounters, BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer,
+    ComputePass, ComputePassData, ConstantDataRw, DrawCommandType, DrawCommandsBuffer, GpuBuffer,
+    MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderCoreContext, ShaderStage,
+    TextureView, ATOMIC_SIZE,
 };
 
 use inox_commands::CommandParser;
@@ -80,7 +80,7 @@ pub struct CullingPass {
     meshlets: MeshletsBuffer,
     bhv: BVHBuffer,
     culling_data: CullingData,
-    culling_result: CullingResults,
+    culling_result: AtomicCounters,
     listener: Listener,
     update_camera: bool,
 }

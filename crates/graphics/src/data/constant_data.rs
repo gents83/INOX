@@ -39,6 +39,10 @@ struct Data {
     pub debug_uv_coords: [f32; 2],
     pub tlas_starting_index: u32,
     pub num_bounces: u32,
+    pub lut_pbr_charlie_texture_index: u32,
+    pub lut_pbr_ggx_texture_index: u32,
+    pub lut_pbr_sheen_texture_index: u32,
+    _padding: u32,
 }
 
 impl Default for Data {
@@ -53,6 +57,10 @@ impl Default for Data {
             debug_uv_coords: [0.; 2],
             tlas_starting_index: 0,
             num_bounces: 0,
+            lut_pbr_charlie_texture_index: 0,
+            lut_pbr_ggx_texture_index: 0,
+            lut_pbr_sheen_texture_index: 0,
+            _padding: 0,
         }
     }
 }

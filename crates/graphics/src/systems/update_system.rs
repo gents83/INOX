@@ -1,13 +1,12 @@
 use inox_core::{implement_unique_system_uid, ContextRc, System};
 
 use inox_math::{VecBase, Vector2};
-use inox_messenger::{Listener, MessageHubRc};
+use inox_messenger::Listener;
 use inox_platform::{MouseEvent, MouseState, WindowEvent};
 use inox_resources::{
-    ConfigBase, ConfigEvent, DataTypeResource, DataTypeResourceEvent, ReloadEvent, Resource,
-    ResourceEvent, SerializableResourceEvent, SharedData, SharedDataRc,
+    DataTypeResource, DataTypeResourceEvent, ReloadEvent, Resource, ResourceEvent,
+    SerializableResourceEvent, SharedData, SharedDataRc,
 };
-use inox_serialize::read_from_file;
 use inox_uid::generate_random_uid;
 
 use crate::{
@@ -15,14 +14,11 @@ use crate::{
     RendererState, Texture, View, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
-use super::config::Config;
 pub const RENDERING_UPDATE: &str = "RENDERING_UPDATE";
 
 pub struct UpdateSystem {
-    config: Config,
     renderer: RendererRw,
     shared_data: SharedDataRc,
-    message_hub: MessageHubRc,
     listener: Listener,
     view: Resource<View>,
     mouse_coords: Vector2,
@@ -43,10 +39,8 @@ impl UpdateSystem {
                 &0,
                 None,
             ),
-            config: Config::default(),
             renderer,
             shared_data: context.shared_data().clone(),
-            message_hub: context.message_hub().clone(),
             listener,
             resolution_changed: false,
             mouse_coords: Vector2::default_zero(),
@@ -200,18 +194,7 @@ unsafe impl Sync for UpdateSystem {}
 implement_unique_system_uid!(UpdateSystem);
 
 impl System for UpdateSystem {
-    fn read_config(&mut self, plugin_name: &str) {
-        self.listener.register::<ConfigEvent<Config>>();
-        let message_hub = self.message_hub.clone();
-        let filename = self.config.get_filename().to_string();
-        read_from_file(
-            self.config.get_filepath(plugin_name).as_path(),
-            self.shared_data.serializable_registry(),
-            Box::new(move |data: Config| {
-                message_hub.send_event(ConfigEvent::Loaded(filename.clone(), data));
-            }),
-        );
-    }
+    fn read_config(&mut self, _plugin_name: &str) {}
 
     fn should_run_when_not_focused(&self) -> bool {
         false
@@ -221,7 +204,6 @@ impl System for UpdateSystem {
             .register::<WindowEvent>()
             .register::<MouseEvent>()
             .register::<ReloadEvent>()
-            .register::<ConfigEvent<Config>>()
             .register::<DataTypeResourceEvent<Light>>()
             .register::<DataTypeResourceEvent<Material>>()
             .register::<DataTypeResourceEvent<Mesh>>()
@@ -304,7 +286,6 @@ impl System for UpdateSystem {
             .unregister::<SerializableResourceEvent<RenderPipeline>>()
             .unregister::<SerializableResourceEvent<ComputePipeline>>()
             .unregister::<SerializableResourceEvent<Texture>>()
-            .unregister::<ConfigEvent<Config>>()
             .unregister::<ResourceEvent<Light>>()
             .unregister::<ResourceEvent<Texture>>()
             .unregister::<ResourceEvent<Material>>()

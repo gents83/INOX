@@ -121,16 +121,25 @@ impl SerializableResource for Texture {
         let filepath = path.to_path_buf();
         file.load(move |bytes| {
             let image_format = ImageFormat::from_path(filepath.as_path()).unwrap();
-            let image_data =
-                image::load_from_memory_with_format(bytes.as_slice(), image_format).unwrap();
-            f(TextureData {
-                width: image_data.width(),
-                height: image_data.height(),
-                format: TextureFormat::Rgba8Unorm,
-                data: Some(image_data.into_rgba8().to_vec()),
-                usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
-                sample_count: 1,
-            });
+            match image::load_from_memory_with_format(bytes.as_slice(), image_format) {
+                Ok(image_data) => {
+                    f(TextureData {
+                        width: image_data.width(),
+                        height: image_data.height(),
+                        format: TextureFormat::Rgba8Unorm,
+                        data: Some(image_data.into_rgba8().to_vec()),
+                        usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
+                        sample_count: 1,
+                    });
+                }
+                Err(e) => {
+                    inox_log::debug_log!(
+                        "Failed to load image {:?} due to error: {:?}",
+                        &filepath,
+                        e
+                    )
+                }
+            }
         });
     }
 

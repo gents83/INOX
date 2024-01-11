@@ -54,7 +54,6 @@ pub struct DebugDrawerSystem {
     config: Config,
     mesh_instance: Resource<Mesh>,
     wireframe_mesh_instance: Resource<Mesh>,
-    default_pipeline: Handle<RenderPipeline>,
     wireframe_pipeline: Handle<RenderPipeline>,
     listener: Listener,
     shared_data: SharedDataRc,
@@ -96,7 +95,6 @@ impl DebugDrawerSystem {
             config: Config::default(),
             mesh_instance,
             wireframe_mesh_instance,
-            default_pipeline: None,
             wireframe_pipeline: None,
             listener,
             shared_data: context.shared_data().clone(),
@@ -129,12 +127,6 @@ impl DebugDrawerSystem {
                     if filename == self.config.get_filename() {
                         self.config = config.clone();
 
-                        let default_pipeline = RenderPipeline::request_load(
-                            &self.shared_data,
-                            &self.message_hub,
-                            self.config.default_pipeline.as_path(),
-                            None,
-                        );
                         let wireframe_pipeline = RenderPipeline::request_load(
                             &self.shared_data,
                             &self.message_hub,
@@ -160,7 +152,6 @@ impl DebugDrawerSystem {
                         self.wireframe_mesh_instance
                             .get_mut()
                             .set_material(wireframe_material);
-                        self.default_pipeline = Some(default_pipeline);
                         self.wireframe_pipeline = Some(wireframe_pipeline);
                     }
                 }
