@@ -10,7 +10,7 @@ struct FragmentOutput {
 @group(0) @binding(0)
 var source_texture: texture_2d<f32>;
 
-#import "aa_utils.inc"
+#import "postfx_utils.inc"
 
 @vertex
 fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
@@ -27,8 +27,12 @@ fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
 @fragment
 fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     let d = vec2<f32>(textureDimensions(source_texture));
-    let pixel_coords = vec2<i32>(i32(v_in.uv.x * d.x + 0.5), i32(v_in.uv.y * d.y + 0.5));
+    let pixel_coords = vec2<f32>(f32(v_in.uv.x * d.x + 0.5), f32(v_in.uv.y * d.y + 0.5));
 
-    let texture_color = vec4<f32>(fxaa(source_texture, vec2<f32>(pixel_coords), d), 1.);     
-    return texture_color;
+    var out_color = vec4<f32>(0.); 
+
+    //out_color = textureLoad(source_texture, vec2<u32>(pixel_coords), 0); 
+    out_color = vec4<f32>(fxaa(source_texture, pixel_coords, d), 1.);
+
+    return out_color;
 }

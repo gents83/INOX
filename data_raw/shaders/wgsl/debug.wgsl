@@ -107,6 +107,7 @@ fn draw_cube_from_min_max(min: vec3<f32>, max:vec3<f32>, pixel: vec2<u32>, dimen
 
 fn debug_color_override(color: vec4<f32>, screen_pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<f32> {
     var out_color = color;
+    out_color.a = 0.;
     let pixel = vec2<f32>(0.5) + vec2<f32>(screen_pixel);
     if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS) != 0) {
         let visibility_dimensions = textureDimensions(visibility_texture);
@@ -390,5 +391,6 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
 
     var out_color = textureLoad(finalize_texture, pixel, 0);    
     out_color = debug_color_override(out_color, pixel, dimensions); 
-    return out_color;
+
+    return select(vec4<f32>(0.), out_color, out_color.a > 0.);
 }

@@ -100,17 +100,6 @@ fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData
                      (uv_dx.y * uv_dy.x - uv_dy.y * uv_dx.x);          
         let t = normalize(t_temp - normal * dot(normal, t_temp));
         let b = cross(normal, t);
-        /*
-        let f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
-        var t: vec3<f32>;
-        t.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
-        t.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
-        t.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
-        var b: vec3<f32>;
-        b.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
-        b.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
-        b.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
-        */
         uv_set[0] = vec4<f32>(uv, f32(pack_3_f32_to_snorm(t)), f32(pack_3_f32_to_snorm(b)));
     }
     if(offset_uv1 >= 0) {
@@ -129,17 +118,6 @@ fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData
                      (uv_dx.y * uv_dy.x - uv_dy.y * uv_dx.x);      
         let t = normalize(t_temp - normal * dot(normal, t_temp));
         let b = cross(normal, t);
-        /*
-        let f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
-        var t: vec3<f32>;
-        t.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
-        t.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
-        t.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
-        var b: vec3<f32>;
-        b.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
-        b.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
-        b.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
-        */
         uv_set[1] = vec4<f32>(uv, f32(pack_3_f32_to_snorm(t)), f32(pack_3_f32_to_snorm(b)));
     }
     if(offset_uv2 >= 0) {
@@ -158,17 +136,6 @@ fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData
                      (uv_dx.y * uv_dy.x - uv_dy.y * uv_dx.x);        
         let t = normalize(t_temp - normal * dot(normal, t_temp));
         let b = cross(normal, t);
-        /*
-        let f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
-        var t: vec3<f32>;
-        t.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
-        t.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
-        t.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
-        var b: vec3<f32>;
-        b.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
-        b.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
-        b.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
-        */
         uv_set[2] = vec4<f32>(uv, f32(pack_3_f32_to_snorm(t)), f32(pack_3_f32_to_snorm(b)));
     }
     if(offset_uv3 >= 0) {
@@ -187,17 +154,6 @@ fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData
                      (uv_dx.y * uv_dy.x - uv_dy.y * uv_dx.x);        
         let t = normalize(t_temp - normal * dot(normal, t_temp));
         let b = cross(normal, t);
-        /*
-        let f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
-        var t: vec3<f32>;
-        t.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
-        t.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
-        t.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
-        var b: vec3<f32>;
-        b.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
-        b.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
-        b.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
-        */
         uv_set[3] = vec4<f32>(uv, f32(pack_3_f32_to_snorm(t)), f32(pack_3_f32_to_snorm(b)));
     }    
 

@@ -138,7 +138,7 @@ impl SerializableResource for Texture {
                         format: TextureFormat::Rgba8Unorm,
                         data: Some(image_data.into_rgba8().to_vec()),
                         usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
-                        sample_count: 1,
+                        sample_count: 8,
                         is_LUT,
                     });
                 }
