@@ -7,6 +7,12 @@ const XYZ_TO_REC709: mat3x3<f32> = mat3x3<f32>(
     -0.4985314,  0.0415560,  1.0572252
 );
 
+fn compute_equirectangular_uv(rd: vec3<f32>) -> vec2<f32> {
+    //radial azmuth polar
+    let v = vec2<f32>(atan2(rd.z, rd.x) + MATH_PI, acos(rd.y));
+    return v / vec2<f32>(2. * MATH_PI, MATH_PI);
+}
+
 // Assume air interface for top
 // Note: We don't handle the case fresnel0 == 1
 fn fresnel0_to_ior(fresnel0: vec3<f32>) -> vec3<f32> {
@@ -384,7 +390,8 @@ fn get_IBL_radiance_GGX(n: vec3<f32>, v: vec3<f32>, roughness: f32, F0: vec3<f32
     
 	let brdfSamplePoint = vec3<f32>(clamp(vec2<f32>(NdotV, roughness), vec2<f32>(0., 0.), vec2<f32>(1., 1.)), f32(constant_data.lut_pbr_ggx_texture_index));
 	let f_ab = sample_texture(brdfSamplePoint).rg;
-    let specular_env_uv = vec3<f32>(reflection.xy, f32(constant_data.environment_map_texture_index));	
+    
+    let specular_env_uv = vec3<f32>(compute_equirectangular_uv(reflection), f32(constant_data.environment_map_texture_index));	
 	let specularLight = sample_texture(specular_env_uv).rgb;
 
     // see https://bruop.github.io/ibl/#single_scattering_results at Single Scattering Results
@@ -403,7 +410,8 @@ fn get_IBL_radiance_GGX_iridescence(n: vec3<f32>, v: vec3<f32>, roughness: f32, 
 
 	let brdfSamplePoint = vec3<f32>(clamp(vec2<f32>(NdotV, roughness), vec2<f32>(0., 0.), vec2<f32>(1., 1.)), f32(constant_data.lut_pbr_ggx_texture_index));
 	let f_ab = sample_texture(brdfSamplePoint).rg;
-    let specular_env_uv = vec3<f32>(reflection.xy, f32(constant_data.environment_map_texture_index));	
+    
+    let specular_env_uv = vec3<f32>(compute_equirectangular_uv(reflection), f32(constant_data.environment_map_texture_index));	
 	let specularLight = sample_texture(specular_env_uv).rgb;
     
     // see https://bruop.github.io/ibl/#single_scattering_results at Single Scattering Results
@@ -420,7 +428,7 @@ fn get_IBL_radiance_lambertian_iridescence(n: vec3<f32>, v: vec3<f32>, roughness
 	let brdfSamplePoint = vec3<f32>(clamp(vec2<f32>(NdotV, roughness), vec2<f32>(0., 0.), vec2<f32>(1., 1.)), f32(constant_data.lut_pbr_ggx_texture_index));
 	let f_ab = sample_texture(brdfSamplePoint).rg;
     
-    let irradiance_uv = vec3<f32>(n.xy, f32(constant_data.environment_map_texture_index));	
+    let irradiance_uv = vec3<f32>(compute_equirectangular_uv(n), f32(constant_data.environment_map_texture_index));	
 	let irradiance = sample_texture(irradiance_uv).rgb;	
 
     // Use the maximum component of the iridescence Fresnel color
@@ -460,7 +468,8 @@ fn get_IBL_radiance_anisotropy(n: vec3<f32>, v: vec3<f32>, roughness: f32, aniso
 
     let brdfSamplePoint = vec3<f32>(clamp(vec2<f32>(NdotV, roughness), vec2<f32>(0., 0.), vec2<f32>(1., 1.)), f32(constant_data.lut_pbr_ggx_texture_index));
 	let f_ab = sample_texture(brdfSamplePoint).rg;
-    let specular_env_uv = vec3<f32>(reflection.xy, f32(constant_data.environment_map_texture_index));	
+    
+    let specular_env_uv = vec3<f32>(compute_equirectangular_uv(reflection), f32(constant_data.environment_map_texture_index));	
 	let specularLight = sample_texture(specular_env_uv).rgb;
     
     // see https://bruop.github.io/ibl/#single_scattering_results at Single Scattering Results
@@ -478,7 +487,7 @@ fn get_IBL_radiance_lambertian(n: vec3<f32>, v: vec3<f32>, roughness: f32, diffu
 	let brdfSamplePoint = vec3<f32>(clamp(vec2<f32>(NdotV, roughness), vec2<f32>(0., 0.), vec2<f32>(1., 1.)), f32(constant_data.lut_pbr_ggx_texture_index));
 	let f_ab = sample_texture(brdfSamplePoint).rg;
     
-    let irradiance_uv = vec3<f32>(n.xy, f32(constant_data.environment_map_texture_index));	
+    let irradiance_uv = vec3<f32>(compute_equirectangular_uv(n), f32(constant_data.environment_map_texture_index));	
 	let irradiance = sample_texture(irradiance_uv).rgb;	
 
     // see https://bruop.github.io/ibl/#single_scattering_results at Single Scattering Results
@@ -504,7 +513,7 @@ fn get_IBL_radiance_charlie(n: vec3<f32>, v: vec3<f32>, sheenRoughness: f32, she
 	let brdfSamplePoint = vec3<f32>(clamp(vec2<f32>(NdotV, sheenRoughness), vec2<f32>(0., 0.), vec2<f32>(1., 1.)), f32(constant_data.lut_pbr_ggx_texture_index));
 	let brdf = sample_texture(brdfSamplePoint).b;
     
-    let sheen_env_uv = vec3<f32>(reflection.xy, f32(constant_data.environment_map_texture_index));	
+    let sheen_env_uv = vec3<f32>(compute_equirectangular_uv(reflection), f32(constant_data.environment_map_texture_index));	
 	let sheenLight = sample_texture(sheen_env_uv).rgb;
 	return sheenLight * sheenColor * brdf;
 } 
