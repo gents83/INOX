@@ -31,7 +31,7 @@ impl VertexAttributeLayout {
     }
     pub fn offset(&self, attribute: VertexAttributeLayout) -> usize {
         let mut offset = 0;
-        for i in 0u32..attribute.into() {
+        for i in 2u32..attribute.into() {
             if self.intersects(VertexAttributeLayout::from(i)) {
                 offset += 1;
             }
