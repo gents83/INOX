@@ -138,7 +138,7 @@ fn debug_color_override(color: vec4<f32>, screen_pixel: vec2<u32>, dimensions: v
         let visibility_id = visibility_value.r;
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
             var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
-            out_color = vec4<f32>(vec3<f32>(pixel_data.uv_set[0], 0.), 1.);
+            out_color = vec4<f32>(vec3<f32>(pixel_data.uv_set[0].xy, 0.), 1.);
         }
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_UV_1) != 0) {
@@ -155,7 +155,7 @@ fn debug_color_override(color: vec4<f32>, screen_pixel: vec2<u32>, dimensions: v
         let visibility_id = visibility_value.r;
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
             var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
-            out_color = vec4<f32>(vec3<f32>(pixel_data.uv_set[1], 0.), 1.);
+            out_color = vec4<f32>(vec3<f32>(pixel_data.uv_set[1].xy, 0.), 1.);
         }
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_UV_2) != 0) {
@@ -172,7 +172,7 @@ fn debug_color_override(color: vec4<f32>, screen_pixel: vec2<u32>, dimensions: v
         let visibility_id = visibility_value.r;
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
             var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
-            out_color = vec4<f32>(vec3<f32>(pixel_data.uv_set[2], 0.), 1.);
+            out_color = vec4<f32>(vec3<f32>(pixel_data.uv_set[2].xy, 0.), 1.);
         }
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_UV_3) != 0) {
@@ -189,7 +189,7 @@ fn debug_color_override(color: vec4<f32>, screen_pixel: vec2<u32>, dimensions: v
         let visibility_id = visibility_value.r;
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
             var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
-            out_color = vec4<f32>(vec3<f32>(pixel_data.uv_set[3], 0.), 1.);
+            out_color = vec4<f32>(vec3<f32>(pixel_data.uv_set[3].xy, 0.), 1.);
         }
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_NORMALS) != 0) {

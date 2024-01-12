@@ -280,7 +280,7 @@ struct PixelData {
     normal: vec3<f32>,
     mesh_id: u32, 
     tangent: vec4<f32>,
-    uv_set: array<vec2<f32>, 4>,
+    uv_set: array<vec4<f32>, 4>,
 };
 
 struct TBN {

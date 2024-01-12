@@ -18,7 +18,7 @@ fn material_texture_coord_set(material: ptr<function, Material>, texture_type: u
 fn material_texture_uv(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, texture_type: u32) -> vec3<f32> {
     let texture_coords_set = material_texture_coord_set(material, texture_type);  
     let texture_id = material_texture_index(material, texture_type);
-    let uv = vec3<f32>((*pixel_data).uv_set[texture_coords_set], f32(texture_id));
+    let uv = vec3<f32>((*pixel_data).uv_set[texture_coords_set].xy, f32(texture_id));
     return uv;
 } 
 
@@ -26,26 +26,14 @@ fn compute_tbn(material: ptr<function, Material>, pixel_data: ptr<function, Pixe
     var n = (*pixel_data).normal;
     var t = (*pixel_data).tangent.xyz;
     var b = cross(n,  t) * -(*pixel_data).tangent.w;
-    //if (has_texture(material, TEXTURE_TYPE_NORMAL)) {  
-    //    let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_NORMAL);
-    //    var uv_dx = dpdx(uv);
-    //    var uv_dy = dpdy(uv);
-    //    if (length(uv_dx) <= 0.01) {
-    //        uv_dx = vec2<f32>(1., 0.);
-    //    }
-    //    if (length(uv_dy) <= 0.01) {
-    //        uv_dy = vec2<f32>(0., 1.);
-    //    }
-    //    let t_temp = (uv_dy.x * dpdx((*pixel_data).world_pos) - uv_dx.x * dpdy((*pixel_data).world_pos)) /
-    //                 (uv_dx.y * uv_dy.x - uv_dy.y * uv_dx.x);
-    //
-    //    t = normalize(t_temp - n * dot(n, t_temp));
-    //    b = cross(n, t);
-    //    
-    //    var ntex = sample_texture(uv).rgb * 2. - vec3<f32>(1.);
-    //    ntex = normalize(ntex);
-    //    n = normalize(mat3x3<f32>(t, b, n) * ntex);
-    //}
+    if (has_texture(material, TEXTURE_TYPE_NORMAL)) {  
+        let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_NORMAL);
+        let uv_set_index = material_texture_coord_set(material, TEXTURE_TYPE_NORMAL);
+        t = unpack_snorm_to_3_f32(u32((*pixel_data).uv_set[uv_set_index].z));
+        b = unpack_snorm_to_3_f32(u32((*pixel_data).uv_set[uv_set_index].w));
+        var ntex = sample_texture(uv).rgb * 2. - vec3<f32>(1.);
+        n = normalize(mat3x3<f32>(t, b, n) * ntex);
+    }
     return TBN(n, t, b);
 }
 
