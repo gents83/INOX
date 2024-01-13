@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use crate::{AsBinding, BufferId, GpuBuffer, RenderCoreContext};
+use crate::{AsBinding, BufferId, GpuBuffer, RenderContext};
 
 #[derive(Default)]
 pub struct BindingDataBuffer {
@@ -32,7 +32,7 @@ impl BindingDataBuffer {
         label: Option<&str>,
         data: &mut T,
         usage: wgpu::BufferUsages,
-        render_core_context: &RenderCoreContext,
+        render_context: &RenderContext,
     ) -> bool
     where
         T: AsBinding,
@@ -41,7 +41,7 @@ impl BindingDataBuffer {
         let mut bind_data_buffer = self.buffers.write().unwrap();
         let buffer = bind_data_buffer.entry(id).or_default();
         if data.is_dirty() || usage != buffer.usage() {
-            let is_changed = buffer.bind(label, data, usage, render_core_context);
+            let is_changed = buffer.bind(label, data, usage, render_context);
             if is_changed {
                 self.changed_this_frame.write().unwrap().push(id);
             }

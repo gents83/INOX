@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::{
     AsBinding, AtomicCounters, BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer,
     ComputePass, ComputePassData, ConstantDataRw, DrawCommandType, DrawCommandsBuffer, GpuBuffer,
-    MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderCoreContext, ShaderStage,
+    MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderContextRc, ShaderStage,
     TextureView, ATOMIC_SIZE,
 };
 
@@ -63,10 +63,10 @@ impl AsBinding for CullingData {
             + std::mem::size_of_val(&self.mesh_flags) as u64
             + std::mem::size_of_val(&self._padding) as u64
     }
-    fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut GpuBuffer) {
-        buffer.add_to_gpu_buffer(render_core_context, &[self.view]);
-        buffer.add_to_gpu_buffer(render_core_context, &[self.mesh_flags]);
-        buffer.add_to_gpu_buffer(render_core_context, &[self._padding]);
+    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut GpuBuffer) {
+        buffer.add_to_gpu_buffer(render_context, &[self.view]);
+        buffer.add_to_gpu_buffer(render_context, &[self.mesh_flags]);
+        buffer.add_to_gpu_buffer(render_context, &[self._padding]);
     }
 }
 
@@ -103,7 +103,7 @@ impl Pass for CullingPass {
     fn draw_commands_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
-    fn create(context: &ContextRc, render_context: &RenderContext) -> Self
+    fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where
         Self: Sized,
     {
@@ -134,14 +134,14 @@ impl Pass for CullingPass {
                 &compact_data,
                 None,
             ),
-            constant_data: render_context.global_buffers.constant_data.clone(),
-            commands: render_context.global_buffers.draw_commands.clone(),
-            meshes: render_context.global_buffers.meshes.clone(),
-            meshlets: render_context.global_buffers.meshlets.clone(),
-            bhv: render_context.global_buffers.bvh.clone(),
+            constant_data: render_context.global_buffers().constant_data.clone(),
+            commands: render_context.global_buffers().draw_commands.clone(),
+            meshes: render_context.global_buffers().meshes.clone(),
+            meshlets: render_context.global_buffers().meshlets.clone(),
+            bhv: render_context.global_buffers().bvh.clone(),
             binding_data: BindingData::new(render_context, CULLING_PASS_NAME),
             culling_data: CullingData::default(),
-            culling_result: render_context.global_buffers.culling_result.clone(),
+            culling_result: render_context.global_buffers().culling_result.clone(),
             listener,
             update_camera: true,
         }

@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use crate::{
     AtomicCounters, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass,
-    ComputePassData, ConstantDataRw, DrawCommandType, MeshFlags, Pass, RenderContext, ShaderStage,
-    TextureId, TextureView,
+    ComputePassData, ConstantDataRw, DrawCommandType, MeshFlags, Pass, RenderContext,
+    RenderContextRc, ShaderStage, TextureId, TextureView,
 };
 
 use inox_core::ContextRc;
@@ -42,7 +42,7 @@ impl Pass for ComputeFinalizePass {
     fn draw_commands_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
-    fn create(context: &ContextRc, render_context: &RenderContext) -> Self
+    fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where
         Self: Sized,
     {
@@ -59,8 +59,8 @@ impl Pass for ComputeFinalizePass {
                 &data,
                 None,
             ),
-            constant_data: render_context.global_buffers.constant_data.clone(),
-            radiance_data_buffer: render_context.global_buffers.radiance_data_buffer.clone(),
+            constant_data: render_context.global_buffers().constant_data.clone(),
+            radiance_data_buffer: render_context.global_buffers().radiance_data_buffer.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_FINALIZE_NAME),
             finalize_texture: INVALID_UID,
             dimensions: (0, 0),

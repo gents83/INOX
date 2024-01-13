@@ -1,5 +1,5 @@
 use inox_core::ContextRc;
-use inox_graphics::RendererRw;
+use inox_graphics::RenderContextRc;
 
 use inox_messenger::MessageHubRc;
 use inox_resources::{Resource, SharedDataRc};
@@ -7,6 +7,7 @@ use inox_ui::{implement_widget_data, UIWidget, Widget, Window};
 
 #[derive(Clone)]
 struct GfxData {
+    render_context: RenderContextRc,
     vertices_count: usize,
     indices_count: usize,
     meshes_count: usize,
@@ -18,21 +19,20 @@ implement_widget_data!(GfxData);
 #[derive(Clone)]
 pub struct Gfx {
     ui_page: Resource<UIWidget>,
-    renderer: RendererRw,
 }
 
 impl Gfx {
-    pub fn new(context: &ContextRc, renderer: &RendererRw) -> Self {
+    pub fn new(context: &ContextRc, render_context: &RenderContextRc) -> Self {
         let data = GfxData {
             vertices_count: 0,
             indices_count: 0,
             meshes_count: 0,
             meshlets_count: 0,
             passes: Vec::new(),
+            render_context: render_context.clone(),
         };
         Self {
             ui_page: Self::create(context.shared_data(), context.message_hub(), data),
-            renderer: renderer.clone(),
         }
     }
 
@@ -40,28 +40,30 @@ impl Gfx {
         inox_profiler::scoped_profile!("Gfx::update");
         if let Some(data) = self.ui_page.get_mut().data_mut::<GfxData>() {
             {
-                let renderer = self.renderer.read().unwrap();
-                let render_context = renderer.render_context();
-                data.vertices_count = render_context
-                    .global_buffers
+                data.vertices_count = data
+                    .render_context
+                    .global_buffers()
                     .vertex_positions
                     .read()
                     .unwrap()
                     .item_count();
-                data.indices_count = render_context
-                    .global_buffers
+                data.indices_count = data
+                    .render_context
+                    .global_buffers()
                     .indices
                     .read()
                     .unwrap()
                     .item_count();
-                data.meshes_count = render_context
-                    .global_buffers
+                data.meshes_count = data
+                    .render_context
+                    .global_buffers()
                     .meshes
                     .read()
                     .unwrap()
                     .item_count();
-                data.meshlets_count = render_context
-                    .global_buffers
+                data.meshlets_count = data
+                    .render_context
+                    .global_buffers()
                     .meshlets
                     .read()
                     .unwrap()
@@ -69,16 +71,14 @@ impl Gfx {
             }
 
             if data.passes.is_empty() {
-                let renderer = self.renderer.read().unwrap();
-                for i in 0..renderer.num_passes() {
-                    let name = renderer.pass_at(i).unwrap().name().to_string();
-                    let is_enabled = renderer.is_pass_enabled(i);
+                for i in 0..data.render_context.num_passes() {
+                    let name = data.render_context.pass_name(i);
+                    let is_enabled = data.render_context.is_pass_enabled(i);
                     data.passes.push((name, is_enabled));
                 }
             } else {
-                let mut renderer = self.renderer.write().unwrap();
                 data.passes.iter().enumerate().for_each(|(i, (_n, b))| {
-                    renderer.set_pass_enabled(i, *b);
+                    data.render_context.set_pass_enabled(i, *b);
                 });
             }
         }

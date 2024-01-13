@@ -3,9 +3,9 @@ use std::path::PathBuf;
 use crate::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
     IndicesBuffer, LightsBuffer, LoadOperation, MaterialsBuffer, MeshFlags, MeshesBuffer,
-    MeshletsBuffer, Pass, RenderContext, RenderPass, RenderPassBeginData, RenderPassData,
-    RenderTarget, RuntimeVerticesBuffer, SamplerType, ShaderStage, StoreOperation, TextureId,
-    TextureView, TexturesBuffer, VertexAttributesBuffer,
+    MeshletsBuffer, Pass, RenderContext, RenderContextRc, RenderPass, RenderPassBeginData,
+    RenderPassData, RenderTarget, RuntimeVerticesBuffer, SamplerType, ShaderStage, StoreOperation,
+    TextureId, TextureView, TexturesBuffer, VertexAttributesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -52,7 +52,7 @@ impl Pass for DebugPass {
     fn draw_commands_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
-    fn create(context: &ContextRc, render_context: &RenderContext) -> Self
+    fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where
         Self: Sized,
     {
@@ -78,15 +78,15 @@ impl Pass for DebugPass {
                 None,
             ),
             binding_data: BindingData::new(render_context, DEBUG_PASS_NAME),
-            constant_data: render_context.global_buffers.constant_data.clone(),
-            meshes: render_context.global_buffers.meshes.clone(),
-            meshlets: render_context.global_buffers.meshlets.clone(),
-            textures: render_context.global_buffers.textures.clone(),
-            materials: render_context.global_buffers.materials.clone(),
-            lights: render_context.global_buffers.lights.clone(),
-            indices: render_context.global_buffers.indices.clone(),
-            runtime_vertices: render_context.global_buffers.runtime_vertices.clone(),
-            vertices_attributes: render_context.global_buffers.vertex_attributes.clone(),
+            constant_data: render_context.global_buffers().constant_data.clone(),
+            meshes: render_context.global_buffers().meshes.clone(),
+            meshlets: render_context.global_buffers().meshlets.clone(),
+            textures: render_context.global_buffers().textures.clone(),
+            materials: render_context.global_buffers().materials.clone(),
+            lights: render_context.global_buffers().lights.clone(),
+            indices: render_context.global_buffers().indices.clone(),
+            runtime_vertices: render_context.global_buffers().runtime_vertices.clone(),
+            vertices_attributes: render_context.global_buffers().vertex_attributes.clone(),
             finalize_texture: INVALID_UID,
             debug_data_texture: INVALID_UID,
             visibility_texture: INVALID_UID,
@@ -280,10 +280,10 @@ impl Pass for DebugPass {
             return;
         }
         let buffers = render_context.buffers();
-        let render_targets = render_context.texture_handler.render_targets();
+        let render_targets = render_context.texture_handler().render_targets();
 
         let render_pass_begin_data = RenderPassBeginData {
-            render_core_context: &render_context.core,
+            render_core_context: &render_context.webgpu,
             buffers: &buffers,
             render_targets: render_targets.as_slice(),
             surface_view,
@@ -293,7 +293,7 @@ impl Pass for DebugPass {
         {
             inox_profiler::gpu_scoped_profile!(
                 &mut render_pass,
-                &render_context.core.device,
+                &render_context.webgpu.device,
                 "debug_pass",
             );
             pass.draw(render_context, render_pass, 0..3, 0..1);

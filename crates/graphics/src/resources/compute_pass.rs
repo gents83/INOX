@@ -110,7 +110,7 @@ impl ComputePass {
         let mut compute_pass = {
             inox_profiler::gpu_scoped_profile!(
                 &mut command_buffer.encoder,
-                &_render_context.core.device,
+                &_render_context.webgpu.device,
                 "encoder::begin_compute_pass",
             );
             command_buffer
@@ -126,7 +126,7 @@ impl ComputePass {
             if is_ready {
                 inox_profiler::gpu_scoped_profile!(
                     &mut compute_pass,
-                    &_render_context.core.device,
+                    &_render_context.webgpu.device,
                     "compute_pass::set_pipeline",
                 );
                 compute_pass.set_pipeline(pipeline.compute_pipeline());
@@ -146,7 +146,7 @@ impl ComputePass {
             .for_each(|(index, bind_group)| {
                 inox_profiler::gpu_scoped_profile!(
                     &mut compute_pass,
-                    &_render_context.core.device,
+                    &_render_context.webgpu.device,
                     "compute_pass::set_bind_group",
                 );
                 compute_pass.set_bind_group(index as _, bind_group, &[]);
@@ -154,7 +154,7 @@ impl ComputePass {
 
         inox_profiler::gpu_scoped_profile!(
             &mut compute_pass,
-            &_render_context.core.device,
+            &_render_context.webgpu.device,
             "compute_pass::dispatch_workgroups",
         );
         compute_pass.dispatch_workgroups(x, y, z);
@@ -176,7 +176,7 @@ impl ComputePass {
         let mut compute_pass = {
             inox_profiler::gpu_scoped_profile!(
                 &mut command_buffer.encoder,
-                &_render_context.core.device,
+                &_render_context.webgpu.device,
                 "encoder::begin_compute_pass",
             );
             command_buffer
@@ -192,7 +192,7 @@ impl ComputePass {
             if is_ready {
                 inox_profiler::gpu_scoped_profile!(
                     &mut compute_pass,
-                    &_render_context.core.device,
+                    &_render_context.webgpu.device,
                     "compute_pass::set_pipeline",
                 );
                 compute_pass.set_pipeline(pipeline.compute_pipeline());
@@ -212,7 +212,7 @@ impl ComputePass {
             .for_each(|(index, bind_group)| {
                 inox_profiler::gpu_scoped_profile!(
                     &mut compute_pass,
-                    &_render_context.core.device,
+                    &_render_context.webgpu.device,
                     "compute_pass::set_bind_group",
                 );
                 compute_pass.set_bind_group(index as _, bind_group, &[]);
@@ -220,7 +220,7 @@ impl ComputePass {
 
         inox_profiler::gpu_scoped_profile!(
             &mut compute_pass,
-            &_render_context.core.device,
+            &_render_context.webgpu.device,
             "compute_pass::dispatch_workgroups",
         );
         compute_pass.dispatch_workgroups_indirect(

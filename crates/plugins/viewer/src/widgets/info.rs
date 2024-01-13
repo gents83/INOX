@@ -2,7 +2,7 @@ use std::sync::atomic::Ordering;
 
 use inox_core::ContextRc;
 use inox_graphics::{
-    CullingEvent, DrawEvent, Light, LightType, Mesh, MeshFlags, MeshId, RendererRw,
+    CullingEvent, DrawEvent, Light, LightType, Mesh, MeshFlags, MeshId, RenderContextRc,
     CONSTANT_DATA_FLAGS_DISPLAY_BASE_COLOR, CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT,
     CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
@@ -67,7 +67,7 @@ impl Default for MeshletInfo {
 pub struct InfoParams {
     pub is_active: bool,
     pub scene: Resource<Scene>,
-    pub renderer: RendererRw,
+    pub render_context: RenderContextRc,
 }
 
 #[derive(Clone)]
@@ -305,15 +305,21 @@ impl Info {
                 Self::show_frustum(data, &frustum);
             }
             if data.show_tlas {
-                let renderer = data.params.renderer.read().unwrap();
-                let render_context = renderer.render_context();
-                let tlas_index = render_context
-                    .global_buffers
+                let tlas_index = data
+                    .params
+                    .render_context
+                    .global_buffers()
                     .tlas_start_index
                     .read()
                     .unwrap()
                     .load(Ordering::Relaxed);
-                let bhv = render_context.global_buffers.bvh.read().unwrap();
+                let bhv = data
+                    .params
+                    .render_context
+                    .global_buffers()
+                    .bvh
+                    .read()
+                    .unwrap();
                 bhv.for_each_data(|i, _id, n| {
                     if i >= tlas_index as _ {
                         data.context
@@ -327,11 +333,21 @@ impl Info {
                 });
             }
             if data.show_blas {
-                let renderer = data.params.renderer.read().unwrap();
-                let render_context = renderer.render_context();
-                let bhv = render_context.global_buffers.bvh.read().unwrap();
+                let bhv = data
+                    .params
+                    .render_context
+                    .global_buffers()
+                    .bvh
+                    .read()
+                    .unwrap();
                 let bhv_data = bhv.data();
-                let meshes = render_context.global_buffers.meshes.read().unwrap();
+                let meshes = data
+                    .params
+                    .render_context
+                    .global_buffers()
+                    .meshes
+                    .read()
+                    .unwrap();
                 meshes.for_each_entry(|_, mesh| {
                     let node = &bhv_data[mesh.blas_index as usize];
                     let matrix = Matrix4::from_translation_orientation_scale(
@@ -375,9 +391,13 @@ impl Info {
                     Self::show_object_in_scene(data, o.id());
                 });
             } else {
-                let renderer = data.params.renderer.read().unwrap();
-                let render_context = renderer.render_context();
-                let bhv = render_context.global_buffers.bvh.read().unwrap();
+                let bhv = data
+                    .params
+                    .render_context
+                    .global_buffers()
+                    .bvh
+                    .read()
+                    .unwrap();
                 meshes.iter().for_each(|mesh| {
                     if let Some(nodes) = bhv.items(mesh.id()) {
                         nodes.iter().for_each(|n| {
@@ -572,10 +592,10 @@ impl Info {
                         ui.horizontal(|ui| {
                             ui.label("Indirect light bounces: ");
                             let mut indirect_light_num_bounces = {
-                                let renderer = data.params.renderer.read().unwrap();
-                                let render_context = renderer.render_context();
-                                let v = render_context
-                                    .global_buffers
+                                let v = data
+                                    .params
+                                    .render_context
+                                    .global_buffers()
                                     .constant_data
                                     .read()
                                     .unwrap()
@@ -589,10 +609,9 @@ impl Info {
                                 )
                                 .changed();
                             if is_changed {
-                                let renderer = data.params.renderer.read().unwrap();
-                                let render_context = renderer.render_context();
-                                render_context
-                                    .global_buffers
+                                data.params
+                                    .render_context
+                                    .global_buffers()
                                     .constant_data
                                     .write()
                                     .unwrap()
@@ -605,10 +624,13 @@ impl Info {
                                 .checkbox(&mut data.use_image_base_lighting_source, "Use IBL")
                                 .changed();
                             if is_changed {
-                                let renderer = data.params.renderer.read().unwrap();
-                                let render_context = renderer.render_context();
-                                let mut constant_data =
-                                    render_context.global_buffers.constant_data.write().unwrap();
+                                let mut constant_data = data
+                                    .params
+                                    .render_context
+                                    .global_buffers()
+                                    .constant_data
+                                    .write()
+                                    .unwrap();
                                 if data.use_image_base_lighting_source {
                                     constant_data
                                         .add_flag(CONSTANT_DATA_FLAGS_USE_IBL)
@@ -621,9 +643,13 @@ impl Info {
                             }
                         });
                         ui.vertical(|ui| {
-                            let renderer = data.params.renderer.read().unwrap();
-                            let render_context = renderer.render_context();
-                            let mut lights = render_context.global_buffers.lights.write().unwrap();
+                            let mut lights = data
+                                .params
+                                .render_context
+                                .global_buffers()
+                                .lights
+                                .write()
+                                .unwrap();
                             let light_type_none: u32 = LightType::None.into();
                             let mut num_lights = 0;
                             lights.for_each_entry_mut(|i, l| {
@@ -738,10 +764,9 @@ impl Info {
                                 });
                             if let Some(is_changed) = combo_box.inner {
                                 if is_changed {
-                                    let renderer = data.params.renderer.read().unwrap();
-                                    let render_context = renderer.render_context();
-                                    render_context
-                                        .global_buffers
+                                    data.params
+                                        .render_context
+                                        .global_buffers()
                                         .constant_data
                                         .write()
                                         .unwrap()
@@ -755,16 +780,18 @@ impl Info {
                                         .0
                                     {
                                         CONSTANT_DATA_FLAGS_NONE => {
-                                            render_context
-                                                .global_buffers
+                                            data.params
+                                                .render_context
+                                                .global_buffers()
                                                 .constant_data
                                                 .write()
                                                 .unwrap()
                                                 .set_frame_index(0);
                                         }
                                         _ => {
-                                            render_context
-                                                .global_buffers
+                                            data.params
+                                                .render_context
+                                                .global_buffers()
                                                 .constant_data
                                                 .write()
                                                 .unwrap()

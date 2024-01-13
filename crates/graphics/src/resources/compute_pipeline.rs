@@ -122,7 +122,7 @@ impl ComputePipeline {
         }
         let compute_pipeline_layout =
             context
-                .core
+                .webgpu
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Compute Pipeline Layout"),
@@ -137,7 +137,7 @@ impl ComputePipeline {
         let compute_pipeline = {
             inox_profiler::scoped_profile!("compute_pipeline::create[{}]", self.name());
             context
-                .core
+                .webgpu
                 .device
                 .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
                     label: Some(

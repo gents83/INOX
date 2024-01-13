@@ -2,9 +2,9 @@ use std::path::PathBuf;
 
 use crate::{
     BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, DrawCommandsBuffer,
-    GPURuntimeVertexData, IndicesBuffer, MeshFlags, Pass, RenderContext, RenderPass,
-    RenderPassBeginData, RenderPassData, RenderTarget, RuntimeVerticesBuffer, ShaderStage,
-    StoreOperation, Texture, TextureView,
+    GPURuntimeVertexData, IndicesBuffer, MeshFlags, Pass, RenderContext, RenderContextRc,
+    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, RuntimeVerticesBuffer,
+    ShaderStage, StoreOperation, Texture, TextureView,
 };
 
 use inox_core::ContextRc;
@@ -41,7 +41,7 @@ impl Pass for VisibilityBufferPass {
     fn draw_commands_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
-    fn create(context: &ContextRc, render_context: &RenderContext) -> Self
+    fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where
         Self: Sized,
     {
@@ -65,10 +65,10 @@ impl Pass for VisibilityBufferPass {
                 None,
             ),
             binding_data: BindingData::new(render_context, VISIBILITY_BUFFER_PASS_NAME),
-            constant_data: render_context.global_buffers.constant_data.clone(),
-            indices: render_context.global_buffers.indices.clone(),
-            commands_buffers: render_context.global_buffers.draw_commands.clone(),
-            runtime_vertices: render_context.global_buffers.runtime_vertices.clone(),
+            constant_data: render_context.global_buffers().constant_data.clone(),
+            indices: render_context.global_buffers().indices.clone(),
+            commands_buffers: render_context.global_buffers().draw_commands.clone(),
+            runtime_vertices: render_context.global_buffers().runtime_vertices.clone(),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -120,11 +120,11 @@ impl Pass for VisibilityBufferPass {
             return;
         }
         let buffers = render_context.buffers();
-        let render_targets = render_context.texture_handler.render_targets();
+        let render_targets = render_context.texture_handler().render_targets();
         let draw_commands_type = self.draw_commands_type();
 
         let render_pass_begin_data = RenderPassBeginData {
-            render_core_context: &render_context.core,
+            render_core_context: &render_context.webgpu,
             buffers: &buffers,
             render_targets: render_targets.as_slice(),
             surface_view,
@@ -134,7 +134,7 @@ impl Pass for VisibilityBufferPass {
         {
             inox_profiler::gpu_scoped_profile!(
                 &mut render_pass,
-                &render_context.core.device,
+                &render_context.webgpu.device,
                 "visibility_pass",
             );
             pass.indirect_indexed_draw(render_context, &buffers, draw_commands_type, render_pass);

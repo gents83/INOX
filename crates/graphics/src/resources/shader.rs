@@ -158,7 +158,7 @@ impl Shader {
             if !self.data.spirv_code.is_empty() {
                 let module =
                     context
-                        .core
+                        .webgpu
                         .device
                         .create_shader_module(wgpu::ShaderModuleDescriptor {
                             label: Some(shader_name.as_str()),
@@ -170,7 +170,7 @@ impl Shader {
             } else if !self.data.wgsl_code.is_empty() {
                 let module =
                     context
-                        .core
+                        .webgpu
                         .device
                         .create_shader_module(wgpu::ShaderModuleDescriptor {
                             label: Some(shader_name.as_str()),

@@ -33,11 +33,11 @@ var<storage, read> lights: Lights;
 @group(1) @binding(3)
 var finalize_texture: texture_2d<f32>;
 @group(1) @binding(4)
-var visibility_texture: texture_2d<u32>;
+var visibility_texture: texture_multisampled_2d<u32>;
 @group(1) @binding(5)
 var radiance_texture: texture_2d<f32>;
 @group(1) @binding(6)
-var depth_texture: texture_depth_2d;
+var depth_texture: texture_depth_multisampled_2d;
 @group(1) @binding(7)
 var debug_data_texture: texture_2d<f32>;
 

@@ -3,9 +3,9 @@ use std::num::NonZeroU32;
 use inox_bitmask::bitmask;
 
 use crate::{
-    platform::required_gpu_features, AsBinding, BindingDataBufferRc, BufferId, DispatchCommandSize,
-    RenderCommandsPerType, RenderContext, RenderCoreContextRc, SamplerType, ShaderStage,
-    TextureHandlerRc, TextureId, MAX_TEXTURE_ATLAS_COUNT,
+    platform::required_gpu_features, AsBinding, BufferId, DispatchCommandSize,
+    RenderCommandsPerType, RenderContextRc, SamplerType, ShaderStage, TextureId,
+    MAX_TEXTURE_ATLAS_COUNT,
 };
 
 const DEBUG_BINDINGS: bool = false;
@@ -84,9 +84,7 @@ enum BindingType {
 }
 
 pub struct BindingData {
-    binding_data_buffer: BindingDataBufferRc,
-    render_core_context: RenderCoreContextRc,
-    texture_handler: TextureHandlerRc,
+    render_context: RenderContextRc,
     bind_group_layout: Vec<wgpu::BindGroupLayout>,
     bind_group: Vec<wgpu::BindGroup>,
     binding_types: Vec<Vec<BindingType>>,
@@ -99,11 +97,9 @@ pub struct BindingData {
 }
 
 impl BindingData {
-    pub fn new(render_context: &RenderContext, pass_name: &str) -> Self {
+    pub fn new(render_context: &RenderContextRc, pass_name: &str) -> Self {
         Self {
-            binding_data_buffer: render_context.binding_data_buffer.clone(),
-            render_core_context: render_context.core.clone(),
-            texture_handler: render_context.texture_handler.clone(),
+            render_context: render_context.clone(),
             bind_group_layout: Vec::default(),
             bind_group: Vec::default(),
             binding_types: Vec::default(),
@@ -137,7 +133,7 @@ impl BindingData {
     ) -> &mut Self {
         inox_profiler::scoped_profile!("binding_data::bind_render_commands");
 
-        data.bind(&self.binding_data_buffer, &self.render_core_context, label);
+        data.bind(&self.render_context, label);
 
         self
     }
@@ -152,8 +148,12 @@ impl BindingData {
             | wgpu::BufferUsages::COPY_SRC
             | wgpu::BufferUsages::COPY_DST
             | wgpu::BufferUsages::INDIRECT;
-        self.binding_data_buffer
-            .bind_buffer(label, data, usage, &self.render_core_context);
+        self.render_context.binding_data_buffer().bind_buffer(
+            label,
+            data,
+            usage,
+            &self.render_context,
+        );
 
         self
     }
@@ -170,9 +170,12 @@ impl BindingData {
 
         let usage =
             wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::VERTEX;
-        let is_changed =
-            self.binding_data_buffer
-                .bind_buffer(label, data, usage, &self.render_core_context);
+        let is_changed = self.render_context.binding_data_buffer().bind_buffer(
+            label,
+            data,
+            usage,
+            &self.render_context,
+        );
 
         if DEBUG_BINDINGS {
             inox_log::debug_log!("Set VertexBuffer[{}] - Changed {:?}", index, is_changed);
@@ -193,9 +196,12 @@ impl BindingData {
 
         let usage =
             wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::INDEX;
-        let is_changed =
-            self.binding_data_buffer
-                .bind_buffer(label, data, usage, &self.render_core_context);
+        let is_changed = self.render_context.binding_data_buffer().bind_buffer(
+            label,
+            data,
+            usage,
+            &self.render_context,
+        );
 
         if DEBUG_BINDINGS {
             inox_log::debug_log!("Set IndexBuffer - Changed {:?}", is_changed);
@@ -233,7 +239,8 @@ impl BindingData {
         {
             if data.size()
                 > self
-                    .render_core_context
+                    .render_context
+                    .webgpu
                     .device
                     .limits()
                     .max_uniform_buffer_binding_size as _
@@ -242,7 +249,7 @@ impl BindingData {
                     "Trying to bind uniform buffer {} with size {} greater than maximum allowed [{}]",
                     label.unwrap_or_default(),
                     data.size(),
-                    self.render_core_context
+                    self.render_context.webgpu
                         .device
                         .limits()
                         .max_uniform_buffer_binding_size
@@ -250,9 +257,12 @@ impl BindingData {
             }
         }
         let usage = wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST;
-        let is_changed =
-            self.binding_data_buffer
-                .bind_buffer(label, data, usage, &self.render_core_context);
+        let is_changed = self.render_context.binding_data_buffer().bind_buffer(
+            label,
+            data,
+            usage,
+            &self.render_context,
+        );
         self.is_data_changed |= is_changed;
 
         if DEBUG_BINDINGS {
@@ -321,7 +331,8 @@ impl BindingData {
         {
             if data.size()
                 > self
-                    .render_core_context
+                    .render_context
+                    .webgpu
                     .device
                     .limits()
                     .max_storage_buffer_binding_size as _
@@ -330,7 +341,7 @@ impl BindingData {
                     "Trying to bind storage buffer {} with size {} greater than maximum allowed [{}]",
                     label.unwrap_or_default(),
                     data.size(),
-                    self.render_core_context
+                    self.render_context.webgpu
                         .device
                         .limits()
                         .max_uniform_buffer_binding_size
@@ -339,9 +350,12 @@ impl BindingData {
         }
 
         let usage = wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | info.flags.into();
-        let is_changed =
-            self.binding_data_buffer
-                .bind_buffer(label, data, usage, &self.render_core_context);
+        let is_changed = self.render_context.binding_data_buffer().bind_buffer(
+            label,
+            data,
+            usage,
+            &self.render_context,
+        );
         self.is_data_changed |= is_changed;
 
         if DEBUG_BINDINGS {
@@ -430,7 +444,7 @@ impl BindingData {
 
         let mut textures = [TextureId::default(); MAX_TEXTURE_ATLAS_COUNT as usize];
         {
-            let texture_atlas = self.texture_handler.textures_atlas();
+            let texture_atlas = self.render_context.texture_handler().textures_atlas();
             let num_textures = texture_atlas.len();
 
             for i in 0..MAX_TEXTURE_ATLAS_COUNT as usize {
@@ -442,12 +456,9 @@ impl BindingData {
             }
         }
 
-        let textures_bind_group_layout_index = info.binding_index;
-        let mut bind_group_layout_count = textures_bind_group_layout_index;
+        let mut bind_group_layout_count = info.binding_index;
         if required_gpu_features().contains(wgpu::Features::TEXTURE_BINDING_ARRAY) {
-            if self.bind_group_layout_entries[info.group_index].len()
-                <= textures_bind_group_layout_index
-            {
+            if self.bind_group_layout_entries[info.group_index].len() <= info.binding_index {
                 self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
                     binding: bind_group_layout_count as _,
                     visibility: info.stage.into(),
@@ -461,7 +472,7 @@ impl BindingData {
                 self.is_layout_changed = true;
             }
         } else if self.bind_group_layout_entries[info.group_index].len()
-            < (textures_bind_group_layout_index + MAX_TEXTURE_ATLAS_COUNT as usize)
+            < (info.binding_index + MAX_TEXTURE_ATLAS_COUNT as usize)
         {
             (0..MAX_TEXTURE_ATLAS_COUNT).for_each(|_| {
                 self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
@@ -488,22 +499,22 @@ impl BindingData {
             );
         }
 
-        if self.binding_types[info.group_index].len() <= textures_bind_group_layout_index {
+        if self.binding_types[info.group_index].len() <= info.binding_index {
             self.binding_types[info.group_index].push(BindingType::TextureArray(
-                textures_bind_group_layout_index,
+                info.binding_index,
                 Box::new(textures),
             ));
             self.is_data_changed = true;
         } else if let BindingType::TextureArray(_, old_textures) =
-            &self.binding_types[info.group_index][textures_bind_group_layout_index]
+            &self.binding_types[info.group_index][info.binding_index]
         {
             if old_textures
                 .iter()
                 .enumerate()
                 .any(|(index, id)| textures[index] != *id)
             {
-                self.binding_types[info.group_index][textures_bind_group_layout_index] =
-                    BindingType::TextureArray(textures_bind_group_layout_index, Box::new(textures));
+                self.binding_types[info.group_index][info.binding_index] =
+                    BindingType::TextureArray(info.binding_index, Box::new(textures));
                 self.is_data_changed = true;
             }
         }
@@ -517,7 +528,7 @@ impl BindingData {
         self.create_group_and_binding_index(info.group_index);
 
         if self.bind_group_layout_entries[info.group_index].len() <= info.binding_index {
-            let render_targets = self.texture_handler.render_targets();
+            let render_targets = self.render_context.texture_handler().render_targets();
             if let Some(texture) = render_targets.iter().find(|t| t.id() == texture_id) {
                 let format: wgpu::TextureFormat = (*texture.format()).into();
                 self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
@@ -544,7 +555,7 @@ impl BindingData {
                             sample_type: format
                                 .sample_type(
                                     Some(texture.format().aspect()),
-                                    Some(self.render_core_context.device.features()),
+                                    Some(self.render_context.webgpu.device.features()),
                                 )
                                 .unwrap_or_default(),
                             view_dimension: if texture.layers_count() > 1 {
@@ -552,17 +563,19 @@ impl BindingData {
                             } else {
                                 wgpu::TextureViewDimension::D2
                             },
-                            multisampled: false,
+                            multisampled: texture.is_multisample(),
                         }
                     },
                     count: None,
                 });
+                self.is_layout_changed = true;
             }
-            self.is_layout_changed = true;
 
-            self.binding_types[info.group_index]
-                .push(BindingType::Texture(info.binding_index, *texture_id));
-            self.is_data_changed = true;
+            if self.binding_types[info.group_index].len() <= info.binding_index {
+                self.binding_types[info.group_index]
+                    .push(BindingType::Texture(info.binding_index, *texture_id));
+                self.is_data_changed = true;
+            }
         }
         if self.binding_types[info.group_index].len() > info.binding_index {
             if let BindingType::Texture(_, id) =
@@ -578,7 +591,7 @@ impl BindingData {
 
         if DEBUG_BINDINGS {
             inox_log::debug_log!(
-                "Add Depth Texture [{}][{}] ",
+                "Add Texture [{}][{}] ",
                 info.group_index,
                 info.binding_index,
             );
@@ -605,13 +618,13 @@ impl BindingData {
                     );
                     let label = format!("{} bind group layout {}", self.pass_name, index);
 
-                    let data_bind_group_layout = self
-                        .render_core_context
-                        .device
-                        .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                            entries: bind_group_layout_entry.as_slice(),
-                            label: Some(label.as_str()),
-                        });
+                    let data_bind_group_layout =
+                        self.render_context.webgpu.device.create_bind_group_layout(
+                            &wgpu::BindGroupLayoutDescriptor {
+                                entries: bind_group_layout_entry.as_slice(),
+                                label: Some(label.as_str()),
+                            },
+                        );
                     self.bind_group_layout.push(data_bind_group_layout);
                 },
             );
@@ -633,15 +646,18 @@ impl BindingData {
                 .for_each(|(_, binding_type_array)| {
                     binding_type_array.iter().for_each(|binding_type| {
                         if let BindingType::Buffer(_, buffer_id) = binding_type {
-                            self.is_data_changed |= self.binding_data_buffer.is_changed(buffer_id);
+                            self.is_data_changed |= self
+                                .render_context
+                                .binding_data_buffer()
+                                .is_changed(buffer_id);
                         }
                     });
                 });
         }
 
         if self.is_data_changed {
-            let render_targets = self.texture_handler.render_targets();
-            let texture_atlas = self.texture_handler.textures_atlas();
+            let render_targets = self.render_context.texture_handler().render_targets();
+            let texture_atlas = self.render_context.texture_handler().textures_atlas();
             self.bind_group.clear();
             self.binding_types
                 .iter()
@@ -656,16 +672,21 @@ impl BindingData {
                                 if let Some(texture) =
                                     texture_atlas.iter().find(|t| t.texture_id() == id)
                                 {
-                                    textures_view.push(texture.texture_view().as_wgpu());
+                                    textures_view.push(texture.texture_view().as_ref());
                                 }
                                 if let Some(texture) = render_targets.iter().find(|t| t.id() == id)
                                 {
-                                    textures_view.push(texture.view().as_wgpu());
+                                    textures_view.push(texture.view().as_ref());
                                 }
                             });
                         }
                     });
-                    let bind_data_buffer = self.binding_data_buffer.buffers.read().unwrap();
+                    let bind_data_buffer = self
+                        .render_context
+                        .binding_data_buffer()
+                        .buffers
+                        .read()
+                        .unwrap();
                     let mut bind_group = Vec::new();
                     binding_type_array
                         .iter()
@@ -717,7 +738,9 @@ impl BindingData {
                                 bind_group.push(wgpu::BindGroupEntry {
                                     binding: *binding_index as _,
                                     resource: wgpu::BindingResource::Sampler(
-                                        self.texture_handler.sampler(*sampler_type),
+                                        self.render_context
+                                            .texture_handler()
+                                            .sampler(*sampler_type),
                                     ),
                                 });
                             }
@@ -735,7 +758,7 @@ impl BindingData {
                                     bind_group.push(wgpu::BindGroupEntry {
                                         binding: *binding_index as _,
                                         resource: wgpu::BindingResource::TextureView(
-                                            texture.view().as_wgpu(),
+                                            texture.view().as_ref(),
                                         ),
                                     });
                                 }
@@ -776,7 +799,7 @@ impl BindingData {
                             self.pass_name,
                             group_index
                         );
-                        let data_bind_group = self.render_core_context.device.create_bind_group(
+                        let data_bind_group = self.render_context.webgpu.device.create_bind_group(
                             &wgpu::BindGroupDescriptor {
                                 layout: &self.bind_group_layout[group_index],
                                 entries: bind_group.as_slice(),

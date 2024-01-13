@@ -2,7 +2,7 @@ use std::sync::atomic::AtomicBool;
 
 use inox_resources::to_slice;
 
-use crate::{AsBinding, RenderCoreContext};
+use crate::{AsBinding, RenderContext, WebGpuContext};
 
 pub struct GpuBuffer {
     gpu_buffer: Option<wgpu::Buffer>,
@@ -47,7 +47,7 @@ impl GpuBuffer {
     }
     fn init(
         &mut self,
-        render_core_context: &RenderCoreContext,
+        render_context: &RenderContext,
         size: u64,
         usage: wgpu::BufferUsages,
         buffer_name: &str,
@@ -60,7 +60,8 @@ impl GpuBuffer {
             self.name = label;
             self.release();
             self.usage |= usage;
-            let data_buffer = render_core_context
+            let data_buffer = render_context
+                .webgpu
                 .device
                 .create_buffer(&wgpu::BufferDescriptor {
                     label: Some(self.name.as_str()),
@@ -76,7 +77,7 @@ impl GpuBuffer {
     }
     pub fn init_from_type<T>(
         &mut self,
-        render_core_context: &RenderCoreContext,
+        render_context: &RenderContext,
         size: u64,
         usage: wgpu::BufferUsages,
     ) -> bool {
@@ -86,9 +87,9 @@ impl GpuBuffer {
             .last()
             .unwrap()
             .to_string();
-        self.init(render_core_context, size, usage, typename.as_str())
+        self.init(render_context, size, usage, typename.as_str())
     }
-    pub fn overwrite_buffer<T>(&mut self, render_core_context: &RenderCoreContext, data: &[T]) {
+    pub fn overwrite_buffer<T>(&mut self, render_core_context: &WebGpuContext, data: &[T]) {
         if data.is_empty() {
             return;
         }
@@ -126,12 +127,12 @@ impl GpuBuffer {
             gpu_buffer.unmap();
         }
     }
-    pub fn add_to_gpu_buffer<T>(&mut self, render_core_context: &RenderCoreContext, data: &[T]) {
+    pub fn add_to_gpu_buffer<T>(&mut self, render_context: &RenderContext, data: &[T]) {
         if data.is_empty() {
             return;
         }
         inox_profiler::scoped_profile!("GpuBuffer::add_to_gpu_buffer({})", &self.name);
-        render_core_context.queue.write_buffer(
+        render_context.webgpu.queue.write_buffer(
             self.gpu_buffer.as_ref().unwrap(),
             self.offset,
             to_slice(data),
@@ -144,7 +145,7 @@ impl GpuBuffer {
         label: Option<&str>,
         data: &mut T,
         usage: wgpu::BufferUsages,
-        render_core_context: &RenderCoreContext,
+        render_context: &RenderContext,
     ) -> bool
     where
         T: AsBinding,
@@ -156,14 +157,14 @@ impl GpuBuffer {
             let id = data.id();
             format!("{}[{}]", std::any::type_name::<T>(), id)
         };
-        let is_changed = self.init(render_core_context, data.size(), usage, name.as_str());
+        let is_changed = self.init(render_context, data.size(), usage, name.as_str());
         if usage.intersects(wgpu::BufferUsages::COPY_DST) {
-            data.fill_buffer(render_core_context, self);
+            data.fill_buffer(render_context, self);
             data.set_dirty(false);
         }
         is_changed
     }
-    pub fn read_from_gpu(&self, render_core_context: &RenderCoreContext) -> Option<Vec<u8>> {
+    pub fn read_from_gpu(&self, render_core_context: &WebGpuContext) -> Option<Vec<u8>> {
         if self.size == 0 {
             return None;
         }
@@ -188,7 +189,7 @@ impl GpuBuffer {
             result
         })
     }
-    pub fn read_from_gpu_as<T>(&self, render_core_context: &RenderCoreContext) -> Option<Vec<T>>
+    pub fn read_from_gpu_as<T>(&self, render_core_context: &WebGpuContext) -> Option<Vec<T>>
     where
         T: Sized + Clone,
     {

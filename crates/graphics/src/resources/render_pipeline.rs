@@ -173,7 +173,7 @@ impl RenderPipeline {
         }
         let is_same_format = if render_formats.is_empty() {
             !self.formats.is_empty()
-                && self.formats[0] == context.core.config.read().unwrap().format.into()
+                && self.formats[0] == context.webgpu.config.read().unwrap().format.into()
         } else {
             let count = self
                 .formats
@@ -190,7 +190,7 @@ impl RenderPipeline {
             if self.data.sampling_count > 1 {
                 return false;
             }
-            vec![context.core.config.read().unwrap().format]
+            vec![context.webgpu.config.read().unwrap().format]
         } else {
             render_formats
                 .iter()
@@ -202,7 +202,7 @@ impl RenderPipeline {
         };
         let render_pipeline_layout =
             context
-                .core
+                .webgpu
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Render Pipeline Layout"),
@@ -225,7 +225,7 @@ impl RenderPipeline {
         let render_pipeline = {
             inox_profiler::scoped_profile!("render_pipeline::create[{}]", self.name());
             context
-                .core
+                .webgpu
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                     label: Some(

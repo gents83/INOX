@@ -10,14 +10,14 @@ use inox_resources::{
 use inox_uid::generate_random_uid;
 
 use crate::{
-    is_shader, CommandBuffer, ComputePipeline, Light, Material, Mesh, RenderPipeline, RendererRw,
-    RendererState, Texture, View, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    is_shader, CommandBuffer, ComputePipeline, Light, Material, Mesh, RenderContextRc,
+    RenderPipeline, RendererState, Texture, View, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 pub const RENDERING_UPDATE: &str = "RENDERING_UPDATE";
 
 pub struct UpdateSystem {
-    renderer: RendererRw,
+    render_context: RenderContextRc,
     shared_data: SharedDataRc,
     listener: Listener,
     view: Resource<View>,
@@ -28,7 +28,7 @@ pub struct UpdateSystem {
 }
 
 impl UpdateSystem {
-    pub fn new(renderer: RendererRw, context: &ContextRc) -> Self {
+    pub fn new(render_context: &RenderContextRc, context: &ContextRc) -> Self {
         let listener = Listener::new(context.message_hub());
 
         Self {
@@ -39,7 +39,7 @@ impl UpdateSystem {
                 &0,
                 None,
             ),
-            renderer,
+            render_context: render_context.clone(),
             shared_data: context.shared_data().clone(),
             listener,
             resolution_changed: false,
@@ -84,104 +84,77 @@ impl UpdateSystem {
             })
             .process_messages(|e: &ResourceEvent<Texture>| match e {
                 ResourceEvent::Changed(id) => {
-                    self.renderer
-                        .write()
-                        .unwrap()
+                    self.render_context
                         .on_texture_changed(id, &mut command_buffer.encoder);
                 }
                 ResourceEvent::Created(t) => {
-                    self.renderer
-                        .write()
-                        .unwrap()
+                    self.render_context
                         .on_texture_changed(t.id(), &mut command_buffer.encoder);
                 }
                 ResourceEvent::Destroyed(id) => {
-                    let renderer = self.renderer.read().unwrap();
-                    let render_context = renderer.render_context();
-                    render_context.global_buffers.remove_texture(id);
+                    self.render_context.global_buffers().remove_texture(id);
                 }
             })
             .process_messages(|e: &DataTypeResourceEvent<Light>| {
                 let DataTypeResourceEvent::Loaded(id, light_data) = e;
-                let renderer = self.renderer.read().unwrap();
-                let render_context = renderer.render_context();
-                render_context.global_buffers.update_light(id, light_data);
+                self.render_context
+                    .global_buffers()
+                    .update_light(id, light_data);
             })
             .process_messages(|e: &ResourceEvent<Light>| match e {
                 ResourceEvent::Created(l) => {
-                    let renderer = self.renderer.read().unwrap();
-                    let render_context = renderer.render_context();
-                    render_context
-                        .global_buffers
+                    self.render_context
+                        .global_buffers()
                         .add_light(l.id(), &mut l.get_mut());
                 }
                 ResourceEvent::Changed(id) => {
                     if let Some(light) = self.shared_data.get_resource::<Light>(id) {
-                        let renderer = self.renderer.read().unwrap();
-
-                        let render_context = renderer.render_context();
-                        render_context
-                            .global_buffers
+                        self.render_context
+                            .global_buffers()
                             .update_light(id, light.get().data());
                     }
                 }
                 ResourceEvent::Destroyed(id) => {
-                    let renderer = self.renderer.read().unwrap();
-                    let render_context = renderer.render_context();
-                    render_context.global_buffers.remove_light(id);
+                    self.render_context.global_buffers().remove_light(id);
                 }
             })
             .process_messages(|e: &ResourceEvent<Material>| match e {
                 ResourceEvent::Created(m) => {
-                    let renderer = self.renderer.read().unwrap();
-                    let render_context = renderer.render_context();
-                    render_context
-                        .global_buffers
+                    self.render_context
+                        .global_buffers()
                         .add_material(m.id(), &mut m.get_mut());
                 }
                 ResourceEvent::Changed(id) => {
                     if let Some(m) = self.shared_data.get_resource::<Material>(id) {
-                        let renderer = self.renderer.read().unwrap();
-                        let render_context = renderer.render_context();
-                        render_context
-                            .global_buffers
+                        self.render_context
+                            .global_buffers()
                             .add_material(m.id(), &mut m.get_mut());
                     }
                 }
                 ResourceEvent::Destroyed(id) => {
-                    let renderer = self.renderer.read().unwrap();
-                    let render_context = renderer.render_context();
-                    render_context.global_buffers.remove_material(id);
+                    self.render_context.global_buffers().remove_material(id);
                 }
             })
             .process_messages(|e: &DataTypeResourceEvent<Material>| {
                 let DataTypeResourceEvent::Loaded(id, material_data) = e;
-                let renderer = self.renderer.read().unwrap();
-                let render_context = renderer.render_context();
-                render_context
-                    .global_buffers
+                self.render_context
+                    .global_buffers()
                     .update_material(id, material_data);
             })
             .process_messages(|e: &DataTypeResourceEvent<Mesh>| {
                 let DataTypeResourceEvent::Loaded(id, mesh_data) = e;
-                let renderer = self.renderer.read().unwrap();
-                let render_context = renderer.render_context();
-                render_context.global_buffers.add_mesh(id, mesh_data);
+                self.render_context.global_buffers().add_mesh(id, mesh_data);
             })
             .process_messages(|e: &ResourceEvent<Mesh>| match e {
                 ResourceEvent::Changed(id) => {
                     if let Some(mesh) = self.shared_data.get_resource::<Mesh>(id) {
-                        let renderer = self.renderer.read().unwrap();
-                        let render_context = renderer.render_context();
-                        render_context
-                            .global_buffers
+                        self.render_context
+                            .global_buffers()
                             .change_mesh(id, &mut mesh.get_mut());
                     }
                 }
                 ResourceEvent::Destroyed(id) => {
-                    let renderer = self.renderer.read().unwrap();
-                    let render_context = renderer.render_context();
-                    render_context.global_buffers.remove_mesh(id, true);
+                    self.render_context.global_buffers().remove_mesh(id, true);
                 }
                 _ => {}
             });
@@ -217,61 +190,42 @@ impl System for UpdateSystem {
     }
 
     fn run(&mut self) -> bool {
-        let state = self.renderer.read().unwrap().state();
+        let state = self.render_context.state();
         if state != RendererState::Submitted {
-            if state == RendererState::Init {
-                self.renderer.write().unwrap().check_initialization();
-            }
             return true;
         }
 
-        {
-            let mut renderer = self.renderer.write().unwrap();
-            if self.resolution_changed {
-                renderer.set_surface_size(self.width as f32 as _, self.height as f32 as _);
+        if self.resolution_changed {
+            self.render_context
+                .set_surface_size(self.width as f32 as _, self.height as f32 as _);
 
-                self.resolution_changed = false;
-                return true;
-            }
-            if !renderer.obtain_surface_texture() {
-                return true;
-            }
+            self.resolution_changed = false;
+            return true;
+        }
+        if !self.render_context.obtain_surface_texture() {
+            return true;
         }
 
-        {
-            let mut renderer = self.renderer.write().unwrap();
-            renderer.change_state(RendererState::Preparing);
-        }
+        self.render_context.change_state(RendererState::Preparing);
 
-        let mut command_buffer = {
-            let renderer = self.renderer.read().unwrap();
-            let render_context = renderer.render_context();
-            render_context.core.new_command_buffer()
-        };
+        let mut command_buffer = self.render_context.new_command_buffer();
 
         self.handle_events(&mut command_buffer);
 
         {
-            let mut renderer = self.renderer.write().unwrap();
-            {
-                let screen_size = Vector2::new(self.width as _, self.height as _);
+            let screen_size = Vector2::new(self.width as _, self.height as _);
 
-                let render_context = renderer.render_context();
-                render_context.global_buffers.update_constant_data(
-                    self.view.get().view(),
-                    self.view.get().proj(),
-                    screen_size,
-                    self.mouse_coords,
-                );
-            }
+            self.render_context.global_buffers().update_constant_data(
+                self.view.get().view(),
+                self.view.get().proj(),
+                screen_size,
+                self.mouse_coords,
+            );
 
-            renderer.update_passes(command_buffer);
+            self.render_context.update_passes(command_buffer);
         }
 
-        {
-            let mut renderer = self.renderer.write().unwrap();
-            renderer.change_state(RendererState::Prepared);
-        }
+        self.render_context.change_state(RendererState::Prepared);
 
         true
     }

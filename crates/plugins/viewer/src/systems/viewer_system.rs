@@ -1,7 +1,7 @@
 use inox_commands::CommandParser;
 use inox_core::{implement_unique_system_uid, ContextRc, System};
 use inox_graphics::{
-    create_quad, Material, MaterialData, Mesh, MeshData, MeshFlags, RendererRw, Texture,
+    create_quad, Material, MaterialData, Mesh, MeshData, MeshFlags, RenderContextRc, Texture,
     VertexAttributeLayout, View,
 };
 use inox_log::debug_log;
@@ -21,7 +21,7 @@ use crate::{
 
 pub struct ViewerSystem {
     context: ContextRc,
-    renderer: RendererRw,
+    render_context: RenderContextRc,
     listener: Listener,
     scene: Resource<Scene>,
     last_mouse_pos: Vector2,
@@ -64,15 +64,6 @@ impl System for ViewerSystem {
             .register::<WindowEvent>()
             .register::<SerializableResourceEvent<Scene>>()
             .register::<WidgetEvent>();
-
-        self.info = Some(Info::new(
-            &self.context.clone(),
-            InfoParams {
-                is_active: true,
-                scene: self.scene.clone(),
-                renderer: self.renderer.clone(),
-            },
-        ));
     }
 
     fn run(&mut self) -> bool {
@@ -105,7 +96,7 @@ impl System for ViewerSystem {
 }
 
 impl ViewerSystem {
-    pub fn new(context: &ContextRc, renderer: &RendererRw, use_3dview: bool) -> Self {
+    pub fn new(context: &ContextRc, render_context: &RenderContextRc, use_3dview: bool) -> Self {
         let listener = Listener::new(context.message_hub());
         let shared_data = context.shared_data();
         let message_hub = context.message_hub();
@@ -124,15 +115,25 @@ impl ViewerSystem {
         } else {
             None
         };
+
+        let info = Some(Info::new(
+            context,
+            InfoParams {
+                is_active: true,
+                scene: scene.clone(),
+                render_context: render_context.clone(),
+            },
+        ));
+
         Self {
             last_frame: u64::MAX,
             is_on_view3d: false,
             view_3d,
-            info: None,
+            info,
             hierarchy: None,
             graphics: None,
             context: context.clone(),
-            renderer: renderer.clone(),
+            render_context: render_context.clone(),
             listener,
             scene,
             camera_index: 0,
@@ -352,7 +353,7 @@ impl ViewerSystem {
                         )
                     }
                     WidgetType::Gfx => {
-                        self.graphics = Some(Gfx::new(&self.context, &self.renderer))
+                        self.graphics = Some(Gfx::new(&self.context, &self.render_context))
                     }
                 },
                 WidgetEvent::Destroy(t) => match t {

@@ -8,15 +8,15 @@ use inox_resources::{
 
 use crate::{
     gpu_texture::GpuTexture, platform::is_indirect_mode_enabled, AsBinding, BindingData, BufferId,
-    CommandBuffer, DrawCommandType, GpuBuffer, LoadOperation, MeshFlags, RenderContext,
-    RenderCoreContextRc, RenderMode, RenderPassData, RenderPipeline, RenderTarget, StoreOperation,
-    Texture, TextureId, TextureUsage, TextureView, VertexBufferLayoutBuilder,
+    CommandBuffer, DrawCommandType, GpuBuffer, LoadOperation, MeshFlags, RenderContext, RenderMode,
+    RenderPassData, RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId, TextureUsage,
+    TextureView, VertexBufferLayoutBuilder, WebGpuContextRc,
 };
 
 pub type RenderPassId = ResourceId;
 
 pub struct RenderPassBeginData<'a> {
-    pub render_core_context: &'a RenderCoreContextRc,
+    pub render_core_context: &'a WebGpuContextRc,
     pub render_targets: &'a [GpuTexture],
     pub buffers: &'a HashMap<BufferId, GpuBuffer>,
     pub surface_view: &'a TextureView,
@@ -205,7 +205,7 @@ impl RenderPass {
         vertex_layout: Option<VertexBufferLayoutBuilder>,
         instance_layout: Option<VertexBufferLayoutBuilder>,
     ) {
-        let render_targets = render_context.texture_handler.render_targets();
+        let render_targets = render_context.texture_handler().render_targets();
 
         let mut render_formats = Vec::new();
         let render_textures = self.render_textures_id();
@@ -237,9 +237,9 @@ impl RenderPass {
         }
         if render_textures.is_empty() && sample_count > 1 {
             self.create_render_target(RenderTarget::Texture {
-                width: render_context.core.config.read().unwrap().width,
-                height: render_context.core.config.read().unwrap().height,
-                format: render_context.core.config.read().unwrap().format.into(),
+                width: render_context.webgpu.config.read().unwrap().width,
+                height: render_context.webgpu.config.read().unwrap().height,
+                format: render_context.webgpu.config.read().unwrap().format.into(),
                 sample_count,
             });
         }
@@ -288,7 +288,7 @@ impl RenderPass {
 
         let render_textures = self.render_textures_id();
         if render_textures.is_empty() {
-            render_targets_views.push(render_pass_begin_data.surface_view.as_wgpu());
+            render_targets_views.push(render_pass_begin_data.surface_view.as_ref());
         } else {
             render_textures.iter().for_each(|&id| {
                 if let Some(texture) = render_pass_begin_data
@@ -296,7 +296,7 @@ impl RenderPass {
                     .iter()
                     .find(|t| t.id() == id)
                 {
-                    render_targets_views.push(texture.view().as_wgpu());
+                    render_targets_views.push(texture.view().as_ref());
                 }
             });
         }
@@ -306,7 +306,7 @@ impl RenderPass {
                 .iter()
                 .find(|t| t.id() == texture.id())
             {
-                depth_target_view = Some(texture.view().as_wgpu());
+                depth_target_view = Some(texture.view().as_ref());
             }
         }
 
@@ -414,12 +414,12 @@ impl RenderPass {
 
         let mesh_flags = self.pipeline().get().data().mesh_flags;
         render_context
-            .global_buffers
+            .global_buffers()
             .meshes
             .read()
             .unwrap()
             .for_each_id(|mesh_id, _, mesh| {
-                let meshlets = render_context.global_buffers.meshlets.read().unwrap();
+                let meshlets = render_context.global_buffers().meshlets.read().unwrap();
                 if let Some(meshlets) = meshlets.items(mesh_id) {
                     let flags = (mesh.flags_and_vertices_attribute_layout & 0xFFFF0000) >> 16;
                     if MeshFlags::from(flags) == mesh_flags {
@@ -429,7 +429,7 @@ impl RenderPass {
                             inox_profiler::scoped_profile!("render_pass::draw_indexed");
                             inox_profiler::gpu_scoped_profile!(
                                 &mut render_pass,
-                                &render_context.core.device,
+                                &render_context.webgpu.device,
                                 "render_pass::draw_indexed",
                             );
                             render_pass.draw_indexed(
@@ -457,7 +457,7 @@ impl RenderPass {
         if is_indirect_mode_enabled() && self.render_mode == RenderMode::Indirect {
             let mesh_flags = self.pipeline().get().data().mesh_flags;
             if let Some(commands) = render_context
-                .global_buffers
+                .global_buffers()
                 .draw_commands
                 .read()
                 .unwrap()
@@ -471,7 +471,7 @@ impl RenderPass {
                             if let Some(count_buffer) = buffers.get(&count_id) {
                                 inox_profiler::gpu_scoped_profile!(
                                     &mut render_pass,
-                                    &render_context.core.device,
+                                    &render_context.webgpu.device,
                                     "render_pass::multi_draw_indexed_indirect_count",
                                 );
                                 render_pass.multi_draw_indexed_indirect_count(
@@ -503,7 +503,7 @@ impl RenderPass {
         inox_profiler::scoped_profile!("render_pass::draw");
         inox_profiler::gpu_scoped_profile!(
             &mut render_pass,
-            &render_context.core.device,
+            &render_context.webgpu.device,
             "render_pass::draw",
         );
         render_pass.draw(vertices, instances);
@@ -513,9 +513,9 @@ impl RenderPass {
         inox_profiler::scoped_profile!("render_pass::draw_meshes");
 
         let mesh_flags = self.pipeline().get().data().mesh_flags;
-        let meshlets = render_context.global_buffers.meshlets.read().unwrap();
+        let meshlets = render_context.global_buffers().meshlets.read().unwrap();
         render_context
-            .global_buffers
+            .global_buffers()
             .meshes
             .read()
             .unwrap()
@@ -534,7 +534,7 @@ impl RenderPass {
                         });
                         inox_profiler::gpu_scoped_profile!(
                             &mut render_pass,
-                            &render_context.core.device,
+                            &render_context.webgpu.device,
                             "render_pass::draw_indexed",
                         );
                         render_pass.draw_indexed(

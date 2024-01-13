@@ -3,8 +3,9 @@ use std::path::PathBuf;
 use crate::{
     AtomicCounters, BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass,
     ComputePassData, ConstantDataRw, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer,
-    MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RuntimeVerticesBuffer,
-    SamplerType, ShaderStage, TextureId, TextureView, TexturesBuffer, VertexAttributesBuffer,
+    MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderContextRc,
+    RuntimeVerticesBuffer, SamplerType, ShaderStage, TextureId, TextureView, TexturesBuffer,
+    VertexAttributesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -55,7 +56,7 @@ impl Pass for ComputePathTracingDirectPass {
     fn draw_commands_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
-    fn create(context: &ContextRc, render_context: &RenderContext) -> Self
+    fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where
         Self: Sized,
     {
@@ -72,18 +73,18 @@ impl Pass for ComputePathTracingDirectPass {
                 &data,
                 None,
             ),
-            constant_data: render_context.global_buffers.constant_data.clone(),
-            meshes: render_context.global_buffers.meshes.clone(),
-            meshlets: render_context.global_buffers.meshlets.clone(),
-            radiance_data_buffer: render_context.global_buffers.radiance_data_buffer.clone(),
-            atomic_counters: render_context.global_buffers.atomic_counters.clone(),
-            bhv: render_context.global_buffers.bvh.clone(),
-            indices: render_context.global_buffers.indices.clone(),
-            runtime_vertices: render_context.global_buffers.runtime_vertices.clone(),
-            vertices_attributes: render_context.global_buffers.vertex_attributes.clone(),
-            textures: render_context.global_buffers.textures.clone(),
-            materials: render_context.global_buffers.materials.clone(),
-            lights: render_context.global_buffers.lights.clone(),
+            constant_data: render_context.global_buffers().constant_data.clone(),
+            meshes: render_context.global_buffers().meshes.clone(),
+            meshlets: render_context.global_buffers().meshlets.clone(),
+            radiance_data_buffer: render_context.global_buffers().radiance_data_buffer.clone(),
+            atomic_counters: render_context.global_buffers().atomic_counters.clone(),
+            bhv: render_context.global_buffers().bvh.clone(),
+            indices: render_context.global_buffers().indices.clone(),
+            runtime_vertices: render_context.global_buffers().runtime_vertices.clone(),
+            vertices_attributes: render_context.global_buffers().vertex_attributes.clone(),
+            textures: render_context.global_buffers().textures.clone(),
+            materials: render_context.global_buffers().materials.clone(),
+            lights: render_context.global_buffers().lights.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_DIRECT_NAME),
             visibility_texture: INVALID_UID,
             binding_texture: INVALID_UID,
@@ -231,7 +232,7 @@ impl Pass for ComputePathTracingDirectPass {
                     group_index: 1,
                     binding_index: 4,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                    ..Default::default()
                 },
             )
             .add_texture(

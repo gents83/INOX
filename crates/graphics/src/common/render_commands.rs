@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use inox_resources::{Buffer, ResourceId};
 
 use crate::{
-    declare_as_binding_vector, AsBinding, BindingDataBuffer, DrawCommandType, DrawIndexedCommand,
-    GPUMesh, GPUMeshlet, RenderCoreContext,
+    declare_as_binding_vector, AsBinding, DrawCommandType, DrawIndexedCommand, GPUMesh, GPUMeshlet,
+    GpuBuffer, RenderContext,
 };
 
 declare_as_binding_vector!(VecDrawIndexedCommand, DrawIndexedCommand);
@@ -33,12 +33,8 @@ impl AsBinding for RenderCommandsCount {
         std::mem::size_of_val(&self.count) as u64
     }
 
-    fn fill_buffer(
-        &self,
-        render_core_context: &crate::RenderCoreContext,
-        buffer: &mut crate::GpuBuffer,
-    ) {
-        buffer.add_to_gpu_buffer(render_core_context, &[self.count]);
+    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut GpuBuffer) {
+        buffer.add_to_gpu_buffer(render_context, &[self.count]);
     }
 }
 
@@ -57,22 +53,17 @@ impl RenderCommands {
             self.counter.set_dirty(true);
         }
     }
-    fn bind(
-        &mut self,
-        binding_data_buffer: &BindingDataBuffer,
-        render_core_context: &RenderCoreContext,
-        label: Option<&str>,
-    ) {
+    fn bind(&mut self, render_context: &RenderContext, label: Option<&str>) {
         if self.commands.is_dirty() {
             let usage = wgpu::BufferUsages::STORAGE
                 | wgpu::BufferUsages::COPY_SRC
                 | wgpu::BufferUsages::COPY_DST
                 | wgpu::BufferUsages::INDIRECT;
-            binding_data_buffer.bind_buffer(
+            render_context.binding_data_buffer().bind_buffer(
                 Some(label.unwrap_or("Commands")),
                 &mut self.commands,
                 usage,
-                render_core_context,
+                render_context,
             );
         }
         if self.counter.is_dirty() {
@@ -80,11 +71,11 @@ impl RenderCommands {
                 | wgpu::BufferUsages::COPY_SRC
                 | wgpu::BufferUsages::COPY_DST
                 | wgpu::BufferUsages::INDIRECT;
-            binding_data_buffer.bind_buffer(
+            render_context.binding_data_buffer().bind_buffer(
                 Some("Counter"),
                 &mut self.counter,
                 usage,
-                render_core_context,
+                render_context,
             );
         }
     }
@@ -161,14 +152,9 @@ impl RenderCommands {
 }
 
 impl RenderCommandsPerType {
-    pub fn bind(
-        &mut self,
-        binding_data_buffer: &BindingDataBuffer,
-        render_core_context: &RenderCoreContext,
-        label: Option<&str>,
-    ) -> &Self {
+    pub fn bind(&mut self, render_context: &RenderContext, label: Option<&str>) -> &Self {
         if let Some(entry) = self.map.get_mut(&DrawCommandType::PerMeshlet) {
-            entry.bind(binding_data_buffer, render_core_context, label);
+            entry.bind(render_context, label);
         }
         self
     }

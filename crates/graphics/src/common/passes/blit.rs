@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use crate::{
     BindingData, BindingInfo, CommandBuffer, DrawCommandType, MeshFlags, Pass, RenderContext,
-    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
-    TextureId, TextureView,
+    RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage,
+    StoreOperation, TextureId, TextureView,
 };
 
 use inox_core::ContextRc;
@@ -37,7 +37,7 @@ impl Pass for BlitPass {
     fn draw_commands_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
-    fn create(context: &ContextRc, render_context: &RenderContext) -> Self
+    fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where
         Self: Sized,
     {
@@ -103,10 +103,10 @@ impl Pass for BlitPass {
             return;
         }
         let buffers = render_context.buffers();
-        let render_targets = render_context.texture_handler.render_targets();
+        let render_targets = render_context.texture_handler().render_targets();
 
         let render_pass_begin_data = RenderPassBeginData {
-            render_core_context: &render_context.core,
+            render_core_context: &render_context.webgpu,
             buffers: &buffers,
             render_targets: render_targets.as_slice(),
             surface_view,
@@ -116,7 +116,7 @@ impl Pass for BlitPass {
         {
             inox_profiler::gpu_scoped_profile!(
                 &mut render_pass,
-                &render_context.core.device,
+                &render_context.webgpu.device,
                 "blit_pass",
             );
             pass.draw(render_context, render_pass, 0..3, 0..1);

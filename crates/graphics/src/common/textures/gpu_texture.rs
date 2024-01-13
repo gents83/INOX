@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use wgpu::util::{align_to, DeviceExt};
 
 use crate::{TextureFormat, TextureId};
@@ -8,11 +10,27 @@ pub struct TextureView {
     view: wgpu::TextureView,
 }
 
-impl TextureView {
-    pub fn new(view: wgpu::TextureView) -> Self {
-        Self { view }
+impl From<wgpu::TextureView> for TextureView {
+    fn from(value: wgpu::TextureView) -> Self {
+        Self { view: value }
     }
-    pub fn as_wgpu(&self) -> &wgpu::TextureView {
+}
+impl From<TextureView> for wgpu::TextureView {
+    fn from(value: TextureView) -> Self {
+        value.view
+    }
+}
+
+impl AsRef<wgpu::TextureView> for TextureView {
+    fn as_ref(&self) -> &wgpu::TextureView {
+        &self.view
+    }
+}
+
+impl Deref for TextureView {
+    type Target = wgpu::TextureView;
+
+    fn deref(&self) -> &Self::Target {
         &self.view
     }
 }
@@ -24,6 +42,7 @@ pub struct GpuTexture {
     width: u32,
     height: u32,
     layers_count: u32,
+    sample_count: u32,
     format: TextureFormat,
 }
 
@@ -71,10 +90,11 @@ impl GpuTexture {
         Self {
             id,
             texture,
-            view: TextureView::new(view),
+            view: view.into(),
             width,
             height,
             layers_count,
+            sample_count,
             format,
         }
     }
@@ -96,6 +116,9 @@ impl GpuTexture {
     }
     pub fn layers_count(&self) -> u32 {
         self.layers_count
+    }
+    pub fn is_multisample(&self) -> bool {
+        self.sample_count > 1
     }
     pub fn send_to_gpu(
         &self,

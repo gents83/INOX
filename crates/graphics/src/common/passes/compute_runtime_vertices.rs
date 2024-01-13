@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::{
     BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DrawCommandType, MeshFlags, MeshesBuffer, Pass, RenderContext,
+    ConstantDataRw, DrawCommandType, MeshFlags, MeshesBuffer, Pass, RenderContext, RenderContextRc,
     RuntimeVerticesBuffer, ShaderStage, TextureView, VertexPositionsBuffer,
 };
 
@@ -42,7 +42,7 @@ impl Pass for ComputeRuntimeVerticesPass {
     fn draw_commands_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
-    fn create(context: &ContextRc, render_context: &RenderContext) -> Self
+    fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where
         Self: Sized,
     {
@@ -60,11 +60,11 @@ impl Pass for ComputeRuntimeVerticesPass {
                 None,
             ),
             binding_data: BindingData::new(render_context, COMPUTE_RUNTIME_VERTICES_PASS_NAME),
-            constant_data: render_context.global_buffers.constant_data.clone(),
-            bhv: render_context.global_buffers.bvh.clone(),
-            meshes: render_context.global_buffers.meshes.clone(),
-            vertices_positions: render_context.global_buffers.vertex_positions.clone(),
-            runtime_vertices: render_context.global_buffers.runtime_vertices.clone(),
+            constant_data: render_context.global_buffers().constant_data.clone(),
+            bhv: render_context.global_buffers().bvh.clone(),
+            meshes: render_context.global_buffers().meshes.clone(),
+            vertices_positions: render_context.global_buffers().vertex_positions.clone(),
+            runtime_vertices: render_context.global_buffers().runtime_vertices.clone(),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {

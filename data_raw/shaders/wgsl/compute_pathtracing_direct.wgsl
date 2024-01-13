@@ -28,9 +28,9 @@ var<storage, read_write> atomic_counters: array<atomic<u32>>;
 var<storage, read> bhv: BHV;
 
 @group(1) @binding(4)
-var visibility_texture: texture_storage_2d<r32uint, read_write>;
+var visibility_texture: texture_multisampled_2d<u32>;
 @group(1) @binding(5)
-var depth_texture: texture_depth_2d;
+var depth_texture: texture_depth_multisampled_2d;
 @group(1) @binding(6)
 var binding_texture: texture_storage_2d<rgba8unorm, read_write>;
 @group(1) @binding(7)
@@ -66,7 +66,7 @@ fn main(
     let visibility_dimensions = textureDimensions(visibility_texture);
     let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
     let visibility_pixel = vec2<u32>((vec2<f32>(0.5) + vec2<f32>(pixel)) * visibility_scale);
-    let visibility_value = textureLoad(visibility_texture, visibility_pixel);
+    let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
     let visibility_id = visibility_value.r;
     if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
         let depth_dimensions = textureDimensions(depth_texture);

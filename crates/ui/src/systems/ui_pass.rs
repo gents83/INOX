@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use inox_core::ContextRc;
 use inox_graphics::{
     declare_as_binding_vector, AsBinding, BindingData, BindingInfo, CommandBuffer, ConstantDataRw,
-    DrawCommandType, GpuBuffer, LoadOperation, MeshFlags, Pass, RenderContext, RenderCoreContext,
+    DrawCommandType, GpuBuffer, LoadOperation, MeshFlags, Pass, RenderContext, RenderContextRc,
     RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType, ShaderStage,
     StoreOperation, TextureView, TexturesBuffer, VertexBufferLayoutBuilder, VertexFormat,
 };
@@ -33,8 +33,8 @@ impl AsBinding for UIPassData {
     fn size(&self) -> u64 {
         std::mem::size_of::<f32>() as _
     }
-    fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut GpuBuffer) {
-        buffer.add_to_gpu_buffer(render_core_context, &[self.ui_scale]);
+    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut GpuBuffer) {
+        buffer.add_to_gpu_buffer(render_context, &[self.ui_scale]);
     }
 }
 
@@ -109,7 +109,7 @@ impl Pass for UIPass {
     fn draw_commands_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
-    fn create(context: &ContextRc, render_context: &RenderContext) -> Self
+    fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where
         Self: Sized,
     {
@@ -131,8 +131,8 @@ impl Pass for UIPass {
                 &data,
                 None,
             ),
-            constant_data: render_context.global_buffers.constant_data.clone(),
-            textures: render_context.global_buffers.textures.clone(),
+            constant_data: render_context.global_buffers().constant_data.clone(),
+            textures: render_context.global_buffers().textures.clone(),
             binding_data: BindingData::new(render_context, UI_PASS_NAME),
             custom_data: UIPassData {
                 ui_scale: 1.,
@@ -233,7 +233,7 @@ impl Pass for UIPass {
             return;
         }
         let buffers = render_context.buffers();
-        let render_targets = render_context.texture_handler.render_targets();
+        let render_targets = render_context.texture_handler().render_targets();
 
         if self.instances.data.is_empty()
             || self.vertices.data.is_empty()
@@ -244,7 +244,7 @@ impl Pass for UIPass {
         }
 
         let render_pass_begin_data = RenderPassBeginData {
-            render_core_context: &render_context.core,
+            render_core_context: &render_context.webgpu,
             buffers: &buffers,
             render_targets: render_targets.as_slice(),
             surface_view,
@@ -254,7 +254,7 @@ impl Pass for UIPass {
         {
             inox_profiler::gpu_scoped_profile!(
                 &mut render_pass,
-                &render_context.core.device,
+                &render_context.webgpu.device,
                 "ui_pass",
             );
             self.instances

@@ -9,7 +9,7 @@ use inox_resources::{
 use inox_serialize::read_from_file;
 
 use crate::{
-    RendererRw, RendererState, Texture, ENV_MAP_UID, LUT_PBR_CHARLIE_UID, LUT_PBR_GGX_UID,
+    RenderContextRc, RendererState, Texture, ENV_MAP_UID, LUT_PBR_CHARLIE_UID, LUT_PBR_GGX_UID,
 };
 
 use super::config::Config;
@@ -20,7 +20,7 @@ pub struct RenderingSystem {
     config: Config,
     listener: Listener,
     shared_data: SharedDataRc,
-    renderer: RendererRw,
+    render_context: RenderContextRc,
     job_handler: JobHandlerRw,
     pbr_lut_charlie: Handle<Texture>,
     pbr_lut_ggx: Handle<Texture>,
@@ -28,10 +28,10 @@ pub struct RenderingSystem {
 }
 
 impl RenderingSystem {
-    pub fn new(renderer: RendererRw, context: &ContextRc) -> Self {
+    pub fn new(render_context: &RenderContextRc, context: &ContextRc) -> Self {
         let listener = Listener::new(context.message_hub());
         Self {
-            renderer,
+            render_context: render_context.clone(),
             config: Config::default(),
             shared_data: context.shared_data().clone(),
             listener,
@@ -104,26 +104,22 @@ impl System for RenderingSystem {
                 }
             });
 
-        let state = self.renderer.read().unwrap().state();
+        let state = self.render_context.state();
         if state != RendererState::Prepared {
             return true;
         }
 
-        {
-            let mut renderer = self.renderer.write().unwrap();
-            renderer.change_state(RendererState::Drawing);
-        }
+        self.render_context.change_state(RendererState::Drawing);
 
-        let renderer = self.renderer.clone();
+        let render_context = self.render_context.clone();
         self.job_handler.add_job(
             &INDEPENDENT_JOB_ID,
             "Render Draw",
             JobPriority::High,
             move || {
-                let mut renderer = renderer.write().unwrap();
-                renderer.submit_command_buffer();
-                renderer.present();
-                renderer.change_state(RendererState::Submitted);
+                render_context.submit_command_buffer();
+                render_context.present();
+                render_context.change_state(RendererState::Submitted);
             },
         );
         true

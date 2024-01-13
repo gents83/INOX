@@ -4,9 +4,9 @@ use crate::{
     create_arrow, create_circumference, create_colored_quad, create_cube_from_min_max, create_line,
     create_sphere, declare_as_binding_vector, AsBinding, BindingData, BindingInfo, CommandBuffer,
     ConstantDataRw, DrawCommandType, DrawCommandsBuffer, DrawEvent, DrawIndexedCommand,
-    LoadOperation, MeshData, MeshFlags, Pass, RenderContext, RenderPass, RenderPassBeginData,
-    RenderPassData, RenderTarget, ShaderStage, StoreOperation, TextureView, VecDrawIndexedCommand,
-    VertexBufferLayoutBuilder, VertexFormat, View,
+    LoadOperation, MeshData, MeshFlags, Pass, RenderContext, RenderContextRc, RenderPass,
+    RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation, TextureView,
+    VecDrawIndexedCommand, VertexBufferLayoutBuilder, VertexFormat, View,
 };
 
 use inox_core::ContextRc;
@@ -68,7 +68,7 @@ impl Pass for WireframePass {
     fn draw_commands_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
     }
-    fn create(context: &ContextRc, render_context: &RenderContext) -> Self
+    fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where
         Self: Sized,
     {
@@ -97,10 +97,10 @@ impl Pass for WireframePass {
                 &data,
                 None,
             ),
-            constant_data: render_context.global_buffers.constant_data.clone(),
+            constant_data: render_context.global_buffers().constant_data.clone(),
             vertices: VecDebugVertex::default(),
             indices: VecDebugIndex::default(),
-            commands_buffers: render_context.global_buffers.draw_commands.clone(),
+            commands_buffers: render_context.global_buffers().draw_commands.clone(),
             listener,
             binding_data: BindingData::new(render_context, WIREFRAME_PASS_NAME),
         }
@@ -156,11 +156,11 @@ impl Pass for WireframePass {
             return;
         }
         let buffers = render_context.buffers();
-        let render_targets = render_context.texture_handler.render_targets();
+        let render_targets = render_context.texture_handler().render_targets();
         let draw_commands_type = self.draw_commands_type();
 
         let render_pass_begin_data = RenderPassBeginData {
-            render_core_context: &render_context.core,
+            render_core_context: &render_context.webgpu,
             buffers: &buffers,
             render_targets: render_targets.as_slice(),
             surface_view,
@@ -170,7 +170,7 @@ impl Pass for WireframePass {
         {
             inox_profiler::gpu_scoped_profile!(
                 &mut render_pass,
-                &render_context.core.device,
+                &render_context.webgpu.device,
                 "wireframe_pass",
             );
             pass.indirect_indexed_draw(render_context, &buffers, draw_commands_type, render_pass);
