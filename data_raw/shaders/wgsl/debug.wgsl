@@ -109,6 +109,40 @@ fn debug_color_override(color: vec4<f32>, screen_pixel: vec2<u32>, dimensions: v
     var out_color = color;
     out_color.a = 0.;
     let pixel = vec2<f32>(0.5) + vec2<f32>(screen_pixel);
+
+    let visibility_dimensions = textureDimensions(visibility_texture);
+    let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
+    let visibility_pixel = vec2<u32>(pixel * visibility_scale);
+    let debug_pixel = vec2<u32>(constant_data.debug_uv_coords * vec2<f32>(visibility_dimensions));
+    let debug_visibility_value = textureLoad(visibility_texture, debug_pixel, 0);
+    let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
+    let debug_visibility_id = debug_visibility_value.r;
+    let visibility_id = visibility_value.r;
+    if (debug_visibility_id != 0u && (debug_visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
+        let debug_meshlet_id = (debug_visibility_id >> 8u); 
+        if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
+            let meshlet_id = (visibility_id >> 8u); 
+            if(meshlet_id == debug_meshlet_id) {
+                let meshlet_color = hash(meshlet_id + 1u);
+                out_color = vec4<f32>(vec3<f32>(
+                    f32(meshlet_color & 255u),
+                    f32((meshlet_color >> 8u) & 255u),
+                    f32((meshlet_color >> 16u) & 255u)
+                ) / 255., 1.);
+            }
+        }
+        let meshlet = &meshlets.data[debug_meshlet_id];            
+        let mesh_id = (*meshlet).mesh_index;
+        let mesh = &meshes.data[mesh_id];
+        let meshlet_center = transform_vector((*meshlet).center, (*mesh).position, (*mesh).orientation, (*mesh).scale); 
+        
+        let line_color = vec3<f32>(0., 1., 0.);
+        let line_size = 0.1;  
+        var color = vec3<f32>(0.);
+        color += draw_line_3d(screen_pixel, dimensions, constant_data.view[3].xyz, meshlet_center, line_color, line_size);
+        out_color += vec4<f32>(color, 1.);
+    }
+
     if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS) != 0) {
         let visibility_dimensions = textureDimensions(visibility_texture);
         let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);

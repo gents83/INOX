@@ -182,4 +182,7 @@ impl ConstantData {
     pub fn view(&self) -> [[f32; 4]; 4] {
         self.data.view
     }
+    pub fn inverse_view_proj(&self) -> [[f32; 4]; 4] {
+        self.data.inverse_view_proj
+    }
 }

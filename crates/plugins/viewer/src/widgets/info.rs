@@ -570,6 +570,19 @@ impl Info {
                             data.mouse_coords.x / data.screen_size.x,
                             data.mouse_coords.y / data.screen_size.y
                         ));
+                        data.context
+                            .shared_data()
+                            .for_each_resource(|h, c: &Camera| {
+                                ui.horizontal(|ui| {
+                                    ui.label(format!(
+                                        "Camera [{}] position:({:.3},{:.3},{:.3})",
+                                        h.id(),
+                                        c.position().x,
+                                        c.position().y,
+                                        c.position().z,
+                                    ));
+                                });
+                            });
                         ui.checkbox(&mut data.show_hierarchy, "Hierarchy");
                         ui.checkbox(&mut data.show_graphics, "Graphics");
                         ui.checkbox(&mut data.show_lights, "Show Lights");

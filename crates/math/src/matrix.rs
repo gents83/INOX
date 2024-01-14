@@ -168,8 +168,8 @@ macro_rules! implement_matrix4_operations {
                 if forward.dot(up) >= 1. - f32::EPSILON && forward.dot(up) <= 1. + f32::EPSILON {
                     up = Matrix4::from_angle_x(Degrees::new(90.)).transform_vector(forward);
                 };
-                let right = forward.cross(up).normalized();
-                up = right.cross(forward).normalize();
+                let right = up.cross(forward).normalized();
+                up = forward.cross(right).normalize();
                 let mut l: Matrix4 = Matrix3::from_cols(right, up, forward).into();
                 l.set_translation(p);
                 *self = l;

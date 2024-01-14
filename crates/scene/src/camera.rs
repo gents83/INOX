@@ -193,7 +193,7 @@ impl Camera {
 
     #[inline]
     pub fn view_matrix(&self) -> Matrix4 {
-        Matrix4::from_nonuniform_scale(1., 1., -1.) * self.transform().inverse()
+        self.transform()
     }
 
     #[inline]

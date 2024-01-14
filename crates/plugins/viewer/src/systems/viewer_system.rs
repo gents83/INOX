@@ -422,9 +422,9 @@ impl ViewerSystem {
             } else if event.code == Key::S {
                 movement.z -= CAMERA_SPEED;
             } else if event.code == Key::A {
-                movement.x -= CAMERA_SPEED;
-            } else if event.code == Key::D {
                 movement.x += CAMERA_SPEED;
+            } else if event.code == Key::D {
+                movement.x -= CAMERA_SPEED;
             } else if event.code == Key::Q {
                 movement.y += CAMERA_SPEED;
             } else if event.code == Key::E {
@@ -468,7 +468,7 @@ impl ViewerSystem {
                 let mut rotation_angle = Vector3::default_zero();
 
                 rotation_angle.x = self.last_mouse_pos.y - event.normalized_y;
-                rotation_angle.y = self.last_mouse_pos.x - event.normalized_x;
+                rotation_angle.y = event.normalized_x - self.last_mouse_pos.x;
                 rotation_angle *=
                     CAMERA_ROTATION_SPEED * self.context.global_timer().dt().as_secs_f32();
                 if rotation_angle != Vector3::default_zero() {
@@ -481,6 +481,7 @@ impl ViewerSystem {
                                 let m = Matrix4::from_euler_angles(rotation_angle);
                                 let v = m.rotate_vector(d);
                                 c.look_toward(v);
+                                //c.look_at([0., 0., 0.].into());
                             }
                         });
                 }
