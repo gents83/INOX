@@ -61,12 +61,29 @@ fn unpack_snorm_to_3_f32(v: u32) -> vec3<f32> {
     return vec3<f32>(vx, vy, vz);
 }
 
-fn pack_normal(normal: vec3<f32>) -> vec2<f32> {
-    return vec2<f32>(normal.xy * 0.5 + 0.5);
-}
-fn unpack_normal(uv: vec2<f32>) -> vec3<f32> {
-    return vec3<f32>(uv.xy * 2. - 1., sqrt(1.-dot(uv.xy, uv.xy)));
-}
+fn unpack_normal(f: f32) -> vec3<f32> {
+	var f_var = f;
+	var flipZ: f32 = sign(f_var);
+	f_var = abs(f_var);
+	let atanXY: f32 = floor(f_var) / 67.5501 * (3.1415927 * 2.) - 3.1415927;
+	var n: vec3<f32> = vec3<f32>(sin(atanXY), cos(atanXY), 0.);
+	n.z = fract(f_var) * 1869.2296 / 427.67993;
+	n = normalize(n);
+	n.z = n.z * (flipZ);
+	return n;
+} 
+
+fn pack_normal(n: vec3<f32>) -> f32 {
+	var n_var = n;
+	let flipZ: f32 = sign(n_var.z);
+	n_var.z = abs(n_var.z);
+	n_var = n_var / (23.065746);
+	let xy: f32 = floor((atan2(n_var.x, n_var.y) + 3.1415927) / (3.1415927 * 2.) * 67.5501);
+	var z: f32 = floor(n_var.z * 427.67993) / 1869.2296;
+	z = z * (1. / max(0.01, length(vec2<f32>(n_var.x, n_var.y))));
+	return (xy + z) * flipZ;
+} 
+
 
 fn pack_4_f32_to_unorm(value: vec4<f32>) -> u32 {
     let r = quantize_unorm(value.x, 8u) << 24u;
@@ -89,6 +106,53 @@ fn unpack_unorm_to_4_f32(v: u32) -> vec4<f32> {
     let a = decode_unorm(v & 255u, 8u);
     return vec4<f32>(r,g,b,a);
 }
+
+fn sign_not_zero(v: vec2<f32>) -> vec2<f32> {
+	return vec2<f32>(select(-1., 1., v.x >= 0.), select(-1., 1., v.y >= 0.));
+} 
+
+fn octahedral_mapping(v: vec3<f32>) -> vec2<f32> {
+	let l1norm: f32 = abs(v.x) + abs(v.y) + abs(v.z);
+	var result: vec2<f32> = v.xy * (1. / l1norm);
+	if (v.z < 0.) {
+		result = (1. - abs(result.yx)) * sign_not_zero(result.xy);
+	}
+	return result;
+} 
+
+fn octahedral_unmapping(o: vec2<f32>) -> vec3<f32> {
+	var v: vec3<f32> = vec3<f32>(o.x, o.y, 1. - abs(o.x) - abs(o.y));
+	if (v.z < 0.) {
+		var vxy = v.xy;
+        vxy = (1. - abs(v.yx)) * sign_not_zero(v.xy);
+        v.x = vxy.x;
+        v.y = vxy.y;
+	}
+	return normalize(v);
+} 
+
+fn f32tof16(v: f32) -> u32 {
+    return pack2x16float(vec2<f32>(v, 0.));
+}
+
+fn f16tof32(v: u32) -> f32 {
+    return unpack2x16float(v & 0x0000FFFFu).x;
+}
+
+fn pack_into_R11G11B10F(rgb: vec3<f32>) -> u32 {
+	let r = (f32tof16(rgb.r) << 17u) & 0xFFE00000u;
+	let g = (f32tof16(rgb.g) << 6u) & 0x001FFC00u;
+	let b = (f32tof16(rgb.b) >> 5u) & 0x000003FFu;
+	return r | g | b;
+} 
+
+fn unpack_from_R11G11B10F(rgb: u32) -> vec3<f32> {
+	let r = f16tof32((rgb >> 17u) & 0x7FF0u);
+	let g = f16tof32((rgb >> 6u) & 0x7FF0u);
+	let b = f16tof32((rgb << 5u) & 0x7FE0u);
+	return vec3<f32>(r, g, b);
+} 
+
 
 fn iq_hash(v: vec2<f32>) -> f32 {
     return fract(sin(dot(v, vec2(11.9898, 78.233))) * 43758.5453);

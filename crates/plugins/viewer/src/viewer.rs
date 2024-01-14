@@ -23,10 +23,11 @@ const ADD_UI_PASS: bool = true;
 enum RenderTargetType {
     Visibility = 0,
     Depth = 1,
-    Radiance = 2,
-    Binding = 3,
-    Finalize = 4,
-    DebugData = 5,
+    Rays = 2,
+    Radiance = 3,
+    Binding = 4,
+    Finalize = 5,
+    DebugData = 6,
 }
 
 pub struct Viewer {
@@ -155,7 +156,7 @@ impl Viewer {
             | TextureUsage::CopyDst
             | TextureUsage::RenderTarget;
 
-        //Visibility = 0,
+        //Visibility,
         let _visibility = render_context.create_render_target(
             width,
             height,
@@ -164,7 +165,7 @@ impl Viewer {
             multi_sample,
         );
         debug_assert!(_visibility == RenderTargetType::Visibility as usize);
-        //Depth = 1,
+        //Depth,
         let _depth = render_context.create_render_target(
             width,
             height,
@@ -173,25 +174,34 @@ impl Viewer {
             multi_sample,
         );
         debug_assert!(_depth == RenderTargetType::Depth as usize);
-        //Radiance = 2,
+        //Rays,
+        let _rays = render_context.create_render_target(
+            half_dims.0,
+            half_dims.1,
+            TextureFormat::Rgba32Float,
+            usage | TextureUsage::StorageBinding,
+            single_sample,
+        );
+        debug_assert!(_rays == RenderTargetType::Rays as usize);
+        //Radiance,
         let _radiance = render_context.create_render_target(
             half_dims.0,
             half_dims.1,
-            TextureFormat::Rgba8Unorm,
+            TextureFormat::Rgba32Float,
             usage | TextureUsage::StorageBinding,
             single_sample,
         );
         debug_assert!(_radiance == RenderTargetType::Radiance as usize);
-        //Binding = 3,
+        //Binding,
         let _binding = render_context.create_render_target(
             half_dims.0,
             half_dims.1,
-            TextureFormat::Rgba8Unorm,
+            TextureFormat::Rgba32Float,
             usage | TextureUsage::StorageBinding,
             single_sample,
         );
         debug_assert!(_binding == RenderTargetType::Binding as usize);
-        //Finalize = 4,
+        //Finalize,
         let _finalize = render_context.create_render_target(
             width,
             height,
@@ -200,7 +210,7 @@ impl Viewer {
             single_sample,
         );
         debug_assert!(_finalize == RenderTargetType::Finalize as usize);
-        //Debug = 5,
+        //Debug,
         let _debug_data = render_context.create_render_target(
             half_dims.0,
             half_dims.1,
@@ -262,12 +272,10 @@ impl Viewer {
             ComputePathTracingDirectPass::create(context, render_context);
         let radiance_texture = render_context.render_target(RenderTargetType::Radiance as usize);
         compute_pathtracing_direct_pass
-            .set_radiance_texture_size(radiance_texture.get().dimensions())
+            .set_rays_texture(&render_context.render_target_id(RenderTargetType::Rays as usize))
+            .set_radiance_texture(radiance_texture.id(), radiance_texture.get().dimensions())
             .set_binding_texture(
                 &render_context.render_target_id(RenderTargetType::Binding as usize),
-            )
-            .set_finalize_texture(
-                &render_context.render_target_id(RenderTargetType::Finalize as usize),
             )
             .set_visibility_texture(
                 &render_context.render_target_id(RenderTargetType::Visibility as usize),
@@ -284,11 +292,9 @@ impl Viewer {
         let radiance_texture = render_context.render_target(RenderTargetType::Radiance as usize);
         compute_pathtracing_indirect_pass
             .set_radiance_texture(radiance_texture.id(), radiance_texture.get().dimensions())
+            .set_rays_texture(&render_context.render_target_id(RenderTargetType::Rays as usize))
             .set_binding_texture(
                 &render_context.render_target_id(RenderTargetType::Binding as usize),
-            )
-            .set_finalize_texture(
-                &render_context.render_target_id(RenderTargetType::Finalize as usize),
             )
             .set_debug_data_texture(
                 &render_context.render_target_id(RenderTargetType::DebugData as usize),

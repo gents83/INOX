@@ -528,9 +528,9 @@ fn get_IBL_volume_refraction(n: vec3<f32>, v: vec3<f32>, perceptualRoughness: f3
 	refractionCoords = refractionCoords / vec2<f32>(2.);
     
     // Sample framebuffer to get pixel the refracted ray hits.
-    let dimensions = vec2<f32>(textureDimensions(finalize_texture));
+    let dimensions = vec2<f32>(textureDimensions(radiance_texture));
     let framebufferLod = 0; //log2(dimensions.x) * apply_ior_to_roughness(perceptualRoughness, ior);
-	let transmittedLight = textureLoad(finalize_texture, vec2<u32>(dimensions * refractionCoords), 0).rgb;
+	let transmittedLight = textureLoad(radiance_texture, vec2<u32>(dimensions * refractionCoords)).rgb;
 
     let attenuatedColor = apply_volume_attenuation(transmittedLight, length(transmissionRay), attenuationColor, attenuationDistance);
 

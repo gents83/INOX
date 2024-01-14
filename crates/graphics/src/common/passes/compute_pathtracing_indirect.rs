@@ -1,11 +1,10 @@
 use std::path::PathBuf;
 
 use crate::{
-    AtomicCounters, BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass,
-    ComputePassData, ConstantDataRw, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer,
-    MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderContextRc,
-    RuntimeVerticesBuffer, SamplerType, ShaderStage, TextureId, TextureView, TexturesBuffer,
-    VertexAttributesBuffer,
+    BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
+    ConstantDataRw, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer, MeshFlags,
+    MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderContextRc, RuntimeVerticesBuffer,
+    SamplerType, ShaderStage, TextureId, TextureView, TexturesBuffer, VertexAttributesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -25,15 +24,13 @@ pub struct ComputePathTracingIndirectPass {
     bhv: BVHBuffer,
     indices: IndicesBuffer,
     runtime_vertices: RuntimeVerticesBuffer,
-    radiance_data_buffer: AtomicCounters,
-    atomic_counters: AtomicCounters,
     vertices_attributes: VertexAttributesBuffer,
     textures: TexturesBuffer,
     materials: MaterialsBuffer,
     lights: LightsBuffer,
+    rays_texture: TextureId,
     radiance_texture: TextureId,
     binding_texture: TextureId,
-    finalize_texture: TextureId,
     debug_data_texture: TextureId,
     dimensions: (u32, u32),
 }
@@ -79,27 +76,22 @@ impl Pass for ComputePathTracingIndirectPass {
             bhv: render_context.global_buffers().bvh.clone(),
             indices: render_context.global_buffers().indices.clone(),
             runtime_vertices: render_context.global_buffers().runtime_vertices.clone(),
-            radiance_data_buffer: render_context.global_buffers().radiance_data_buffer.clone(),
-            atomic_counters: render_context.global_buffers().atomic_counters.clone(),
             vertices_attributes: render_context.global_buffers().vertex_attributes.clone(),
             textures: render_context.global_buffers().textures.clone(),
             materials: render_context.global_buffers().materials.clone(),
             lights: render_context.global_buffers().lights.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_INDIRECT_NAME),
+            rays_texture: INVALID_UID,
             radiance_texture: INVALID_UID,
             binding_texture: INVALID_UID,
             debug_data_texture: INVALID_UID,
-            finalize_texture: INVALID_UID,
             dimensions: (0, 0),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("pathtracing_indirect_pass::init");
 
-        if self.radiance_texture.is_nil()
-            || self.meshlets.read().unwrap().is_empty()
-            || self.radiance_data_buffer.read().unwrap().data().is_empty()
-        {
+        if self.radiance_texture.is_nil() || self.meshlets.read().unwrap().is_empty() {
             return;
         }
 
@@ -185,31 +177,11 @@ impl Pass for ComputePathTracingIndirectPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.radiance_data_buffer.write().unwrap(),
-                Some("Radiance Data Buffer"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 0,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
-                },
-            )
-            .add_storage_buffer(
-                &mut *self.atomic_counters.write().unwrap(),
-                Some("Atomic Counters"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 1,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
-                },
-            )
-            .add_storage_buffer(
                 &mut *self.runtime_vertices.write().unwrap(),
                 Some("Runtime Vertices"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 2,
+                    binding_index: 0,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Read | BindingFlags::Vertex,
                 },
@@ -219,16 +191,25 @@ impl Pass for ComputePathTracingIndirectPass {
                 Some("BHV"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 3,
+                    binding_index: 1,
                     stage: ShaderStage::Compute,
                     ..Default::default()
+                },
+            )
+            .add_texture(
+                &self.rays_texture,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 2,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
             )
             .add_texture(
                 &self.radiance_texture,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 4,
+                    binding_index: 3,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
@@ -237,7 +218,7 @@ impl Pass for ComputePathTracingIndirectPass {
                 &self.binding_texture,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 5,
+                    binding_index: 4,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
@@ -246,18 +227,9 @@ impl Pass for ComputePathTracingIndirectPass {
                 &self.debug_data_texture,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 6,
+                    binding_index: 5,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
-                },
-            )
-            .add_texture(
-                &self.finalize_texture,
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 7,
-                    stage: ShaderStage::Compute,
-                    ..Default::default()
                 },
             );
 
@@ -288,10 +260,7 @@ impl Pass for ComputePathTracingIndirectPass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        if self.radiance_texture.is_nil()
-            || self.meshlets.read().unwrap().is_empty()
-            || self.radiance_data_buffer.read().unwrap().data().is_empty()
-        {
+        if self.radiance_texture.is_nil() || self.meshlets.read().unwrap().is_empty() {
             return;
         }
 
@@ -328,8 +297,8 @@ impl ComputePathTracingIndirectPass {
         self.binding_texture = *texture_id;
         self
     }
-    pub fn set_finalize_texture(&mut self, texture_id: &TextureId) -> &mut Self {
-        self.finalize_texture = *texture_id;
+    pub fn set_rays_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.rays_texture = *texture_id;
         self
     }
     pub fn set_radiance_texture(

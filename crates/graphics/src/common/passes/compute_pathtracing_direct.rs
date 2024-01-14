@@ -1,11 +1,10 @@
 use std::path::PathBuf;
 
 use crate::{
-    AtomicCounters, BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass,
-    ComputePassData, ConstantDataRw, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer,
-    MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderContextRc,
-    RuntimeVerticesBuffer, SamplerType, ShaderStage, TextureId, TextureView, TexturesBuffer,
-    VertexAttributesBuffer,
+    BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
+    ConstantDataRw, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer, MeshFlags,
+    MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderContextRc, RuntimeVerticesBuffer,
+    SamplerType, ShaderStage, TextureId, TextureView, TexturesBuffer, VertexAttributesBuffer,
 };
 
 use inox_core::ContextRc;
@@ -22,8 +21,6 @@ pub struct ComputePathTracingDirectPass {
     constant_data: ConstantDataRw,
     meshes: MeshesBuffer,
     meshlets: MeshletsBuffer,
-    radiance_data_buffer: AtomicCounters,
-    atomic_counters: AtomicCounters,
     bhv: BVHBuffer,
     indices: IndicesBuffer,
     runtime_vertices: RuntimeVerticesBuffer,
@@ -33,8 +30,9 @@ pub struct ComputePathTracingDirectPass {
     lights: LightsBuffer,
     visibility_texture: TextureId,
     depth_texture: TextureId,
+    rays_texture: TextureId,
+    radiance_texture: TextureId,
     binding_texture: TextureId,
-    finalize_texture: TextureId,
     dimensions: (u32, u32),
 }
 unsafe impl Send for ComputePathTracingDirectPass {}
@@ -76,8 +74,6 @@ impl Pass for ComputePathTracingDirectPass {
             constant_data: render_context.global_buffers().constant_data.clone(),
             meshes: render_context.global_buffers().meshes.clone(),
             meshlets: render_context.global_buffers().meshlets.clone(),
-            radiance_data_buffer: render_context.global_buffers().radiance_data_buffer.clone(),
-            atomic_counters: render_context.global_buffers().atomic_counters.clone(),
             bhv: render_context.global_buffers().bvh.clone(),
             indices: render_context.global_buffers().indices.clone(),
             runtime_vertices: render_context.global_buffers().runtime_vertices.clone(),
@@ -87,23 +83,19 @@ impl Pass for ComputePathTracingDirectPass {
             lights: render_context.global_buffers().lights.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_DIRECT_NAME),
             visibility_texture: INVALID_UID,
+            rays_texture: INVALID_UID,
+            radiance_texture: INVALID_UID,
             binding_texture: INVALID_UID,
             depth_texture: INVALID_UID,
-            finalize_texture: INVALID_UID,
             dimensions: (0, 0),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("pathtracing_direct_pass::init");
 
-        if self.visibility_texture.is_nil()
-            || self.meshlets.read().unwrap().is_empty()
-            || self.radiance_data_buffer.read().unwrap().data().is_empty()
-        {
+        if self.visibility_texture.is_nil() || self.meshlets.read().unwrap().is_empty() {
             return;
         }
-
-        self.atomic_counters.write().unwrap().set(vec![0u32; 2]);
 
         self.binding_data
             .add_uniform_buffer(
@@ -197,31 +189,11 @@ impl Pass for ComputePathTracingDirectPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.radiance_data_buffer.write().unwrap(),
-                Some("Radiance Data Buffer"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 1,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
-                },
-            )
-            .add_storage_buffer(
-                &mut *self.atomic_counters.write().unwrap(),
-                Some("Atomic Counters"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 2,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
-                },
-            )
-            .add_storage_buffer(
                 &mut *self.bhv.write().unwrap(),
                 Some("BHV"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 3,
+                    binding_index: 1,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -230,7 +202,7 @@ impl Pass for ComputePathTracingDirectPass {
                 &self.visibility_texture,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 4,
+                    binding_index: 2,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -239,9 +211,27 @@ impl Pass for ComputePathTracingDirectPass {
                 &self.depth_texture,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 5,
+                    binding_index: 3,
                     stage: ShaderStage::Compute,
                     ..Default::default()
+                },
+            )
+            .add_texture(
+                &self.rays_texture,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 4,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                },
+            )
+            .add_texture(
+                &self.radiance_texture,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 5,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
             )
             .add_texture(
@@ -251,15 +241,6 @@ impl Pass for ComputePathTracingDirectPass {
                     binding_index: 6,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
-                },
-            )
-            .add_texture(
-                &self.finalize_texture,
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 7,
-                    stage: ShaderStage::Compute,
-                    ..Default::default()
                 },
             );
 
@@ -290,10 +271,7 @@ impl Pass for ComputePathTracingDirectPass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        if self.visibility_texture.is_nil()
-            || self.meshlets.read().unwrap().is_empty()
-            || self.radiance_data_buffer.read().unwrap().data().is_empty()
-        {
+        if self.visibility_texture.is_nil() || self.meshlets.read().unwrap().is_empty() {
             return;
         }
 
@@ -330,23 +308,21 @@ impl ComputePathTracingDirectPass {
         self.depth_texture = *texture_id;
         self
     }
+    pub fn set_rays_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.rays_texture = *texture_id;
+        self
+    }
+    pub fn set_radiance_texture(
+        &mut self,
+        texture_id: &TextureId,
+        dimensions: (u32, u32),
+    ) -> &mut Self {
+        self.dimensions = dimensions;
+        self.radiance_texture = *texture_id;
+        self
+    }
     pub fn set_binding_texture(&mut self, texture_id: &TextureId) -> &mut Self {
         self.binding_texture = *texture_id;
-        self
-    }
-    pub fn set_finalize_texture(&mut self, texture_id: &TextureId) -> &mut Self {
-        self.finalize_texture = *texture_id;
-        self
-    }
-    pub fn set_radiance_texture_size(&mut self, dimensions: (u32, u32)) -> &mut Self {
-        self.dimensions = dimensions;
-        //origin(3f), direction(3f), radiance(3f), throughput_weight(3f), seed(2u) = 14
-        const RADIANCE_DATA_STRIDE: u32 = std::mem::size_of::<u32>() as u32 * 8;
-        self.radiance_data_buffer.write().unwrap().set(vec![
-            0u32;
-            (dimensions.0 * dimensions.1 * RADIANCE_DATA_STRIDE)
-                as usize
-        ]);
         self
     }
 }

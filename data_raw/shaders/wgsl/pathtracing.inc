@@ -61,8 +61,8 @@ fn compute_radiance_from_visibility(visibility_id: u32, hit_point: vec3<f32>, se
     var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
     let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data);
 
-    let direction = sample_in_cone(seed, MATH_PI * 0.25, pixel_data.normal);
-    //let direction = sample_hemisphere(seed, pixel_data.normal);
+    //let direction = sample_in_cone(seed, MATH_PI * 0.25, pixel_data.normal);
+    let direction = sample_hemisphere(seed, pixel_data.normal);
 
     let radiance = old_throughput_weight * material_info.f_emissive.rgb; 
     let d = dot(pixel_data.normal, direction);
