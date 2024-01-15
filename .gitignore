@@ -5,6 +5,7 @@
 /data_raw/models/Sponza
 dhat-heap.json
 /crates/Cargo.lock
+/INOX
 *.lock
 *.gfxr
 *.foz
