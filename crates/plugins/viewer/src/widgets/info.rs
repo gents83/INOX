@@ -74,6 +74,7 @@ pub struct InfoParams {
 struct Data {
     context: ContextRc,
     params: InfoParams,
+    use_orbit_camera: bool,
     show_hierarchy: bool,
     show_graphics: bool,
     show_tlas: bool,
@@ -115,6 +116,7 @@ impl Info {
         let data = Data {
             context: context.clone(),
             params,
+            use_orbit_camera: true,
             show_hierarchy: false,
             show_graphics: false,
             show_tlas: false,
@@ -173,6 +175,12 @@ impl Info {
     pub fn is_active(&self) -> bool {
         if let Some(data) = self.ui_page.get().data::<Data>() {
             return data.params.is_active;
+        }
+        false
+    }
+    pub fn use_orbit_camera(&self) -> bool {
+        if let Some(data) = self.ui_page.get().data::<Data>() {
+            return data.use_orbit_camera;
         }
         false
     }
@@ -590,6 +598,7 @@ impl Info {
                         ui.checkbox(&mut data.show_blas, "Show BLAS BHVs");
                         ui.checkbox(&mut data.show_frustum, "Show Frustum");
                         let is_freezed = data.freeze_culling_camera;
+                        ui.checkbox(&mut data.use_orbit_camera, "Use orbit camera");
                         ui.checkbox(&mut data.freeze_culling_camera, "Freeze Culling Camera");
                         if is_freezed != data.freeze_culling_camera {
                             if data.freeze_culling_camera {

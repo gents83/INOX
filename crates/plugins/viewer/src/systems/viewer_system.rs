@@ -448,6 +448,12 @@ impl ViewerSystem {
     }
 
     fn handle_mouse_event(&mut self) {
+        let use_orbit_camera = self
+            .info
+            .as_ref()
+            .map(|i| i.use_orbit_camera())
+            .unwrap_or_default();
+
         self.listener.process_messages(|event: &MouseEvent| {
             if let Some(view_3d) = &self.view_3d {
                 self.is_on_view3d = view_3d.is_interacting();
@@ -466,7 +472,6 @@ impl ViewerSystem {
             }
             if self.is_on_view3d {
                 let mut rotation_angle = Vector3::default_zero();
-
                 rotation_angle.x = self.last_mouse_pos.y - event.normalized_y;
                 rotation_angle.y = event.normalized_x - self.last_mouse_pos.x;
                 rotation_angle *=
@@ -476,12 +481,17 @@ impl ViewerSystem {
                         .shared_data()
                         .for_each_resource_mut(|_, c: &mut Camera| {
                             if c.is_active() {
-                                let d = c.transform().direction();
-                                rotation_angle.x *= d.dot_product([0., 0., -1.].into()).signum();
                                 let m = Matrix4::from_euler_angles(rotation_angle);
-                                let v = m.rotate_vector(d);
-                                c.look_toward(v);
-                                //c.look_at([0., 0., 0.].into());
+                                if use_orbit_camera {
+                                    c.set_transform(m * c.transform());
+                                } else {
+                                    let d = c.transform().direction();
+                                    rotation_angle.x *=
+                                        d.dot_product([0., 0., -1.].into()).signum();
+                                    let v = m.rotate_vector(d);
+                                    c.look_toward(v);
+                                    //c.look_at([0., 0., 0.].into());
+                                }
                             }
                         });
                 }
