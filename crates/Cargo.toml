@@ -50,7 +50,7 @@ ttf-parser = { git = "https://github.com/RazrFalcon/ttf-parser" }
 superluminal-perf =  { git = "https://github.com/EmbarkStudios/superluminal-perf-rs" }
 uuid = { git = "https://github.com/uuid-rs/uuid", features = ["serde", "v4", "v5", "js"] }
 
-wgpu = { git = "https://github.com/gfx-rs/wgpu", features = ["spirv", "glsl", "wgsl", "fragile-send-sync-non-atomic-wasm"] }
+wgpu = { git = "https://github.com/gfx-rs/wgpu", features = ["spirv", "glsl", "wgsl", "webgpu", "webgl", "fragile-send-sync-non-atomic-wasm"] }
 naga = { git = "https://github.com/gfx-rs/wgpu", features = ["default", "wgsl-in", "spv-out", "serialize", "deserialize"] }
 wgpu-profiler = { git = "https://github.com/Wumpf/wgpu-profiler" }
 regex = { git = "https://github.com/rust-lang/regex" }

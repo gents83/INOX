@@ -7,7 +7,7 @@ use inox_resources::{
 };
 
 use crate::{
-    gpu_texture::GpuTexture, platform::is_indirect_mode_enabled, AsBinding, BindingData, BufferId,
+    gpu_texture::GpuTexture, platform::{is_indirect_mode_enabled, has_multisampling_support}, AsBinding, BindingData, BufferId,
     CommandBuffer, DrawCommandType, GpuBuffer, LoadOperation, MeshFlags, RenderContext, RenderMode,
     RenderPassData, RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId, TextureUsage,
     TextureView, VertexBufferLayoutBuilder, WebGpuContextRc,
@@ -233,7 +233,11 @@ impl RenderPass {
                 vertex_layout,
                 instance_layout,
             );
-            sample_count = pipeline.data().sampling_count;
+            sample_count = if has_multisampling_support() {
+                pipeline.data().sampling_count
+            } else {
+                1
+            };
         }
         if render_textures.is_empty() && sample_count > 1 {
             self.create_render_target(RenderTarget::Texture {

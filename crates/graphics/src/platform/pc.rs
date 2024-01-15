@@ -30,3 +30,7 @@ pub fn setup_env() {
         std::env::set_var("WGPU_POWER_PREF", "high");
     }
 }
+
+pub fn has_multisampling_support() -> bool {
+    true
+}

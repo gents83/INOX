@@ -15,3 +15,7 @@ pub fn platform_limits() -> wgpu::Limits {
 pub fn setup_env() {
     //...
 }
+
+pub fn has_multisampling_support() -> bool {
+    false
+}

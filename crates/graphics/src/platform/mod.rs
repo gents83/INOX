@@ -11,7 +11,10 @@ pub mod pc;
 
 pub fn shader_preprocessor_defs<const PLATFORM_TYPE: PlatformType>() -> Vec<String> {
     if PLATFORM_TYPE == PLATFORM_TYPE_PC {
-        vec!["FEATURES_TEXTURE_BINDING_ARRAY".to_string()]
+        vec![
+            "FEATURES_TEXTURE_BINDING_ARRAY".to_string(),
+            "FEATURES_MULTISAMPLING".to_string(),
+        ]
     } else {
         vec![]
     }

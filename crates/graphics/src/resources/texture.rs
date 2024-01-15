@@ -12,7 +12,7 @@ use inox_resources::{
 use inox_serialize::inox_serializable::SerializableRegistryRc;
 use inox_uid::{generate_random_uid, Uid, INVALID_UID};
 
-use crate::{TextureData, TextureFormat, TextureUsage, INVALID_INDEX};
+use crate::{TextureData, TextureFormat, TextureUsage, INVALID_INDEX, platform::has_multisampling_support};
 
 pub type TextureId = ResourceId;
 
@@ -87,7 +87,11 @@ impl DataTypeResource for Texture {
         texture.height = data.height;
         texture.format = data.format;
         texture.usage = data.usage;
-        texture.sample_count = data.sample_count;
+        texture.sample_count = if has_multisampling_support() {
+            data.sample_count
+        } else {
+            1
+        };
         if let Some(image_data) = &data.data {
             texture.blocks_to_update = vec![TextureBlock {
                 x: 0,
@@ -138,7 +142,11 @@ impl SerializableResource for Texture {
                         format: TextureFormat::Rgba8Unorm,
                         data: Some(image_data.into_rgba8().to_vec()),
                         usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
-                        sample_count: 8,
+                        sample_count: if has_multisampling_support() {
+                            8
+                        } else {
+                            1
+                        },
                         is_LUT,
                     });
                 }
@@ -263,7 +271,11 @@ impl Texture {
                 format,
                 data: None,
                 usage,
-                sample_count,
+                sample_count: if has_multisampling_support() {
+                    sample_count
+                } else {
+                    1
+                },
                 is_LUT: false,
             },
         );

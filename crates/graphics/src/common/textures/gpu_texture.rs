@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use wgpu::util::{align_to, DeviceExt};
 
-use crate::{TextureFormat, TextureId};
+use crate::{platform::has_multisampling_support, TextureFormat, TextureId};
 
 use super::area::Area;
 
@@ -55,7 +55,11 @@ impl GpuTexture {
         let width = texture_params.0;
         let height = texture_params.1;
         let layers_count = texture_params.2;
-        let sample_count = texture_params.3;
+        let sample_count = if has_multisampling_support() {
+            texture_params.3
+        } else {
+            1
+        };
         let format = texture_params.4;
         let usage = texture_params.5;
         let size = wgpu::Extent3d {
