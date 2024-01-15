@@ -33,8 +33,6 @@ fn compute_tbn(material: ptr<function, Material>, pixel_data: ptr<function, Pixe
         let normal_scale = unpack2x16float((*material).normal_scale_and_alpha_cutoff).x;
         ntex *= vec3<f32>(normal_scale, normal_scale, 1.);
         n = normalize(mat3x3<f32>(t, b, n) * normalize(ntex));
-        //t = unpack_snorm_to_3_f32(u32((*pixel_data).uv_set[uv_set_index].z));
-        //b = unpack_snorm_to_3_f32(u32((*pixel_data).uv_set[uv_set_index].w));
     }
     return TBN(n, t, b);
 }

@@ -40,14 +40,6 @@ fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData
     
     let barycentrics = compute_barycentrics_3d(p1,p2,p3,hit_point); 
 
-    let mvp = constant_data.proj * constant_data.view;
-    let sv1 = mvp * vec4<f32>(p1, 1.);
-    let sv2 = mvp * vec4<f32>(p2, 1.);
-    let sv3 = mvp * vec4<f32>(p3, 1.);
-
-    let edge1 = p2 - p1;
-    let edge2 = p3 - p1;
-
     if (offset_color >= 0) {
         let a1 = vertices_attributes.data[attr_indices.x + u32(offset_color)];
         let a2 = vertices_attributes.data[attr_indices.y + u32(offset_color)];
@@ -96,11 +88,7 @@ fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData
         var uv_dy = uv3 - uv1; 
         uv_dx = select(uv_dx, vec2<f32>(1., 0.), length(uv_dx) <= 0.01);
         uv_dy = select(uv_dy, vec2<f32>(0., 1.), length(uv_dy) <= 0.01);
-        let t_temp = (uv_dy.x * edge1 - uv_dx.x * edge2) /
-                     (uv_dx.y * uv_dy.x - uv_dy.y * uv_dx.x);          
-        let t = normalize(t_temp - normal * dot(normal, t_temp));
-        let b = cross(normal, t);
-        uv_set[0] = vec4<f32>(uv, f32(pack_3_f32_to_snorm(t)), f32(pack_3_f32_to_snorm(b)));
+        uv_set[0] = vec4<f32>(uv, f32(pack2x16float(uv_dx)), f32(pack2x16float(uv_dy)));
     }
     if(offset_uv1 >= 0) {
         let a1 = vertices_attributes.data[attr_indices.x + u32(offset_uv1)];
@@ -114,11 +102,7 @@ fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData
         var uv_dy = uv3 - uv1; 
         uv_dx = select(uv_dx, vec2<f32>(1., 0.), length(uv_dx) <= 0.01);
         uv_dy = select(uv_dy, vec2<f32>(0., 1.), length(uv_dy) <= 0.01);
-        let t_temp = (uv_dy.x * edge1 - uv_dx.x * edge2) /
-                     (uv_dx.y * uv_dy.x - uv_dy.y * uv_dx.x);      
-        let t = normalize(t_temp - normal * dot(normal, t_temp));
-        let b = cross(normal, t);
-        uv_set[1] = vec4<f32>(uv, f32(pack_3_f32_to_snorm(t)), f32(pack_3_f32_to_snorm(b)));
+        uv_set[1] = vec4<f32>(uv, f32(pack2x16float(uv_dx)), f32(pack2x16float(uv_dy)));
     }
     if(offset_uv2 >= 0) {
         let a1 = vertices_attributes.data[attr_indices.x + u32(offset_uv2)];
@@ -132,11 +116,7 @@ fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData
         var uv_dy = uv3 - uv1; 
         uv_dx = select(uv_dx, vec2<f32>(1., 0.), length(uv_dx) <= 0.01);
         uv_dy = select(uv_dy, vec2<f32>(0., 1.), length(uv_dy) <= 0.01);
-        let t_temp = (uv_dy.x * edge1 - uv_dx.x * edge2) /
-                     (uv_dx.y * uv_dy.x - uv_dy.y * uv_dx.x);        
-        let t = normalize(t_temp - normal * dot(normal, t_temp));
-        let b = cross(normal, t);
-        uv_set[2] = vec4<f32>(uv, f32(pack_3_f32_to_snorm(t)), f32(pack_3_f32_to_snorm(b)));
+        uv_set[2] = vec4<f32>(uv, f32(pack2x16float(uv_dx)), f32(pack2x16float(uv_dy)));
     }
     if(offset_uv3 >= 0) {
         let a1 = vertices_attributes.data[attr_indices.x + u32(offset_uv3)];
@@ -150,11 +130,7 @@ fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData
         var uv_dy = uv3 - uv1; 
         uv_dx = select(uv_dx, vec2<f32>(1., 0.), length(uv_dx) <= 0.01);
         uv_dy = select(uv_dy, vec2<f32>(0., 1.), length(uv_dy) <= 0.01);
-        let t_temp = (uv_dy.x * edge1 - uv_dx.x * edge2) /
-                     (uv_dx.y * uv_dy.x - uv_dy.y * uv_dx.x);        
-        let t = normalize(t_temp - normal * dot(normal, t_temp));
-        let b = cross(normal, t);
-        uv_set[3] = vec4<f32>(uv, f32(pack_3_f32_to_snorm(t)), f32(pack_3_f32_to_snorm(b)));
+        uv_set[3] = vec4<f32>(uv, f32(pack2x16float(uv_dx)), f32(pack2x16float(uv_dy)));
     }    
 
     return PixelData(hit_point, material_id, color, normal, mesh_id, tangent, uv_set);
