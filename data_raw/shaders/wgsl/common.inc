@@ -195,7 +195,7 @@ struct Material {
     specular_factors: vec4<f32>,
     attenuation_color_and_distance: vec4<f32>,
     thickness_factor: f32,
-    alpha_cutoff: f32,
+    normal_scale_and_alpha_cutoff: u32,
     occlusion_strength: f32,
     flags: u32,
     textures_index_and_coord_set: array<u32, TEXTURE_TYPE_COUNT>,

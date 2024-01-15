@@ -813,7 +813,7 @@ impl GltfCompiler {
             }
         }
         if let Some(camera) = node.camera() {
-            object_data.transform = object_data.transform.inverse();
+            object_data.transform = object_data.transform;
             let (_, camera_path) = self.process_camera(path, &camera);
             object_data.components.push(to_local_path(
                 camera_path.as_path(),

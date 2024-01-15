@@ -139,8 +139,8 @@ pub fn compute_frustum(
     let nw = nh * aspect_ratio;
     let fh = far * tang;
     let fw = fh * aspect_ratio;
-    let nc = position + facing * near;
-    let fc = position + facing * far;
+    let nc = position - facing * near;
+    let fc = position - facing * far;
 
     // compute the 4 corners of the frustum on the near plane
     frustum.ntl = nc + up * nh - right * nw;

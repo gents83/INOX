@@ -436,7 +436,11 @@ impl ViewerSystem {
                     .shared_data()
                     .for_each_resource_mut(|_, c: &mut Camera| {
                         if c.is_active() {
-                            c.set_transform(Matrix4::from_translation(movement) * c.transform());
+                            let matrix = c.transform();
+                            let translation = -matrix.right() * movement.x
+                                - matrix.up() * movement.y
+                                - matrix.forward() * movement.z;
+                            c.translate(translation);
                         }
                     });
             }

@@ -7,7 +7,7 @@ use std::{
 };
 
 use inox_bvh::{create_linearized_bvh, BVHTree, GPUBVHNode, AABB};
-use inox_math::{quantize_snorm, InnerSpace, Mat4Ops, Matrix4, VecBase, Vector2};
+use inox_math::{quantize_half, quantize_snorm, InnerSpace, Mat4Ops, Matrix4, VecBase, Vector2};
 use inox_resources::{to_slice, Buffer, HashBuffer, ResourceId};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
@@ -414,7 +414,9 @@ impl GlobalBuffers {
             material.attenuation_color_and_distance =
                 material_data.attenuation_color_and_distance.into();
             material.thickness_factor = material_data.thickness_factor;
-            material.alpha_cutoff = material_data.alpha_cutoff;
+            material.normal_scale_and_alpha_cutoff = quantize_half(material_data.normal_scale)
+                as u32
+                | (quantize_half(material_data.alpha_cutoff) as u32) << 16;
             material.emissive_strength = material_data.emissive_strength;
             material.flags = material_data.flags.into();
             materials.set_dirty(true);

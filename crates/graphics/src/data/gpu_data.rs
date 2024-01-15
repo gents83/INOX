@@ -1,5 +1,5 @@
 use inox_bitmask::bitmask;
-use inox_math::{Mat4Ops, Matrix4};
+use inox_math::{quantize_half, Mat4Ops, Matrix4};
 
 use crate::{
     declare_as_dirty_binding, MaterialFlags, TextureType, VertexBufferLayoutBuilder, VertexFormat,
@@ -125,7 +125,7 @@ pub struct GPUMaterial {
     pub specular_factors: [f32; 4],
     pub attenuation_color_and_distance: [f32; 4],
     pub thickness_factor: f32,
-    pub alpha_cutoff: f32,
+    pub normal_scale_and_alpha_cutoff: u32,
     pub occlusion_strength: f32,
     pub flags: u32,
     pub textures_index_and_coord_set: [u32; TextureType::Count as _],
@@ -147,7 +147,8 @@ impl Default for GPUMaterial {
             specular_factors: [1.; 4],
             attenuation_color_and_distance: [1., 1., 1., 0.],
             thickness_factor: 0.,
-            alpha_cutoff: 1.,
+            normal_scale_and_alpha_cutoff: quantize_half(1.) as u32
+                | (quantize_half(1.) as u32) << 16,
             occlusion_strength: 0.0,
             flags: MaterialFlags::Unlit.into(),
         }

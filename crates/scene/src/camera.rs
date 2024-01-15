@@ -193,7 +193,7 @@ impl Camera {
 
     #[inline]
     pub fn view_matrix(&self) -> Matrix4 {
-        self.transform()
+        self.transform().inverse()
     }
 
     #[inline]
@@ -225,7 +225,7 @@ impl Camera {
 
     #[inline]
     pub fn position(&self) -> Vector3 {
-        self.view_matrix().translation()
+        self.transform().translation()
     }
 
     #[inline]

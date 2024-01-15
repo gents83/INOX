@@ -47,6 +47,7 @@ pub struct MaterialData {
     pub attenuation_color_and_distance: Vector4,
     pub thickness_factor: f32,
     pub occlusion_strength: f32,
+    pub normal_scale: f32,
     pub alpha_cutoff: f32,
     pub flags: MaterialFlags,
 }
@@ -66,6 +67,7 @@ impl Default for MaterialData {
             metallic_factor: 1.0,
             ior: 1.5,
             transmission_factor: 0.,
+            normal_scale: 1.,
             alpha_cutoff: 1.,
             emissive_strength: 1.,
             base_color: Vector4::new(1., 1., 1., 1.),
