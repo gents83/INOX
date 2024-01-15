@@ -3,11 +3,13 @@ use std::path::PathBuf;
 use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
-    platform::has_wireframe_support, rendering_system::RenderingSystem,
-    update_system::UpdateSystem, BlitPass, ComputeFinalizePass, ComputePathTracingDirectPass,
-    ComputePathTracingIndirectPass, ComputeRuntimeVerticesPass, CullingPass, DebugPass, Pass,
-    RenderContextRc, RenderPass, Renderer, RendererRw, TextureFormat, TextureUsage,
-    VisibilityBufferPass, WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH, WIREFRAME_PASS_NAME,
+    platform::{has_multisampling_support, has_wireframe_support},
+    rendering_system::RenderingSystem,
+    update_system::UpdateSystem,
+    BlitPass, ComputeFinalizePass, ComputePathTracingDirectPass, ComputePathTracingIndirectPass,
+    ComputeRuntimeVerticesPass, CullingPass, DebugPass, Pass, RenderContextRc, RenderPass,
+    Renderer, RendererRw, TextureFormat, TextureUsage, VisibilityBufferPass, WireframePass,
+    DEFAULT_HEIGHT, DEFAULT_WIDTH, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -150,7 +152,11 @@ impl Viewer {
     fn create_render_targets(render_context: &RenderContextRc, width: u32, height: u32) {
         let half_dims = (width / 2, height / 2);
         let single_sample = 1;
-        let multi_sample = 8;
+        let multi_sample = if has_multisampling_support() {
+            8
+        } else {
+            single_sample
+        };
         let usage = TextureUsage::TextureBinding
             | TextureUsage::CopySrc
             | TextureUsage::CopyDst
@@ -176,8 +182,8 @@ impl Viewer {
         debug_assert!(_depth == RenderTargetType::Depth as usize);
         //Rays,
         let _rays = render_context.create_render_target(
-            half_dims.0,
-            half_dims.1,
+            width,
+            height,
             TextureFormat::Rgba32Float,
             usage | TextureUsage::StorageBinding,
             single_sample,
@@ -185,8 +191,8 @@ impl Viewer {
         debug_assert!(_rays == RenderTargetType::Rays as usize);
         //Radiance,
         let _radiance = render_context.create_render_target(
-            half_dims.0,
-            half_dims.1,
+            width,
+            height,
             TextureFormat::Rgba32Float,
             usage | TextureUsage::StorageBinding,
             single_sample,
@@ -194,8 +200,8 @@ impl Viewer {
         debug_assert!(_radiance == RenderTargetType::Radiance as usize);
         //Binding,
         let _binding = render_context.create_render_target(
-            half_dims.0,
-            half_dims.1,
+            width,
+            height,
             TextureFormat::Rgba32Float,
             usage | TextureUsage::StorageBinding,
             single_sample,

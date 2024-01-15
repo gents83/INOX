@@ -35,7 +35,7 @@ pub struct ViewerSystem {
 }
 
 const FORCE_USE_DEFAULT_CAMERA: bool = false;
-const CAMERA_SPEED: f32 = 200.;
+const CAMERA_SPEED: f32 = 100.;
 const CAMERA_ROTATION_SPEED: f32 = 200.;
 
 impl Drop for ViewerSystem {
@@ -436,11 +436,7 @@ impl ViewerSystem {
                     .shared_data()
                     .for_each_resource_mut(|_, c: &mut Camera| {
                         if c.is_active() {
-                            let matrix = c.transform();
-                            let translation = matrix.right() * movement.x
-                                + matrix.up() * movement.y
-                                + matrix.forward() * movement.z;
-                            c.translate(translation);
+                            c.set_transform(Matrix4::from_translation(movement) * c.transform());
                         }
                     });
             }

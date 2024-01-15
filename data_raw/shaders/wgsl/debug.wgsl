@@ -109,7 +109,7 @@ fn debug_color_override(color: vec4<f32>, screen_pixel: vec2<u32>, dimensions: v
     var out_color = color;
     out_color.a = 0.;
     let pixel = vec2<f32>(0.5) + vec2<f32>(screen_pixel);
-
+/*
     let visibility_dimensions = textureDimensions(visibility_texture);
     let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
     let visibility_pixel = vec2<u32>(pixel * visibility_scale);
@@ -139,10 +139,10 @@ fn debug_color_override(color: vec4<f32>, screen_pixel: vec2<u32>, dimensions: v
         let line_color = vec3<f32>(0., 1., 0.);
         let line_size = 0.1;  
         var color = vec3<f32>(0.);
-        color += draw_line_3d(screen_pixel, dimensions, constant_data.view[3].xyz, meshlet_center, line_color, line_size);
+        color += draw_line_3d(screen_pixel, dimensions, constant_data.inverse_view_proj[3].xyz, meshlet_center, line_color, line_size);
         out_color += vec4<f32>(color, 1.);
     }
-
+*/
     if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS) != 0) {
         let visibility_dimensions = textureDimensions(visibility_texture);
         let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
