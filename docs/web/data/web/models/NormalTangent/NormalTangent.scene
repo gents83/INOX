@@ -1,0 +1,9 @@
+{
+  "objects": [
+    "models/NormalTangent/object/NormalTangentTest_low.object",
+    "models/NormalTangent/object/Camera.001.object",
+    "models/NormalTangent/object/Point.object"
+  ],
+  "cameras": [],
+  "lights": []
+}
