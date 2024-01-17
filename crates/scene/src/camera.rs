@@ -1,9 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use inox_graphics::{DEFAULT_ASPECT_RATIO, DEFAULT_FAR, DEFAULT_FOV, DEFAULT_NEAR};
-use inox_math::{
-    convert_in_3d, Degrees, Mat4Ops, MatBase, Matrix4, NewAngle, Radians, Vector2, Vector3,
-};
+use inox_math::{convert_in_3d, Degrees, MatBase, Matrix4, NewAngle, Radians, Vector2, Vector3};
 use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
@@ -13,14 +11,6 @@ use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, 
 use inox_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 use crate::{CameraData, Object};
-
-#[rustfmt::skip]
-pub const OPENGL_TO_WGPU_MATRIX: Matrix4 = Matrix4::new(
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 0.0,
-    0.0, 0.0, 0.5, 1.0,
-);
 
 pub type CameraId = ResourceId;
 
@@ -142,7 +132,7 @@ impl Camera {
     ) -> &mut Self {
         let proj = inox_math::perspective(fov_in_degrees, screen_width / screen_height, near, far);
 
-        self.proj = /*OPENGL_TO_WGPU_MATRIX * */proj;
+        self.proj = proj;
 
         self.fov_in_degrees = fov_in_degrees;
         self.aspect_ratio = screen_width / screen_height;
@@ -192,11 +182,6 @@ impl Camera {
     }
 
     #[inline]
-    pub fn view_matrix(&self) -> Matrix4 {
-        self.transform().inverse()
-    }
-
-    #[inline]
     pub fn parent(&self) -> &Handle<Object> {
         &self.parent
     }
@@ -221,11 +206,6 @@ impl Camera {
     #[inline]
     pub fn proj_matrix(&self) -> Matrix4 {
         self.proj
-    }
-
-    #[inline]
-    pub fn position(&self) -> Vector3 {
-        self.transform().translation()
     }
 
     #[inline]
@@ -254,6 +234,6 @@ impl Camera {
     }
 
     pub fn convert_in_3d(&self, normalized_pos: Vector2) -> (Vector3, Vector3) {
-        convert_in_3d(normalized_pos, &self.view_matrix(), &self.proj_matrix())
+        convert_in_3d(normalized_pos, &self.transform(), &self.proj_matrix())
     }
 }

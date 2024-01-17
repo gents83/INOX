@@ -18,10 +18,8 @@ fn vs_main(
     @builtin(instance_index) meshlet_id: u32,
     v_in: RuntimeVertexData,
 ) -> VertexOutput {
-    let mvp = constant_data.proj * constant_data.view;
-
     var vertex_out: VertexOutput;
-    vertex_out.clip_position = mvp * vec4<f32>(v_in.world_pos, 1.);
+    vertex_out.clip_position = constant_data.view_proj * vec4<f32>(v_in.world_pos, 1.);
     vertex_out.id = meshlet_id + 1u;    
 
     return vertex_out;

@@ -92,7 +92,7 @@ macro_rules! implement_matrix4_operations {
             }
             #[inline]
             fn translation(&self) -> Vector3 {
-                [self.w[0], self.w[1], self.w[2]].into()
+                self.w.xyz()
             }
             #[inline]
             fn scale(&self) -> Vector3 {
@@ -166,11 +166,13 @@ macro_rules! implement_matrix4_operations {
                 let forward = (target - p).normalized();
                 let mut up = Vector3::unit_y();
                 if forward.dot(up) >= 1. - f32::EPSILON && forward.dot(up) <= 1. + f32::EPSILON {
-                    up = Matrix4::from_angle_x(Degrees::new(90.)).transform_vector(forward).normalized();
+                    up = Matrix4::from_angle_x(Degrees::new(90.))
+                        .transform_vector(forward)
+                        .normalized();
                 };
-                let right = up.cross(forward).normalized();
-                up = forward.cross(right).normalized();
-                let mut l: Matrix4 = Matrix3::from_cols(right, up, forward).into();
+                let right = forward.cross(up).normalized();
+                up = right.cross(forward).normalized();
+                let mut l: Matrix4 = Matrix3::from_cols(right, up, -forward).into();
                 l.set_translation(p);
                 *self = l;
             }
@@ -218,10 +220,8 @@ pub fn matrix3_to_array(mat: Matrix3) -> [[f32; 3]; 3] {
 }
 
 pub fn unproject(position: Vector3, view: Matrix4, projection: Matrix4) -> Vector3 {
-    let view_inverse = view.inverse();
-    let proj_inverse = projection.inverse();
     let unprojected_point =
-        view_inverse * proj_inverse * Vector4::new(position.x, position.y, position.z, 1.0);
+        (projection * view).inverse() * Vector4::new(position.x, position.y, position.z, 1.0);
     unprojected_point.xyz() / unprojected_point.w
 }
 

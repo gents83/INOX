@@ -813,6 +813,7 @@ impl GltfCompiler {
             }
         }
         if let Some(camera) = node.camera() {
+            object_data.transform = object_data.transform.inverse();
             let (_, camera_path) = self.process_camera(path, &camera);
             object_data.components.push(to_local_path(
                 camera_path.as_path(),
@@ -863,11 +864,6 @@ impl GltfCompiler {
             if let Some(camera) = child.camera() {
                 object_data.transform =
                     object_data.transform * Matrix4::from(child.transform().matrix());
-                let position = object_data.transform.translation();
-                let mut matrix =
-                    Matrix4::from_nonuniform_scale(1., 1., -1.) * object_data.transform.inverse();
-                matrix.set_translation(position);
-                object_data.transform = matrix;
                 let (_, camera_path) = self.process_camera(path, &camera);
                 object_data.components.push(to_local_path(
                     camera_path.as_path(),

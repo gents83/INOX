@@ -27,7 +27,7 @@ fn clip_to_world(clip_coords: vec2<f32>, depth: f32) -> vec3<f32> {
 }
 
 fn world_to_clip(world_pos: vec3<f32>) -> vec2<f32> {    
-	let ndc_pos: vec4<f32> = constant_data.proj * constant_data.view * vec4<f32>(world_pos, 1.);
+	let ndc_pos: vec4<f32> = constant_data.view_proj * vec4<f32>(world_pos, 1.);
 	return ndc_pos.xy / ndc_pos.w;
 }
 

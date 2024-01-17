@@ -582,12 +582,13 @@ impl Info {
                             .shared_data()
                             .for_each_resource(|h, c: &Camera| {
                                 ui.horizontal(|ui| {
+                                    let p = c.transform().translation();
                                     ui.label(format!(
                                         "Camera [{}] position:({:.3},{:.3},{:.3})",
                                         h.id(),
-                                        c.position().x,
-                                        c.position().y,
-                                        c.position().z,
+                                        p.x,
+                                        p.y,
+                                        p.z,
                                     ));
                                 });
                             });

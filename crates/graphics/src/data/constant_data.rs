@@ -34,7 +34,9 @@ pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_3: u32 = 1 << 16;
 #[derive(Debug, Clone, Copy)]
 struct Data {
     pub view: [[f32; 4]; 4],
+    pub inv_view: [[f32; 4]; 4],
     pub proj: [[f32; 4]; 4],
+    pub view_proj: [[f32; 4]; 4],
     pub inverse_view_proj: [[f32; 4]; 4],
     pub screen_size: [f32; 2],
     pub frame_index: u32,
@@ -52,7 +54,9 @@ impl Default for Data {
     fn default() -> Self {
         Self {
             view: Matrix4::default_identity().into(),
+            inv_view: Matrix4::default_identity().into(),
             proj: Matrix4::default_identity().into(),
+            view_proj: Matrix4::default_identity().into(),
             inverse_view_proj: Matrix4::default_identity().into(),
             screen_size: [DEFAULT_WIDTH as _, DEFAULT_HEIGHT as _],
             frame_index: 0,
@@ -169,6 +173,7 @@ impl ConstantData {
         }
         self.data.view = v;
         self.data.proj = p;
+        self.data.view_proj = matrix4_to_array(proj * view);
         self.data.inverse_view_proj = matrix4_to_array((proj * view).inverse());
         self.data.screen_size = screen_size.into();
         self.data.debug_uv_coords = (debug_coords.div(screen_size)).into();

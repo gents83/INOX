@@ -28,7 +28,7 @@ fn vs_main(
 ) -> VertexOutput {
 
     var vertex_out: VertexOutput;
-    vertex_out.clip_position = constant_data.proj * constant_data.view * vec4<f32>(v_in.position, 1.);
+    vertex_out.clip_position = constant_data.view_proj * vec4<f32>(v_in.position, 1.);
     vertex_out.color = unpack_unorm_to_4_f32(v_in.color);
 
     return vertex_out;

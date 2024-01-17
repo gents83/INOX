@@ -36,7 +36,7 @@ pub struct ViewerSystem {
 
 const FORCE_USE_DEFAULT_CAMERA: bool = false;
 const CAMERA_SPEED: f32 = 100.;
-const CAMERA_ROTATION_SPEED: f32 = 200.;
+const CAMERA_ROTATION_SPEED: f32 = 400.;
 
 impl Drop for ViewerSystem {
     fn drop(&mut self) {
@@ -391,7 +391,7 @@ impl ViewerSystem {
                     if self.camera_index == index {
                         c.set_active(true);
 
-                        let view_matrix = c.view_matrix();
+                        let view_matrix = c.transform();
                         let proj_matrix = c.proj_matrix();
 
                         view.get_mut()
@@ -436,11 +436,7 @@ impl ViewerSystem {
                     .shared_data()
                     .for_each_resource_mut(|_, c: &mut Camera| {
                         if c.is_active() {
-                            let matrix = c.transform();
-                            let translation = -matrix.right() * movement.x
-                                - matrix.up() * movement.y
-                                - matrix.forward() * movement.z;
-                            c.translate(translation);
+                            c.translate(movement);
                         }
                     });
             }
@@ -472,7 +468,7 @@ impl ViewerSystem {
             }
             if self.is_on_view3d {
                 let mut rotation_angle = Vector3::default_zero();
-                rotation_angle.x = self.last_mouse_pos.y - event.normalized_y;
+                rotation_angle.x = event.normalized_y - self.last_mouse_pos.y;
                 rotation_angle.y = event.normalized_x - self.last_mouse_pos.x;
                 rotation_angle *=
                     CAMERA_ROTATION_SPEED * self.context.global_timer().dt().as_secs_f32();
@@ -483,14 +479,9 @@ impl ViewerSystem {
                             if c.is_active() {
                                 let m = Matrix4::from_euler_angles(rotation_angle);
                                 if use_orbit_camera {
-                                    c.set_transform(m * c.transform());
+                                    c.set_transform(c.transform() * m);
                                 } else {
-                                    let d = c.transform().direction();
-                                    rotation_angle.x *=
-                                        d.dot_product([0., 0., -1.].into()).signum();
-                                    let v = m.rotate_vector(d);
-                                    c.look_toward(v);
-                                    //c.look_at([0., 0., 0.].into());
+                                    c.set_transform(m * c.transform());
                                 }
                             }
                         });

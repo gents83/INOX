@@ -91,7 +91,9 @@ const LIGHT_TYPE_SPOT: u32 = 1u << 2u;
 
 struct ConstantData {
     view: mat4x4<f32>,
+    inv_view: mat4x4<f32>,
     proj: mat4x4<f32>,
+    view_proj: mat4x4<f32>,
     inverse_view_proj: mat4x4<f32>,
     screen_width: f32,
     screen_height: f32,

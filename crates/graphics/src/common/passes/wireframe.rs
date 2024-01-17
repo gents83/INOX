@@ -213,7 +213,7 @@ impl WireframePass {
             .shared_data()
             .match_resource(|v: &View| v.view_index() == 0)
         {
-            camera_pos = Some(view.get().view().inverse().translation());
+            camera_pos = Some(view.get().view().translation());
         }
 
         if !self.vertices.data.is_empty() {

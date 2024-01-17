@@ -91,7 +91,7 @@ pub fn normalize_plane(plane: Vector4) -> Vector4 {
 }
 
 pub fn convert_in_3d(pos_2d: Vector2, view: &Matrix4, proj: &Matrix4) -> (Vector3, Vector3) {
-    let ray_start = Vector3::new(pos_2d.x, pos_2d.y, 0.);
+    let ray_start = Vector3::new(pos_2d.x, pos_2d.y, -1.);
     let ray_end = Vector3::new(ray_start.x, ray_start.y, 1.);
     let ray_start_world = unproject(ray_start, *view, *proj);
     let ray_end_world = unproject(ray_end, *view, *proj);
@@ -129,18 +129,18 @@ pub fn compute_frustum(
     //  /                      \
     // fbl                     fbr
     ////////////////////////////////
-
-    let position = view.translation();
-    let facing = view.forward().normalized();
-    let up = view.up().normalized();
-    let right = view.right().normalized();
+    let inv_view = view.inverse();
+    let position = inv_view.translation();
+    let facing = -inv_view.forward().normalized();
+    let up = inv_view.up().normalized();
+    let right = inv_view.right().normalized();
     let tang = (fov * 0.5).0.to_radians().tan();
     let nh = near * tang;
     let nw = nh * aspect_ratio;
     let fh = far * tang;
     let fw = fh * aspect_ratio;
-    let nc = position - facing * near;
-    let fc = position - facing * far;
+    let nc = position + facing * near;
+    let fc = position + facing * far;
 
     // compute the 4 corners of the frustum on the near plane
     frustum.ntl = nc + up * nh - right * nw;
