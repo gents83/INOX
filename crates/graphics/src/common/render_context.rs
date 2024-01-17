@@ -192,6 +192,7 @@ impl RenderContext {
             height: DEFAULT_HEIGHT,
             present_mode: wgpu::PresentMode::AutoNoVsync,
             alpha_mode: *capabilities.alpha_modes.first().unwrap(),
+            desired_maximum_frame_latency: 2,
         };
 
         //debug_log!("Surface format: {:?}", config.format);
