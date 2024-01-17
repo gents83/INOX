@@ -550,7 +550,7 @@ fn get_IBL_volume_refraction(n: vec3<f32>, v: vec3<f32>, perceptualRoughness: f3
 fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, PixelData>) -> MaterialInfo {
     var material = materials.data[material_id];
 
-    let v = normalize(constant_data.view[3].xyz - (*pixel_data).world_pos);
+    let v = normalize(view_pos() - (*pixel_data).world_pos);
     var tbn = compute_tbn(&material, pixel_data);
 
     let NdotV = clamped_dot(tbn.normal,v);

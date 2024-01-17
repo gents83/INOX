@@ -31,6 +31,12 @@ fn world_to_clip(world_pos: vec3<f32>) -> vec2<f32> {
 	return ndc_pos.xy / ndc_pos.w;
 }
 
+fn view_pos() -> vec3<f32> {    
+    var world_pos = constant_data.inverse_view_proj * vec4<f32>(0.,0.,0., 1.);
+    world_pos /= world_pos.w;
+    return world_pos.xyz;
+}
+
 fn compute_barycentrics_3d(p1: vec3<f32>, p2: vec3<f32>, p3: vec3<f32>, p: vec3<f32>) -> vec3<f32> {
     let v1 = p - p1;
     let v2 = p - p2;

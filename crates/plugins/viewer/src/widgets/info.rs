@@ -90,6 +90,7 @@ struct Data {
     fps: u32,
     dt: u128,
     cam_matrix: Matrix4,
+    proj_matrix: Matrix4,
     near: f32,
     far: f32,
     fov: Degrees,
@@ -159,6 +160,7 @@ impl Info {
             fps: 0,
             dt: 0,
             cam_matrix: Matrix4::default_identity(),
+            proj_matrix: Matrix4::default_identity(),
             near: 0.,
             far: 0.,
             fov: Degrees::new(0.),
@@ -288,6 +290,7 @@ impl Info {
             if data.show_lights {
                 Self::show_lights(data);
             }
+
             if data.show_frustum {
                 if !data.freeze_culling_camera {
                     if let Some(camera) = data
@@ -299,6 +302,7 @@ impl Info {
                         data.near = c.near_plane();
                         data.far = c.far_plane();
                         data.cam_matrix = c.transform();
+                        data.proj_matrix = c.proj_matrix();
                         data.fov = c.fov_in_degrees();
                         data.aspect_ratio = c.aspect_ratio();
                     }

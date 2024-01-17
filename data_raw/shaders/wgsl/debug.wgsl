@@ -141,7 +141,7 @@ fn debug_color_override(color: vec4<f32>, screen_pixel: vec2<u32>, dimensions: v
         let line_color = vec3<f32>(0., 1., 0.);
         let line_size = 0.01;  
         var color = vec3<f32>(0.);
-        color += draw_line_3d(screen_pixel, dimensions, vec3<f32>(0.,0.,0.) - constant_data.view[3].xyz * vec3<f32>(1.,1.,1.), meshlet_center, line_color, line_size);
+        color += draw_line_3d(screen_pixel, dimensions, clip_to_world(vec2<f32>(0.), 0.), meshlet_center, line_color, line_size);
         out_color += vec4<f32>(color, 1.);
     }
     */

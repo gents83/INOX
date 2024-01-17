@@ -3,10 +3,8 @@
 
 struct CullingData {
     view: mat4x4<f32>,
+    cam_pos: vec3<f32>,
     mesh_flags: u32,
-    _padding1: u32,
-    _padding2: u32,
-    _padding3: u32,
 };
 
 @group(0) @binding(0)

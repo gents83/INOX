@@ -3,10 +3,8 @@
 
 struct CullingData {
     view: mat4x4<f32>,
+    cam_pos: vec3<f32>,
     mesh_flags: u32,
-    _padding1: u32,
-    _padding2: u32,
-    _padding3: u32,
 };
 
 @group(0) @binding(0)
@@ -62,7 +60,7 @@ fn is_box_inside_frustum(min: vec3<f32>, max: vec3<f32>, frustum: array<vec4<f32
 }
 
 fn is_cone_visible(center: vec3<f32>, cone_axis: vec3<f32>, cone_cutoff: f32, radius: f32) -> bool {
-    let direction = center - culling_data.view[3].xyz;
+    let direction = center - culling_data.cam_pos;
     return dot(direction, cone_axis) < cone_cutoff * length(direction) + radius;
 }
 

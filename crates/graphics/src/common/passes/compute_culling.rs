@@ -9,6 +9,7 @@ use crate::{
 
 use inox_commands::CommandParser;
 use inox_core::ContextRc;
+use inox_math::{unproject, VecBase, Vector3};
 use inox_messenger::{implement_message, Listener};
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
@@ -47,8 +48,8 @@ impl CullingEvent {
 struct CullingData {
     is_dirty: bool,
     view: [[f32; 4]; 4],
+    cam_pos: [f32; 3],
     mesh_flags: u32,
-    _padding: [u32; 3],
 }
 
 impl AsBinding for CullingData {
@@ -60,13 +61,13 @@ impl AsBinding for CullingData {
     }
     fn size(&self) -> u64 {
         std::mem::size_of_val(&self.view) as u64
+            + std::mem::size_of_val(&self.cam_pos) as u64
             + std::mem::size_of_val(&self.mesh_flags) as u64
-            + std::mem::size_of_val(&self._padding) as u64
     }
     fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut GpuBuffer) {
         buffer.add_to_gpu_buffer(render_context, &[self.view]);
+        buffer.add_to_gpu_buffer(render_context, &[self.cam_pos]);
         buffer.add_to_gpu_buffer(render_context, &[self.mesh_flags]);
-        buffer.add_to_gpu_buffer(render_context, &[self._padding]);
     }
 }
 
@@ -164,8 +165,11 @@ impl Pass for CullingPass {
 
         if self.update_camera {
             let view = self.constant_data.read().unwrap().view();
+            let proj = self.constant_data.read().unwrap().proj();
             if self.culling_data.view != view {
                 self.culling_data.view = view;
+                self.culling_data.cam_pos =
+                    unproject(Vector3::default_zero(), view.into(), proj.into()).into();
                 self.culling_data.set_dirty(true);
             }
         }
