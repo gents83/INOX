@@ -61,7 +61,7 @@ fn is_box_inside_frustum(min: vec3<f32>, max: vec3<f32>, frustum: array<vec4<f32
 
 fn is_cone_visible(center: vec3<f32>, cone_axis: vec3<f32>, cone_cutoff: f32, radius: f32) -> bool {
     let direction = center - culling_data.cam_pos;
-    return dot(direction, cone_axis) < cone_cutoff * length(direction) + radius;
+    return dot(direction, cone_axis) <= (min(0.9, cone_cutoff) * length(direction * 0.5) + radius);
 }
 
 
@@ -128,7 +128,7 @@ fn main(
     let meshlet_center = transform_vector((*meshlet).center, (*mesh).position, (*mesh).orientation, (*mesh).scale);;    
     if (!is_cone_visible(meshlet_center, cone_axis, cone_axis_cutoff.w, radius))
     {
-        //return;
+        return;
     }
     
     atomicAdd(&count, 1u);
