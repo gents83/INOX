@@ -1247,6 +1247,12 @@ function __wbg_get_imports() {
         const ret = result;
         return ret;
     };
+    imports.wbg.__wbg_deleteVertexArray_26631f33de66bdfd = function(arg0, arg1) {
+        getObject(arg0).deleteVertexArray(getObject(arg1));
+    };
+    imports.wbg.__wbg_deleteVertexArrayOES_657b2572282b9dff = function(arg0, arg1) {
+        getObject(arg0).deleteVertexArrayOES(getObject(arg1));
+    };
     imports.wbg.__wbg_deleteSampler_f760c2bdc7a3d881 = function(arg0, arg1) {
         getObject(arg0).deleteSampler(getObject(arg1));
     };
@@ -1763,12 +1769,6 @@ function __wbg_get_imports() {
     imports.wbg.__wbg_executeBundles_f798318792c088c6 = function(arg0, arg1) {
         getObject(arg0).executeBundles(getObject(arg1));
     };
-    imports.wbg.__wbg_deleteVertexArray_26631f33de66bdfd = function(arg0, arg1) {
-        getObject(arg0).deleteVertexArray(getObject(arg1));
-    };
-    imports.wbg.__wbg_deleteVertexArrayOES_657b2572282b9dff = function(arg0, arg1) {
-        getObject(arg0).deleteVertexArrayOES(getObject(arg1));
-    };
     imports.wbg.__wbg_is_a5728dbfb61c82cd = function(arg0, arg1) {
         const ret = Object.is(getObject(arg0), getObject(arg1));
         return ret;
@@ -2044,11 +2044,11 @@ function __wbg_get_imports() {
         const ret = makeMutClosure(arg0, arg1, 24, __wbg_adapter_35);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper10812 = function(arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper10728 = function(arg0, arg1, arg2) {
         const ret = makeMutClosure(arg0, arg1, 24, __wbg_adapter_35);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper10818 = function(arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper10730 = function(arg0, arg1, arg2) {
         const ret = makeMutClosure(arg0, arg1, 24, __wbg_adapter_35);
         return addHeapObject(ret);
     };
