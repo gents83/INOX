@@ -16,6 +16,8 @@ struct FragmentOutput {
 var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
 var<storage, read_write> data_buffer_1: array<f32>;
+@group(0) @binding(2)
+var previous_texture: texture_2d<f32>;
 
 @vertex
 fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
@@ -43,12 +45,12 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     radiance.x = data_buffer_1[data_index];
     radiance.y = data_buffer_1[data_index + 1u];
     radiance.z = data_buffer_1[data_index + 2u];
-    //if(constant_data.frame_index > 0u) {
-    //    let prev_value = vec3<f32>(data_buffer_3.data[data_index][0], data_buffer_3.data[data_index][1], data_buffer_3.data[data_index][2]);
-    //    let frame_index = f32(min(constant_data.frame_index + 1u, 1000u));
-    //    let weight = 1. / frame_index;
-    //    radiance = mix(prev_value, radiance, weight);
-    //}   
+    if(constant_data.frame_index > 0u) {
+        let prev_value = textureLoad(previous_texture, data_pixel, 0).rgb;
+        let frame_index = f32(min(constant_data.frame_index + 1u, 1000u));
+        let weight = 1. / frame_index;
+        radiance = mix(prev_value, radiance, weight);
+    }   
      
     var out_color = vec4<f32>(radiance, 1.);   
     //out_color = vec4<f32>(tonemap_ACES_Hill(out_color.rgb), 1.);

@@ -27,6 +27,7 @@ pub const ATOMIC_SIZE: u32 = 32;
 pub const PREALLOCATED_MIN_SIZE: usize = 1;
 pub const SIZE_OF_DATA_BUFFER_ELEMENT: usize = 4;
 pub const NUM_DATA_BUFFER: usize = 8;
+pub const NUM_FRAMES_OF_HISTORY: usize = 2;
 
 pub type TexturesBuffer = Arc<RwLock<HashBuffer<TextureId, TextureInfo, PREALLOCATED_MIN_SIZE>>>;
 pub type MaterialsBuffer = Arc<RwLock<HashBuffer<MaterialId, GPUMaterial, PREALLOCATED_MIN_SIZE>>>;

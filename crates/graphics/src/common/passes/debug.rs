@@ -197,7 +197,7 @@ impl Pass for DebugPass {
                 },
             )
             .add_texture(
-                &self.finalize_texture,
+                &self.visibility_texture,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 3,
@@ -206,19 +206,10 @@ impl Pass for DebugPass {
                 },
             )
             .add_texture(
-                &self.visibility_texture,
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 4,
-                    stage: ShaderStage::Fragment,
-                    ..Default::default()
-                },
-            )
-            .add_texture(
                 &self.depth_texture,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 5,
+                    binding_index: 4,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },

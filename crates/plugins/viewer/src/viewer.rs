@@ -25,7 +25,8 @@ const ADD_UI_PASS: bool = true;
 enum RenderTargetType {
     Visibility = 0,
     Depth = 1,
-    Finalize = 2,
+    Frame0 = 2,
+    Frame1 = 3,
 }
 
 pub struct Viewer {
@@ -177,15 +178,24 @@ impl Viewer {
             multi_sample,
         );
         debug_assert!(_depth == RenderTargetType::Depth as usize);
-        //Finalize,
-        let _finalize = render_context.create_render_target(
+        //Frame0,
+        let _frame0 = render_context.create_render_target(
             width,
             height,
             TextureFormat::Rgba8Unorm,
             usage,
             single_sample,
         );
-        debug_assert!(_finalize == RenderTargetType::Finalize as usize);
+        debug_assert!(_frame0 == RenderTargetType::Frame0 as usize);
+        //Frame1,
+        let _frame1 = render_context.create_render_target(
+            width,
+            height,
+            TextureFormat::Rgba8Unorm,
+            usage,
+            single_sample,
+        );
+        debug_assert!(_frame1 == RenderTargetType::Frame1 as usize);
     }
     fn create_data_buffers(render_context: &RenderContextRc, width: u32, height: u32) {
         render_context
@@ -271,22 +281,24 @@ impl Viewer {
         render_context.add_pass(compute_pathtracing_indirect_pass, true);
     }
     fn create_finalize_pass(context: &ContextRc, render_context: &RenderContextRc) {
-        let finalize_pass = FinalizePass::create(context, render_context);
-        finalize_pass
-            .add_render_target(&render_context.render_target(RenderTargetType::Finalize as usize));
+        let mut finalize_pass = FinalizePass::create(context, render_context);
+        finalize_pass.set_frame_textures([
+            &render_context.render_target(RenderTargetType::Frame0 as usize),
+            &render_context.render_target(RenderTargetType::Frame1 as usize),
+        ]);
         render_context.add_pass(finalize_pass, true);
     }
     fn create_blit_pass(context: &ContextRc, render_context: &RenderContextRc) {
         let mut blit_pass = BlitPass::create(context, render_context);
-        blit_pass.set_source(&render_context.render_target_id(RenderTargetType::Finalize as usize));
+        blit_pass.set_sources([
+            &render_context.render_target_id(RenderTargetType::Frame0 as usize),
+            &render_context.render_target_id(RenderTargetType::Frame1 as usize),
+        ]);
         render_context.add_pass(blit_pass, true);
     }
     fn create_debug_pass(context: &ContextRc, render_context: &RenderContextRc) {
         let mut debug_pass = DebugPass::create(context, render_context);
         debug_pass
-            .set_finalize_texture(
-                &render_context.render_target_id(RenderTargetType::Finalize as usize),
-            )
             .set_visibility_texture(
                 &render_context.render_target_id(RenderTargetType::Visibility as usize),
             )

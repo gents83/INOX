@@ -4,11 +4,11 @@ use crate::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DataBuffers,
     DrawCommandType, MeshFlags, Pass, RenderContext, RenderContextRc, RenderPass,
     RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation, Texture,
-    TextureView,
+    TextureView, NUM_FRAMES_OF_HISTORY,
 };
 
 use inox_core::ContextRc;
-use inox_resources::{DataTypeResource, Resource, ResourceTrait};
+use inox_resources::{DataTypeResource, Handle, Resource, ResourceTrait};
 use inox_uid::generate_random_uid;
 
 pub const FINALIZE_PIPELINE: &str = "pipelines/Finalize.render_pipeline";
@@ -19,6 +19,7 @@ pub struct FinalizePass {
     binding_data: BindingData,
     constant_data: ConstantDataRw,
     data_buffers: DataBuffers,
+    frame_textures: [Handle<Texture>; NUM_FRAMES_OF_HISTORY],
 }
 unsafe impl Send for FinalizePass {}
 unsafe impl Sync for FinalizePass {}
@@ -63,12 +64,27 @@ impl Pass for FinalizePass {
             constant_data: render_context.global_buffers().constant_data.clone(),
             binding_data: BindingData::new(render_context, FINALIZE_NAME),
             data_buffers: render_context.global_buffers().data_buffers.clone(),
+            frame_textures: [None, None],
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
+        if self.frame_textures.iter().any(|h| h.is_none()) {
+            return;
+        }
+
         inox_profiler::scoped_profile!("finalize_pass::init");
 
+        let current_frame_index =
+            self.constant_data.read().unwrap().frame_index() as usize % NUM_FRAMES_OF_HISTORY;
+        let previous_frame_index = if current_frame_index == 0 {
+            NUM_FRAMES_OF_HISTORY - 1
+        } else {
+            current_frame_index - 1
+        };
+
         let mut pass = self.render_pass.get_mut();
+        pass.remove_all_render_targets()
+            .add_render_target(self.frame_textures[current_frame_index].as_ref().unwrap());
 
         self.binding_data
             .add_uniform_buffer(
@@ -89,6 +105,18 @@ impl Pass for FinalizePass {
                     binding_index: 1,
                     stage: ShaderStage::Fragment,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                },
+            )
+            .add_texture(
+                self.frame_textures[previous_frame_index]
+                    .as_ref()
+                    .unwrap()
+                    .id(),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 2,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
                 },
             );
 
@@ -131,8 +159,17 @@ impl Pass for FinalizePass {
 }
 
 impl FinalizePass {
-    pub fn add_render_target(&self, texture: &Resource<Texture>) -> &Self {
-        self.render_pass.get_mut().add_render_target(texture);
+    pub fn set_frame_textures(
+        &mut self,
+        textures: [&Resource<Texture>; NUM_FRAMES_OF_HISTORY],
+    ) -> &mut Self {
+        textures.iter().enumerate().for_each(|(i, &t)| {
+            self.frame_textures[i] = Some(t.clone());
+        });
+        self.render_pass
+            .get_mut()
+            .remove_all_render_targets()
+            .add_render_target(textures[0]);
         self
     }
 }

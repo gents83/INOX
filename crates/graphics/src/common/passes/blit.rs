@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, DrawCommandType, MeshFlags, Pass, RenderContext,
-    RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage,
-    StoreOperation, Texture, TextureId, TextureView,
+    BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, MeshFlags, Pass,
+    RenderContext, RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
+    ShaderStage, StoreOperation, TextureId, TextureView, NUM_FRAMES_OF_HISTORY,
 };
 
 use inox_core::ContextRc;
@@ -15,8 +15,9 @@ pub const BLIT_PASS_NAME: &str = "BlitPass";
 
 pub struct BlitPass {
     render_pass: Resource<RenderPass>,
+    constant_data: ConstantDataRw,
     binding_data: BindingData,
-    source_texture_id: TextureId,
+    source_textures: [TextureId; NUM_FRAMES_OF_HISTORY],
 }
 unsafe impl Send for BlitPass {}
 unsafe impl Sync for BlitPass {}
@@ -60,21 +61,25 @@ impl Pass for BlitPass {
                 &data,
                 None,
             ),
+            constant_data: render_context.global_buffers().constant_data.clone(),
             binding_data: BindingData::new(render_context, BLIT_PASS_NAME),
-            source_texture_id: INVALID_UID,
+            source_textures: [INVALID_UID; NUM_FRAMES_OF_HISTORY],
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
-        inox_profiler::scoped_profile!("blit_pass::init");
-
-        if self.source_texture_id.is_nil() {
+        if self.source_textures.iter().any(|v| v.is_nil()) {
             return;
         }
+
+        inox_profiler::scoped_profile!("blit_pass::init");
+
+        let current_frame_index =
+            self.constant_data.read().unwrap().frame_index() as usize % NUM_FRAMES_OF_HISTORY;
 
         let mut pass = self.render_pass.get_mut();
 
         self.binding_data.add_texture(
-            &self.source_texture_id,
+            &self.source_textures[current_frame_index],
             BindingInfo {
                 group_index: 0,
                 binding_index: 0,
@@ -91,11 +96,11 @@ impl Pass for BlitPass {
         surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        inox_profiler::scoped_profile!("blit_pass::update");
-
-        if self.source_texture_id.is_nil() {
+        if self.source_textures.iter().any(|v| v.is_nil()) {
             return;
         }
+
+        inox_profiler::scoped_profile!("blit_pass::update");
 
         let pass = self.render_pass.get();
         let pipeline = pass.pipeline().get();
@@ -125,12 +130,10 @@ impl Pass for BlitPass {
 }
 
 impl BlitPass {
-    pub fn set_source(&mut self, id: &TextureId) -> &mut Self {
-        self.source_texture_id = *id;
-        self
-    }
-    pub fn add_render_target(&self, texture: &Resource<Texture>) -> &Self {
-        self.render_pass.get_mut().add_render_target(texture);
+    pub fn set_sources(&mut self, texture_ids: [&TextureId; NUM_FRAMES_OF_HISTORY]) -> &mut Self {
+        texture_ids.iter().enumerate().for_each(|(i, &id)| {
+            self.source_textures[i] = *id;
+        });
         self
     }
 }

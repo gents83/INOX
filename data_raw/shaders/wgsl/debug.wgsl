@@ -31,10 +31,8 @@ var<storage, read> textures: Textures;
 @group(1) @binding(2)
 var<storage, read> lights: Lights;
 @group(1) @binding(3)
-var finalize_texture: texture_2d<f32>;
-@group(1) @binding(4)
 var visibility_texture: texture_multisampled_2d<u32>;
-@group(1) @binding(5)
+@group(1) @binding(4)
 var depth_texture: texture_depth_multisampled_2d;
 
 @group(3) @binding(0)
@@ -128,9 +126,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     let dimensions = vec2<u32>(u32(constant_data.screen_width), u32(constant_data.screen_height));
     let screen_pixel = vec2<u32>(u32(v_in.uv.x * f32(dimensions.x)), u32(v_in.uv.y * f32(dimensions.y)));
 
-    var out_color = textureLoad(finalize_texture, screen_pixel, 0);    
-
-    out_color.a = 0.;
+    var out_color = vec4<f32>(0.);
     let pixel = vec2<f32>(screen_pixel);
     
     if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS) != 0) {

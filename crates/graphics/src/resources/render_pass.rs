@@ -7,10 +7,12 @@ use inox_resources::{
 };
 
 use crate::{
-    gpu_texture::GpuTexture, platform::{is_indirect_mode_enabled, has_multisampling_support}, AsBinding, BindingData, BufferId,
-    CommandBuffer, DrawCommandType, GpuBuffer, LoadOperation, MeshFlags, RenderContext, RenderMode,
-    RenderPassData, RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId, TextureUsage,
-    TextureView, VertexBufferLayoutBuilder, WebGpuContextRc,
+    gpu_texture::GpuTexture,
+    platform::{has_multisampling_support, is_indirect_mode_enabled},
+    AsBinding, BindingData, BufferId, CommandBuffer, DrawCommandType, GpuBuffer, LoadOperation,
+    MeshFlags, RenderContext, RenderMode, RenderPassData, RenderPipeline, RenderTarget,
+    StoreOperation, Texture, TextureId, TextureUsage, TextureView, VertexBufferLayoutBuilder,
+    WebGpuContextRc,
 };
 
 pub type RenderPassId = ResourceId;
@@ -133,6 +135,14 @@ impl RenderPass {
             self.render_textures.push(texture)
         }
 
+        self
+    }
+    pub fn remove_render_target(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.render_textures.retain(|t| t.id() != texture_id);
+        self
+    }
+    pub fn remove_all_render_targets(&mut self) -> &mut Self {
+        self.render_textures.clear();
         self
     }
     pub fn add_render_target(&mut self, texture: &Resource<Texture>) -> &mut Self {
