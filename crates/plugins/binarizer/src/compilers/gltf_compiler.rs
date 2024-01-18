@@ -542,7 +542,7 @@ impl GltfCompiler {
             triangles_aabbs.resize_with(mesh_data.indices.len() / 3, AABB::empty);
             let mut i = 0;
             while i < mesh_data.indices.len() {
-                let triangle_id = (i / 3) as usize;
+                let triangle_id = i / 3;
                 let v1 = positions[mesh_data.indices[i] as usize];
                 i += 1;
                 let v2 = positions[mesh_data.indices[i] as usize];
