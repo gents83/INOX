@@ -143,10 +143,15 @@ impl ViewerSystem {
 
     fn check_command_line_arguments(&mut self) -> &mut Self {
         let command_parser = CommandParser::from_command_line();
+        let mut loaded = false;
         if command_parser.has("load_file") {
             let values = command_parser.get_values_of::<String>("load_file");
-            self.load_scene(values[0].as_str());
-        } else {
+            if !values.is_empty() {
+                self.load_scene(values[0].as_str());
+                loaded = true;
+            }
+        }
+        if !loaded {
             self.create_default_scene();
         }
 

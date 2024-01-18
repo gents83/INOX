@@ -275,7 +275,6 @@ impl RenderContext {
         let width = texture.get().width();
         let height = texture.get().height();
         let format = texture.get().format();
-        let sample_count = texture.get().sample_count();
         let is_lut = texture.get().is_LUT();
         let mut blocks_to_update = texture.get_mut().blocks_to_update();
         let image_data = blocks_to_update.remove(0);
@@ -283,7 +282,7 @@ impl RenderContext {
             &self.webgpu.device,
             encoder,
             texture_id,
-            (width, height, format, sample_count, is_lut),
+            (width, height, format, is_lut),
             &image_data.data,
         );
         for block in blocks_to_update {

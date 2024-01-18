@@ -141,14 +141,14 @@ impl TextureHandler {
         device: &wgpu::Device,
         encoder: &mut wgpu::CommandEncoder,
         id: &TextureId,
-        texture_params: (u32, u32, TextureFormat, u32, bool),
+        texture_params: (u32, u32, TextureFormat, bool),
         image_data: &[u8],
     ) -> TextureInfo {
         for (texture_index, texture_atlas) in
             self.texture_atlas.write().unwrap().iter_mut().enumerate()
         {
             let mut atlas_index = texture_index as i32;
-            if texture_params.4 {
+            if texture_params.3 {
                 // isLUT
                 atlas_index *= -1;
             }
@@ -181,7 +181,6 @@ impl TextureHandler {
             .push(TextureAtlas::create_default(
                 device,
                 texture_params.2,
-                texture_params.3,
             ));
         if DEBUG_TEXTURES {
             inox_log::debug_log!(

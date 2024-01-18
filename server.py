@@ -18,6 +18,7 @@ Handler.extensions_map={
     '.js':  'application/x-javascript',
     '.json': 'application/json',
     '.xml': 'application/xml',
+    '.wasm': 'application/wasm',
     '': 'application/octet-stream', # Default
     }
 
