@@ -81,7 +81,7 @@ where
             let index = self.new_index();
             self.map.insert(*id, index);
             //inox_log::debug_log!("Inserting [{:?}] = {} ", *id, index);
-            if index >= self.buffer.len() {
+            if index >= self.buffer.len() && PREALLOCATED_SIZE == 0 {
                 self.buffer.push(data);
                 self.is_empty.push(false);
             } else {

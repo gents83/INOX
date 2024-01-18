@@ -156,6 +156,11 @@ where
         (need_realloc, range)
     }
     fn insert(&mut self, id: &ResourceId, data: &[T]) -> Range<usize> {
+        debug_assert!(
+            PREALLOCATED_SIZE == 0,
+            "Trying to add in a buffer with preallocated size!!!"
+        );
+
         let start = self.data.len();
         let size = data.len();
         let end = start + size;

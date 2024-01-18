@@ -24,16 +24,16 @@ pub const LUT_PBR_GGX_UID: ResourceId = generate_static_uid_from_string("LUT_PBR
 pub const ENV_MAP_UID: ResourceId = generate_static_uid_from_string("ENV_MAP_UID");
 
 pub const ATOMIC_SIZE: u32 = 32;
-pub const MAX_NUM_LIGHTS: usize = 4096;
+pub const MAX_NUM_LIGHTS: usize = 1024;
 pub const MAX_NUM_TEXTURES: usize = 65536;
 pub const MAX_NUM_MATERIALS: usize = 65536;
 pub const SIZE_OF_DATA_BUFFER_ELEMENT: usize = 4;
 pub const NUM_DATA_BUFFER: usize = 8;
 pub const NUM_FRAMES_OF_HISTORY: usize = 2;
 
-pub type TexturesBuffer = Arc<RwLock<HashBuffer<TextureId, TextureInfo, 1>>>;
-pub type MaterialsBuffer = Arc<RwLock<HashBuffer<MaterialId, GPUMaterial, 1>>>;
-pub type LightsBuffer = Arc<RwLock<HashBuffer<LightId, LightData, 1>>>;
+pub type TexturesBuffer = Arc<RwLock<HashBuffer<TextureId, TextureInfo, MAX_NUM_TEXTURES>>>;
+pub type MaterialsBuffer = Arc<RwLock<HashBuffer<MaterialId, GPUMaterial, MAX_NUM_MATERIALS>>>;
+pub type LightsBuffer = Arc<RwLock<HashBuffer<LightId, LightData, MAX_NUM_LIGHTS>>>;
 pub type DrawCommandsBuffer = Arc<RwLock<HashMap<MeshFlags, RenderCommandsPerType>>>;
 pub type DispatchCommandBuffer = Arc<RwLock<HashMap<ResourceId, DispatchCommandSize>>>;
 pub type MeshesBuffer = Arc<RwLock<HashBuffer<MeshId, GPUMesh, 0>>>;
