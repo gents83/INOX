@@ -8,7 +8,7 @@ use inox_serialize::inox_serializable::SerializableRegistryRc;
 use inox_uid::generate_uid_from_string;
 
 use crate::{
-    DataTypeResourceEvent, OnCreateData, Resource, ResourceEvent, ResourceId, ResourceTrait,
+    DataTypeResourceEvent, OnCreateData, Resource, ResourceId, ResourceTrait,
     SerializableResourceEvent, SharedData, SharedDataRc,
 };
 
@@ -53,15 +53,6 @@ pub trait DataTypeResource: ResourceTrait {
             inox_log::debug_log!(
                 "Created resource {:?} with id {:?}",
                 <Self as ResourceTrait>::typename(),
-                id
-            );
-        }
-        if let Some(r) = shared_data.get_resource(&id) {
-            message_hub.send_event(ResourceEvent::<Self>::Created(r));
-        } else {
-            inox_log::debug_log!(
-                "Unable to create resource {:?} with id {:?}",
-                Self::typename(),
                 id
             );
         }
