@@ -1,6 +1,6 @@
 use inox_core::{
     implement_unique_system_uid, ContextRc, JobHandlerRw, JobHandlerTrait, JobPriority, System,
-    INDEPENDENT_JOB_ID,
+    SystemUID,
 };
 use inox_messenger::Listener;
 use inox_resources::{
@@ -113,7 +113,7 @@ impl System for RenderingSystem {
 
         let render_context = self.render_context.clone();
         self.job_handler.add_job(
-            &INDEPENDENT_JOB_ID,
+            &Self::system_id(),
             "Render Draw",
             JobPriority::High,
             move || {
