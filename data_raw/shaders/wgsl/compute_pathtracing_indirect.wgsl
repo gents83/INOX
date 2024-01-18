@@ -120,8 +120,9 @@ fn main(
     if (is_pixel_to_debug) {
         data_buffer_debug[0u] = f32(debug_index);
     } 
-    
-    data_buffer_1[data_index] = radiance.x;
-    data_buffer_1[data_index + 1u] = radiance.y;
-    data_buffer_1[data_index + 2u] = radiance.z;
+    if(bounce > 0u) {
+        data_buffer_1[data_index] = radiance.x;
+        data_buffer_1[data_index + 1u] = radiance.y;
+        data_buffer_1[data_index + 2u] = radiance.z;
+    }
 }

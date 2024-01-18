@@ -47,7 +47,7 @@ struct Data {
     pub lut_pbr_charlie_texture_index: u32,
     pub lut_pbr_ggx_texture_index: u32,
     pub env_map_texture_index: u32,
-    _padding2: u32,
+    pub num_lights: u32,
 }
 
 impl Default for Data {
@@ -67,7 +67,7 @@ impl Default for Data {
             lut_pbr_charlie_texture_index: 0,
             lut_pbr_ggx_texture_index: 0,
             env_map_texture_index: 0,
-            _padding2: 0,
+            num_lights: 0,
         }
     }
 }
@@ -139,6 +139,16 @@ impl ConstantData {
     }
     pub fn num_bounces(&self) -> u32 {
         self.data.num_bounces
+    }
+    pub fn set_num_lights(&mut self, n: u32) -> &mut Self {
+        if self.data.num_lights != n {
+            self.data.num_lights = n;
+            self.set_dirty(true);
+        }
+        self
+    }
+    pub fn num_lights(&self) -> u32 {
+        self.data.num_lights
     }
     #[allow(non_snake_case)]
     pub fn set_LUT(&mut self, lut_id: &Uid, texture_index: u32) -> &mut Self {

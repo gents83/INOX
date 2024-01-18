@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, MeshFlags, Pass,
-    RenderContext, RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
-    ShaderStage, StoreOperation, TextureId, TextureView, NUM_FRAMES_OF_HISTORY,
+    BindingData, BindingInfo, CommandBuffer, DrawCommandType, MeshFlags, Pass, RenderContext,
+    RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage,
+    StoreOperation, TextureId, TextureView, NUM_FRAMES_OF_HISTORY,
 };
 
 use inox_core::ContextRc;
@@ -15,9 +15,9 @@ pub const BLIT_PASS_NAME: &str = "BlitPass";
 
 pub struct BlitPass {
     render_pass: Resource<RenderPass>,
-    constant_data: ConstantDataRw,
     binding_data: BindingData,
     source_textures: [TextureId; NUM_FRAMES_OF_HISTORY],
+    frame_index: usize,
 }
 unsafe impl Send for BlitPass {}
 unsafe impl Sync for BlitPass {}
@@ -61,9 +61,9 @@ impl Pass for BlitPass {
                 &data,
                 None,
             ),
-            constant_data: render_context.global_buffers().constant_data.clone(),
             binding_data: BindingData::new(render_context, BLIT_PASS_NAME),
             source_textures: [INVALID_UID; NUM_FRAMES_OF_HISTORY],
+            frame_index: 0,
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -73,13 +73,10 @@ impl Pass for BlitPass {
 
         inox_profiler::scoped_profile!("blit_pass::init");
 
-        let current_frame_index =
-            self.constant_data.read().unwrap().frame_index() as usize % NUM_FRAMES_OF_HISTORY;
-
         let mut pass = self.render_pass.get_mut();
 
         self.binding_data.add_texture(
-            &self.source_textures[current_frame_index],
+            &self.source_textures[self.frame_index],
             BindingInfo {
                 group_index: 0,
                 binding_index: 0,
@@ -125,6 +122,8 @@ impl Pass for BlitPass {
                 "blit_pass",
             );
             pass.draw(render_context, render_pass, 0..3, 0..1);
+
+            self.frame_index = (self.frame_index + 1) % NUM_FRAMES_OF_HISTORY;
         }
     }
 }

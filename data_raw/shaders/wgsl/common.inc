@@ -109,7 +109,7 @@ struct ConstantData {
     lut_pbr_charlie_texture_index: u32,
     lut_pbr_ggx_texture_index: u32,
     environment_map_texture_index: u32,
-    _padding: u32,
+    num_lights: u32,
 };
 
 struct RuntimeVertexData {

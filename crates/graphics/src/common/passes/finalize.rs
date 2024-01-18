@@ -20,9 +20,12 @@ pub struct FinalizePass {
     constant_data: ConstantDataRw,
     data_buffers: DataBuffers,
     frame_textures: [Handle<Texture>; NUM_FRAMES_OF_HISTORY],
+    frame_index: usize,
 }
 unsafe impl Send for FinalizePass {}
 unsafe impl Sync for FinalizePass {}
+
+const NONE_TEXTURE_VALUE: Handle<Texture> = None;
 
 impl Pass for FinalizePass {
     fn name(&self) -> &str {
@@ -64,7 +67,8 @@ impl Pass for FinalizePass {
             constant_data: render_context.global_buffers().constant_data.clone(),
             binding_data: BindingData::new(render_context, FINALIZE_NAME),
             data_buffers: render_context.global_buffers().data_buffers.clone(),
-            frame_textures: [None, None],
+            frame_textures: [NONE_TEXTURE_VALUE; NUM_FRAMES_OF_HISTORY],
+            frame_index: 0,
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -74,17 +78,15 @@ impl Pass for FinalizePass {
 
         inox_profiler::scoped_profile!("finalize_pass::init");
 
-        let current_frame_index =
-            self.constant_data.read().unwrap().frame_index() as usize % NUM_FRAMES_OF_HISTORY;
-        let previous_frame_index = if current_frame_index == 0 {
+        let previous_frame_index = if self.frame_index == 0 {
             NUM_FRAMES_OF_HISTORY - 1
         } else {
-            current_frame_index - 1
+            self.frame_index - 1
         };
 
         let mut pass = self.render_pass.get_mut();
         pass.remove_all_render_targets()
-            .add_render_target(self.frame_textures[current_frame_index].as_ref().unwrap());
+            .add_render_target(self.frame_textures[self.frame_index].as_ref().unwrap());
 
         self.binding_data
             .add_uniform_buffer(
@@ -129,6 +131,10 @@ impl Pass for FinalizePass {
         surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
+        if self.frame_textures.iter().any(|h| h.is_none()) {
+            return;
+        }
+
         inox_profiler::scoped_profile!("finalize_pass::update");
 
         let pass = self.render_pass.get();
@@ -154,6 +160,8 @@ impl Pass for FinalizePass {
                 "finalize_pass",
             );
             pass.draw(render_context, render_pass, 0..3, 0..1);
+
+            self.frame_index = (self.frame_index + 1) % NUM_FRAMES_OF_HISTORY;
         }
     }
 }

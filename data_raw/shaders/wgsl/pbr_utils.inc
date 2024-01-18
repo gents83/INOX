@@ -669,8 +669,7 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
     f_sheen = vec3<f32>(0.0);
     f_clearcoat = vec3<f32>(0.0);
    
-    let num_lights = arrayLength(&lights.data);
-    let i = hash(constant_data.frame_index) % num_lights;
+    let i = hash(constant_data.frame_index) % constant_data.num_lights;
     
     var light = lights.data[i];
     if (light.light_type != LIGHT_TYPE_INVALID) { 

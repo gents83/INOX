@@ -24,14 +24,16 @@ pub const LUT_PBR_GGX_UID: ResourceId = generate_static_uid_from_string("LUT_PBR
 pub const ENV_MAP_UID: ResourceId = generate_static_uid_from_string("ENV_MAP_UID");
 
 pub const ATOMIC_SIZE: u32 = 32;
-pub const PREALLOCATED_MIN_SIZE: usize = 1;
+pub const MAX_NUM_LIGHTS: usize = 4096;
+pub const MAX_NUM_TEXTURES: usize = 65536;
+pub const MAX_NUM_MATERIALS: usize = 65536;
 pub const SIZE_OF_DATA_BUFFER_ELEMENT: usize = 4;
 pub const NUM_DATA_BUFFER: usize = 8;
 pub const NUM_FRAMES_OF_HISTORY: usize = 2;
 
-pub type TexturesBuffer = Arc<RwLock<HashBuffer<TextureId, TextureInfo, PREALLOCATED_MIN_SIZE>>>;
-pub type MaterialsBuffer = Arc<RwLock<HashBuffer<MaterialId, GPUMaterial, PREALLOCATED_MIN_SIZE>>>;
-pub type LightsBuffer = Arc<RwLock<HashBuffer<LightId, LightData, PREALLOCATED_MIN_SIZE>>>;
+pub type TexturesBuffer = Arc<RwLock<HashBuffer<TextureId, TextureInfo, 1>>>;
+pub type MaterialsBuffer = Arc<RwLock<HashBuffer<MaterialId, GPUMaterial, 1>>>;
+pub type LightsBuffer = Arc<RwLock<HashBuffer<LightId, LightData, 1>>>;
 pub type DrawCommandsBuffer = Arc<RwLock<HashMap<MeshFlags, RenderCommandsPerType>>>;
 pub type DispatchCommandBuffer = Arc<RwLock<HashMap<ResourceId, DispatchCommandSize>>>;
 pub type MeshesBuffer = Arc<RwLock<HashBuffer<MeshId, GPUMesh, 0>>>;
@@ -441,6 +443,10 @@ impl GlobalBuffers {
             .unwrap()
             .insert(light_id, LightData::default());
         light.set_light_index(index as _);
+
+        let mut constant_data = self.constant_data.write().unwrap();
+        let num_lights = constant_data.num_lights();
+        constant_data.set_num_lights(num_lights + 1);
     }
     pub fn update_light(&self, light_id: &LightId, light_data: &LightData) {
         inox_profiler::scoped_profile!("render_buffers::update_light");
@@ -454,6 +460,9 @@ impl GlobalBuffers {
         inox_profiler::scoped_profile!("render_buffers::remove_light");
 
         self.lights.write().unwrap().remove(light_id);
+        let mut constant_data = self.constant_data.write().unwrap();
+        let num_lights = constant_data.num_lights();
+        constant_data.set_num_lights(num_lights - 1);
     }
 
     pub fn add_texture(
