@@ -15,7 +15,7 @@ use crate::{
     AsBinding, ConstantDataRw, DispatchCommandSize, GPUMaterial, GPUMesh, GPUMeshlet,
     GPURuntimeVertexData, Light, LightData, LightId, Material, MaterialData, MaterialFlags,
     MaterialId, Mesh, MeshData, MeshFlags, MeshId, RenderCommandsPerType, TextureId, TextureInfo,
-    TextureType, VecU32,
+    TextureType, VecF32, VecU32,
 };
 
 pub const TLAS_UID: ResourceId = generate_static_uid_from_string("TLAS");
@@ -25,6 +25,8 @@ pub const ENV_MAP_UID: ResourceId = generate_static_uid_from_string("ENV_MAP_UID
 
 pub const ATOMIC_SIZE: u32 = 32;
 pub const PREALLOCATED_MIN_SIZE: usize = 1;
+pub const SIZE_OF_DATA_BUFFER_ELEMENT: usize = 4;
+pub const NUM_DATA_BUFFER: usize = 8;
 
 pub type TexturesBuffer = Arc<RwLock<HashBuffer<TextureId, TextureInfo, PREALLOCATED_MIN_SIZE>>>;
 pub type MaterialsBuffer = Arc<RwLock<HashBuffer<MaterialId, GPUMaterial, PREALLOCATED_MIN_SIZE>>>;
@@ -39,7 +41,9 @@ pub type VertexPositionsBuffer = Arc<RwLock<Buffer<u32, 0>>>; //MeshId <-> [u32]
 pub type VertexAttributesBuffer = Arc<RwLock<Buffer<u32, 0>>>; //MeshId <-> [u32]
 pub type RuntimeVerticesBuffer = Arc<RwLock<Buffer<GPURuntimeVertexData, 0>>>;
 pub type AtomicCounter = Arc<RwLock<AtomicU32>>;
-pub type AtomicCounters = Arc<RwLock<VecU32>>;
+pub type ArrayU32 = Arc<RwLock<VecU32>>;
+pub type ArrayF32 = Arc<RwLock<VecF32>>;
+pub type DataBuffers = [ArrayF32; NUM_DATA_BUFFER];
 
 //Alignment should be 4, 8, 16 or 32 bytes
 #[derive(Default)]
@@ -58,10 +62,9 @@ pub struct GlobalBuffers {
     pub vertex_positions: VertexPositionsBuffer,
     pub vertex_attributes: VertexAttributesBuffer,
     pub runtime_vertices: RuntimeVerticesBuffer,
-    pub culling_result: AtomicCounters,
+    pub culling_result: ArrayU32,
     pub tlas_start_index: AtomicCounter,
-    pub radiance_data_buffer: AtomicCounters,
-    pub atomic_counters: AtomicCounters,
+    pub data_buffers: DataBuffers,
 }
 
 impl GlobalBuffers {

@@ -35,11 +35,24 @@ var finalize_texture: texture_2d<f32>;
 @group(1) @binding(4)
 var visibility_texture: texture_multisampled_2d<u32>;
 @group(1) @binding(5)
-var radiance_texture: texture_2d<f32>;
-@group(1) @binding(6)
 var depth_texture: texture_depth_multisampled_2d;
-@group(1) @binding(7)
-var debug_data_texture: texture_2d<f32>;
+
+@group(3) @binding(0)
+var<storage, read> data_buffer_0: array<f32>;
+@group(3) @binding(1)
+var<storage, read> data_buffer_1: array<f32>;
+@group(3) @binding(2)
+var<storage, read> data_buffer_2: array<f32>;
+@group(3) @binding(3)
+var<storage, read> data_buffer_3: array<f32>;
+@group(3) @binding(4)
+var<storage, read> data_buffer_4: array<f32>;
+@group(3) @binding(5)
+var<storage, read> data_buffer_5: array<f32>;
+@group(3) @binding(6)
+var<storage, read> data_buffer_6: array<f32>;
+@group(3) @binding(7)
+var<storage, read> data_buffer_debug: array<f32>;
 
 #import "texture_utils.inc"
 #import "geom_utils.inc"
@@ -50,14 +63,6 @@ var debug_data_texture: texture_2d<f32>;
 #import "visibility_utils.inc"
 #import "color_utils.inc"
 
-
-fn read_value_from_debug_data_texture(i: ptr<function, u32>) -> f32 {
-    let dimensions = textureDimensions(debug_data_texture);
-    var index = *i;
-    let v = textureLoad(debug_data_texture, vec2<u32>(index % dimensions.x, index / dimensions.x), 0);
-    *i = index + 1u;
-    return v.r;
-}
 
 fn draw_triangle_from_visibility(visibility_id: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec3<f32>{
     let meshlet_id = (visibility_id >> 8u) - 1u;
@@ -105,46 +110,29 @@ fn draw_cube_from_min_max(min: vec3<f32>, max:vec3<f32>, pixel: vec2<u32>, dimen
     return color;
 }
 
-fn debug_color_override(color: vec4<f32>, screen_pixel: vec2<u32>, dimensions: vec2<u32>) -> vec4<f32> {
-    var out_color = color;
+
+@vertex
+fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
+    //only one triangle, exceeding the viewport size
+    let uv = vec2<f32>(f32((in_vertex_index << 1u) & 2u), f32(in_vertex_index & 2u));
+    let pos = vec4<f32>(uv * vec2<f32>(2., -2.) + vec2<f32>(-1., 1.), 0., 1.);
+
+    var vertex_out: VertexOutput;
+    vertex_out.clip_position = pos;
+    vertex_out.uv = uv;
+    return vertex_out;
+}
+
+@fragment
+fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
+    let dimensions = vec2<u32>(u32(constant_data.screen_width), u32(constant_data.screen_height));
+    let screen_pixel = vec2<u32>(u32(v_in.uv.x * f32(dimensions.x)), u32(v_in.uv.y * f32(dimensions.y)));
+
+    var out_color = textureLoad(finalize_texture, screen_pixel, 0);    
+
     out_color.a = 0.;
-    let pixel = vec2<f32>(0.5) + vec2<f32>(screen_pixel);
-    /*
-    let visibility_dimensions = textureDimensions(visibility_texture);
-    let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
-    let visibility_pixel = vec2<u32>(pixel * visibility_scale);
-    let debug_pixel = vec2<u32>(constant_data.debug_uv_coords * vec2<f32>(visibility_dimensions));
-    let debug_visibility_value = textureLoad(visibility_texture, debug_pixel, 0);
-    let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
-    let debug_visibility_id = debug_visibility_value.r;
-    let visibility_id = visibility_value.r;
-    if (debug_visibility_id != 0u && (debug_visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
-        let debug_meshlet_id = (debug_visibility_id >> 8u); 
-        if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
-            let meshlet_id = (visibility_id >> 8u); 
-            if(meshlet_id == debug_meshlet_id) {
-                let meshlet_color = hash(meshlet_id + 1u);
-                out_color = vec4<f32>(vec3<f32>(
-                    f32(meshlet_color & 255u),
-                    f32((meshlet_color >> 8u) & 255u),
-                    f32((meshlet_color >> 16u) & 255u)
-                ) / 255., 1.);
-            }
-        }
-        let meshlet = &meshlets.data[debug_meshlet_id];            
-        let mesh_id = (*meshlet).mesh_index;
-        let mesh = &meshes.data[mesh_id];
-        let meshlet_center = rotate_vector((*meshlet).center, (*mesh).orientation); 
-        let cone_axis_cutoff = unpack4x8snorm((*meshlet).cone_axis_cutoff) / 127.;
-        let cone_axis = normalize(rotate_vector(cone_axis_cutoff.xyz, (*mesh).orientation)); 
-        
-        let line_color = vec3<f32>(0., 1., 0.);
-        let line_size = 0.01;  
-        var color = vec3<f32>(0.);
-        color += draw_line_3d(screen_pixel, dimensions, clip_to_world(vec2<f32>(0.), 0.), meshlet_center, line_color, line_size);
-        out_color += vec4<f32>(color, 1.);
-    }
-    */
+    let pixel = vec2<f32>(screen_pixel);
+    
     if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS) != 0) {
         let visibility_dimensions = textureDimensions(visibility_texture);
         let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
@@ -341,10 +329,12 @@ fn debug_color_override(color: vec4<f32>, screen_pixel: vec2<u32>, dimensions: v
         }
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER) != 0) {
-        let radiance_dimensions = textureDimensions(radiance_texture);
-        let radiance_scale = vec2<f32>(radiance_dimensions) / vec2<f32>(dimensions);
-        let radiance_pixel = vec2<u32>(pixel * radiance_scale);
-        out_color = textureLoad(radiance_texture, radiance_pixel, 0);
+        let data_dimensions = vec2<u32>(DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        let data_scale = vec2<f32>(data_dimensions) / vec2<f32>(dimensions);
+        let data_pixel = vec2<u32>(pixel * data_scale);
+        let data_index = (data_pixel.y * data_dimensions.x + data_pixel.x) * SIZE_OF_DATA_BUFFER_ELEMENT;
+        let radiance = vec3<f32>(data_buffer_1[data_index], data_buffer_1[data_index + 1u], data_buffer_1[data_index + 2u]);
+        out_color = vec4<f32>(radiance, 1.);
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER) != 0) {
         let depth_dimensions = textureDimensions(depth_texture);
@@ -355,9 +345,6 @@ fn debug_color_override(color: vec4<f32>, screen_pixel: vec2<u32>, dimensions: v
         out_color = vec4<f32>(v, 1.);
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE) != 0) {
-        let debug_dimensions = textureDimensions(debug_data_texture);
-        let debug_scale = vec2<f32>(debug_dimensions) / vec2<f32>(dimensions);
-        let debug_pixel = vec2<u32>(pixel * debug_scale);
         var origin = vec3<f32>(0.);
         var direction = vec3<f32>(0.);
         let line_color = vec3<f32>(0., 1., 0.);
@@ -366,67 +353,37 @@ fn debug_color_override(color: vec4<f32>, screen_pixel: vec2<u32>, dimensions: v
         var color = out_color.rgb;        
         /*
         var debug_bhv_index = 100u;
-        let max_bhv_index = u32(read_value_from_debug_data_texture(&debug_bhv_index));
+        let max_bhv_index = u32(read_value_from_data_buffer(&data_buffer_debug, &debug_bhv_index));
         while(debug_bhv_index < max_bhv_index) 
         {
-            var min = vec3<f32>(0.);
-            min.x = read_value_from_debug_data_texture(&debug_bhv_index);
-            min.y = read_value_from_debug_data_texture(&debug_bhv_index);
-            min.z = read_value_from_debug_data_texture(&debug_bhv_index);
-            var max = vec3<f32>(0.);
-            max.x = read_value_from_debug_data_texture(&debug_bhv_index);
-            max.y = read_value_from_debug_data_texture(&debug_bhv_index);
-            max.z = read_value_from_debug_data_texture(&debug_bhv_index);
-            color += draw_cube_from_min_max(min, max, debug_pixel, debug_dimensions);
-            //color += draw_line_3d(debug_pixel, debug_dimensions, min, max, vec3<f32>(0.,0.,1.), line_size);
+            var min = read_vec3_from_data_buffer(&data_buffer_debug, &debug_bhv_index);
+            var max = read_vec3_from_data_buffer(&data_buffer_debug, &debug_bhv_index);
+            color += draw_cube_from_min_max(min, max, screen_pixel, dimensions);
+            //color += draw_line_3d(screen_pixel, dimensions, min, max, vec3<f32>(0.,0.,1.), line_size);
         }
         */
         
-        var debug_index = 0u;
-        let max_index = u32(read_value_from_debug_data_texture(&debug_index));
+        var debug_index = 0u;        
+        let max_index = u32(data_buffer_debug[debug_index]);
+        debug_index = debug_index + 1u;
+        
         while(debug_index < max_index) {
-            let visibility_id = u32(read_value_from_debug_data_texture(&debug_index));
-            color += draw_triangle_from_visibility(visibility_id, debug_pixel, debug_dimensions);
+            let visibility_id = u32(data_buffer_debug[debug_index]);
+            color += draw_triangle_from_visibility(visibility_id, screen_pixel, dimensions);
             
             var previous = origin;
-            origin.x = read_value_from_debug_data_texture(&debug_index);
-            origin.y = read_value_from_debug_data_texture(&debug_index);
-            origin.z = read_value_from_debug_data_texture(&debug_index);
-            direction.x = read_value_from_debug_data_texture(&debug_index);
-            direction.y = read_value_from_debug_data_texture(&debug_index);
-            direction.z = read_value_from_debug_data_texture(&debug_index);
+            origin = vec3<f32>(data_buffer_debug[debug_index + 1u], data_buffer_debug[debug_index + 2u], data_buffer_debug[debug_index + 3u]);
+            direction = vec3<f32>(data_buffer_debug[debug_index + 4u], data_buffer_debug[debug_index + 5u], data_buffer_debug[debug_index + 6u]);
+            
             if (bounce_index > 0u) {
-                color += draw_line_3d(debug_pixel, debug_dimensions, previous, origin, line_color, line_size);
+                color += draw_line_3d(screen_pixel, dimensions, previous, origin, line_color, line_size);
             }
             bounce_index += 1u;
+            debug_index = debug_index + 7u;
         }
-        color += draw_line_3d(debug_pixel, debug_dimensions, origin, origin + direction * 5., line_color, line_size);
+        color += draw_line_3d(screen_pixel, dimensions, origin, origin + direction * 5., line_color, line_size);
         out_color = vec4<f32>(color, 1.);
-    } 
-    return out_color;
-}
-
-
-
-@vertex
-fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
-    //only one triangle, exceeding the viewport size
-    let uv = vec2<f32>(f32((in_vertex_index << 1u) & 2u), f32(in_vertex_index & 2u));
-    let pos = vec4<f32>(uv * vec2<f32>(2., -2.) + vec2<f32>(-1., 1.), 0., 1.);
-
-    var vertex_out: VertexOutput;
-    vertex_out.clip_position = pos;
-    vertex_out.uv = uv;
-    return vertex_out;
-}
-
-@fragment
-fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
-    let dimensions = textureDimensions(finalize_texture);
-    let pixel = vec2<u32>(u32(v_in.uv.x * f32(dimensions.x)), u32(v_in.uv.y * f32(dimensions.y)));
-
-    var out_color = textureLoad(finalize_texture, pixel, 0);    
-    out_color = debug_color_override(out_color, pixel, dimensions); 
-
+    }
+    
     return select(vec4<f32>(0.), out_color, out_color.a > 0.);
 }

@@ -2,14 +2,15 @@ use std::path::PathBuf;
 
 use crate::{
     BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer, MeshFlags,
-    MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderContextRc, RuntimeVerticesBuffer,
-    SamplerType, ShaderStage, TextureId, TextureView, TexturesBuffer, VertexAttributesBuffer,
+    ConstantDataRw, DataBuffers, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer,
+    MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderContextRc,
+    RuntimeVerticesBuffer, SamplerType, ShaderStage, TextureView, TexturesBuffer,
+    VertexAttributesBuffer, NUM_DATA_BUFFER,
 };
 
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
-use inox_uid::{generate_random_uid, INVALID_UID};
+use inox_uid::generate_random_uid;
 
 pub const COMPUTE_PATHTRACING_INDIRECT_PIPELINE: &str =
     "pipelines/ComputePathTracingIndirect.compute_pipeline";
@@ -28,10 +29,7 @@ pub struct ComputePathTracingIndirectPass {
     textures: TexturesBuffer,
     materials: MaterialsBuffer,
     lights: LightsBuffer,
-    rays_texture: TextureId,
-    radiance_texture: TextureId,
-    binding_texture: TextureId,
-    debug_data_texture: TextureId,
+    data_buffers: DataBuffers,
     dimensions: (u32, u32),
 }
 unsafe impl Send for ComputePathTracingIndirectPass {}
@@ -80,18 +78,15 @@ impl Pass for ComputePathTracingIndirectPass {
             textures: render_context.global_buffers().textures.clone(),
             materials: render_context.global_buffers().materials.clone(),
             lights: render_context.global_buffers().lights.clone(),
+            data_buffers: render_context.global_buffers().data_buffers.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_INDIRECT_NAME),
-            rays_texture: INVALID_UID,
-            radiance_texture: INVALID_UID,
-            binding_texture: INVALID_UID,
-            debug_data_texture: INVALID_UID,
             dimensions: (0, 0),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("pathtracing_indirect_pass::init");
 
-        if self.radiance_texture.is_nil() || self.meshlets.read().unwrap().is_empty() {
+        if self.meshlets.read().unwrap().is_empty() {
             return;
         }
 
@@ -196,8 +191,9 @@ impl Pass for ComputePathTracingIndirectPass {
                     ..Default::default()
                 },
             )
-            .add_texture(
-                &self.rays_texture,
+            .add_storage_buffer(
+                &mut *self.data_buffers[0].write().unwrap(),
+                Some("DataBuffer_0"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 2,
@@ -205,8 +201,9 @@ impl Pass for ComputePathTracingIndirectPass {
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
             )
-            .add_texture(
-                &self.radiance_texture,
+            .add_storage_buffer(
+                &mut *self.data_buffers[1].write().unwrap(),
+                Some("DataBuffer_1"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 3,
@@ -214,8 +211,9 @@ impl Pass for ComputePathTracingIndirectPass {
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
             )
-            .add_texture(
-                &self.binding_texture,
+            .add_storage_buffer(
+                &mut *self.data_buffers[2].write().unwrap(),
+                Some("DataBuffer_2"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 4,
@@ -223,8 +221,9 @@ impl Pass for ComputePathTracingIndirectPass {
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
             )
-            .add_texture(
-                &self.debug_data_texture,
+            .add_storage_buffer(
+                &mut *self.data_buffers[NUM_DATA_BUFFER - 1].write().unwrap(),
+                Some("DataBuffer_Debug"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 5,
@@ -260,7 +259,7 @@ impl Pass for ComputePathTracingIndirectPass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        if self.radiance_texture.is_nil() || self.meshlets.read().unwrap().is_empty() {
+        if self.meshlets.read().unwrap().is_empty() {
             return;
         }
 
@@ -289,24 +288,7 @@ impl Pass for ComputePathTracingIndirectPass {
 }
 
 impl ComputePathTracingIndirectPass {
-    pub fn set_debug_data_texture(&mut self, texture_id: &TextureId) -> &mut Self {
-        self.debug_data_texture = *texture_id;
-        self
-    }
-    pub fn set_binding_texture(&mut self, texture_id: &TextureId) -> &mut Self {
-        self.binding_texture = *texture_id;
-        self
-    }
-    pub fn set_rays_texture(&mut self, texture_id: &TextureId) -> &mut Self {
-        self.rays_texture = *texture_id;
-        self
-    }
-    pub fn set_radiance_texture(
-        &mut self,
-        texture_id: &TextureId,
-        dimensions: (u32, u32),
-    ) -> &mut Self {
-        self.radiance_texture = *texture_id;
+    pub fn set_dimensions(&mut self, dimensions: (u32, u32)) -> &mut Self {
         self.dimensions = dimensions;
         self
     }

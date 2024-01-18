@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{
-    AsBinding, AtomicCounters, BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer,
+    ArrayU32, AsBinding, BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer,
     ComputePass, ComputePassData, ConstantDataRw, DrawCommandType, DrawCommandsBuffer, GpuBuffer,
     MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderContextRc, ShaderStage,
     TextureView, ATOMIC_SIZE,
@@ -81,7 +81,7 @@ pub struct CullingPass {
     meshlets: MeshletsBuffer,
     bhv: BVHBuffer,
     culling_data: CullingData,
-    culling_result: AtomicCounters,
+    culling_result: ArrayU32,
     listener: Listener,
     update_camera: bool,
 }

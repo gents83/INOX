@@ -205,4 +205,6 @@ macro_rules! declare_as_dirty_binding {
 
 declare_as_dirty_binding!(u32);
 declare_as_dirty_binding!(i32);
+declare_as_dirty_binding!(f32);
 declare_as_binding_vector!(VecU32, u32);
+declare_as_binding_vector!(VecF32, f32);

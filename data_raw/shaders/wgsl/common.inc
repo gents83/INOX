@@ -1,3 +1,26 @@
+const DEFAULT_WIDTH: u32 = 1920u;
+const DEFAULT_HEIGHT: u32 = 1080u;
+const SIZE_OF_DATA_BUFFER_ELEMENT: u32 = 4u;
+
+const CONSTANT_DATA_FLAGS_NONE: u32 = 0u;
+const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1u;
+const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 1u << 1u;
+const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 1u << 2u;
+const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS: u32 = 1u << 3u;
+const CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER: u32 = 1u << 4u;
+const CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER: u32 = 1u << 5u;
+const CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE: u32 = 1u << 6u;
+const CONSTANT_DATA_FLAGS_DISPLAY_NORMALS: u32 = 1u << 7u;
+const CONSTANT_DATA_FLAGS_DISPLAY_TANGENT: u32 = 1u << 8u;
+const CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT: u32 = 1u << 9u;
+const CONSTANT_DATA_FLAGS_DISPLAY_BASE_COLOR: u32 = 1u << 10u;
+const CONSTANT_DATA_FLAGS_DISPLAY_METALLIC: u32 = 1u << 11u;
+const CONSTANT_DATA_FLAGS_DISPLAY_ROUGHNESS: u32 = 1u << 12u;
+const CONSTANT_DATA_FLAGS_DISPLAY_UV_0: u32 = 1u << 13u;
+const CONSTANT_DATA_FLAGS_DISPLAY_UV_1: u32 = 1u << 14u;
+const CONSTANT_DATA_FLAGS_DISPLAY_UV_2: u32 = 1u << 15u;
+const CONSTANT_DATA_FLAGS_DISPLAY_UV_3: u32 = 1u << 16u;
+
 const MAX_TEXTURE_ATLAS_COUNT: u32 = 8u;
 const MAX_TEXTURE_COORDS_SET: u32 = 4u;
 
@@ -30,25 +53,6 @@ const MESH_FLAGS_TRANSPARENT: u32 = 1u << 2u;
 const MESH_FLAGS_WIREFRAME: u32 = 1u << 3u;
 const MESH_FLAGS_DEBUG: u32 = 1u << 4u;
 const MESH_FLAGS_UI: u32 = 1u << 5u;
-
-const CONSTANT_DATA_FLAGS_NONE: u32 = 0u;
-const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1u;
-const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 1u << 1u;
-const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 1u << 2u;
-const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS: u32 = 1u << 3u;
-const CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER: u32 = 1u << 4u;
-const CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER: u32 = 1u << 5u;
-const CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE: u32 = 1u << 6u;
-const CONSTANT_DATA_FLAGS_DISPLAY_NORMALS: u32 = 1u << 7u;
-const CONSTANT_DATA_FLAGS_DISPLAY_TANGENT: u32 = 1u << 8u;
-const CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT: u32 = 1u << 9u;
-const CONSTANT_DATA_FLAGS_DISPLAY_BASE_COLOR: u32 = 1u << 10u;
-const CONSTANT_DATA_FLAGS_DISPLAY_METALLIC: u32 = 1u << 11u;
-const CONSTANT_DATA_FLAGS_DISPLAY_ROUGHNESS: u32 = 1u << 12u;
-const CONSTANT_DATA_FLAGS_DISPLAY_UV_0: u32 = 1u << 13u;
-const CONSTANT_DATA_FLAGS_DISPLAY_UV_1: u32 = 1u << 14u;
-const CONSTANT_DATA_FLAGS_DISPLAY_UV_2: u32 = 1u << 15u;
-const CONSTANT_DATA_FLAGS_DISPLAY_UV_3: u32 = 1u << 16u;
 
 
 const MATH_PI: f32 = 3.14159265359;
@@ -260,21 +264,6 @@ struct Ray {
     t_max: f32,
 };
 
-struct RadianceData {
-    origin: vec3<f32>,
-    seed_x: u32,
-    direction: vec3<f32>,
-    seed_y: u32,
-    radiance: vec3<f32>,
-    pixel: u32,
-    throughput_weight: vec3<f32>,
-    bounce: u32,
-};
-
-struct RadianceDataBuffer {
-    data: array<RadianceData>,
-};
-
 struct PixelData {
     world_pos: vec3<f32>,
     material_id: u32,
@@ -289,7 +278,7 @@ struct TBN {
     normal: vec3<f32>,
     tangent: vec3<f32>,
     binormal: vec3<f32>,
-}
+};
 
 struct MaterialInfo {
     base_color: vec4<f32>,
@@ -331,4 +320,4 @@ struct MaterialInfo {
     f_diffuse: vec3<f32>,
     f_diffuse_ibl: vec3<f32>,
     f_specular: vec3<f32>,
-}
+};

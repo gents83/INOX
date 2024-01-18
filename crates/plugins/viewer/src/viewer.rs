@@ -6,10 +6,10 @@ use inox_graphics::{
     platform::{has_multisampling_support, has_wireframe_support},
     rendering_system::RenderingSystem,
     update_system::UpdateSystem,
-    BlitPass, ComputeFinalizePass, ComputePathTracingDirectPass, ComputePathTracingIndirectPass,
-    ComputeRuntimeVerticesPass, CullingPass, DebugPass, Pass, RenderContextRc, RenderPass,
-    Renderer, RendererRw, TextureFormat, TextureUsage, VisibilityBufferPass, WireframePass,
-    DEFAULT_HEIGHT, DEFAULT_WIDTH, WIREFRAME_PASS_NAME,
+    BlitPass, ComputePathTracingDirectPass, ComputePathTracingIndirectPass,
+    ComputeRuntimeVerticesPass, CullingPass, DebugPass, FinalizePass, Pass, RenderContextRc,
+    RenderPass, Renderer, RendererRw, TextureFormat, TextureUsage, VisibilityBufferPass,
+    WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH, SIZE_OF_DATA_BUFFER_ELEMENT, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -25,11 +25,7 @@ const ADD_UI_PASS: bool = true;
 enum RenderTargetType {
     Visibility = 0,
     Depth = 1,
-    Rays = 2,
-    Radiance = 3,
-    Binding = 4,
-    Finalize = 5,
-    DebugData = 6,
+    Finalize = 2,
 }
 
 pub struct Viewer {
@@ -53,6 +49,7 @@ impl Plugin for Viewer {
 
         let context_rc = context.clone();
         let _renderer = Renderer::new(window.handle(), context, move |render_context| {
+            Self::create_data_buffers(render_context, DEFAULT_WIDTH, DEFAULT_HEIGHT);
             Self::create_systems(&context_rc, render_context);
             Self::create_render_targets(render_context, DEFAULT_WIDTH, DEFAULT_HEIGHT);
             Self::create_render_passes(&context_rc, render_context);
@@ -150,7 +147,7 @@ impl Viewer {
         context.add_system(inox_core::Phases::Update, viewer_system, None);
     }
     fn create_render_targets(render_context: &RenderContextRc, width: u32, height: u32) {
-        let half_dims = (width / 2, height / 2);
+        let _half_dims = (width / 2, height / 2);
         let single_sample = 1;
         let multi_sample = if has_multisampling_support() {
             8
@@ -180,51 +177,27 @@ impl Viewer {
             multi_sample,
         );
         debug_assert!(_depth == RenderTargetType::Depth as usize);
-        //Rays,
-        let _rays = render_context.create_render_target(
-            width,
-            height,
-            TextureFormat::Rgba32Float,
-            usage | TextureUsage::StorageBinding,
-            single_sample,
-        );
-        debug_assert!(_rays == RenderTargetType::Rays as usize);
-        //Radiance,
-        let _radiance = render_context.create_render_target(
-            width,
-            height,
-            TextureFormat::Rgba32Float,
-            usage | TextureUsage::StorageBinding,
-            single_sample,
-        );
-        debug_assert!(_radiance == RenderTargetType::Radiance as usize);
-        //Binding,
-        let _binding = render_context.create_render_target(
-            width,
-            height,
-            TextureFormat::Rgba32Float,
-            usage | TextureUsage::StorageBinding,
-            single_sample,
-        );
-        debug_assert!(_binding == RenderTargetType::Binding as usize);
         //Finalize,
         let _finalize = render_context.create_render_target(
             width,
             height,
             TextureFormat::Rgba8Unorm,
-            usage | TextureUsage::StorageBinding,
+            usage,
             single_sample,
         );
         debug_assert!(_finalize == RenderTargetType::Finalize as usize);
-        //Debug,
-        let _debug_data = render_context.create_render_target(
-            half_dims.0,
-            half_dims.1,
-            TextureFormat::R32Float,
-            usage | TextureUsage::StorageBinding,
-            single_sample,
-        );
-        debug_assert!(_debug_data == RenderTargetType::DebugData as usize);
+    }
+    fn create_data_buffers(render_context: &RenderContextRc, width: u32, height: u32) {
+        render_context
+            .global_buffers()
+            .data_buffers
+            .iter()
+            .for_each(|d| {
+                d.write()
+                    .unwrap()
+                    .data_mut()
+                    .resize(SIZE_OF_DATA_BUFFER_ELEMENT * (width * height) as usize, 0.);
+            });
     }
     fn create_render_passes(context: &ContextRc, render_context: &RenderContextRc) {
         Self::create_compute_runtime_vertices_pass(context, render_context, true);
@@ -233,7 +206,7 @@ impl Viewer {
         Self::create_visibility_pass(context, render_context);
         Self::create_compute_pathtracing_direct_pass(context, render_context);
         Self::create_compute_pathtracing_indirect_pass(context, render_context);
-        Self::create_compute_finalize_pass(context, render_context);
+        Self::create_finalize_pass(context, render_context);
         Self::create_blit_pass(context, render_context);
 
         Self::create_debug_pass(context, render_context);
@@ -276,15 +249,12 @@ impl Viewer {
     ) {
         let mut compute_pathtracing_direct_pass =
             ComputePathTracingDirectPass::create(context, render_context);
-        let radiance_texture = render_context.render_target(RenderTargetType::Radiance as usize);
+        let visibility_texture =
+            render_context.render_target(RenderTargetType::Visibility as usize);
         compute_pathtracing_direct_pass
-            .set_rays_texture(&render_context.render_target_id(RenderTargetType::Rays as usize))
-            .set_radiance_texture(radiance_texture.id(), radiance_texture.get().dimensions())
-            .set_binding_texture(
-                &render_context.render_target_id(RenderTargetType::Binding as usize),
-            )
             .set_visibility_texture(
-                &render_context.render_target_id(RenderTargetType::Visibility as usize),
+                visibility_texture.id(),
+                visibility_texture.get().dimensions(),
             )
             .set_depth_texture(&render_context.render_target_id(RenderTargetType::Depth as usize));
         render_context.add_pass(compute_pathtracing_direct_pass, true);
@@ -295,30 +265,16 @@ impl Viewer {
     ) {
         let mut compute_pathtracing_indirect_pass =
             ComputePathTracingIndirectPass::create(context, render_context);
-        let radiance_texture = render_context.render_target(RenderTargetType::Radiance as usize);
-        compute_pathtracing_indirect_pass
-            .set_radiance_texture(radiance_texture.id(), radiance_texture.get().dimensions())
-            .set_rays_texture(&render_context.render_target_id(RenderTargetType::Rays as usize))
-            .set_binding_texture(
-                &render_context.render_target_id(RenderTargetType::Binding as usize),
-            )
-            .set_debug_data_texture(
-                &render_context.render_target_id(RenderTargetType::DebugData as usize),
-            );
+        let visibility_texture =
+            render_context.render_target(RenderTargetType::Visibility as usize);
+        compute_pathtracing_indirect_pass.set_dimensions(visibility_texture.get().dimensions());
         render_context.add_pass(compute_pathtracing_indirect_pass, true);
     }
-    fn create_compute_finalize_pass(context: &ContextRc, render_context: &RenderContextRc) {
-        let mut compute_finalize_pass = ComputeFinalizePass::create(context, render_context);
-        let finalize_texture = render_context.render_target(RenderTargetType::Finalize as usize);
-        compute_finalize_pass
-            .set_finalize_texture(finalize_texture.id(), finalize_texture.get().dimensions())
-            .set_binding_texture(
-                &render_context.render_target_id(RenderTargetType::Binding as usize),
-            )
-            .set_radiance_texture(
-                &render_context.render_target_id(RenderTargetType::Radiance as usize),
-            );
-        render_context.add_pass(compute_finalize_pass, true);
+    fn create_finalize_pass(context: &ContextRc, render_context: &RenderContextRc) {
+        let finalize_pass = FinalizePass::create(context, render_context);
+        finalize_pass
+            .add_render_target(&render_context.render_target(RenderTargetType::Finalize as usize));
+        render_context.add_pass(finalize_pass, true);
     }
     fn create_blit_pass(context: &ContextRc, render_context: &RenderContextRc) {
         let mut blit_pass = BlitPass::create(context, render_context);
@@ -334,13 +290,7 @@ impl Viewer {
             .set_visibility_texture(
                 &render_context.render_target_id(RenderTargetType::Visibility as usize),
             )
-            .set_radiance_texture(
-                &render_context.render_target_id(RenderTargetType::Radiance as usize),
-            )
-            .set_depth_texture(&render_context.render_target_id(RenderTargetType::Depth as usize))
-            .set_debug_data_texture(
-                &render_context.render_target_id(RenderTargetType::DebugData as usize),
-            );
+            .set_depth_texture(&render_context.render_target_id(RenderTargetType::Depth as usize));
         render_context.add_pass(debug_pass, true);
     }
     fn create_wireframe_pass(

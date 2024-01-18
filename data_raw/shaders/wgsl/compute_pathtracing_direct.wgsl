@@ -27,11 +27,11 @@ var visibility_texture: texture_multisampled_2d<u32>;
 @group(1) @binding(3)
 var depth_texture: texture_depth_multisampled_2d;
 @group(1) @binding(4)
-var rays_texture: texture_storage_2d<rgba32float, read_write>;
+var<storage, read_write> data_buffer_0: array<f32>;
 @group(1) @binding(5)
-var radiance_texture: texture_storage_2d<rgba32float, read_write>;
+var<storage, read_write> data_buffer_1: array<f32>;
 @group(1) @binding(6)
-var binding_texture: texture_storage_2d<rgba32float, read_write>;
+var<storage, read_write> data_buffer_2: array<f32>;
 
 #import "texture_utils.inc"
 #import "matrix_utils.inc"
@@ -50,7 +50,7 @@ fn main(
     @builtin(workgroup_id) workgroup_id: vec3<u32>,
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
 ) {
-    let dimensions = textureDimensions(radiance_texture);
+    let dimensions = vec2<u32>(DEFAULT_WIDTH, DEFAULT_HEIGHT);
 
     let pixel = vec2<u32>(global_invocation_id.x, global_invocation_id.y);
     if (pixel.x >= dimensions.x || pixel.y >= dimensions.y) {
@@ -60,7 +60,6 @@ fn main(
     var seed = (pixel * dimensions) ^ vec2<u32>(constant_data.frame_index << 16u);
 
     var num_samples = 0u;
-    var data: RadianceData;
     var origin: vec3<f32>;
     var direction: vec3<f32>;
     var radiance: vec3<f32>;
@@ -104,16 +103,20 @@ fn main(
         throughput_weight = throughput_weight  * tot_samples;
     }
 
-    let rays_dimensions = textureDimensions(rays_texture);
-    let rays_scale = vec2<f32>(rays_dimensions) / vec2<f32>(dimensions);
-    let rays_pixel = vec2<u32>(vec2<f32>(pixel) * rays_scale);
+    let data_index = (global_invocation_id.y * dimensions.x + global_invocation_id.x) * SIZE_OF_DATA_BUFFER_ELEMENT;
+    
+    data_buffer_0[data_index] = origin.x;
+    data_buffer_0[data_index + 1u] = origin.y;
+    data_buffer_0[data_index + 2u] = origin.z;
     let packed_direction = f32(pack2x16float(octahedral_mapping(direction)));
-    textureStore(rays_texture, rays_pixel, vec4<f32>(origin, packed_direction));
+    data_buffer_0[data_index + 3u] = packed_direction;
     
-    textureStore(radiance_texture, pixel, vec4<f32>(radiance, f32(first_visibility_id)));
-    
-    let binding_dimensions = textureDimensions(binding_texture);
-    let binding_scale = vec2<f32>(binding_dimensions) / vec2<f32>(dimensions);
-    let binding_pixel = vec2<u32>(vec2<f32>(pixel) * binding_scale);
-    textureStore(binding_texture, binding_pixel, vec4<f32>(throughput_weight, 1.));
+    data_buffer_1[data_index] = radiance.x;
+    data_buffer_1[data_index + 1u] = radiance.y;
+    data_buffer_1[data_index + 2u] = radiance.z;
+    data_buffer_1[data_index + 3u] = f32(first_visibility_id);
+
+    data_buffer_2[data_index] = throughput_weight.x;
+    data_buffer_2[data_index + 1u] = throughput_weight.y;
+    data_buffer_2[data_index + 2u] = throughput_weight.z;
 }

@@ -1,11 +1,12 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
-    IndicesBuffer, LightsBuffer, LoadOperation, MaterialsBuffer, MeshFlags, MeshesBuffer,
-    MeshletsBuffer, Pass, RenderContext, RenderContextRc, RenderPass, RenderPassBeginData,
-    RenderPassData, RenderTarget, RuntimeVerticesBuffer, SamplerType, ShaderStage, StoreOperation,
-    TextureId, TextureView, TexturesBuffer, VertexAttributesBuffer,
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DataBuffers,
+    DrawCommandType, IndicesBuffer, LightsBuffer, LoadOperation, MaterialsBuffer, MeshFlags,
+    MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderContextRc, RenderPass,
+    RenderPassBeginData, RenderPassData, RenderTarget, RuntimeVerticesBuffer, SamplerType,
+    ShaderStage, StoreOperation, TextureId, TextureView, TexturesBuffer, VertexAttributesBuffer,
+    NUM_DATA_BUFFER,
 };
 
 use inox_core::ContextRc;
@@ -29,9 +30,8 @@ pub struct DebugPass {
     lights: LightsBuffer,
     finalize_texture: TextureId,
     visibility_texture: TextureId,
-    radiance_texture: TextureId,
     depth_texture: TextureId,
-    debug_data_texture: TextureId,
+    data_buffers: DataBuffers,
 }
 unsafe impl Send for DebugPass {}
 unsafe impl Sync for DebugPass {}
@@ -88,10 +88,9 @@ impl Pass for DebugPass {
             runtime_vertices: render_context.global_buffers().runtime_vertices.clone(),
             vertices_attributes: render_context.global_buffers().vertex_attributes.clone(),
             finalize_texture: INVALID_UID,
-            debug_data_texture: INVALID_UID,
             visibility_texture: INVALID_UID,
-            radiance_texture: INVALID_UID,
             depth_texture: INVALID_UID,
+            data_buffers: render_context.global_buffers().data_buffers.clone(),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -100,7 +99,6 @@ impl Pass for DebugPass {
         if self.indices.read().unwrap().is_empty()
             || self.meshes.read().unwrap().is_empty()
             || self.meshlets.read().unwrap().is_empty()
-            || self.debug_data_texture.is_nil()
         {
             return;
         }
@@ -217,28 +215,10 @@ impl Pass for DebugPass {
                 },
             )
             .add_texture(
-                &self.radiance_texture,
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 5,
-                    stage: ShaderStage::Fragment,
-                    ..Default::default()
-                },
-            )
-            .add_texture(
                 &self.depth_texture,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 6,
-                    stage: ShaderStage::Fragment,
-                    ..Default::default()
-                },
-            )
-            .add_texture(
-                &self.debug_data_texture,
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 7,
+                    binding_index: 5,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
@@ -260,6 +240,19 @@ impl Pass for DebugPass {
                 stage: ShaderStage::Fragment,
                 ..Default::default()
             });
+
+        for i in 0..NUM_DATA_BUFFER {
+            self.binding_data.add_storage_buffer(
+                &mut *self.data_buffers[i].write().unwrap(),
+                Some(format!("DataBuffer_{}", i).as_str()),
+                BindingInfo {
+                    group_index: 3,
+                    binding_index: i,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+            );
+        }
         pass.init(render_context, &mut self.binding_data, None, None);
     }
     fn update(
@@ -269,10 +262,6 @@ impl Pass for DebugPass {
         command_buffer: &mut CommandBuffer,
     ) {
         inox_profiler::scoped_profile!("debug_pass::update");
-
-        if self.debug_data_texture.is_nil() {
-            return;
-        }
 
         let pass = self.render_pass.get();
         let pipeline = pass.pipeline().get();
@@ -306,16 +295,8 @@ impl DebugPass {
         self.visibility_texture = *texture_id;
         self
     }
-    pub fn set_radiance_texture(&mut self, texture_id: &TextureId) -> &mut Self {
-        self.radiance_texture = *texture_id;
-        self
-    }
     pub fn set_depth_texture(&mut self, texture_id: &TextureId) -> &mut Self {
         self.depth_texture = *texture_id;
-        self
-    }
-    pub fn set_debug_data_texture(&mut self, texture_id: &TextureId) -> &mut Self {
-        self.debug_data_texture = *texture_id;
         self
     }
     pub fn set_finalize_texture(&mut self, texture_id: &TextureId) -> &mut Self {

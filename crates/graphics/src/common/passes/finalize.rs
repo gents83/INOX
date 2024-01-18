@@ -1,38 +1,40 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, CommandBuffer, DrawCommandType, MeshFlags, Pass, RenderContext,
-    RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage,
-    StoreOperation, Texture, TextureId, TextureView,
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DataBuffers,
+    DrawCommandType, MeshFlags, Pass, RenderContext, RenderContextRc, RenderPass,
+    RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation, Texture,
+    TextureView,
 };
 
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
-use inox_uid::{generate_random_uid, INVALID_UID};
+use inox_uid::generate_random_uid;
 
-pub const BLIT_PIPELINE: &str = "pipelines/Blit.render_pipeline";
-pub const BLIT_PASS_NAME: &str = "BlitPass";
+pub const FINALIZE_PIPELINE: &str = "pipelines/Finalize.render_pipeline";
+pub const FINALIZE_NAME: &str = "FinalizePass";
 
-pub struct BlitPass {
+pub struct FinalizePass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
-    source_texture_id: TextureId,
+    constant_data: ConstantDataRw,
+    data_buffers: DataBuffers,
 }
-unsafe impl Send for BlitPass {}
-unsafe impl Sync for BlitPass {}
+unsafe impl Send for FinalizePass {}
+unsafe impl Sync for FinalizePass {}
 
-impl Pass for BlitPass {
+impl Pass for FinalizePass {
     fn name(&self) -> &str {
-        BLIT_PASS_NAME
+        FINALIZE_NAME
     }
     fn static_name() -> &'static str {
-        BLIT_PASS_NAME
+        FINALIZE_NAME
     }
-    fn is_active(&self, _render_context: &RenderContext) -> bool {
-        true
+    fn is_active(&self, render_context: &RenderContext) -> bool {
+        render_context.has_commands(&self.draw_commands_type(), &self.mesh_flags())
     }
     fn mesh_flags(&self) -> MeshFlags {
-        MeshFlags::None
+        MeshFlags::Visible | MeshFlags::Opaque
     }
     fn draw_commands_type(&self) -> DrawCommandType {
         DrawCommandType::PerMeshlet
@@ -41,14 +43,12 @@ impl Pass for BlitPass {
     where
         Self: Sized,
     {
-        inox_profiler::scoped_profile!("blit_pass::create");
-
         let data = RenderPassData {
-            name: BLIT_PASS_NAME.to_string(),
+            name: FINALIZE_NAME.to_string(),
             store_color: StoreOperation::Store,
             store_depth: StoreOperation::Store,
             render_target: RenderTarget::Screen,
-            pipeline: PathBuf::from(BLIT_PIPELINE),
+            pipeline: PathBuf::from(FINALIZE_PIPELINE),
             ..Default::default()
         };
 
@@ -60,42 +60,48 @@ impl Pass for BlitPass {
                 &data,
                 None,
             ),
-            binding_data: BindingData::new(render_context, BLIT_PASS_NAME),
-            source_texture_id: INVALID_UID,
+            constant_data: render_context.global_buffers().constant_data.clone(),
+            binding_data: BindingData::new(render_context, FINALIZE_NAME),
+            data_buffers: render_context.global_buffers().data_buffers.clone(),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
-        inox_profiler::scoped_profile!("blit_pass::init");
-
-        if self.source_texture_id.is_nil() {
-            return;
-        }
+        inox_profiler::scoped_profile!("finalize_pass::init");
 
         let mut pass = self.render_pass.get_mut();
 
-        self.binding_data.add_texture(
-            &self.source_texture_id,
-            BindingInfo {
-                group_index: 0,
-                binding_index: 0,
-                stage: ShaderStage::Fragment,
-                ..Default::default()
-            },
-        );
+        self.binding_data
+            .add_uniform_buffer(
+                &mut *self.constant_data.write().unwrap(),
+                Some("ConstantData"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 0,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.data_buffers[1].write().unwrap(),
+                Some("DataBuffer_1"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 1,
+                    stage: ShaderStage::Fragment,
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                },
+            );
 
         pass.init(render_context, &mut self.binding_data, None, None);
     }
+
     fn update(
         &mut self,
         render_context: &RenderContext,
         surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        inox_profiler::scoped_profile!("blit_pass::update");
-
-        if self.source_texture_id.is_nil() {
-            return;
-        }
+        inox_profiler::scoped_profile!("finalize_pass::update");
 
         let pass = self.render_pass.get();
         let pipeline = pass.pipeline().get();
@@ -117,18 +123,14 @@ impl Pass for BlitPass {
             inox_profiler::gpu_scoped_profile!(
                 &mut render_pass,
                 &render_context.webgpu.device,
-                "blit_pass",
+                "finalize_pass",
             );
             pass.draw(render_context, render_pass, 0..3, 0..1);
         }
     }
 }
 
-impl BlitPass {
-    pub fn set_source(&mut self, id: &TextureId) -> &mut Self {
-        self.source_texture_id = *id;
-        self
-    }
+impl FinalizePass {
     pub fn add_render_target(&self, texture: &Resource<Texture>) -> &Self {
         self.render_pass.get_mut().add_render_target(texture);
         self
