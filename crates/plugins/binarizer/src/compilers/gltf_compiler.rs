@@ -542,6 +542,7 @@ impl GltfCompiler {
             triangles_aabbs.resize_with(mesh_data.indices.len() / 3, AABB::empty);
             let mut i = 0;
             while i < mesh_data.indices.len() {
+                let triangle_id = (i / 3) as usize;
                 let v1 = positions[mesh_data.indices[i] as usize];
                 i += 1;
                 let v2 = positions[mesh_data.indices[i] as usize];
@@ -550,7 +551,7 @@ impl GltfCompiler {
                 i += 1;
                 let min = v1.min(v2).min(v3);
                 let max = v1.max(v2).max(v3);
-                triangles_aabbs[i] = AABB::create(min, max, i as _);
+                triangles_aabbs[triangle_id] = AABB::create(min, max, triangle_id as _);
             }
             let bvh = BVHTree::new(&triangles_aabbs);
             let meshlet = MeshletData {

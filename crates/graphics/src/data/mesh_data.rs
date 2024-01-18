@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use inox_bvh::GPUBVHNode;
+use inox_bvh::{create_linearized_bvh, BVHTree, GPUBVHNode, AABB};
 use inox_math::{
     decode_unorm, pack_4_f32_to_snorm, quantize_half, quantize_snorm, quantize_unorm, VecBase,
     Vector2, Vector3, Vector4,
@@ -198,6 +198,7 @@ impl MeshData {
             let meshlet = self.meshlets.last_mut().unwrap();
             meshlet.indices_count += mesh_data.index_count() as u32;
         }
+
         self.aabb_min = self.aabb_min.min(mesh_data.aabb_min);
         self.aabb_max = self.aabb_min.max(mesh_data.aabb_max);
         let size = mesh_data.aabb_max - mesh_data.aabb_min;
@@ -222,6 +223,39 @@ impl MeshData {
             .indices
             .iter()
             .for_each(|i| self.indices.push(*i + vertex_offset));
+
+        let mut triangles_aabbs = Vec::new();
+        triangles_aabbs.resize_with(
+            (1 + self.meshlets.last().unwrap().indices_count
+                - self.meshlets.last().unwrap().indices_offset) as usize
+                / 3,
+            AABB::empty,
+        );
+        let mut i = self.meshlets.last().unwrap().indices_offset;
+        while i < self.meshlets.last().unwrap().indices_count {
+            let triangle_id = (i / 3) as usize;
+            let v1 = self.position(self.indices[i as usize] as _);
+            i += 1;
+            let v2 = self.position(self.indices[i as usize] as _);
+            i += 1;
+            let v3 = self.position(self.indices[i as usize] as _);
+            i += 1;
+            let min = v1.min(v2).min(v3);
+            let max = v1.max(v2).max(v3);
+            triangles_aabbs[triangle_id] = AABB::create(min, max, triangle_id as _);
+        }
+        let bvh = BVHTree::new(&triangles_aabbs);
+        let meshlet = self.meshlets.last_mut().unwrap();
+        meshlet.triangles_bvh = create_linearized_bvh(&bvh);
+
+        let mut meshlets_aabbs = Vec::new();
+        meshlets_aabbs.resize_with(self.meshlets.len(), AABB::empty);
+        self.meshlets.iter().enumerate().for_each(|(i, m)| {
+            meshlets_aabbs[i] = AABB::create(m.aabb_min, m.aabb_max, i as _);
+        });
+        let bvh = BVHTree::new(&meshlets_aabbs);
+        self.meshlets_bvh = create_linearized_bvh(&bvh);
+
         self
     }
 
