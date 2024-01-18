@@ -3,7 +3,7 @@
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) id: u32,
+    @location(0) @interpolate(flat) id: u32,
 };
 
 struct FragmentOutput {
