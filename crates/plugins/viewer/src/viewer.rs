@@ -130,22 +130,34 @@ impl Viewer {
             Some(&[RenderingSystem::system_id()]),
         );
         context.add_system(
-            inox_core::Phases::Render,
+            inox_core::Phases::EndFrame,
             rendering_draw_system,
             Some(&[UpdateSystem::system_id()]),
         );
 
-        context.add_system(inox_core::Phases::Update, object_system, None);
+        context.add_system(
+            inox_core::Phases::Update,
+            object_system,
+            Some(&[RenderingSystem::system_id()]),
+        );
         context.add_system(
             inox_core::Phases::Update,
             script_system,
-            Some(&[ObjectSystem::system_id()]),
+            Some(&[RenderingSystem::system_id()]),
         );
 
         if let Some(ui_system) = ui_system.take() {
-            context.add_system(inox_core::Phases::Update, ui_system, None);
+            context.add_system(
+                inox_core::Phases::Update,
+                ui_system,
+                Some(&[RenderingSystem::system_id()]),
+            );
         }
-        context.add_system(inox_core::Phases::Update, viewer_system, None);
+        context.add_system(
+            inox_core::Phases::Update,
+            viewer_system,
+            Some(&[RenderingSystem::system_id()]),
+        );
     }
     fn create_render_targets(render_context: &RenderContextRc, width: u32, height: u32) {
         let _half_dims = (width / 2, height / 2);
