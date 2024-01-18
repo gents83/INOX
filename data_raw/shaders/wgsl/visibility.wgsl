@@ -31,7 +31,7 @@ fn fs_main(
     v_in: VertexOutput,
 ) -> FragmentOutput {    
     var fragment_out: FragmentOutput;
-    let visibility_id = v_in.id << 8u | primitive_index;   
+    let visibility_id = (v_in.id << 8u) | primitive_index;   
     fragment_out.output = visibility_id;    
     return fragment_out;
 }
