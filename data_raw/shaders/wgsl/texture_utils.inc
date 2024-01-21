@@ -30,15 +30,18 @@ fn sample_texture(tex_coords_and_texture_index: vec3<f32>) -> vec4<f32> {
         return v;
     }
     let texture = &textures.data[texture_data_index];
-    var texture_index = (*texture).texture_index;
+    var texture_index = (*texture).texture_and_layer_index;
+    let min = unpack2x16float((*texture).min);
+    let max = unpack2x16float((*texture).max);
+    let size = unpack2x16float((*texture).size);
     if (texture_index < 0) {
         texture_index *= -1;
     } 
-    let atlas_index = u32(texture_index);
-    let layer_index = i32((*texture).layer_index);
+    let atlas_index = u32(texture_index >> 3);
+    let layer_index = i32(texture_index &  0x00000007);
 
-    tex_coords.x = (f32((*texture).area.x) + mod_f32(tex_coords_and_texture_index.x, 1.) * f32((*texture).area.z)) / f32((*texture).total_width);
-    tex_coords.y = (f32((*texture).area.y) + mod_f32(tex_coords_and_texture_index.y, 1.) * f32((*texture).area.w)) / f32((*texture).total_height);
+    tex_coords.x = (f32(min.x) + mod_f32(tex_coords_and_texture_index.x, 1.) * f32(max.x)) / f32(size.x);
+    tex_coords.y = (f32(min.y) + mod_f32(tex_coords_and_texture_index.y, 1.) * f32(max.y)) / f32(size.y);
     tex_coords.z = f32(layer_index);
 
 #ifdef FEATURES_TEXTURE_BINDING_ARRAY

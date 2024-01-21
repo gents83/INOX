@@ -168,7 +168,7 @@ impl TextureHandler {
                             texture_params.0,
                             texture_params.1,
                             texture_index,
-                            texture_data.layer_index
+                            texture_data.layer_index()
                         );
                     }
                     return texture_data;
@@ -178,10 +178,7 @@ impl TextureHandler {
         self.texture_atlas
             .write()
             .unwrap()
-            .push(TextureAtlas::create_default(
-                device,
-                texture_params.2,
-            ));
+            .push(TextureAtlas::create_default(device, texture_params.2));
         if DEBUG_TEXTURES {
             inox_log::debug_log!(
                 "Adding new texture atlas {} at index {} with format {:?}",
@@ -220,14 +217,14 @@ impl TextureHandler {
                         texture_info.width(),
                         texture_info.height(),
                         texture_index,
-                        texture_info.layer_index
+                        texture_info.layer_index()
                     );
                 }
                 texture_atlas.update(
                     device,
                     encoder,
                     id,
-                    texture_info.layer_index as _,
+                    texture_info.layer_index() as _,
                     texture_block,
                 );
             }

@@ -296,7 +296,7 @@ impl RenderContext {
                 &block,
             );
         }
-        info.texture_index as _
+        info.texture_index() as _
     }
 
     fn add_render_target(&self, texture: &Resource<Texture>) -> usize {

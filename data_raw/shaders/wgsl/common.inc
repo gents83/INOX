@@ -181,11 +181,10 @@ struct LightData {
 };
 
 struct TextureData {
-    texture_index: i32,
-    layer_index: u32,
-    total_width: u32,
-    total_height: u32,
-    area: vec4<u32>,
+    texture_and_layer_index: i32,
+    min: u32,
+    max: u32,
+    size: u32,
 };
 
 struct Material {

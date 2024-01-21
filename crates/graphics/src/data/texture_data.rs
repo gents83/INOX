@@ -1,6 +1,7 @@
 use crate::print_field_size;
 
 use inox_bitmask::bitmask;
+use inox_math::decode_half;
 use inox_serialize::{Deserialize, Serialize};
 
 #[bitmask]
@@ -78,49 +79,42 @@ impl From<usize> for TextureType {
 }
 
 #[repr(C, align(16))]
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Default, Debug, PartialEq, Clone, Copy)]
 pub struct TextureInfo {
-    pub texture_index: i32, //negatives are LUT textures
-    pub layer_index: u32,
-    pub total_width: u32,
-    pub total_height: u32,
-    pub area: [u32; 4],
-}
-
-impl Default for TextureInfo {
-    fn default() -> Self {
-        Self {
-            texture_index: 0,
-            layer_index: 0,
-            total_width: 0,
-            total_height: 0,
-            area: [0, 0, 1, 1],
-        }
-    }
+    pub texture_and_layer_index: i32, //negatives are LUT textures - 29bit + 3bit
+    pub min: u32,
+    pub max: u32,
+    pub size: u32,
 }
 
 impl TextureInfo {
     #[allow(non_snake_case)]
     pub fn is_LUT(&self) -> bool {
-        self.texture_index.is_negative()
+        self.texture_and_layer_index.is_negative()
     }
-    pub fn get_texture_index(&self) -> u32 {
-        self.texture_index.unsigned_abs()
+    pub fn texture_index(&self) -> u32 {
+        self.texture_and_layer_index.unsigned_abs() >> 3
     }
-    pub fn get_layer_index(&self) -> u32 {
-        self.layer_index
+    pub fn layer_index(&self) -> u32 {
+        (self.texture_and_layer_index & 0x00000007) as _
     }
     pub fn total_width(&self) -> u32 {
-        self.total_width as _
+        decode_half((self.size & 0x0000FFFF) as _) as _
     }
     pub fn total_height(&self) -> u32 {
-        self.total_height as _
+        decode_half(((self.size & 0xFFFF0000) >> 16) as _) as _
+    }
+    pub fn x(&self) -> u32 {
+        decode_half((self.min & 0x0000FFFF) as _) as _
+    }
+    pub fn y(&self) -> u32 {
+        decode_half(((self.min & 0xFFFF0000) >> 16) as _) as _
     }
     pub fn width(&self) -> u32 {
-        self.area[2] as _
+        decode_half((self.max & 0x0000FFFF) as _) as _
     }
     pub fn height(&self) -> u32 {
-        self.area[3] as _
+        decode_half(((self.max & 0xFFFF0000) >> 16) as _) as _
     }
 }
 
@@ -131,11 +125,10 @@ impl TextureInfo {
         println!("ShaderTextureData info: Total size [{total_size}]");
 
         let mut s = 0;
-        print_field_size!(s, texture_index, u32, 1);
-        print_field_size!(s, layer_index, u32, 1);
-        print_field_size!(s, total_width, u32, 1);
-        print_field_size!(s, total_height, u32, 1);
-        print_field_size!(s, area, [f32; 4], 1);
+        print_field_size!(s, texture_and_layer_index, u32, 1);
+        print_field_size!(s, min, u32, 1);
+        print_field_size!(s, max, u32, 1);
+        print_field_size!(s, size, u32, 1);
 
         println!(
             "Alignment result: {} -> {}",
