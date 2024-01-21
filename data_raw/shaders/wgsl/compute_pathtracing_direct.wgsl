@@ -16,7 +16,7 @@ var<storage, read> materials: Materials;
 @group(0) @binding(6)
 var<storage, read> textures: Textures;
 @group(0) @binding(7)
-var<storage, read> lights: Lights;
+var<uniform> lights: Lights;
 
 @group(1) @binding(0)
 var<storage, read> runtime_vertices: RuntimeVertices;

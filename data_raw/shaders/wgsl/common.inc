@@ -1,6 +1,9 @@
 const DEFAULT_WIDTH: u32 = 1920u;
 const DEFAULT_HEIGHT: u32 = 1080u;
 const SIZE_OF_DATA_BUFFER_ELEMENT: u32 = 4u;
+const MAX_NUM_LIGHTS: u32 = 1024u;
+const MAX_NUM_TEXTURES: u32 = 65536u;
+const MAX_NUM_MATERIALS: u32 = 65536u;
 
 const CONSTANT_DATA_FLAGS_NONE: u32 = 0u;
 const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1u;
@@ -208,7 +211,7 @@ struct Material {
 
 
 struct Lights {
-    data: array<LightData>,
+    data: array<LightData, MAX_NUM_LIGHTS>,
 };
 
 struct Textures {

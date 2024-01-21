@@ -161,7 +161,7 @@ impl Pass for ComputePathTracingIndirectPass {
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_uniform_buffer(
                 &mut *self.lights.write().unwrap(),
                 Some("Lights"),
                 BindingInfo {

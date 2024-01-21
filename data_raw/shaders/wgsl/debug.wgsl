@@ -29,7 +29,7 @@ var<storage, read> materials: Materials;
 @group(1) @binding(1)
 var<storage, read> textures: Textures;
 @group(1) @binding(2)
-var<storage, read> lights: Lights;
+var<uniform> lights: Lights;
 @group(1) @binding(3)
 var visibility_texture: texture_multisampled_2d<u32>;
 @group(1) @binding(4)
