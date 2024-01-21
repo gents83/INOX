@@ -76,6 +76,7 @@
                 //"models/NormalTangent/NormalTangent.scene"
                 "models/DamagedHelmet/DamagedHelmet.scene"
                 //"models/craftman/craftman.scene"
+                //"models/OriginalSponza/OriginalSponza.scene"
                 //"models/sponza/sponza.scene"
             ],
             "cwd": "${workspaceFolder}",
