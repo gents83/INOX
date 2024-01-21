@@ -85,7 +85,10 @@ fn main(
             
             origin += hit_point + radiance_data.direction * HIT_EPSILON;
             direction += radiance_data.direction;
-            radiance += material_info.f_color.rgb;
+            if (constant_data.indirect_light_num_bounces == 0) {
+                radiance += material_info.f_color.rgb;
+            }
+            radiance += radiance_data.radiance;
             throughput_weight += radiance_data.throughput_weight;
                 
             if num_samples == 0u {

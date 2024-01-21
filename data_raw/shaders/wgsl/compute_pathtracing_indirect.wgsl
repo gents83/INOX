@@ -94,7 +94,7 @@ fn main(
         should_skip = result.visibility_id == 0u || (result.visibility_id & 0xFFFFFFFFu) == 0xFF000000u;
         if (should_skip) { 
             //hit the sky
-            //radiance += vec3<f32>(0.33);
+            //radiance += vec3<f32>(0.03);
             break;
         }
         let visibility_id = result.visibility_id;      
