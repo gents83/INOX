@@ -344,7 +344,7 @@ impl BindingData {
                     self.render_context.webgpu
                         .device
                         .limits()
-                        .max_uniform_buffer_binding_size
+                        .max_storage_buffer_binding_size
                 );
             }
         }

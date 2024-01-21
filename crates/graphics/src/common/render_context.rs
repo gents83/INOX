@@ -174,6 +174,9 @@ impl RenderContext {
                 .await
                 .unwrap();
 
+            device.on_uncaptured_error(Box::new(|e| {
+                println!("WGPU Error :{}", e);
+            }));
             (instance, surface, adapter, device, queue)
         };
 
