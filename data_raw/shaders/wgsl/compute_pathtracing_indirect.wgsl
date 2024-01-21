@@ -70,7 +70,7 @@ fn main(
     var direction = octahedral_unmapping(unpack2x16float(u32(packed_direction)));
 
     var radiance = vec3<f32>(data_buffer_1[data_index], data_buffer_1[data_index + 1u], data_buffer_1[data_index + 2u]);
-    var visibility_id = u32(data_buffer_0[data_index + 3u]);
+    var visibility_id = u32(data_buffer_1[data_index + 3u]);
     
     var throughput_weight = vec3<f32>(data_buffer_2[data_index], data_buffer_2[data_index + 1u], data_buffer_2[data_index + 2u]);
 
@@ -96,18 +96,17 @@ fn main(
             //hit the sky
             //radiance += vec3<f32>(0.03);
             break;
-        }
-        let visibility_id = result.visibility_id;      
+        }  
         let hit_point = origin + (direction * result.distance);
             
-        let radiance_data = compute_radiance_from_visibility(visibility_id, hit_point, get_random_numbers(&seed), radiance, throughput_weight); 
+        let radiance_data = compute_radiance_from_visibility(result.visibility_id, hit_point, get_random_numbers(&seed), radiance, throughput_weight); 
         origin = hit_point + radiance_data.direction * HIT_EPSILON;
         direction = radiance_data.direction;
         radiance += radiance_data.radiance;
         throughput_weight *= radiance_data.throughput_weight;
 
         if (is_pixel_to_debug) {
-            data_buffer_debug[debug_index] = f32(visibility_id);
+            data_buffer_debug[debug_index] = f32(result.visibility_id);
             data_buffer_debug[debug_index + 1u] = origin.x;
             data_buffer_debug[debug_index + 2u] = origin.y;
             data_buffer_debug[debug_index + 3u] = origin.z;

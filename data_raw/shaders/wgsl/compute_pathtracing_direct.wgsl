@@ -91,7 +91,7 @@ fn main(
             radiance += radiance_data.radiance;
             throughput_weight += radiance_data.throughput_weight;
                 
-            if num_samples == 0u {
+            if first_visibility_id == 0u {
                 first_visibility_id = visibility_id;
             }
             num_samples = num_samples + 1u;

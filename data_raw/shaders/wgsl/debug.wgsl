@@ -346,7 +346,13 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let line_color = vec3<f32>(0., 1., 0.);
         let line_size = 0.003;
         var bounce_index = 0u;
-        var color = out_color.rgb;        
+        
+        let data_dimensions = vec2<u32>(DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        let data_scale = vec2<f32>(data_dimensions) / vec2<f32>(dimensions);
+        let data_pixel = vec2<u32>(pixel * data_scale);
+        let data_index = (data_pixel.y * data_dimensions.x + data_pixel.x) * SIZE_OF_DATA_BUFFER_ELEMENT;
+        let radiance = vec3<f32>(data_buffer_1[data_index], data_buffer_1[data_index + 1u], data_buffer_1[data_index + 2u]);
+        var color = radiance.rgb;        
         /*
         var debug_bhv_index = 100u;
         let max_bhv_index = u32(read_value_from_data_buffer(&data_buffer_debug, &debug_bhv_index));
@@ -362,23 +368,24 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         var debug_index = 0u;        
         let max_index = u32(data_buffer_debug[debug_index]);
         debug_index = debug_index + 1u;
-        
-        while(debug_index < max_index) {
-            let visibility_id = u32(data_buffer_debug[debug_index]);
-            color += draw_triangle_from_visibility(visibility_id, screen_pixel, dimensions);
-            
-            var previous = origin;
-            origin = vec3<f32>(data_buffer_debug[debug_index + 1u], data_buffer_debug[debug_index + 2u], data_buffer_debug[debug_index + 3u]);
-            direction = vec3<f32>(data_buffer_debug[debug_index + 4u], data_buffer_debug[debug_index + 5u], data_buffer_debug[debug_index + 6u]);
-            
-            if (bounce_index > 0u) {
-                color += draw_line_3d(screen_pixel, dimensions, previous, origin, line_color, line_size);
+        if(max_index > 8u) {
+            while(debug_index < max_index) {
+                let visibility_id = u32(data_buffer_debug[debug_index]);
+                color += draw_triangle_from_visibility(visibility_id, screen_pixel, dimensions);
+                
+                var previous = origin;
+                origin = vec3<f32>(data_buffer_debug[debug_index + 1u], data_buffer_debug[debug_index + 2u], data_buffer_debug[debug_index + 3u]);
+                direction = vec3<f32>(data_buffer_debug[debug_index + 4u], data_buffer_debug[debug_index + 5u], data_buffer_debug[debug_index + 6u]);
+                
+                if (bounce_index > 0u) {
+                    color += draw_line_3d(screen_pixel, dimensions, previous, origin, line_color, line_size);
+                }
+                bounce_index += 1u;
+                debug_index = debug_index + 7u;
             }
-            bounce_index += 1u;
-            debug_index = debug_index + 7u;
+            color += draw_line_3d(screen_pixel, dimensions, origin, origin + direction * 5., line_color, line_size);
+            out_color = vec4<f32>(color, 1.);
         }
-        color += draw_line_3d(screen_pixel, dimensions, origin, origin + direction * 5., line_color, line_size);
-        out_color = vec4<f32>(color, 1.);
     }
     
     return select(vec4<f32>(0.), out_color, out_color.a > 0.);
