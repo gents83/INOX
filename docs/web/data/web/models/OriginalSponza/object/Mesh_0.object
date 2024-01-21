@@ -1,0 +1,56 @@
+{
+  "transform": {
+    "x": {
+      "x": 0.008,
+      "y": 0.0,
+      "z": 0.0,
+      "w": 0.0
+    },
+    "y": {
+      "x": 0.0,
+      "y": 0.008,
+      "z": 0.0,
+      "w": 0.0
+    },
+    "z": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.008,
+      "w": 0.0
+    },
+    "w": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0,
+      "w": 1.0
+    }
+  },
+  "components": [
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_0.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_1.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_2.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_3.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_4.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_5.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_6.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_7.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_8.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_9.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_10.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_11.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_12.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_13.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_14.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_15.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_16.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_17.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_18.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_19.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_20.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_21.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_22.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_23.mesh",
+    "models/OriginalSponza/mesh/Mesh_0_Primitive_24.mesh"
+  ],
+  "children": []
+}

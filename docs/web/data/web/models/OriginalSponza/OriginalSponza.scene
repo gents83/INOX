@@ -1,0 +1,8 @@
+{
+  "objects": [
+    "models/OriginalSponza/object/Mesh_0.object",
+    "models/OriginalSponza/object/Camera.object"
+  ],
+  "cameras": [],
+  "lights": []
+}
