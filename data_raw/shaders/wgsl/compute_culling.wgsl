@@ -123,6 +123,7 @@ fn main(
         return;
     }
 
+    /*
     let cone_axis_cutoff = unpack4x8snorm((*meshlet).cone_axis_cutoff);
     let cone_axis = rotate_vector(cone_axis_cutoff.xyz, (*mesh).orientation); 
     let meshlet_center = transform_vector((*meshlet).center, (*mesh).position, (*mesh).orientation, (*mesh).scale);;    
@@ -130,7 +131,7 @@ fn main(
     {
         return;
     }
-    
+    */
     atomicAdd(&count, 1u);
     let draw_group_index = workgroup_id.x;
     atomicOr(&culling_result[draw_group_index], 1u << local_invocation_id.x);
