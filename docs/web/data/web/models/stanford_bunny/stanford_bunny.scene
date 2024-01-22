@@ -1,8 +1,8 @@
 {
   "objects": [
-    "models/stanford_bunny/object/Light.object",
-    "models/stanford_bunny/object/Camera.object",
-    "models/stanford_bunny/object/stanford_bunny.object"
+    "models/stanford_bunny/object/stanford_bunny.object",
+    "models/stanford_bunny/object/Camera.001.object",
+    "models/stanford_bunny/object/Point.object"
   ],
   "cameras": [],
   "lights": []
