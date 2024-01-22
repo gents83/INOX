@@ -26,6 +26,7 @@ var<storage, read_write> commands: DrawIndexedCommands;
 var<storage, read_write> culling_result: array<atomic<u32>>;
 
 #import "matrix_utils.inc"
+#import "geom_utils.inc"
 
 
 //ScreenSpace Frustum Culling
@@ -61,7 +62,8 @@ fn is_box_inside_frustum(min: vec3<f32>, max: vec3<f32>, frustum: array<vec4<f32
 
 fn is_cone_visible(center: vec3<f32>, cone_axis: vec3<f32>, cone_cutoff: f32, radius: f32) -> bool {
     let direction = center - culling_data.cam_pos;
-    return dot(direction, cone_axis) <= (min(0.9, cone_cutoff) * length(direction * 0.5) + radius);
+    let clip_center = world_to_clip(center);
+    return clip_center.z < 0.997 || dot(normalize(direction), normalize(cone_axis)) <= max(0.9, cone_cutoff);
 }
 
 
@@ -123,7 +125,7 @@ fn main(
         return;
     }
 
-    /*
+    
     let cone_axis_cutoff = unpack4x8snorm((*meshlet).cone_axis_cutoff);
     let cone_axis = rotate_vector(cone_axis_cutoff.xyz, (*mesh).orientation); 
     let meshlet_center = transform_vector((*meshlet).center, (*mesh).position, (*mesh).orientation, (*mesh).scale);;    
@@ -131,7 +133,7 @@ fn main(
     {
         return;
     }
-    */
+    
     atomicAdd(&count, 1u);
     let draw_group_index = workgroup_id.x;
     atomicOr(&culling_result[draw_group_index], 1u << local_invocation_id.x);

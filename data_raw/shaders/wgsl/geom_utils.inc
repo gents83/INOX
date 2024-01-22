@@ -7,6 +7,9 @@ struct Derivatives {
 fn pixel_to_normalized(image_pixel: vec2<u32>, image_size: vec2<u32>) -> vec2<f32> {
     return ((vec2<f32>(0.5) + vec2<f32>(image_pixel)) / vec2<f32>(image_size));
 }
+fn clip_to_normalized(clip_coords: vec2<f32>) -> vec2<f32> {
+    return (clip_coords + vec2<f32>(1.)) * vec2<f32>(0.5);
+}
 
 fn pixel_to_clip(image_pixel: vec2<u32>, image_size: vec2<u32>) -> vec2<f32> {
     var clip_coords = 2. * pixel_to_normalized(image_pixel, image_size) - vec2<f32>(1.);
@@ -26,9 +29,9 @@ fn clip_to_world(clip_coords: vec2<f32>, depth: f32) -> vec3<f32> {
     return world_pos.xyz;
 }
 
-fn world_to_clip(world_pos: vec3<f32>) -> vec2<f32> {    
+fn world_to_clip(world_pos: vec3<f32>) -> vec3<f32> {    
 	let ndc_pos: vec4<f32> = constant_data.view_proj * vec4<f32>(world_pos, 1.);
-	return ndc_pos.xy / ndc_pos.w;
+	return ndc_pos.xyz / ndc_pos.w;
 }
 
 fn view_pos() -> vec3<f32> {    

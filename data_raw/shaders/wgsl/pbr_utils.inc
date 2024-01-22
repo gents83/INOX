@@ -523,7 +523,7 @@ fn get_IBL_volume_refraction(n: vec3<f32>, v: vec3<f32>, perceptualRoughness: f3
 	let refractedRayExit = position + transmissionRay;
     
     // Project refracted vector on the framebuffer, while mapping to normalized device coordinates.
-	var refractionCoords = world_to_clip(refractedRayExit);
+	var refractionCoords = world_to_clip(refractedRayExit).xy;
 	refractionCoords = refractionCoords + vec2<f32>(1.);
 	refractionCoords = refractionCoords / vec2<f32>(2.);
     
