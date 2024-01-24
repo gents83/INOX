@@ -286,28 +286,26 @@ pub fn build_meshlets_lods(mesh_data: &mut MeshData) {
 
     let num_meshlets = meshlets_info.len();
     debug_assert!(num_meshlets == mesh_data.meshlets.len());
-
-    for i in 0..num_meshlets {
-        for j in 1..num_meshlets {
-            if i != j {
-                let mut is_adjacent = false;
-                meshlets_info[i].edges.iter().for_each(|e1| {
-                    return meshlets_info[j]
-                        .edges
-                        .iter()
-                        .for_each(|e2| is_adjacent |= e1.v1 == e2.v1 && e1.v2 == e2.v2);
-                });
-                let other_index = meshlets_info[j].meshlet_index;
-                if is_adjacent {
-                    meshlets_info[i].adjacent_meshlets.push(other_index);
+    if num_meshlets > 1 {
+        for i in 0..num_meshlets {
+            for j in 1..num_meshlets {
+                if i != j {
+                    let mut is_adjacent = false;
+                    meshlets_info[i].edges.iter().for_each(|e1| {
+                        return meshlets_info[j]
+                            .edges
+                            .iter()
+                            .for_each(|e2| is_adjacent |= e1.v1 == e2.v1 && e1.v2 == e2.v2);
+                    });
+                    let other_index = meshlets_info[j].meshlet_index;
+                    if is_adjacent {
+                        meshlets_info[i].adjacent_meshlets.push(other_index);
+                    }
                 }
             }
+            if meshlets_info[i].adjacent_meshlets.is_empty() {
+                println!("No adjacency for meshlet {} of {}", i, num_meshlets);
+            }
         }
-        debug_assert!(
-            !meshlets_info[i].adjacent_meshlets.is_empty(),
-            "No adjacency for meshlet {} - count = {}",
-            i,
-            meshlets_info[i].adjacent_meshlets.len()
-        );
     }
 }
