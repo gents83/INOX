@@ -2,8 +2,10 @@ use std::{collections::HashMap, mem::size_of};
 
 use inox_bvh::{create_linearized_bvh, BVHTree, AABB};
 use inox_graphics::{MeshData, MeshletData, VertexAttributeLayout};
-use inox_math::{VecBase, Vector2, Vector3, Vector4};
+use inox_math::{get_random_u32, VecBase, Vector2, Vector3, Vector4};
 use inox_resources::to_slice;
+
+const MESHLETS_GROUP_SIZE: usize = 4;
 
 #[derive(Debug, Clone, Copy)]
 pub struct MeshVertex {
@@ -32,12 +34,13 @@ impl Default for MeshVertex {
     }
 }
 
-#[derive(Default, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
-struct Edge {
+#[derive(Default, Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Clone)]
+pub struct Edge {
     v1: u32,
     v2: u32,
 }
-struct MeshletInfo {
+#[derive(Default, Debug, Clone)]
+pub struct MeshletInfo {
     meshlet_index: u32,
     edges: Vec<Edge>,
     adjacent_meshlets: Vec<u32>,
@@ -231,7 +234,7 @@ pub fn compute_meshlets(mesh_data: &mut MeshData) {
     mesh_data.meshlets_bvh = create_linearized_bvh(&bvh);
 }
 
-pub fn build_meshlets_lods(mesh_data: &mut MeshData) {
+pub fn build_meshlets_info(mesh_data: &mut MeshData) -> Vec<MeshletInfo> {
     let mut meshlets_info = Vec::with_capacity(mesh_data.meshlets.len());
     mesh_data
         .meshlets
@@ -288,7 +291,7 @@ pub fn build_meshlets_lods(mesh_data: &mut MeshData) {
     debug_assert!(num_meshlets == mesh_data.meshlets.len());
     if num_meshlets > 1 {
         for i in 0..num_meshlets {
-            for j in 1..num_meshlets {
+            for j in 0..num_meshlets {
                 if i != j {
                     let mut is_adjacent = false;
                     meshlets_info[i].edges.iter().for_each(|e1| {
@@ -308,4 +311,54 @@ pub fn build_meshlets_lods(mesh_data: &mut MeshData) {
             }
         }
     }
+    meshlets_info
+}
+
+pub fn group_meshlets(meshlets_info: &[MeshletInfo]) -> Vec<Vec<u32>> {
+    let mut available_meshlets = meshlets_info.to_vec();
+    let mut meshlets_groups = Vec::new();
+    while !available_meshlets.is_empty() {
+        let mut meshlet_info = available_meshlets.remove(0);
+        let mut meshlet_group = Vec::new();
+        meshlet_group.push(meshlet_info.meshlet_index);
+        while meshlet_group.len() < MESHLETS_GROUP_SIZE
+            && !meshlet_info.adjacent_meshlets.is_empty()
+        {
+            let mut rnd = 0;
+            if meshlet_info.adjacent_meshlets.len() > 1 {
+                rnd = get_random_u32(0, meshlet_info.adjacent_meshlets.len() as u32 - 1);
+            }
+            let other_index = meshlet_info.adjacent_meshlets.remove(rnd as _);
+            if let Some(other_available_index) = available_meshlets
+                .iter()
+                .position(|m| m.meshlet_index == other_index)
+            {
+                available_meshlets.remove(other_available_index);
+                meshlet_group.push(other_index);
+            }
+        }
+        let should_retry = meshlet_group.len() < MESHLETS_GROUP_SIZE
+            && available_meshlets.len() > MESHLETS_GROUP_SIZE;
+
+        if !should_retry && (meshlet_group.len() > 1 || available_meshlets.is_empty()) {
+            meshlets_groups.push(meshlet_group);
+        } else {
+            meshlet_group.iter().for_each(|i| {
+                let mut j = 0;
+                while j < meshlets_groups.len() {
+                    if meshlets_groups[j].len() < MESHLETS_GROUP_SIZE
+                        || meshlets_groups[j].contains(i)
+                    {
+                        let group = meshlets_groups.remove(j);
+                        group.iter().for_each(|k| {
+                            available_meshlets.push(meshlets_info[*k as usize].clone());
+                        });
+                    } else {
+                        j += 1;
+                    }
+                }
+            });
+        }
+    }
+    meshlets_groups
 }

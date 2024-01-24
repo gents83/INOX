@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    mesh::{build_meshlets_lods, compute_meshlets, optimize_mesh, MeshVertex},
+    mesh::{build_meshlets_info, compute_meshlets, group_meshlets, optimize_mesh, MeshVertex},
     need_to_binarize, to_local_path, ExtensionHandler,
 };
 use gltf::{
@@ -371,7 +371,10 @@ impl GltfCompiler {
         let mut mesh_data =
             optimize_mesh(self.optimize_meshes, &geometry.vertices, &geometry.indices);
         compute_meshlets(&mut mesh_data);
-        build_meshlets_lods(&mut mesh_data);
+
+        let meshlets_info = build_meshlets_info(&mut mesh_data);
+        let _groups = group_meshlets(&meshlets_info);
+
         mesh_data.material = material_path.to_path_buf();
 
         self.create_file(
