@@ -25,7 +25,7 @@ pub extern "C" fn create_gpu_profiler() {
     unsafe {
         if GLOBAL_GPU_PROFILER.is_none() {
             let settings = wgpu_profiler::GpuProfilerSettings {
-                enable_timer_scopes: false,
+                enable_timer_queries: false,
                 ..Default::default()
             };
             if let Ok(wgpu_profiler) = wgpu_profiler::GpuProfiler::new(settings.clone()) {
@@ -44,7 +44,7 @@ pub extern "C" fn get_gpu_profiler() -> GlobalGpuProfiler {
 
 impl GpuProfiler {
     pub fn enable(&mut self, enabled: bool) -> &mut Self {
-        self.settings.enable_timer_scopes = enabled;
+        self.settings.enable_timer_queries = enabled;
         self.wgpu_profiler
             .change_settings(self.settings.clone())
             .ok();
@@ -53,13 +53,13 @@ impl GpuProfiler {
     pub fn profile<'a, P>(
         &'a self,
         label: &str,
-        recorder: &'a mut P,
+        encoder_or_pass: &'a mut P,
         device: &wgpu::Device,
     ) -> wgpu_profiler::Scope<P>
     where
         P: wgpu_profiler::ProfilerCommandRecorder,
     {
-        wgpu_profiler::Scope::start(label, &self.wgpu_profiler, recorder, device)
+        self.wgpu_profiler.scope(label, encoder_or_pass, device)
     }
     pub fn resolve_queries(&mut self, encoder: &mut wgpu::CommandEncoder) {
         self.wgpu_profiler.resolve_queries(encoder);
@@ -73,7 +73,7 @@ impl GpuProfiler {
             {
                 wgpu_results.append(&mut results);
             }
-            if self.settings.enable_timer_scopes && !wgpu_results.is_empty() {
+            if self.settings.enable_timer_queries && !wgpu_results.is_empty() {
                 wgpu_results.iter().for_each(|r| {
                     profiler.push_sample(
                         "GPU".to_string(),
