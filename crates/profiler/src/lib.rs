@@ -2,11 +2,9 @@
 #![allow(dead_code)]
 
 #[cfg(feature = "superluminal")]
-pub use self::superluminal::*;
 pub mod superluminal;
 
 #[cfg(feature = "chrometrace")]
-pub use self::chrometrace::*;
 pub mod chrometrace;
 
 pub mod cpu_profiler;

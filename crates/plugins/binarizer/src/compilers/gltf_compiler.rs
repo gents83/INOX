@@ -1,11 +1,13 @@
 use std::{
     fs::{self, create_dir_all, File},
     io::{Seek, SeekFrom},
-    mem::size_of,
     path::{Path, PathBuf},
 };
 
-use crate::{need_to_binarize, to_local_path, ExtensionHandler};
+use crate::{
+    mesh::{build_meshlets_lods, compute_meshlets, optimize_mesh, MeshVertex},
+    need_to_binarize, to_local_path, ExtensionHandler,
+};
 use gltf::{
     accessor::{DataType, Dimensions},
     buffer::{Source, View},
@@ -17,10 +19,8 @@ use gltf::{
     Accessor, Camera, Gltf, Node, Primitive, Semantic, Texture,
 };
 
-use inox_bvh::{create_linearized_bvh, BVHTree, AABB};
 use inox_graphics::{
-    LightData, LightType, MaterialData, MaterialFlags, MeshData, MeshletData, TextureType,
-    VertexAttributeLayout, MAX_TEXTURE_COORDS_SETS,
+    LightData, LightType, MaterialData, MaterialFlags, TextureType, MAX_TEXTURE_COORDS_SETS,
 };
 use inox_log::debug_log;
 use inox_math::{
@@ -28,7 +28,7 @@ use inox_math::{
 };
 
 use inox_nodes::LogicData;
-use inox_resources::{to_slice, SharedDataRc};
+use inox_resources::SharedDataRc;
 use inox_scene::{CameraData, ObjectData, SceneData};
 use inox_serialize::{
     deserialize, inox_serializable::SerializableRegistryRc, Deserialize, Serialize, SerializeFile,
@@ -63,36 +63,8 @@ enum NodeType {
     Camera,
     Light,
 }
-
-#[derive(Debug, Clone, Copy)]
-struct GltfVertex {
-    pos: Vector3,
-    color: Option<Vector4>,
-    normal: Option<Vector3>,
-    tangent: Option<Vector4>,
-    uv_0: Option<Vector2>,
-    uv_1: Option<Vector2>,
-    uv_2: Option<Vector2>,
-    uv_3: Option<Vector2>,
-}
-
-impl Default for GltfVertex {
-    fn default() -> Self {
-        Self {
-            pos: Vector3::default_zero(),
-            color: None,
-            normal: None,
-            tangent: None,
-            uv_0: None,
-            uv_1: None,
-            uv_2: None,
-            uv_3: None,
-        }
-    }
-}
-
 struct GltfGeometry {
-    vertices: Vec<GltfVertex>,
+    vertices: Vec<MeshVertex>,
     indices: Vec<u32>,
 }
 
@@ -246,7 +218,7 @@ impl GltfCompiler {
         indices
     }
 
-    fn extract_vertices(&mut self, path: &Path, primitive: &Primitive) -> Vec<GltfVertex> {
+    fn extract_vertices(&mut self, path: &Path, primitive: &Primitive) -> Vec<MeshVertex> {
         let mut vertices = Vec::new();
 
         primitive.attributes().enumerate().for_each(|(_attribute_index, (semantic, accessor))| {
@@ -258,7 +230,7 @@ impl GltfCompiler {
                     debug_assert!(num == 3 && num_bytes == 4);
                     if let Some(pos) = self.read_accessor_from_path::<Vector3>(path, &accessor) {
                         if vertices.is_empty() {
-                            vertices.resize(pos.len(), GltfVertex::default());
+                            vertices.resize(pos.len(), MeshVertex::default());
                         }
                         pos.iter().enumerate().for_each(|(i, v)| {
                             vertices[i].pos = *v;
@@ -271,7 +243,7 @@ impl GltfCompiler {
                     debug_assert!(num == 3 && num_bytes == 4);
                     if let Some(norm) = self.read_accessor_from_path::<Vector3>(path, &accessor) {
                         if vertices.is_empty() {
-                            vertices.resize(norm.len(), GltfVertex::default());
+                            vertices.resize(norm.len(), MeshVertex::default());
                         }
                         norm.iter().enumerate().for_each(|(i, v)| {
                             vertices[i].normal = Some(*v);
@@ -287,7 +259,7 @@ impl GltfCompiler {
                         if let Some(tan) = self.read_accessor_from_path::<Vector4h>(path, &accessor)
                         {
                             if vertices.is_empty() {
-                                vertices.resize(tan.len(), GltfVertex::default());
+                                vertices.resize(tan.len(), MeshVertex::default());
                             }
                             tan.iter().enumerate().for_each(|(i, v)| {
                                 vertices[i].tangent =
@@ -313,7 +285,7 @@ impl GltfCompiler {
                         if let Some(col) = self.read_accessor_from_path::<Vector4h>(path, &accessor)
                         {
                             if vertices.is_empty() {
-                                vertices.resize(col.len(), GltfVertex::default());
+                                vertices.resize(col.len(), MeshVertex::default());
                             }
                             col.iter().enumerate().for_each(|(i, v)| {
                                 vertices[i].color =
@@ -348,7 +320,7 @@ impl GltfCompiler {
                     debug_assert!(num == 2 && num_bytes == 4);
                     if let Some(tex) = self.read_accessor_from_path::<Vector2>(path, &accessor) {
                         if vertices.is_empty() {
-                            vertices.resize(tex.len(), GltfVertex::default());
+                            vertices.resize(tex.len(), MeshVertex::default());
                         }
                         match texture_index {
                             0 => {
@@ -385,196 +357,6 @@ impl GltfCompiler {
         vertices
     }
 
-    fn optimize_mesh(&self, vertices: &[GltfVertex], indices: &[u32]) -> MeshData {
-        let mut mesh_data = MeshData {
-            vertex_layout: VertexAttributeLayout::HasPosition,
-            aabb_max: Vector3::new(-f32::INFINITY, -f32::INFINITY, -f32::INFINITY),
-            aabb_min: Vector3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY),
-            ..Default::default()
-        };
-        let (vertices, indices) = if self.optimize_meshes {
-            let (num_vertices, vertices_remap_table) =
-                meshopt::generate_vertex_remap(vertices, Some(indices));
-
-            let new_vertices = meshopt::remap_vertex_buffer(
-                vertices,
-                num_vertices,
-                vertices_remap_table.as_slice(),
-            );
-            let new_indices = meshopt::remap_index_buffer(
-                Some(indices),
-                num_vertices,
-                vertices_remap_table.as_slice(),
-            );
-
-            let mut new_indices =
-                meshopt::optimize_vertex_cache(new_indices.as_slice(), num_vertices);
-
-            let vertices_bytes = to_slice(vertices);
-            let vertex_stride = size_of::<GltfVertex>();
-            let vertex_data_adapter =
-                meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
-            meshopt::optimize_overdraw_in_place(
-                new_indices.as_mut_slice(),
-                vertex_data_adapter.as_ref().unwrap(),
-                1.01,
-            );
-            let new_vertices =
-                meshopt::optimize_vertex_fetch(new_indices.as_mut_slice(), new_vertices.as_slice());
-
-            (new_vertices, new_indices)
-        } else {
-            (vertices.to_vec(), indices.to_vec())
-        };
-
-        vertices.iter().for_each(|v| {
-            mesh_data.aabb_max = mesh_data.aabb_max.max(v.pos);
-            mesh_data.aabb_min = mesh_data.aabb_min.min(v.pos);
-        });
-        mesh_data.indices = indices;
-        mesh_data.vertex_positions.reserve(vertices.len());
-        mesh_data
-            .vertex_attributes
-            .reserve(VertexAttributeLayout::all().stride_in_count() * vertices.len());
-        vertices.iter().for_each(|v| {
-            mesh_data.insert_position(v.pos);
-            if let Some(c) = v.color {
-                mesh_data.vertex_layout |= VertexAttributeLayout::HasColor;
-                mesh_data.insert_color(c);
-            }
-            if let Some(n) = v.normal {
-                mesh_data.vertex_layout |= VertexAttributeLayout::HasNormal;
-                mesh_data.insert_normal(n);
-            }
-            if let Some(t) = v.tangent {
-                mesh_data.vertex_layout |= VertexAttributeLayout::HasTangent;
-                mesh_data.insert_tangent(t);
-            }
-            if let Some(uv) = v.uv_0 {
-                mesh_data.vertex_layout |= VertexAttributeLayout::HasUV1;
-                mesh_data.insert_uv(uv);
-            }
-            if let Some(uv) = v.uv_1 {
-                mesh_data.vertex_layout |= VertexAttributeLayout::HasUV2;
-                mesh_data.insert_uv(uv);
-            }
-            if let Some(uv) = v.uv_2 {
-                mesh_data.vertex_layout |= VertexAttributeLayout::HasUV3;
-                mesh_data.insert_uv(uv);
-            }
-            if let Some(uv) = v.uv_3 {
-                mesh_data.vertex_layout |= VertexAttributeLayout::HasUV4;
-                mesh_data.insert_uv(uv);
-            }
-        });
-        mesh_data
-    }
-
-    fn compute_meshlets(&self, mesh_data: &mut MeshData) {
-        let mut positions = Vec::with_capacity(mesh_data.vertex_count());
-        for i in 0..mesh_data.vertex_count() {
-            positions.push(mesh_data.position(i));
-        }
-
-        let mut new_meshlets = Vec::new();
-        let vertices_bytes = to_slice(positions.as_slice());
-        let vertex_stride = size_of::<Vector3>();
-        let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
-        let max_vertices = 64;
-        let max_triangles = 124;
-        let cone_weight = 0.7;
-        let meshlets = meshopt::build_meshlets(
-            &mesh_data.indices,
-            vertex_data_adapter.as_ref().unwrap(),
-            max_vertices,
-            max_triangles,
-            cone_weight,
-        );
-        if !meshlets.meshlets.is_empty() {
-            let mut new_indices = Vec::new();
-            for m in meshlets.iter() {
-                let bounds =
-                    meshopt::compute_meshlet_bounds(m, vertex_data_adapter.as_ref().unwrap());
-                let index_offset = new_indices.len();
-                debug_assert!(
-                    m.triangles.len() % 3 == 0,
-                    "meshlet indices count {} is not divisible by 3",
-                    m.triangles.len()
-                );
-                m.triangles.iter().for_each(|v_i| {
-                    new_indices.push(m.vertices[*v_i as usize]);
-                });
-                debug_assert!(
-                    new_indices.len() % 3 == 0,
-                    "new indices count {} is not divisible by 3",
-                    new_indices.len()
-                );
-                let mut triangles_aabbs = Vec::new();
-                triangles_aabbs.resize_with(m.triangles.len() / 3, AABB::empty);
-                let mut i = 0;
-                while i < m.triangles.len() {
-                    let triangle_id = i / 3;
-                    let v1 = positions[m.vertices[m.triangles[i] as usize] as usize];
-                    i += 1;
-                    let v2 = positions[m.vertices[m.triangles[i] as usize] as usize];
-                    i += 1;
-                    let v3 = positions[m.vertices[m.triangles[i] as usize] as usize];
-                    i += 1;
-                    let min = v1.min(v2).min(v3);
-                    let max = v1.max(v2).max(v3);
-                    triangles_aabbs[triangle_id] = AABB::create(min, max, triangle_id as _);
-                }
-                let bvh = BVHTree::new(&triangles_aabbs);
-                new_meshlets.push(MeshletData {
-                    indices_offset: index_offset as _,
-                    indices_count: m.triangles.len() as _,
-                    aabb_max: bvh.nodes()[0].max(),
-                    aabb_min: bvh.nodes()[0].min(),
-                    cone_axis: bounds.cone_axis.into(),
-                    cone_angle: bounds.cone_cutoff,
-                    cone_center: bounds.center.into(),
-                    triangles_bvh: create_linearized_bvh(&bvh),
-                });
-            }
-            mesh_data.indices = new_indices;
-        } else {
-            let mut triangles_aabbs = Vec::new();
-            triangles_aabbs.resize_with(mesh_data.indices.len() / 3, AABB::empty);
-            let mut i = 0;
-            while i < mesh_data.indices.len() {
-                let triangle_id = i / 3;
-                let v1 = positions[mesh_data.indices[i] as usize];
-                i += 1;
-                let v2 = positions[mesh_data.indices[i] as usize];
-                i += 1;
-                let v3 = positions[mesh_data.indices[i] as usize];
-                i += 1;
-                let min = v1.min(v2).min(v3);
-                let max = v1.max(v2).max(v3);
-                triangles_aabbs[triangle_id] = AABB::create(min, max, triangle_id as _);
-            }
-            let bvh = BVHTree::new(&triangles_aabbs);
-            let meshlet = MeshletData {
-                indices_offset: 0,
-                indices_count: mesh_data.indices.len() as _,
-                aabb_max: bvh.nodes()[0].max(),
-                aabb_min: bvh.nodes()[0].min(),
-                triangles_bvh: create_linearized_bvh(&bvh),
-                ..Default::default()
-            };
-            new_meshlets.push(meshlet);
-        }
-        mesh_data.meshlets = new_meshlets;
-
-        let mut meshlets_aabbs = Vec::new();
-        meshlets_aabbs.resize_with(mesh_data.meshlets.len(), AABB::empty);
-        mesh_data.meshlets.iter().enumerate().for_each(|(i, m)| {
-            meshlets_aabbs[i] = AABB::create(m.aabb_min, m.aabb_max, i as _);
-        });
-        let bvh = BVHTree::new(&meshlets_aabbs);
-        mesh_data.meshlets_bvh = create_linearized_bvh(&bvh);
-    }
-
     fn process_mesh_data(
         &mut self,
         path: &Path,
@@ -586,8 +368,10 @@ impl GltfCompiler {
         let indices = self.extract_indices(path, primitive);
         let mut geometry = GltfGeometry { vertices, indices };
         generate_tangents(&mut geometry);
-        let mut mesh_data = self.optimize_mesh(&geometry.vertices, &geometry.indices);
-        self.compute_meshlets(&mut mesh_data);
+        let mut mesh_data =
+            optimize_mesh(self.optimize_meshes, &geometry.vertices, &geometry.indices);
+        compute_meshlets(&mut mesh_data);
+        build_meshlets_lods(&mut mesh_data);
         mesh_data.material = material_path.to_path_buf();
 
         self.create_file(

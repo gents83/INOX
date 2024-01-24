@@ -1,8 +1,8 @@
 pub struct ScopedProfile;
 
 impl ScopedProfile {
-    pub fn new(category: &str, name: &str) -> Self {
-        superluminal_perf::begin_event(format!("[{}]{}", category, name).as_str());
+    pub fn new(_category: &str, name: &'static str) -> Self {
+        superluminal_perf::begin_event(name);
         ScopedProfile
     }
 }

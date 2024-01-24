@@ -51,7 +51,7 @@ macro_rules! scoped_profile {
         let _profile_scope = {
                 let string = format!("{}", &format_args!($($t)*).to_string());
                 let scoped_profiler =
-                    Box::new($crate::ScopedProfile::new("CPU", string.as_str()));
+                    Box::new($crate::superluminal::ScopedProfile::new("CPU", string.as_str()));
                 scoped_profiler
             };
     };

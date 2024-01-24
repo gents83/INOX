@@ -163,7 +163,7 @@ macro_rules! scoped_profile {
             if profiler.is_started() {
                 let string = format!("{}", &format_args!($($t)*).to_string());
                 let scoped_profiler =
-                    Box::new($crate::ScopedProfile::new(profiler.clone(), "CPU", string.as_str()));
+                    Box::new($crate::chrometrace::ScopedProfile::new(profiler.clone(), "CPU", string.as_str()));
                 Some(scoped_profiler)
             } else {
                 None

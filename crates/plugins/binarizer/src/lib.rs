@@ -8,6 +8,7 @@ pub use crate::utils::*;
 
 mod compilers;
 mod config;
+mod mesh;
 pub mod plugin;
 mod system;
 pub mod utils;
