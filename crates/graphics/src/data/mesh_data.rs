@@ -48,8 +48,8 @@ pub struct MeshData {
     pub vertex_attributes: Vec<u32>,
     pub indices: Vec<u32>,
     pub material: PathBuf,
-    pub meshlets: Vec<MeshletData>,
-    pub meshlets_bvh: Vec<GPUBVHNode>,
+    pub meshlets: Vec<Vec<MeshletData>>,
+    pub meshlets_bvh: Vec<Vec<GPUBVHNode>>,
 }
 
 impl Default for MeshData {
@@ -70,8 +70,8 @@ impl Default for MeshData {
             vertex_attributes: Vec::new(),
             indices: Vec::new(),
             material: PathBuf::default(),
-            meshlets: Vec::new(),
-            meshlets_bvh: Vec::new(),
+            meshlets: vec![Vec::new()],
+            meshlets_bvh: vec![Vec::new()],
         }
     }
 }
@@ -176,6 +176,7 @@ impl MeshData {
     pub fn append_mesh_data(
         &mut self,
         mut mesh_data: MeshData,
+        lod_level: usize,
         as_separate_meshlet: bool,
     ) -> &mut Self {
         debug_assert!(
@@ -193,9 +194,9 @@ impl MeshData {
                 aabb_max: mesh_data.aabb_max(),
                 ..Default::default()
             };
-            self.meshlets.push(meshlet);
+            self.meshlets[lod_level].push(meshlet);
         } else {
-            let meshlet = self.meshlets.last_mut().unwrap();
+            let meshlet = self.meshlets[lod_level].last_mut().unwrap();
             meshlet.indices_count += mesh_data.index_count() as u32;
         }
 
@@ -224,15 +225,14 @@ impl MeshData {
             .iter()
             .for_each(|i| self.indices.push(*i + vertex_offset));
 
+        let meshlet = self.meshlets[lod_level].last().unwrap();
         let mut triangles_aabbs = Vec::new();
         triangles_aabbs.resize_with(
-            (1 + self.meshlets.last().unwrap().indices_count
-                - self.meshlets.last().unwrap().indices_offset) as usize
-                / 3,
+            (1 + meshlet.indices_count - meshlet.indices_offset) as usize / 3,
             AABB::empty,
         );
-        let mut i = self.meshlets.last().unwrap().indices_offset;
-        while i < self.meshlets.last().unwrap().indices_count {
+        let mut i = meshlet.indices_offset;
+        while i < meshlet.indices_count {
             let triangle_id = (i / 3) as usize;
             let v1 = self.position(self.indices[i as usize] as _);
             i += 1;
@@ -245,16 +245,19 @@ impl MeshData {
             triangles_aabbs[triangle_id] = AABB::create(min, max, triangle_id as _);
         }
         let bvh = BVHTree::new(&triangles_aabbs);
-        let meshlet = self.meshlets.last_mut().unwrap();
+        let meshlet = self.meshlets[lod_level].last_mut().unwrap();
         meshlet.triangles_bvh = create_linearized_bvh(&bvh);
 
         let mut meshlets_aabbs = Vec::new();
         meshlets_aabbs.resize_with(self.meshlets.len(), AABB::empty);
-        self.meshlets.iter().enumerate().for_each(|(i, m)| {
-            meshlets_aabbs[i] = AABB::create(m.aabb_min, m.aabb_max, i as _);
-        });
+        self.meshlets[lod_level]
+            .iter()
+            .enumerate()
+            .for_each(|(i, m)| {
+                meshlets_aabbs[i] = AABB::create(m.aabb_min, m.aabb_max, i as _);
+            });
         let bvh = BVHTree::new(&meshlets_aabbs);
-        self.meshlets_bvh = create_linearized_bvh(&bvh);
+        self.meshlets_bvh[lod_level] = create_linearized_bvh(&bvh);
 
         self
     }

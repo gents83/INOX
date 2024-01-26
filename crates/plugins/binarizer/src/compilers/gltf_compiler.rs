@@ -5,7 +5,10 @@ use std::{
 };
 
 use crate::{
-    mesh::{build_meshlets_info, compute_meshlets, group_meshlets, optimize_mesh, MeshVertex},
+    mesh::{
+        build_meshlets_info, compute_meshlets, generate_meshlets_for_level, group_meshlets,
+        optimize_mesh, MeshVertex,
+    },
     need_to_binarize, to_local_path, ExtensionHandler,
 };
 use gltf::{
@@ -372,8 +375,15 @@ impl GltfCompiler {
             optimize_mesh(self.optimize_meshes, &geometry.vertices, &geometry.indices);
         compute_meshlets(&mut mesh_data);
 
-        let meshlets_info = build_meshlets_info(&mut mesh_data);
-        let _groups = group_meshlets(&meshlets_info);
+        let mut is_meshlet_tree_created = false;
+        let mut level = 0;
+        while !is_meshlet_tree_created {
+            let meshlets_info = build_meshlets_info(&mut mesh_data, level);
+            let groups = group_meshlets(&meshlets_info);
+            level += 1;
+            generate_meshlets_for_level(level, &groups, &mut mesh_data);
+            is_meshlet_tree_created = groups.len() == 1 && groups[0].len() == 1;
+        }
 
         mesh_data.material = material_path.to_path_buf();
 

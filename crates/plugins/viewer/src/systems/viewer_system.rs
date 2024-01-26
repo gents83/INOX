@@ -206,7 +206,7 @@ impl ViewerSystem {
                 ..Default::default()
             };
             let quad = create_quad([-10., -10., 10., 10.].into(), 0.);
-            mesh_data.append_mesh_data(quad, false);
+            mesh_data.append_mesh_data(quad, 0, false);
             mesh_data.set_vertex_color([0.0, 0.0, 1.0, 1.0].into());
 
             //println!("Quad Mesh {:?}", mesh.id());
@@ -255,7 +255,7 @@ impl ViewerSystem {
                 ..Default::default()
             };
             let quad = create_quad([-10., -10., 10., 10.].into(), 0.);
-            mesh_data.append_mesh_data(quad, false);
+            mesh_data.append_mesh_data(quad, 0, false);
             mesh_data.set_vertex_color([1.0, 1.0, 0.0, 1.0].into());
 
             //println!("Flat Mesh {:?}", mesh.id());

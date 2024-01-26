@@ -81,7 +81,7 @@ impl FontData {
                 0.0,
                 g.texture_coord,
             );
-            text_mesh_data.append_mesh_data(mesh_data, false);
+            text_mesh_data.append_mesh_data(mesh_data, 0, false);
             if *c == b'\n' {
                 prev_pos.x = text_data.position.x;
                 prev_pos.y += size + spacing_y;

@@ -74,7 +74,7 @@ pub fn create_cube_from_min_max(min: Vector3, max: Vector3, color: Vector4) -> M
         aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
-    mesh_data.meshlets.push(meshlet);
+    mesh_data.meshlets[0].push(meshlet);
     mesh_data
 }
 
@@ -235,7 +235,7 @@ pub fn create_cylinder(
         aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
-    mesh_data.meshlets.push(meshlet);
+    mesh_data.meshlets[0].push(meshlet);
     mesh_data
 }
 
@@ -310,7 +310,7 @@ pub fn create_sphere(
         aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
-    mesh_data.meshlets.push(meshlet);
+    mesh_data.meshlets[0].push(meshlet);
     mesh_data
 }
 
@@ -325,12 +325,12 @@ pub fn create_arrow(position: Vector3, direction: Vector3, color: Vector4) -> Me
     let mut cylinder_mesh_data = create_cylinder(0.25, 0.25, 16, height, 1, color);
     cylinder_mesh_data.aabb_min.y += height * 0.5;
     cylinder_mesh_data.aabb_max.y += height * 0.5;
-    shape_mesh_data.append_mesh_data(cylinder_mesh_data, false);
+    shape_mesh_data.append_mesh_data(cylinder_mesh_data, 0, false);
 
     let mut tip_mesh_data = create_cylinder(0.5, 0., 16, 2.5, 1, color);
     tip_mesh_data.aabb_min.y += height;
     tip_mesh_data.aabb_max.y += height;
-    shape_mesh_data.append_mesh_data(tip_mesh_data, false);
+    shape_mesh_data.append_mesh_data(tip_mesh_data, 0, false);
 
     let mut matrix = Matrix4::default_identity();
     matrix.look_towards(direction);
@@ -358,7 +358,7 @@ pub fn create_line(start: Vector3, end: Vector3, color: Vector4) -> MeshData {
         aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
-    mesh_data.meshlets.push(meshlet);
+    mesh_data.meshlets[0].push(meshlet);
     mesh_data
 }
 
@@ -394,7 +394,7 @@ pub fn create_circumference(
         .into();
 
         let m = create_line(pos1, pos2, color);
-        mesh_data.append_mesh_data(m, false);
+        mesh_data.append_mesh_data(m, 0, false);
     }
     mesh_data
 }
@@ -438,7 +438,7 @@ pub fn create_circle(position: Vector3, radius: f32, num_slices: u32, color: Vec
         aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
-    mesh_data.meshlets.push(meshlet);
+    mesh_data.meshlets[0].push(meshlet);
     mesh_data
 }
 
@@ -453,7 +453,7 @@ pub fn create_hammer(position: Vector3, direction: Vector3, color: Vector4) -> M
     let mut cylinder_mesh_data = create_cylinder(0.25, 0.25, 16, height, 1, color);
     cylinder_mesh_data.aabb_min.y += height * 0.5;
     cylinder_mesh_data.aabb_max.y += height * 0.5;
-    shape_mesh_data.append_mesh_data(cylinder_mesh_data, false);
+    shape_mesh_data.append_mesh_data(cylinder_mesh_data, 0, false);
 
     let mut cube_mesh_data = create_cube_from_min_max(
         Vector3::new(-0.5, -0.5, -0.5),
@@ -462,7 +462,7 @@ pub fn create_hammer(position: Vector3, direction: Vector3, color: Vector4) -> M
     );
     cube_mesh_data.aabb_min.y += height;
     cube_mesh_data.aabb_max.y += height;
-    shape_mesh_data.append_mesh_data(cube_mesh_data, false);
+    shape_mesh_data.append_mesh_data(cube_mesh_data, 0, false);
 
     let mut matrix = Matrix4::default_identity();
     matrix.look_towards(direction);
@@ -548,7 +548,7 @@ pub fn create_torus(
         aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
-    mesh_data.meshlets.push(meshlet);
+    mesh_data.meshlets[0].push(meshlet);
 
     let mut matrix = Matrix4::default_identity();
     matrix.look_towards(direction);

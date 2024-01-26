@@ -47,7 +47,7 @@ pub fn create_quad_with_texture(rect: Vector4, z: f32, tex_coords: Vector4) -> M
         aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
-    mesh_data.meshlets.push(meshlet);
+    mesh_data.meshlets[0].push(meshlet);
     mesh_data
 }
 pub fn create_colored_quad(rect: Vector4, z: f32, color: Vector4) -> MeshData {
@@ -69,7 +69,7 @@ pub fn create_colored_quad(rect: Vector4, z: f32, color: Vector4) -> MeshData {
         aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
-    mesh_data.meshlets.push(meshlet);
+    mesh_data.meshlets[0].push(meshlet);
     mesh_data
 }
 
@@ -107,7 +107,7 @@ pub fn create_triangle_up() -> MeshData {
         aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
-    mesh_data.meshlets.push(meshlet);
+    mesh_data.meshlets[0].push(meshlet);
     mesh_data
 }
 
@@ -145,7 +145,7 @@ pub fn create_triangle_down() -> MeshData {
         aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
-    mesh_data.meshlets.push(meshlet);
+    mesh_data.meshlets[0].push(meshlet);
     mesh_data
 }
 
@@ -267,6 +267,6 @@ pub fn create_rounded_rect(
         aabb_max: mesh_data.aabb_max(),
         ..Default::default()
     };
-    mesh_data.meshlets.push(meshlet);
+    mesh_data.meshlets[0].push(meshlet);
     mesh_data
 }

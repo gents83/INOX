@@ -77,13 +77,13 @@ impl GlobalBuffers {
         mesh_id: &MeshId,
         mesh_index: u32,
         indices_offset: u32,
+        lod_level: usize,
     ) -> (usize, usize) {
         inox_profiler::scoped_profile!("render_buffers::extract_meshlets");
 
         let mut meshlets = Vec::new();
-        meshlets.resize(mesh_data.meshlets.len(), GPUMeshlet::default());
-        mesh_data
-            .meshlets
+        meshlets.resize(mesh_data.meshlets[lod_level].len(), GPUMeshlet::default());
+        mesh_data.meshlets[lod_level]
             .iter()
             .enumerate()
             .for_each(|(i, meshlet_data)| {
@@ -132,7 +132,7 @@ impl GlobalBuffers {
             .bvh
             .write()
             .unwrap()
-            .allocate(mesh_id, &mesh_data.meshlets_bvh)
+            .allocate(mesh_id, &mesh_data.meshlets_bvh[lod_level])
             .1;
         let blas_index = mesh_bhv_range.start as _;
         self.bvh.write().unwrap().data_mut()[mesh_bhv_range]
@@ -222,7 +222,7 @@ impl GlobalBuffers {
         let (vertex_offset, indices_offset, attributes_offset) =
             self.add_vertex_data(mesh_id, mesh_index as _, mesh_data);
         let (blas_index, meshlet_offset) =
-            self.extract_meshlets(mesh_data, mesh_id, mesh_index as _, indices_offset);
+            self.extract_meshlets(mesh_data, mesh_id, mesh_index as _, indices_offset, 6);
 
         {
             let mut meshes = self.meshes.write().unwrap();

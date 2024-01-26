@@ -211,7 +211,8 @@ impl Info {
             .process_messages(|e: &DataTypeResourceEvent<Mesh>| {
                 let DataTypeResourceEvent::Loaded(id, mesh_data) = e;
                 let mut meshlets = Vec::new();
-                mesh_data.meshlets.iter().for_each(|meshlet| {
+                let lod_level = 0;
+                mesh_data.meshlets[lod_level].iter().for_each(|meshlet| {
                     meshlets.push(MeshletInfo {
                         min: meshlet.aabb_min,
                         max: meshlet.aabb_max,
