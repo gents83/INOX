@@ -5,8 +5,7 @@ use inox_graphics::{
     CullingEvent, DrawEvent, Light, LightType, Mesh, MeshFlags, MeshId, RenderContextRc,
     CONSTANT_DATA_FLAGS_DISPLAY_BASE_COLOR, CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT,
     CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
-    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
-    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS, CONSTANT_DATA_FLAGS_DISPLAY_METALLIC,
+    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX, CONSTANT_DATA_FLAGS_DISPLAY_METALLIC,
     CONSTANT_DATA_FLAGS_DISPLAY_NORMALS, CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE,
     CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_ROUGHNESS,
     CONSTANT_DATA_FLAGS_DISPLAY_TANGENT, CONSTANT_DATA_FLAGS_DISPLAY_UV_0,
@@ -14,7 +13,7 @@ use inox_graphics::{
     CONSTANT_DATA_FLAGS_DISPLAY_UV_3, CONSTANT_DATA_FLAGS_NONE, CONSTANT_DATA_FLAGS_USE_IBL,
 };
 use inox_math::{
-    compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle, Quat, VecBase, Vector2,
+    compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle, VecBase, Vector2,
     Vector3,
 };
 use inox_messenger::Listener;
@@ -48,8 +47,6 @@ impl Default for MeshInfo {
 struct MeshletInfo {
     min: Vector3,
     max: Vector3,
-    center: Vector3,
-    axis: Vector3,
 }
 
 impl Default for MeshletInfo {
@@ -57,8 +54,6 @@ impl Default for MeshletInfo {
         Self {
             min: Vector3::default_zero(),
             max: Vector3::default_zero(),
-            center: Vector3::default_zero(),
-            axis: Vector3::default_zero(),
         }
     }
 }
@@ -149,10 +144,6 @@ impl Info {
                     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
                     "Meshlets BoundingBox",
                 ),
-                (
-                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS,
-                    "Meshlets ConeAxis",
-                ),
                 (CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE, "PathTrace"),
             ],
             mouse_coords: Vector2::default_zero(),
@@ -216,8 +207,6 @@ impl Info {
                     meshlets.push(MeshletInfo {
                         min: meshlet.aabb_min,
                         max: meshlet.aabb_max,
-                        center: meshlet.cone_center,
-                        axis: meshlet.cone_axis,
                     });
                 });
                 self.meshes.insert(
@@ -382,14 +371,10 @@ impl Info {
             if !data.selected_object_id.is_nil() {
                 Self::show_object_in_scene(data, &data.selected_object_id);
             }
-            match data.visualization_debug_choices[data.visualization_debug_selected].0 {
-                CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX => {
-                    Self::show_meshlets_bounding_box(data, &self.meshes)
-                }
-                CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS => {
-                    Self::show_meshlets_cone_axis(data, &self.meshes)
-                }
-                _ => {}
+            if data.visualization_debug_choices[data.visualization_debug_selected].0
+                == CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX
+            {
+                Self::show_meshlets_bounding_box(data, &self.meshes);
             }
         }
     }
@@ -466,25 +451,6 @@ impl Info {
                             mesh_info.matrix.rotate_point(meshlet_info.max),
                             [1.0, 1.0, 0.0, 1.0].into(),
                         ));
-                });
-            }
-        });
-    }
-
-    fn show_meshlets_cone_axis(data: &mut Data, meshes: &HashBuffer<MeshId, MeshInfo, 0>) {
-        meshes.for_each_entry(|_id, mesh_info| {
-            if mesh_info.flags.contains(MeshFlags::Visible) {
-                mesh_info.meshlets.iter().for_each(|meshlet_info| {
-                    let pos = mesh_info.matrix.rotate_point(meshlet_info.center);
-                    data.context.message_hub().send_event(DrawEvent::Line(
-                        pos,
-                        pos + mesh_info
-                            .matrix
-                            .orientation()
-                            .transform_vector(meshlet_info.axis)
-                            * 0.75,
-                        [1.0, 1.0, 0.0, 1.0].into(),
-                    ));
                 });
             }
         });

@@ -85,6 +85,8 @@ impl GPUMesh {
     }
 }
 
+pub const MESHLETS_GROUP_SIZE: usize = 4;
+
 #[repr(C, align(16))]
 #[derive(Default, PartialEq, Clone, Copy, Debug)]
 pub struct GPUMeshlet {
@@ -92,8 +94,7 @@ pub struct GPUMeshlet {
     pub indices_offset: u32,
     pub indices_count: u32,
     pub triangles_bhv_index: u32,
-    pub center: [f32; 3],
-    pub cone_axis_cutoff: [i8; 4],
+    pub child_meshlets: [i32; MESHLETS_GROUP_SIZE],
 }
 
 impl GPUMeshlet {
@@ -104,8 +105,7 @@ impl GPUMeshlet {
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
-        layout_builder.add_attribute::<[f32; 3]>(VertexFormat::Float32x3.into());
-        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<[i32; 4]>(VertexFormat::Uint32x4.into());
         layout_builder
     }
 }

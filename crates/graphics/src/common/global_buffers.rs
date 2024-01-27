@@ -7,7 +7,7 @@ use std::{
 };
 
 use inox_bvh::{create_linearized_bvh, BVHTree, GPUBVHNode, AABB};
-use inox_math::{quantize_half, quantize_snorm, InnerSpace, Mat4Ops, Matrix4, VecBase, Vector2};
+use inox_math::{quantize_half, Mat4Ops, Matrix4, VecBase, Vector2};
 use inox_resources::{to_slice, Buffer, HashBuffer, ResourceId};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
@@ -15,7 +15,7 @@ use crate::{
     AsBinding, ConstantDataRw, DispatchCommandSize, GPUMaterial, GPUMesh, GPUMeshlet,
     GPURuntimeVertexData, Light, LightData, LightId, Material, MaterialData, MaterialFlags,
     MaterialId, Mesh, MeshData, MeshFlags, MeshId, RenderCommandsPerType, TextureId, TextureInfo,
-    TextureType, VecF32, VecU32,
+    TextureType, VecF32, VecU32, MESHLETS_GROUP_SIZE,
 };
 
 pub const TLAS_UID: ResourceId = generate_static_uid_from_string("TLAS");
@@ -77,16 +77,16 @@ impl GlobalBuffers {
         mesh_id: &MeshId,
         mesh_index: u32,
         indices_offset: u32,
-        lod_level: usize,
     ) -> (usize, usize) {
         inox_profiler::scoped_profile!("render_buffers::extract_meshlets");
 
         let mut meshlets = Vec::new();
-        meshlets.resize(mesh_data.meshlets[lod_level].len(), GPUMeshlet::default());
-        mesh_data.meshlets[lod_level]
-            .iter()
-            .enumerate()
-            .for_each(|(i, meshlet_data)| {
+        let mut lod_data = Vec::new();
+        let mut starting_child_offset = 0;
+        mesh_data.meshlets.iter().rev().for_each(|meshlets_data| {
+            lod_data.push(meshlets_data.len());
+            starting_child_offset += meshlets_data.len();
+            meshlets_data.iter().for_each(|meshlet_data| {
                 let triangle_id = generate_random_uid();
                 self.triangles_ids
                     .write()
@@ -108,23 +108,25 @@ impl GlobalBuffers {
                             n.miss += triangles_bhv_index as i32;
                         }
                     });
-                let cone_axis = meshlet_data.cone_axis.normalize();
-                let cone_axis_cutoff = [
-                    quantize_snorm(cone_axis.x, 8) as i8,
-                    quantize_snorm(cone_axis.y, 8) as i8,
-                    quantize_snorm(cone_axis.z, 8) as i8,
-                    quantize_snorm(meshlet_data.cone_angle, 8) as i8,
-                ];
+                let mut child_meshlets = [-1; MESHLETS_GROUP_SIZE];
+                meshlet_data
+                    .child_meshlets
+                    .iter()
+                    .enumerate()
+                    .for_each(|(index, &mi)| {
+                        child_meshlets[index] = (starting_child_offset + mi as usize) as i32;
+                    });
                 let meshlet = GPUMeshlet {
                     mesh_index,
                     indices_offset: (indices_offset + meshlet_data.indices_offset) as _,
                     indices_count: meshlet_data.indices_count,
                     triangles_bhv_index,
-                    center: meshlet_data.cone_center.into(),
-                    cone_axis_cutoff,
+                    child_meshlets,
                 };
-                meshlets[i] = meshlet;
+                meshlets.push(meshlet);
             });
+        });
+
         if meshlets.is_empty() {
             inox_log::debug_log!("No meshlet data for mesh {:?}", mesh_id);
         }
@@ -132,7 +134,7 @@ impl GlobalBuffers {
             .bvh
             .write()
             .unwrap()
-            .allocate(mesh_id, &mesh_data.meshlets_bvh[lod_level])
+            .allocate(mesh_id, &mesh_data.meshlets_bvh[0])
             .1;
         let blas_index = mesh_bhv_range.start as _;
         self.bvh.write().unwrap().data_mut()[mesh_bhv_range]
@@ -222,7 +224,7 @@ impl GlobalBuffers {
         let (vertex_offset, indices_offset, attributes_offset) =
             self.add_vertex_data(mesh_id, mesh_index as _, mesh_data);
         let (blas_index, meshlet_offset) =
-            self.extract_meshlets(mesh_data, mesh_id, mesh_index as _, indices_offset, 0);
+            self.extract_meshlets(mesh_data, mesh_id, mesh_index as _, indices_offset);
 
         {
             let mut meshes = self.meshes.write().unwrap();
