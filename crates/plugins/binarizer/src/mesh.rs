@@ -1,7 +1,9 @@
 use std::{collections::HashMap, mem::size_of};
 
 use inox_bvh::{create_linearized_bvh, BVHTree, AABB};
-use inox_graphics::{MeshData, MeshletData, VertexAttributeLayout, MESHLETS_GROUP_SIZE};
+use inox_graphics::{
+    MeshData, MeshletData, VertexAttributeLayout, HALF_MESHLETS_GROUP_SIZE, MESHLETS_GROUP_SIZE,
+};
 use inox_math::{VecBase, Vector2, Vector3, Vector4};
 use inox_resources::to_slice;
 
@@ -402,22 +404,21 @@ pub fn group_meshlets(meshlets_info: &[MeshletInfo]) -> Vec<Vec<u32>> {
                     .position(|m| m.meshlet_index == info.meshlet_index)
                 {
                     let original = &meshlets_info[p];
-                    let mut a = original.adjacent_meshlets.len() - 1;
-                    while a > 0 && stealed.len() < MESHLETS_GROUP_SIZE / 2 {
-                        let mut j = 0;
-                        while a > 0
-                            && j < meshlets_groups.len()
-                            && stealed.len() < MESHLETS_GROUP_SIZE / 2
-                        {
-                            if let Some(i) = meshlets_groups[j]
-                                .iter()
-                                .position(|m| m.meshlet_index == original.adjacent_meshlets[a].0)
-                            {
-                                stealed.push(meshlets_groups[j].remove(i));
-                                a -= 1;
+                    let mut a = (original.adjacent_meshlets.len() - 1) as i32;
+                    while a >= 0 && stealed.len() < HALF_MESHLETS_GROUP_SIZE {
+                        let mut j = (meshlets_groups.len() - 1) as i32;
+                        while a >= 0 && j >= 0 && stealed.len() < HALF_MESHLETS_GROUP_SIZE {
+                            if meshlets_groups[j as usize].len() > HALF_MESHLETS_GROUP_SIZE {
+                                if let Some(i) = meshlets_groups[j as usize].iter().position(|m| {
+                                    m.meshlet_index == original.adjacent_meshlets[a as usize].0
+                                }) {
+                                    stealed.push(meshlets_groups[j as usize].remove(i));
+                                    a -= 1;
+                                }
                             }
-                            j += 1;
+                            j -= 1;
                         }
+                        a -= 1;
                     }
                 }
             });

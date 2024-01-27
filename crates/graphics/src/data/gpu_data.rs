@@ -86,6 +86,7 @@ impl GPUMesh {
 }
 
 pub const MESHLETS_GROUP_SIZE: usize = 4;
+pub const HALF_MESHLETS_GROUP_SIZE: usize = MESHLETS_GROUP_SIZE / 2;
 
 #[repr(C, align(16))]
 #[derive(Default, PartialEq, Clone, Copy, Debug)]
