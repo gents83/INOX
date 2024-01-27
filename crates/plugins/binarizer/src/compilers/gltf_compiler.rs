@@ -382,7 +382,7 @@ impl GltfCompiler {
             let groups = group_meshlets(&meshlets_info);
             level += 1;
             generate_meshlets_for_level(level, &groups, &mut mesh_data);
-            is_meshlet_tree_created = groups.len() == 1 && groups[0].len() == 1;
+            is_meshlet_tree_created = groups.len() == 1;
         }
 
         mesh_data.material = material_path.to_path_buf();

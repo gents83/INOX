@@ -222,7 +222,7 @@ impl GlobalBuffers {
         let (vertex_offset, indices_offset, attributes_offset) =
             self.add_vertex_data(mesh_id, mesh_index as _, mesh_data);
         let (blas_index, meshlet_offset) =
-            self.extract_meshlets(mesh_data, mesh_id, mesh_index as _, indices_offset, 6);
+            self.extract_meshlets(mesh_data, mesh_id, mesh_index as _, indices_offset, 0);
 
         {
             let mut meshes = self.meshes.write().unwrap();
