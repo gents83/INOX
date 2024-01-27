@@ -1,6 +1,7 @@
 const DEFAULT_WIDTH: u32 = 1920u;
 const DEFAULT_HEIGHT: u32 = 1080u;
 const SIZE_OF_DATA_BUFFER_ELEMENT: u32 = 4u;
+const MAX_LOD_LEVELS: u32 = 8u;
 const MAX_NUM_LIGHTS: u32 = 1024u;
 const MAX_NUM_TEXTURES: u32 = 65536u;
 const MAX_NUM_MATERIALS: u32 = 65536u;
@@ -150,6 +151,7 @@ struct Mesh {
     meshlets_offset: u32,
     scale: vec3<f32>,
     blas_index: u32,
+    meshlets_count: array<i32, MAX_LOD_LEVELS>,
 };
 
 struct Meshlet {

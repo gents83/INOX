@@ -23,7 +23,8 @@ use gltf::{
 };
 
 use inox_graphics::{
-    LightData, LightType, MaterialData, MaterialFlags, TextureType, MAX_TEXTURE_COORDS_SETS,
+    LightData, LightType, MaterialData, MaterialFlags, TextureType, MAX_LOD_LEVELS,
+    MAX_TEXTURE_COORDS_SETS,
 };
 use inox_log::debug_log;
 use inox_math::{
@@ -382,7 +383,7 @@ impl GltfCompiler {
             let groups = group_meshlets(&meshlets_info);
             level += 1;
             generate_meshlets_for_level(level, &groups, &mut mesh_data);
-            is_meshlet_tree_created = groups.len() == 1;
+            is_meshlet_tree_created = groups.len() == 1 || level >= MAX_LOD_LEVELS;
         }
 
         mesh_data.material = material_path.to_path_buf();

@@ -6,6 +6,10 @@ use crate::{
     INVALID_INDEX,
 };
 
+pub const MAX_LOD_LEVELS: usize = 8;
+pub const MESHLETS_GROUP_SIZE: usize = 4;
+pub const HALF_MESHLETS_GROUP_SIZE: usize = MESHLETS_GROUP_SIZE / 2;
+
 // Pipeline has a list of meshes to process
 // Meshes can switch pipeline at runtime
 // Material doesn't know pipeline anymore
@@ -45,7 +49,7 @@ pub struct DrawCommand {
     pub base_instance: u32,
 }
 
-#[repr(C, align(16))]
+#[repr(C)]
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub struct GPUMesh {
     pub vertices_position_offset: u32,
@@ -57,6 +61,7 @@ pub struct GPUMesh {
     pub meshlets_offset: u32,
     pub scale: [f32; 3],
     pub blas_index: u32,
+    pub meshlets_count: [i32; MAX_LOD_LEVELS],
 }
 
 impl Default for GPUMesh {
@@ -71,6 +76,7 @@ impl Default for GPUMesh {
             scale: [1.; 3],
             flags_and_vertices_attribute_layout: 0,
             orientation: [0., 0., 0., 1.],
+            meshlets_count: [-1; MAX_LOD_LEVELS],
         }
     }
 }
@@ -84,9 +90,6 @@ impl GPUMesh {
         )
     }
 }
-
-pub const MESHLETS_GROUP_SIZE: usize = 4;
-pub const HALF_MESHLETS_GROUP_SIZE: usize = MESHLETS_GROUP_SIZE / 2;
 
 #[repr(C, align(16))]
 #[derive(Default, PartialEq, Clone, Copy, Debug)]

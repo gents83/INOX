@@ -77,7 +77,7 @@ impl GlobalBuffers {
         mesh_id: &MeshId,
         mesh_index: u32,
         indices_offset: u32,
-    ) -> (usize, usize) {
+    ) -> (usize, usize, Vec<usize>) {
         inox_profiler::scoped_profile!("render_buffers::extract_meshlets");
 
         let mut meshlets = Vec::new();
@@ -150,7 +150,7 @@ impl GlobalBuffers {
             .unwrap()
             .allocate(mesh_id, meshlets.as_slice())
             .1;
-        (blas_index, meshlet_range.start)
+        (blas_index, meshlet_range.start, lod_data)
     }
     fn add_vertex_data(
         &self,
@@ -223,7 +223,7 @@ impl GlobalBuffers {
 
         let (vertex_offset, indices_offset, attributes_offset) =
             self.add_vertex_data(mesh_id, mesh_index as _, mesh_data);
-        let (blas_index, meshlet_offset) =
+        let (blas_index, meshlet_offset, lod_data) =
             self.extract_meshlets(mesh_data, mesh_id, mesh_index as _, indices_offset);
 
         {
@@ -234,6 +234,14 @@ impl GlobalBuffers {
             mesh.flags_and_vertices_attribute_layout = mesh_data.vertex_layout.into();
             mesh.blas_index = blas_index as _;
             mesh.meshlets_offset = meshlet_offset as _;
+            mesh.meshlets_count
+                .iter_mut()
+                .enumerate()
+                .for_each(|(i, c)| {
+                    if i < lod_data.len() {
+                        *c = lod_data[i] as _;
+                    }
+                });
         }
         self.recreate_tlas();
         self.update_culling_data();
