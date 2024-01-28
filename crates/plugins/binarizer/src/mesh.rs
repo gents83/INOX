@@ -507,10 +507,9 @@ pub fn compute_clusters(
             aabb_min = aabb_min.min(meshlet.aabb_min);
         });
 
-        //let (optimized_vertices, optimized_indices) =
-        //    optimize_mesh(&group_vertices, &group_indices);
-        let (optimized_vertices, optimized_indices) = (group_vertices, group_indices);
-
+        let (optimized_vertices, optimized_indices) =
+            optimize_mesh(&group_vertices, &group_indices);
+        
         let threshold = 1. / MESHLETS_GROUP_SIZE as f32;
         let target_count = (optimized_indices.len() as f32 * threshold) as usize / 3 * 3;
         let target_error = 0.01;
