@@ -15,20 +15,19 @@ pub const CONSTANT_DATA_FLAGS_NONE: u32 = 0;
 pub const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 1 << 1;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 1 << 2;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS: u32 = 1 << 3;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER: u32 = 1 << 4;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER: u32 = 1 << 5;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE: u32 = 1 << 6;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_NORMALS: u32 = 1 << 7;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_TANGENT: u32 = 1 << 8;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT: u32 = 1 << 9;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_BASE_COLOR: u32 = 1 << 10;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_METALLIC: u32 = 1 << 11;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_ROUGHNESS: u32 = 1 << 12;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_0: u32 = 1 << 13;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_1: u32 = 1 << 14;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_2: u32 = 1 << 15;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_3: u32 = 1 << 16;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER: u32 = 1 << 3;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER: u32 = 1 << 4;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE: u32 = 1 << 5;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_NORMALS: u32 = 1 << 6;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_TANGENT: u32 = 1 << 7;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT: u32 = 1 << 8;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_BASE_COLOR: u32 = 1 << 9;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_METALLIC: u32 = 1 << 10;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_ROUGHNESS: u32 = 1 << 11;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_0: u32 = 1 << 12;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_1: u32 = 1 << 13;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_2: u32 = 1 << 14;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_3: u32 = 1 << 15;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -48,6 +47,10 @@ struct Data {
     pub lut_pbr_ggx_texture_index: u32,
     pub env_map_texture_index: u32,
     pub num_lights: u32,
+    pub forced_lod_level: i32,
+    pub _empty1: u32,
+    pub _empty2: u32,
+    pub _empty3: u32,
 }
 
 impl Default for Data {
@@ -68,6 +71,10 @@ impl Default for Data {
             lut_pbr_ggx_texture_index: 0,
             env_map_texture_index: 0,
             num_lights: 0,
+            forced_lod_level: -1,
+            _empty1: 0,
+            _empty2: 0,
+            _empty3: 0,
         }
     }
 }
@@ -149,6 +156,16 @@ impl ConstantData {
     }
     pub fn num_lights(&self) -> u32 {
         self.data.num_lights
+    }
+    pub fn set_forced_lod_level(&mut self, n: i32) -> &mut Self {
+        if self.data.forced_lod_level != n {
+            self.data.forced_lod_level = n;
+            self.set_dirty(true);
+        }
+        self
+    }
+    pub fn forced_lod_level(&self) -> i32 {
+        self.data.forced_lod_level
     }
     #[allow(non_snake_case)]
     pub fn set_LUT(&mut self, lut_id: &Uid, texture_index: u32) -> &mut Self {

@@ -95,6 +95,24 @@ fn main(
         return;        
     }
 
+    var lod_level = 0u;
+    if (constant_data.forced_lod_level > 0) {
+        lod_level = max(0u, u32(constant_data.forced_lod_level));
+    }
+    if((*mesh).meshlets_count[lod_level] < 0) {
+        return;
+    }
+    let meshlets_count = u32((*mesh).meshlets_count[lod_level]);
+    var lod_starting_offset = 0u;
+    for(var i = 0u; i < lod_level; i++) {
+        if (*mesh).meshlets_count[i] > 0 {
+            lod_starting_offset += u32((*mesh).meshlets_count[i]);
+        }
+    }
+    if (meshlet_id < lod_starting_offset || meshlet_id >= lod_starting_offset + meshlets_count) {
+        return;
+    }
+
     let meshlet_index = (*mesh).meshlets_offset - meshlet_id;
     let bb_id = (*meshlet).triangles_bhv_index;
     let bb = &bhv.data[bb_id];
@@ -115,7 +133,7 @@ fn main(
     frustum[2] = normalize_plane(row3 + row1);
     frustum[3] = normalize_plane(row3 - row1);
 
-
+    /*
     if !is_sphere_inside_frustum(center, radius, frustum) {
         return;
     }
@@ -123,7 +141,7 @@ fn main(
     if !is_box_inside_frustum(min, max, frustum) {
         return;
     }
-
+    */
     /*
     let cone_axis_cutoff = unpack4x8snorm((*meshlet).cone_axis_cutoff);
     let cone_axis = rotate_vector(cone_axis_cutoff.xyz, (*mesh).orientation); 

@@ -1,6 +1,7 @@
 const DEFAULT_WIDTH: u32 = 1920u;
 const DEFAULT_HEIGHT: u32 = 1080u;
 const SIZE_OF_DATA_BUFFER_ELEMENT: u32 = 4u;
+const MAX_LOD_LEVELS: u32 = 8u;
 const MAX_NUM_LIGHTS: u32 = 1024u;
 const MAX_NUM_TEXTURES: u32 = 65536u;
 const MAX_NUM_MATERIALS: u32 = 65536u;
@@ -9,20 +10,19 @@ const CONSTANT_DATA_FLAGS_NONE: u32 = 0u;
 const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1u;
 const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 1u << 1u;
 const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 1u << 2u;
-const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_CONE_AXIS: u32 = 1u << 3u;
-const CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER: u32 = 1u << 4u;
-const CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER: u32 = 1u << 5u;
-const CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE: u32 = 1u << 6u;
-const CONSTANT_DATA_FLAGS_DISPLAY_NORMALS: u32 = 1u << 7u;
-const CONSTANT_DATA_FLAGS_DISPLAY_TANGENT: u32 = 1u << 8u;
-const CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT: u32 = 1u << 9u;
-const CONSTANT_DATA_FLAGS_DISPLAY_BASE_COLOR: u32 = 1u << 10u;
-const CONSTANT_DATA_FLAGS_DISPLAY_METALLIC: u32 = 1u << 11u;
-const CONSTANT_DATA_FLAGS_DISPLAY_ROUGHNESS: u32 = 1u << 12u;
-const CONSTANT_DATA_FLAGS_DISPLAY_UV_0: u32 = 1u << 13u;
-const CONSTANT_DATA_FLAGS_DISPLAY_UV_1: u32 = 1u << 14u;
-const CONSTANT_DATA_FLAGS_DISPLAY_UV_2: u32 = 1u << 15u;
-const CONSTANT_DATA_FLAGS_DISPLAY_UV_3: u32 = 1u << 16u;
+const CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER: u32 = 1u << 3u;
+const CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER: u32 = 1u << 4u;
+const CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE: u32 = 1u << 5u;
+const CONSTANT_DATA_FLAGS_DISPLAY_NORMALS: u32 = 1u << 6u;
+const CONSTANT_DATA_FLAGS_DISPLAY_TANGENT: u32 = 1u << 7u;
+const CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT: u32 = 1u << 8u;
+const CONSTANT_DATA_FLAGS_DISPLAY_BASE_COLOR: u32 = 1u << 9u;
+const CONSTANT_DATA_FLAGS_DISPLAY_METALLIC: u32 = 1u << 10u;
+const CONSTANT_DATA_FLAGS_DISPLAY_ROUGHNESS: u32 = 1u << 11u;
+const CONSTANT_DATA_FLAGS_DISPLAY_UV_0: u32 = 1u << 12u;
+const CONSTANT_DATA_FLAGS_DISPLAY_UV_1: u32 = 1u << 13u;
+const CONSTANT_DATA_FLAGS_DISPLAY_UV_2: u32 = 1u << 14u;
+const CONSTANT_DATA_FLAGS_DISPLAY_UV_3: u32 = 1u << 15u;
 
 const MAX_TEXTURE_ATLAS_COUNT: u32 = 8u;
 const MAX_TEXTURE_COORDS_SET: u32 = 4u;
@@ -113,6 +113,10 @@ struct ConstantData {
     lut_pbr_ggx_texture_index: u32,
     environment_map_texture_index: u32,
     num_lights: u32,
+    forced_lod_level: i32,
+    _empty1: u32,
+    _empty2: u32,
+    _empty3: u32,
 };
 
 struct RuntimeVertexData {
@@ -151,6 +155,7 @@ struct Mesh {
     meshlets_offset: u32,
     scale: vec3<f32>,
     blas_index: u32,
+    meshlets_count: array<i32, MAX_LOD_LEVELS>,
 };
 
 struct Meshlet {
@@ -158,8 +163,7 @@ struct Meshlet {
     @location(6) indices_offset: u32,
     @location(7) indices_count: u32,
     @location(8) triangles_bhv_index: u32,
-    @location(9) center: vec3<f32>,
-    @location(10) cone_axis_cutoff: u32,
+    @location(9) child_meshlets: vec4<i32>,
 };
 
 struct BHVNode {

@@ -1,11 +1,11 @@
 use std::{collections::HashMap, mem::size_of};
 
-use inox_bvh::{create_linearized_bvh, BVHTree, AABB};
-use inox_graphics::{MeshData, MeshletData, VertexAttributeLayout};
+use inox_graphics::{
+    MeshData, MeshletData, VertexAttributeLayout, HALF_MESHLETS_GROUP_SIZE, MESHLETS_GROUP_SIZE,
+};
 use inox_math::{VecBase, Vector2, Vector3, Vector4};
 use inox_resources::to_slice;
-
-const MESHLETS_GROUP_SIZE: usize = 4;
+use meshopt::DecodePosition;
 
 #[derive(Debug, Clone, Copy)]
 pub struct MeshVertex {
@@ -34,70 +34,96 @@ impl Default for MeshVertex {
     }
 }
 
+impl meshopt::DecodePosition for MeshVertex {
+    fn decode_position(&self) -> [f32; 3] {
+        self.pos.into()
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+struct LocalVertex {
+    pos: Vector3,
+    global_index: usize,
+}
+
+impl Default for LocalVertex {
+    fn default() -> Self {
+        Self {
+            pos: Vector3::default_zero(),
+            global_index: 0,
+        }
+    }
+}
+
+impl meshopt::DecodePosition for LocalVertex {
+    fn decode_position(&self) -> [f32; 3] {
+        self.pos.into()
+    }
+}
+
 #[derive(Default, Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Clone)]
-pub struct Edge {
+struct Edge {
     v1: u32,
     v2: u32,
 }
 #[derive(Default, Debug, Clone)]
-pub struct MeshletInfo {
+pub(crate) struct MeshletAdjacency {
     meshlet_index: u32,
     edges: Vec<Edge>,
     adjacent_meshlets: Vec<(u32, usize)>,
 }
 
-pub fn optimize_mesh(optimize_meshes: bool, vertices: &[MeshVertex], indices: &[u32]) -> MeshData {
+pub fn optimize_mesh<T>(vertices: &[T], indices: &[u32]) -> (Vec<T>, Vec<u32>)
+where
+    T: Clone + Default + DecodePosition,
+{
+    let positions = vertices
+        .iter()
+        .map(|vertex| vertex.decode_position())
+        .collect::<Vec<[f32; 3]>>();
+
+    let (num_vertices, vertices_remap_table) =
+        meshopt::generate_vertex_remap(&positions, Some(indices));
+
+    let new_vertices =
+        meshopt::remap_vertex_buffer(vertices, num_vertices, vertices_remap_table.as_slice());
+    let remapped_indices =
+        meshopt::remap_index_buffer(Some(indices), num_vertices, vertices_remap_table.as_slice());
+
+    let mut new_indices = meshopt::optimize_vertex_cache(&remapped_indices, num_vertices);
+
+    let vertices_bytes = to_slice(&positions);
+    let vertex_stride = size_of::<[f32; 3]>();
+    let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
+    meshopt::optimize_overdraw_in_place(
+        &mut new_indices,
+        vertex_data_adapter.as_ref().unwrap(),
+        1.05,
+    );
+    let new_vertices = meshopt::optimize_vertex_fetch(&mut new_indices, &new_vertices);
+
+    (new_vertices, new_indices)
+}
+
+pub fn create_mesh_data(vertices: &[MeshVertex], indices: &[u32]) -> MeshData {
     let mut mesh_data = MeshData {
         vertex_layout: VertexAttributeLayout::HasPosition,
         aabb_max: Vector3::new(-f32::INFINITY, -f32::INFINITY, -f32::INFINITY),
         aabb_min: Vector3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY),
         ..Default::default()
     };
-    let (vertices, indices) = if optimize_meshes {
-        let mut positions = Vec::with_capacity(vertices.len());
-        vertices.iter().for_each(|v| {
-            positions.push(v.pos);
-        });
-        let (num_vertices, vertices_remap_table) =
-            meshopt::generate_vertex_remap(positions.as_slice(), Some(indices));
-
-        let new_vertices =
-            meshopt::remap_vertex_buffer(vertices, num_vertices, vertices_remap_table.as_slice());
-        let new_indices = meshopt::remap_index_buffer(
-            Some(indices),
-            num_vertices,
-            vertices_remap_table.as_slice(),
-        );
-
-        let mut new_indices = meshopt::optimize_vertex_cache(new_indices.as_slice(), num_vertices);
-
-        let vertices_bytes = to_slice(vertices);
-        let vertex_stride = size_of::<MeshVertex>();
-        let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
-        meshopt::optimize_overdraw_in_place(
-            new_indices.as_mut_slice(),
-            vertex_data_adapter.as_ref().unwrap(),
-            1.01,
-        );
-        let new_vertices =
-            meshopt::optimize_vertex_fetch(new_indices.as_mut_slice(), new_vertices.as_slice());
-
-        (new_vertices, new_indices)
-    } else {
-        (vertices.to_vec(), indices.to_vec())
-    };
-
     vertices.iter().for_each(|v| {
         mesh_data.aabb_max = mesh_data.aabb_max.max(v.pos);
         mesh_data.aabb_min = mesh_data.aabb_min.min(v.pos);
     });
-    mesh_data.indices = indices;
+    mesh_data.indices = indices.to_vec();
     mesh_data.vertex_positions.reserve(vertices.len());
     mesh_data
         .vertex_attributes
         .reserve(VertexAttributeLayout::all().stride_in_count() * vertices.len());
     vertices.iter().for_each(|v| {
-        mesh_data.insert_position(v.pos);
+        mesh_data.insert_position(v.decode_position().into());
         if let Some(c) = v.color {
             mesh_data.vertex_layout |= VertexAttributeLayout::HasColor;
             mesh_data.insert_color(c);
@@ -130,126 +156,72 @@ pub fn optimize_mesh(optimize_meshes: bool, vertices: &[MeshVertex], indices: &[
     mesh_data
 }
 
-pub fn compute_meshlets(mesh_data: &mut MeshData) {
-    let mut positions = Vec::with_capacity(mesh_data.vertex_count());
-    for i in 0..mesh_data.vertex_count() {
-        positions.push(mesh_data.position(i));
-    }
+pub fn compute_meshlets<T>(vertices: &[T], indices: &[u32]) -> (Vec<MeshletData>, Vec<u32>)
+where
+    T: DecodePosition,
+{
+    let positions = vertices
+        .iter()
+        .map(|vertex| vertex.decode_position())
+        .collect::<Vec<[f32; 3]>>();
+    let vertices_bytes = to_slice(&positions);
+    let vertex_stride = size_of::<[f32; 3]>();
+    let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
 
     let mut new_meshlets = Vec::new();
-    let vertices_bytes = to_slice(positions.as_slice());
-    let vertex_stride = size_of::<Vector3>();
-    let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
     let max_vertices = 64;
     let max_triangles = 124;
-    let cone_weight = 0.9;
+    let cone_weight = 0.7;
     let meshlets = meshopt::build_meshlets(
-        &mesh_data.indices,
+        indices,
         vertex_data_adapter.as_ref().unwrap(),
         max_vertices,
         max_triangles,
         cone_weight,
     );
-    if !meshlets.meshlets.is_empty() {
-        let mut new_indices = Vec::new();
-        for m in meshlets.iter() {
-            let bounds = meshopt::compute_meshlet_bounds(m, vertex_data_adapter.as_ref().unwrap());
-            let index_offset = new_indices.len();
-            debug_assert!(
-                m.triangles.len() % 3 == 0,
-                "meshlet indices count {} is not divisible by 3",
-                m.triangles.len()
-            );
-            m.triangles.iter().for_each(|v_i| {
-                new_indices.push(m.vertices[*v_i as usize]);
-            });
-            debug_assert!(
-                new_indices.len() % 3 == 0,
-                "new indices count {} is not divisible by 3",
-                new_indices.len()
-            );
-            let mut triangles_aabbs = Vec::new();
-            triangles_aabbs.resize_with(m.triangles.len() / 3, AABB::empty);
-            let mut i = 0;
-            while i < m.triangles.len() {
-                let triangle_id = i / 3;
-                let v1 = positions[m.vertices[m.triangles[i] as usize] as usize];
-                i += 1;
-                let v2 = positions[m.vertices[m.triangles[i] as usize] as usize];
-                i += 1;
-                let v3 = positions[m.vertices[m.triangles[i] as usize] as usize];
-                i += 1;
-                let min = v1.min(v2).min(v3);
-                let max = v1.max(v2).max(v3);
-                triangles_aabbs[triangle_id] = AABB::create(min, max, triangle_id as _);
-            }
-            let bvh = BVHTree::new(&triangles_aabbs);
-            new_meshlets.push(MeshletData {
-                indices_offset: index_offset as _,
-                indices_count: m.triangles.len() as _,
-                aabb_max: bvh.nodes()[0].max(),
-                aabb_min: bvh.nodes()[0].min(),
-                cone_axis: bounds.cone_axis.into(),
-                cone_angle: bounds.cone_cutoff,
-                cone_center: bounds.center.into(),
-                triangles_bvh: create_linearized_bvh(&bvh),
-            });
-        }
-        mesh_data.indices = new_indices;
-    } else {
-        let mut triangles_aabbs = Vec::new();
-        triangles_aabbs.resize_with(mesh_data.indices.len() / 3, AABB::empty);
-        let mut i = 0;
-        while i < mesh_data.indices.len() {
-            let triangle_id = i / 3;
-            let v1 = positions[mesh_data.indices[i] as usize];
-            i += 1;
-            let v2 = positions[mesh_data.indices[i] as usize];
-            i += 1;
-            let v3 = positions[mesh_data.indices[i] as usize];
-            i += 1;
-            let min = v1.min(v2).min(v3);
-            let max = v1.max(v2).max(v3);
-            triangles_aabbs[triangle_id] = AABB::create(min, max, triangle_id as _);
-        }
-        let bvh = BVHTree::new(&triangles_aabbs);
-        let meshlet = MeshletData {
-            indices_offset: 0,
-            indices_count: mesh_data.indices.len() as _,
-            aabb_max: bvh.nodes()[0].max(),
-            aabb_min: bvh.nodes()[0].min(),
-            triangles_bvh: create_linearized_bvh(&bvh),
-            ..Default::default()
-        };
-        new_meshlets.push(meshlet);
-    }
-    //lod_level = 0
-    mesh_data.meshlets[0] = new_meshlets;
-    println!("LOD {} has {} Meshlets", 0, mesh_data.meshlets[0].len());
+    debug_assert!(!meshlets.meshlets.is_empty());
 
-    let mut meshlets_aabbs = Vec::new();
-    meshlets_aabbs.resize_with(mesh_data.meshlets[0].len(), AABB::empty);
-    mesh_data.meshlets[0].iter().enumerate().for_each(|(i, m)| {
-        meshlets_aabbs[i] = AABB::create(m.aabb_min, m.aabb_max, i as _);
-    });
-    let bvh = BVHTree::new(&meshlets_aabbs);
-    mesh_data.meshlets_bvh[0] = create_linearized_bvh(&bvh);
+    let mut new_indices = Vec::new();
+    for m in meshlets.iter() {
+        let index_offset = new_indices.len();
+        debug_assert!(m.triangles.len() % 3 == 0);
+        let mut aabb_max = Vector3::new(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY);
+        let mut aabb_min = Vector3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY);
+        m.triangles.iter().for_each(|&i| {
+            let index = m.vertices[i as usize] as usize;
+            new_indices.push(index as u32);
+            let pos = positions[index].into();
+            aabb_min = aabb_min.min(pos);
+            aabb_max = aabb_max.max(pos);
+        });
+        debug_assert!(new_indices.len() % 3 == 0);
+        new_meshlets.push(MeshletData {
+            indices_offset: index_offset as _,
+            indices_count: m.triangles.len() as _,
+            aabb_min,
+            aabb_max,
+            ..Default::default()
+        });
+    }
+    (new_meshlets, new_indices)
 }
 
-pub fn build_meshlets_info(mesh_data: &mut MeshData, lod_level: usize) -> Vec<MeshletInfo> {
-    let mut meshlets_info = Vec::with_capacity(mesh_data.meshlets[lod_level].len());
-    mesh_data.meshlets[lod_level]
+pub fn build_meshlets_adjacency(
+    meshlets: &[MeshletData],
+    indices: &[u32],
+) -> Vec<MeshletAdjacency> {
+    let mut meshlets_info = Vec::with_capacity(meshlets.len());
+    let mut edge_meshlets_map: HashMap<Edge, Vec<usize>> = HashMap::default();
+    meshlets
         .iter()
         .enumerate()
         .for_each(|(meshlet_index, meshlet)| {
             let triangle_count = meshlet.indices_count / 3;
             let mut edges_hit_count: HashMap<Edge, u32> = HashMap::default();
             for triangle_index in 0..triangle_count {
-                let i1 = mesh_data.indices[(meshlet.indices_offset + triangle_index * 3) as usize];
-                let i2 =
-                    mesh_data.indices[(meshlet.indices_offset + triangle_index * 3 + 1) as usize];
-                let i3 =
-                    mesh_data.indices[(meshlet.indices_offset + triangle_index * 3 + 2) as usize];
+                let i1 = indices[(meshlet.indices_offset + triangle_index * 3) as usize];
+                let i2 = indices[(meshlet.indices_offset + triangle_index * 3 + 1) as usize];
+                let i3 = indices[(meshlet.indices_offset + triangle_index * 3 + 2) as usize];
                 let e1 = Edge {
                     v1: i1.min(i2),
                     v2: i1.max(i2),
@@ -263,17 +235,41 @@ pub fn build_meshlets_info(mesh_data: &mut MeshData, lod_level: usize) -> Vec<Me
                     v2: i3.max(i1),
                 };
                 edges_hit_count
+                    .entry(e1.clone())
+                    .and_modify(|v| *v += 1)
+                    .or_insert(1);
+                edges_hit_count
+                    .entry(e2.clone())
+                    .and_modify(|v| *v += 1)
+                    .or_insert(1);
+                edges_hit_count
+                    .entry(e3.clone())
+                    .and_modify(|v| *v += 1)
+                    .or_insert(1);
+                edge_meshlets_map
                     .entry(e1)
-                    .and_modify(|v| *v += 1)
-                    .or_insert(1);
-                edges_hit_count
+                    .and_modify(|v| {
+                        if !v.contains(&meshlet_index) {
+                            v.push(meshlet_index)
+                        }
+                    })
+                    .or_insert(vec![meshlet_index]);
+                edge_meshlets_map
                     .entry(e2)
-                    .and_modify(|v| *v += 1)
-                    .or_insert(1);
-                edges_hit_count
+                    .and_modify(|v| {
+                        if !v.contains(&meshlet_index) {
+                            v.push(meshlet_index)
+                        }
+                    })
+                    .or_insert(vec![meshlet_index]);
+                edge_meshlets_map
                     .entry(e3)
-                    .and_modify(|v| *v += 1)
-                    .or_insert(1);
+                    .and_modify(|v| {
+                        if !v.contains(&meshlet_index) {
+                            v.push(meshlet_index)
+                        }
+                    })
+                    .or_insert(vec![meshlet_index]);
             }
             let mut edges = Vec::new();
             for (e, count) in edges_hit_count {
@@ -281,7 +277,7 @@ pub fn build_meshlets_info(mesh_data: &mut MeshData, lod_level: usize) -> Vec<Me
                     edges.push(e);
                 }
             }
-            meshlets_info.push(MeshletInfo {
+            meshlets_info.push(MeshletAdjacency {
                 meshlet_index: meshlet_index as _,
                 edges,
                 adjacent_meshlets: Vec::default(),
@@ -289,90 +285,163 @@ pub fn build_meshlets_info(mesh_data: &mut MeshData, lod_level: usize) -> Vec<Me
         });
 
     let num_meshlets = meshlets_info.len();
-    debug_assert!(num_meshlets == mesh_data.meshlets[lod_level].len());
-    if num_meshlets > 1 {
-        for i in 0..num_meshlets {
-            for j in 0..num_meshlets {
-                if i != j {
-                    let num_adjacency = meshlets_info[i].edges.iter().fold(0, |c, e1| {
-                        let num =
-                            meshlets_info[j]
-                                .edges
+    debug_assert!(num_meshlets == meshlets.len());
+
+    meshlets_info
+        .iter_mut()
+        .enumerate()
+        .for_each(|(info_index, info)| {
+            info.edges.iter().for_each(|e| {
+                if edge_meshlets_map[e].len() > 1 {
+                    edge_meshlets_map[e].iter().for_each(|&meshlet_index| {
+                        if meshlet_index != info_index {
+                            if let Some(i) = info
+                                .adjacent_meshlets
                                 .iter()
-                                .fold(0, |c, e2| if e1 == e2 { c + 1 } else { c });
-                        c + num
+                                .position(|l| l.0 == meshlet_index as u32)
+                            {
+                                info.adjacent_meshlets[i].1 += 1;
+                            } else {
+                                info.adjacent_meshlets.push((meshlet_index as u32, 1));
+                            }
+                        }
                     });
-                    let other_index = meshlets_info[j].meshlet_index;
-                    if num_adjacency > 0 {
-                        meshlets_info[i]
-                            .adjacent_meshlets
-                            .push((other_index, num_adjacency));
-                    }
                 }
-            }
-            if meshlets_info[i].adjacent_meshlets.is_empty() {
-                println!("No adjacency for meshlet {} of {}", i, num_meshlets);
-            }
-        }
-    }
+            });
+        });
     meshlets_info.iter_mut().for_each(|m| {
+        if m.adjacent_meshlets.is_empty() {
+            println!("Meshlet {} has no adjacency", m.meshlet_index);
+        }
         m.adjacent_meshlets
             .sort_by(|(_i, a), (_j, b)| b.partial_cmp(a).unwrap());
     });
     meshlets_info
 }
 
-pub fn group_meshlets(meshlets_info: &[MeshletInfo]) -> Vec<Vec<u32>> {
+fn fill_with_info_and_adjacency(
+    original_meshlets_info: &[MeshletAdjacency],
+    meshlet_info: &MeshletAdjacency,
+    meshlets_to_add: &mut Vec<MeshletAdjacency>,
+) {
+    if !meshlets_to_add
+        .iter()
+        .any(|m| m.meshlet_index == meshlet_info.meshlet_index)
+    {
+        if let Some(p) = original_meshlets_info
+            .iter()
+            .position(|m| m.meshlet_index == meshlet_info.meshlet_index)
+        {
+            let original = original_meshlets_info[p].clone();
+            meshlets_to_add.push(original);
+            original_meshlets_info[p]
+                .adjacent_meshlets
+                .iter()
+                .for_each(|&(i, _)| {
+                    fill_with_info_and_adjacency(
+                        original_meshlets_info,
+                        &original_meshlets_info[i as usize],
+                        meshlets_to_add,
+                    );
+                });
+        }
+    }
+}
+
+pub fn group_meshlets(meshlets_info: &[MeshletAdjacency]) -> Vec<Vec<u32>> {
     let mut available_meshlets = meshlets_info.to_vec();
     let mut meshlets_groups = Vec::new();
     while !available_meshlets.is_empty() {
-        let mut meshlet_info = available_meshlets.remove(0);
         let mut meshlet_group = Vec::new();
-        meshlet_group.push(meshlet_info.meshlet_index);
-        while meshlet_group.len() < MESHLETS_GROUP_SIZE
-            && !meshlet_info.adjacent_meshlets.is_empty()
-        {
-            let (other_index, _) = meshlet_info.adjacent_meshlets.remove(0);
+        meshlet_group.push(available_meshlets.remove(0));
+        let mut meshlet_current_index = 0;
+        while meshlet_group.len() < MESHLETS_GROUP_SIZE {
+            let mut max_adjacency_value = -1;
+            let mut adjacent_index = -1;
+            meshlet_group.iter().enumerate().for_each(|(i, m)| {
+                if let Some(index) = m
+                    .adjacent_meshlets
+                    .iter()
+                    .position(|v| v.1 as i32 > max_adjacency_value)
+                {
+                    max_adjacency_value = m.adjacent_meshlets[index].1 as i32;
+                    adjacent_index = index as i32;
+                    meshlet_current_index = i;
+                }
+            });
+            if max_adjacency_value < 0 || adjacent_index < 0 {
+                break;
+            }
+            let meshlet_info = &mut meshlet_group[meshlet_current_index];
+            let (other_index, _) = meshlet_info
+                .adjacent_meshlets
+                .remove(adjacent_index as usize);
             if let Some(other_available_index) = available_meshlets
                 .iter()
                 .position(|m| m.meshlet_index == other_index)
             {
-                available_meshlets.remove(other_available_index);
-                meshlet_group.push(other_index);
+                let mut m = available_meshlets.remove(other_available_index);
+                let index = m
+                    .adjacent_meshlets
+                    .iter()
+                    .position(|v| v.0 == meshlet_info.meshlet_index)
+                    .unwrap();
+                m.adjacent_meshlets.remove(index);
+                meshlet_group.push(m);
             }
         }
-        let should_retry = meshlet_group.is_empty();
-        //should_retry |= meshlet_group.len() < MESHLETS_GROUP_SIZE
-        //    && available_meshlets.len() > MESHLETS_GROUP_SIZE;
+        let mut should_retry = meshlet_group.is_empty();
+        should_retry |= meshlet_group.len() == 1 && available_meshlets.len() > MESHLETS_GROUP_SIZE;
+        should_retry &= !meshlet_group.iter().all(|mi| {
+            meshlets_info[mi.meshlet_index as usize]
+                .adjacent_meshlets
+                .is_empty()
+        });
         if !should_retry || available_meshlets.is_empty() {
             meshlets_groups.push(meshlet_group);
         } else {
-            meshlet_group.iter().for_each(|&i| {
-                if !available_meshlets.iter().any(|m| m.meshlet_index == i) {
-                    available_meshlets.push(meshlets_info[i as usize].clone());
-                }
-                let mut j = 0;
-                while j < meshlets_groups.len() {
-                    let found = meshlets_groups[j].iter().any(|&mi| {
-                        mi == i
-                            || meshlets_info[mi as usize]
-                                .adjacent_meshlets
-                                .iter()
-                                .any(|(k, _n)| *k == i)
-                    });
-                    if found {
-                        let group = meshlets_groups.remove(j);
-                        group.iter().for_each(|&k| {
-                            if !available_meshlets.iter().any(|m| m.meshlet_index == k) {
-                                available_meshlets.push(meshlets_info[k as usize].clone());
+            //steal from groups already created
+            let mut stealed = Vec::new();
+            meshlet_group.iter().for_each(|info| {
+                if let Some(p) = meshlets_info
+                    .iter()
+                    .position(|m| m.meshlet_index == info.meshlet_index)
+                {
+                    let original = &meshlets_info[p];
+                    let mut a = original.adjacent_meshlets.len() as i32 - 1;
+                    while a >= 0 && stealed.len() < HALF_MESHLETS_GROUP_SIZE {
+                        let mut j = meshlets_groups.len() as i32 - 1;
+                        while a >= 0 && j >= 0 && stealed.len() < HALF_MESHLETS_GROUP_SIZE {
+                            if meshlets_groups[j as usize].len() > HALF_MESHLETS_GROUP_SIZE {
+                                if let Some(i) = meshlets_groups[j as usize].iter().position(|m| {
+                                    m.meshlet_index == original.adjacent_meshlets[a as usize].0
+                                }) {
+                                    stealed.push(meshlets_groups[j as usize].remove(i));
+                                    a -= 1;
+                                }
                             }
-                        });
-                        j = j.saturating_sub(1);
-                    } else {
-                        j += 1;
+                            j -= 1;
+                        }
+                        a -= 1;
                     }
                 }
             });
+            meshlet_group.append(&mut stealed);
+            if meshlet_group.len() == 1 {
+                //readd all to the available meshlets
+                let last_index = available_meshlets.len();
+                meshlet_group.iter().for_each(|info| {
+                    fill_with_info_and_adjacency(meshlets_info, info, &mut available_meshlets);
+                });
+                (last_index..available_meshlets.len()).for_each(|i| {
+                    let info = &available_meshlets[i];
+                    meshlets_groups.retain(|group| {
+                        !group.iter().any(|m| m.meshlet_index == info.meshlet_index)
+                    });
+                });
+            } else {
+                meshlets_groups.push(meshlet_group);
+            }
         }
     }
     debug_assert!(available_meshlets.is_empty());
@@ -385,113 +454,101 @@ pub fn group_meshlets(meshlets_info: &[MeshletInfo]) -> Vec<Vec<u32>> {
         meshlets_groups.len()
     );
     meshlets_groups
+        .iter()
+        .map(|info| info.iter().map(|m| m.meshlet_index).collect::<_>())
+        .collect::<_>()
 }
 
-pub fn generate_meshlets_for_level(
-    lod_level: usize,
+pub fn compute_clusters(
     groups: &[Vec<u32>],
-    mesh_data: &mut MeshData,
-) {
-    let previous_lod_level = lod_level - 1;
-    let mut positions = Vec::with_capacity(mesh_data.vertex_count());
-    for i in 0..mesh_data.vertex_count() {
-        positions.push(mesh_data.position(i));
-    }
-
-    let vertices_bytes = to_slice(positions.as_slice());
-    let vertex_stride = size_of::<Vector3>();
-    let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
-
+    parent_meshlets: &mut [MeshletData],
+    mesh_indices_offset: usize,
+    vertices: &[MeshVertex],
+    indices: &[u32],
+) -> (Vec<u32>, Vec<MeshletData>) {
+    let mut indices_offset = mesh_indices_offset;
+    let mut cluster_indices = Vec::new();
+    let mut cluster_meshlets = Vec::new();
     groups.iter().for_each(|meshlets_indices| {
         let mut group_indices = Vec::new();
-        let first_meshlet = &mesh_data.meshlets[previous_lod_level][meshlets_indices[0] as usize];
-        let mut aabb_max = first_meshlet.aabb_max;
-        let mut aabb_min = first_meshlet.aabb_min;
-        let mut cone_center = first_meshlet.cone_center;
-        let mut cone_axis = first_meshlet.cone_axis;
-        let mut cone_angle = first_meshlet.cone_angle;
+        let mut group_vertices = Vec::new();
+        let mut aabb_max = Vector3::new(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY);
+        let mut aabb_min = Vector3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY);
 
-        let mut triangles_aabbs = Vec::new();
         meshlets_indices.iter().for_each(|&meshlet_index| {
-            let meshlet = &mesh_data.meshlets[previous_lod_level][meshlet_index as usize];
-            let offset = meshlet.indices_offset;
+            let meshlet = &parent_meshlets[meshlet_index as usize];
             let count = meshlet.indices_count;
-            let mut i = 0;
-            while i < count {
-                let vertex_index = mesh_data.indices[(offset + i) as usize];
-                group_indices.push(vertex_index);
-                let v1 = mesh_data.position(vertex_index as _);
-                i += 1;
-                let vertex_index = mesh_data.indices[(offset + i) as usize];
-                group_indices.push(vertex_index);
-                let v2 = mesh_data.position(vertex_index as _);
-                i += 1;
-                let vertex_index = mesh_data.indices[(offset + i) as usize];
-                group_indices.push(vertex_index);
-                let v3 = mesh_data.position(vertex_index as _);
-                i += 1;
-                let min = v1.min(v2).min(v3);
-                let max = v1.max(v2).max(v3);
-                let triangle_id = triangles_aabbs.len();
-                triangles_aabbs.push(AABB::create(min, max, triangle_id as _));
+            for i in 0..count {
+                let global_index = indices[meshlet.indices_offset as usize + i as usize] as usize;
+                let group_index = if let Some(index) = group_vertices
+                    .iter()
+                    .position(|v: &LocalVertex| v.global_index == global_index)
+                {
+                    index
+                } else {
+                    let pos = vertices[global_index].pos;
+                    let group_index = if let Some(index) = group_vertices
+                        .iter()
+                        .position(|v: &LocalVertex| v.pos == pos)
+                    {
+                        index
+                    } else {
+                        group_vertices.push(LocalVertex {
+                            pos: vertices[global_index].pos,
+                            global_index,
+                        });
+                        group_vertices.len() - 1
+                    };
+                    group_index
+                };
+                group_indices.push(group_index as u32);
             }
             aabb_max = aabb_max.max(meshlet.aabb_max);
             aabb_min = aabb_min.min(meshlet.aabb_min);
-            cone_center = (cone_center + meshlet.cone_center) * 0.5;
-            cone_axis = (cone_axis + meshlet.cone_axis) * 0.5;
-            cone_angle = (cone_angle + meshlet.cone_angle) * 0.5;
         });
 
-        let threshold = 0.7f32.powf(lod_level as f32);
-        let target_count = (group_indices.len() as f32 * threshold) as usize / 3 * 3;
-        let target_error = 1e-2f32;
+        let (optimized_vertices, optimized_indices) =
+            optimize_mesh(&group_vertices, &group_indices);
+        
+        let threshold = 1. / MESHLETS_GROUP_SIZE as f32;
+        let target_count = (optimized_indices.len() as f32 * threshold) as usize / 3 * 3;
+        let target_error = 0.01;
 
-        let mut meshlet_indices = meshopt::simplify(
-            group_indices.as_slice(),
-            vertex_data_adapter.as_ref().unwrap(),
+        let mut simplified_indices = meshopt::simplify_decoder(
+            &optimized_indices,
+            &optimized_vertices,
             target_count,
             target_error,
             meshopt::SimplifyOptions::LockBorder,
             None,
         );
-        let indices_offset = mesh_data.indices.len();
-        let indices_count = meshlet_indices.len();
 
-        mesh_data.indices.append(&mut meshlet_indices);
-
-        let bvh = BVHTree::new(&triangles_aabbs);
-        let meshlet_data = MeshletData {
-            aabb_min,
-            indices_offset: indices_offset as _,
-            aabb_max,
-            indices_count: indices_count as _,
-            cone_center,
-            cone_axis,
-            cone_angle,
-            triangles_bvh: create_linearized_bvh(&bvh),
-        };
-        if mesh_data.meshlets.len() <= lod_level {
-            mesh_data.meshlets.push(Vec::new());
+        if simplified_indices.is_empty() {
+            simplified_indices = optimized_indices;
         }
-        mesh_data.meshlets[lod_level].push(meshlet_data);
 
-        let mut meshlets_aabbs = Vec::new();
-        meshlets_aabbs.resize_with(mesh_data.meshlets[lod_level].len(), AABB::empty);
-        mesh_data.meshlets[lod_level]
-            .iter()
-            .enumerate()
-            .for_each(|(i, m)| {
-                meshlets_aabbs[i] = AABB::create(m.aabb_min, m.aabb_max, i as _);
-            });
-        let bvh = BVHTree::new(&meshlets_aabbs);
-        if mesh_data.meshlets_bvh.len() <= lod_level {
-            mesh_data.meshlets_bvh.push(Vec::new());
-        }
-        mesh_data.meshlets_bvh[lod_level] = create_linearized_bvh(&bvh);
+        let (mut meshlets, group_indices) =
+            compute_meshlets(&optimized_vertices, &simplified_indices);
+
+        let mut global_group_indices = Vec::with_capacity(group_indices.len());
+        group_indices.iter().for_each(|&i| {
+            global_group_indices.push(optimized_vertices[i as usize].global_index as u32);
+        });
+        meshlets.iter_mut().for_each(|m| {
+            m.indices_offset += indices_offset as u32;
+        });
+        indices_offset += global_group_indices.len();
+
+        meshlets_indices.iter().for_each(|&meshlet_index| {
+            let meshlet = &mut parent_meshlets[meshlet_index as usize];
+            for i in 0..meshlets.len() {
+                meshlet
+                    .child_meshlets
+                    .push((cluster_meshlets.len() + i) as u32);
+            }
+        });
+        cluster_indices.append(&mut global_group_indices);
+        cluster_meshlets.append(&mut meshlets);
     });
-    println!(
-        "LOD {} has {} Meshlets",
-        lod_level,
-        mesh_data.meshlets[lod_level].len()
-    );
+    (cluster_indices, cluster_meshlets)
 }

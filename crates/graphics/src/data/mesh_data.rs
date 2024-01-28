@@ -17,9 +17,7 @@ pub struct MeshletData {
     pub indices_offset: u32,
     pub aabb_max: Vector3,
     pub indices_count: u32,
-    pub cone_center: Vector3,
-    pub cone_axis: Vector3,
-    pub cone_angle: f32,
+    pub child_meshlets: Vec<u32>,
     pub triangles_bvh: Vec<GPUBVHNode>,
 }
 
@@ -28,11 +26,9 @@ impl Default for MeshletData {
         Self {
             aabb_min: Vector3::new(f32::MAX, f32::MAX, f32::MAX),
             aabb_max: Vector3::new(-f32::MAX, -f32::MAX, -f32::MAX),
-            cone_center: Vector3::default_zero(),
-            cone_axis: Vector3::default_zero(),
-            cone_angle: 0.,
             indices_offset: 0,
             indices_count: 0,
+            child_meshlets: Vec::default(),
             triangles_bvh: Vec::default(),
         }
     }

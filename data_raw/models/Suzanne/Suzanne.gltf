@@ -1,193 +1,229 @@
 {
-   "accessors" : [
-      {
-         "bufferView" : 0,
-         "byteOffset" : 0,
-         "componentType" : 5123,
-         "count" : 11808,
-         "max" : [
-            11807
-         ],
-         "min" : [
-            0
-         ],
-         "type" : "SCALAR"
-      },
-      {
-         "bufferView" : 1,
-         "byteOffset" : 0,
-         "componentType" : 5126,
-         "count" : 11808,
-         "max" : [
-            1.336914,
-            0.950195,
-            0.825684
-         ],
-         "min" : [
-            -1.336914,
-            -0.974609,
-            -0.800781
-         ],
-         "type" : "VEC3"
-      },
-      {
-         "bufferView" : 2,
-         "byteOffset" : 0,
-         "componentType" : 5126,
-         "count" : 11808,
-         "max" : [
-            0.996339,
-            0.999958,
-            0.999929
-         ],
-         "min" : [
-            -0.996339,
-            -0.985940,
-            -0.999994
-         ],
-         "type" : "VEC3"
-      },
-      {
-         "bufferView" : 3,
-         "byteOffset" : 0,
-         "componentType" : 5126,
-         "count" : 11808,
-         "max" : [
-            0.998570,
-            0.999996,
-            0.999487,
-            1.000000
-         ],
-         "min" : [
-            -0.999233,
-            -0.999453,
-            -0.999812,
-            1.000000
-         ],
-         "type" : "VEC4"
-      },
-      {
-         "bufferView" : 4,
-         "byteOffset" : 0,
-         "componentType" : 5126,
-         "count" : 11808,
-         "max" : [
-            0.999884,
-            0.884359
-         ],
-         "min" : [
-            0.000116,
-            0.000116
-         ],
-         "type" : "VEC2"
-      }
-   ],
-   "asset" : {
-      "generator" : "VKTS glTF 2.0 exporter",
-      "version" : "2.0"
-   },
-   "bufferViews" : [
-      {
-         "buffer" : 0,
-         "byteLength" : 23616,
-         "byteOffset" : 0,
-         "target" : 34963
-      },
-      {
-         "buffer" : 0,
-         "byteLength" : 141696,
-         "byteOffset" : 23616,
-         "target" : 34962
-      },
-      {
-         "buffer" : 0,
-         "byteLength" : 141696,
-         "byteOffset" : 165312,
-         "target" : 34962
-      },
-      {
-         "buffer" : 0,
-         "byteLength" : 188928,
-         "byteOffset" : 307008,
-         "target" : 34962
-      },
-      {
-         "buffer" : 0,
-         "byteLength" : 94464,
-         "byteOffset" : 495936,
-         "target" : 34962
-      }
-   ],
-   "buffers" : [
-      {
-         "byteLength" : 590400,
-         "uri" : "Suzanne.bin"
-      }
-   ],
-   "images" : [
-      {
-         "uri" : "Suzanne_BaseColor.png"
-      },
-      {
-         "uri" : "Suzanne_MetallicRoughness.png"
-      }
-   ],
-   "materials" : [
-      {
-         "name" : "Suzanne",
-         "pbrMetallicRoughness" : {
-            "baseColorTexture" : {
-               "index" : 0
-            },
-            "metallicRoughnessTexture" : {
-               "index" : 1
-            }
-         }
-      }
-   ],
-   "meshes" : [
-      {
-         "name" : "Suzanne",
-         "primitives" : [
-            {
-               "attributes" : {
-                  "NORMAL" : 2,
-                  "POSITION" : 1,
-                  "TANGENT" : 3,
-                  "TEXCOORD_0" : 4
-               },
-               "indices" : 0,
-               "material" : 0,
-               "mode" : 4
-            }
-         ]
-      }
-   ],
-   "nodes" : [
-      {
-         "mesh" : 0,
-         "name" : "Suzanne"
-      }
-   ],
-   "samplers" : [
-      {}
-   ],
-   "scene" : 0,
-   "scenes" : [
-      {
-         "nodes" : [
-            0
-         ]
-      }
-   ],
-   "textures" : [
-      {
-         "sampler" : 0,
-         "source" : 0
-      },
-      {
-         "sampler" : 0,
-         "source" : 1
-      }
-   ]
+	"asset":{
+		"generator":"Khronos glTF Blender I/O v3.6.27",
+		"version":"2.0"
+	},
+	"extensionsUsed":[
+		"KHR_lights_punctual"
+	],
+	"extensionsRequired":[
+		"KHR_lights_punctual"
+	],
+	"extensions":{
+		"KHR_lights_punctual":{
+			"lights":[
+				{
+					"color":[
+						1,
+						1,
+						1
+					],
+					"intensity":543.5141306588226,
+					"type":"point",
+					"name":"Point"
+				}
+			]
+		}
+	},
+	"scene":0,
+	"scenes":[
+		{
+			"name":"Scene",
+			"nodes":[
+				0,
+				1,
+				2
+			]
+		}
+	],
+	"nodes":[
+		{
+			"mesh":0,
+			"name":"Suzanne"
+		},
+		{
+			"camera":0,
+			"name":"Camera",
+			"rotation":[
+				-0.09532066434621811,
+				-0.1040472462773323,
+				-0.010018604807555676,
+				0.9899433255195618
+			],
+			"translation":[
+				-1.3499999046325684,
+				1.1799999475479126,
+				6.033080101013184
+			]
+		},
+		{
+			"extensions":{
+				"KHR_lights_punctual":{
+					"light":0
+				}
+			},
+			"name":"Point",
+			"rotation":[
+				-0.7071068286895752,
+				0,
+				0,
+				0.7071068286895752
+			],
+			"translation":[
+				-1.118818759918213,
+				0,
+				3.8257901668548584
+			]
+		}
+	],
+	"cameras":[
+		{
+			"name":"Camera.001",
+			"perspective":{
+				"aspectRatio":1.7777777777777777,
+				"yfov":0.39959652046304894,
+				"zfar":1000,
+				"znear":0.10000000149011612
+			},
+			"type":"perspective"
+		}
+	],
+	"materials":[
+		{
+			"name":"Suzanne",
+			"pbrMetallicRoughness":{
+				"baseColorTexture":{
+					"index":0
+				},
+				"metallicRoughnessTexture":{
+					"index":1
+				}
+			}
+		}
+	],
+	"meshes":[
+		{
+			"name":"Suzanne",
+			"primitives":[
+				{
+					"attributes":{
+						"POSITION":0,
+						"NORMAL":1,
+						"TEXCOORD_0":2,
+						"TANGENT":3
+					},
+					"indices":4,
+					"material":0
+				}
+			]
+		}
+	],
+	"textures":[
+		{
+			"sampler":0,
+			"source":0
+		},
+		{
+			"sampler":0,
+			"source":1
+		}
+	],
+	"images":[
+		{
+			"mimeType":"image/png",
+			"name":"Suzanne_BaseColor",
+			"uri":"Suzanne_BaseColor.png"
+		},
+		{
+			"mimeType":"image/png",
+			"name":"Suzanne_MetallicRoughness",
+			"uri":"Suzanne_MetallicRoughness.png"
+		}
+	],
+	"accessors":[
+		{
+			"bufferView":0,
+			"componentType":5126,
+			"count":11808,
+			"max":[
+				1.3369139432907104,
+				0.9501950144767761,
+				0.8256840109825134
+			],
+			"min":[
+				-1.3369139432907104,
+				-0.9746090173721313,
+				-0.8007810115814209
+			],
+			"type":"VEC3"
+		},
+		{
+			"bufferView":1,
+			"componentType":5126,
+			"count":11808,
+			"type":"VEC3"
+		},
+		{
+			"bufferView":2,
+			"componentType":5126,
+			"count":11808,
+			"type":"VEC2"
+		},
+		{
+			"bufferView":3,
+			"componentType":5126,
+			"count":11808,
+			"type":"VEC4"
+		},
+		{
+			"bufferView":4,
+			"componentType":5123,
+			"count":11808,
+			"type":"SCALAR"
+		}
+	],
+	"bufferViews":[
+		{
+			"buffer":0,
+			"byteLength":141696,
+			"byteOffset":0,
+			"target":34962
+		},
+		{
+			"buffer":0,
+			"byteLength":141696,
+			"byteOffset":141696,
+			"target":34962
+		},
+		{
+			"buffer":0,
+			"byteLength":94464,
+			"byteOffset":283392,
+			"target":34962
+		},
+		{
+			"buffer":0,
+			"byteLength":188928,
+			"byteOffset":377856,
+			"target":34962
+		},
+		{
+			"buffer":0,
+			"byteLength":23616,
+			"byteOffset":566784,
+			"target":34963
+		}
+	],
+	"samplers":[
+		{
+			"magFilter":9729,
+			"minFilter":9987
+		}
+	],
+	"buffers":[
+		{
+			"byteLength":590400,
+			"uri":"Suzanne.bin"
+		}
+	]
 }
