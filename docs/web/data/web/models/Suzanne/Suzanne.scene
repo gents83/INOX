@@ -1,6 +1,8 @@
 {
   "objects": [
-    "models/Suzanne/object/Suzanne.object"
+    "models/Suzanne/object/Suzanne.object",
+    "models/Suzanne/object/Camera.object",
+    "models/Suzanne/object/Point.object"
   ],
   "cameras": [],
   "lights": []

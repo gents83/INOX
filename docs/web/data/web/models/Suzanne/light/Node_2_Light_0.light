@@ -1,0 +1,24 @@
+{
+  "position": [
+    -1.1188188,
+    0.0,
+    3.8257902
+  ],
+  "light_type": 2,
+  "direction": [
+    -0.0,
+    -1.0,
+    1.19209275e-7
+  ],
+  "intensity": 543.51416,
+  "color": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "range": 0.0,
+  "inner_cone_angle": 0.0,
+  "outer_cone_angle": 0.7853982,
+  "_padding1": 0.0,
+  "_padding2": 0.0
+}
