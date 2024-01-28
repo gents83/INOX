@@ -379,7 +379,7 @@ impl GltfCompiler {
         let mut is_meshlet_tree_created = false;
         let mut level = 0;
         while !is_meshlet_tree_created {
-            let previous_lod_meshlets = meshlets_per_lod.last().unwrap();
+            let previous_lod_meshlets = meshlets_per_lod.last_mut().unwrap();
             let meshlets_adjacency = build_meshlets_adjacency(previous_lod_meshlets, &mesh_indices);
             let groups = group_meshlets(&meshlets_adjacency);
             level += 1;
@@ -414,6 +414,10 @@ impl GltfCompiler {
                 let mut meshlets_aabbs = Vec::new();
                 meshlets_aabbs.resize_with(meshlets.len(), AABB::empty);
                 meshlets.iter().enumerate().for_each(|(i, m)| {
+                    println!(
+                        "LOD {} Meshlet {} has as children {:?}",
+                        lod_level, i, m.child_meshlets
+                    );
                     meshlets_aabbs[i] = AABB::create(m.aabb_min, m.aabb_max, i as _);
                 });
                 let bvh = BVHTree::new(&meshlets_aabbs);

@@ -432,7 +432,7 @@ pub fn group_meshlets(meshlets_info: &[MeshletAdjacency]) -> Vec<Vec<u32>> {
 
 pub fn compute_clusters(
     groups: &[Vec<u32>],
-    parent_meshlets: &[MeshletData],
+    parent_meshlets: &mut [MeshletData],
     mesh_indices_offset: usize,
     vertices: &[MeshVertex],
     indices: &[u32],
@@ -506,6 +506,15 @@ pub fn compute_clusters(
             m.indices_offset += indices_offset as u32;
         });
         indices_offset += global_group_indices.len();
+
+        meshlets_indices.iter().for_each(|&meshlet_index| {
+            let meshlet = &mut parent_meshlets[meshlet_index as usize];
+            for i in 0..meshlets.len() {
+                meshlet
+                    .child_meshlets
+                    .push((cluster_meshlets.len() + i) as u32);
+            }
+        });
         cluster_indices.append(&mut global_group_indices);
         cluster_meshlets.append(&mut meshlets);
     });
