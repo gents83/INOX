@@ -126,7 +126,6 @@ impl GlobalBuffers {
                 meshlets.push(meshlet);
             });
         });
-
         if meshlets.is_empty() {
             inox_log::debug_log!("No meshlet data for mesh {:?}", mesh_id);
         }
@@ -134,7 +133,7 @@ impl GlobalBuffers {
             .bvh
             .write()
             .unwrap()
-            .allocate(mesh_id, &mesh_data.meshlets_bvh[0])
+            .allocate(mesh_id, mesh_data.meshlets_bvh.last().unwrap())
             .1;
         let blas_index = mesh_bhv_range.start as _;
         self.bvh.write().unwrap().data_mut()[mesh_bhv_range]

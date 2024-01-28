@@ -84,7 +84,7 @@ impl<const PLATFORM_TYPE: PlatformType> Binarizer<PLATFORM_TYPE> {
         message_hub: &MessageHubRc,
         data_raw_folder: &Path,
         data_folder: &Path,
-        info: &Info,
+        _info: &Info,
     ) -> DataWatcher {
         let shader_compiler = ShaderCompiler::<PLATFORM_TYPE>::new(
             shared_data.clone(),
@@ -94,12 +94,7 @@ impl<const PLATFORM_TYPE: PlatformType> Binarizer<PLATFORM_TYPE> {
         );
         let font_compiler = FontCompiler::new(message_hub.clone(), data_raw_folder, data_folder);
         let image_compiler = ImageCompiler::new(message_hub.clone(), data_raw_folder, data_folder);
-        let gltf_compiler = GltfCompiler::new(
-            shared_data.clone(),
-            data_raw_folder,
-            data_folder,
-            info.optimize_meshes.load(Ordering::SeqCst),
-        );
+        let gltf_compiler = GltfCompiler::new(shared_data.clone(), data_raw_folder, data_folder);
         binarizer.add_handler(shader_compiler);
         binarizer.add_handler(font_compiler);
         binarizer.add_handler(image_compiler);

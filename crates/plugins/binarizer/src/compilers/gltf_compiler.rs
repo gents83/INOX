@@ -6,8 +6,8 @@ use std::{
 
 use crate::{
     mesh::{
-        build_meshlets_info, compute_meshlets, generate_meshlets_for_level, group_meshlets,
-        optimize_mesh, MeshVertex,
+        build_meshlets_adjacency, compute_clusters, compute_meshlets, create_mesh_data,
+        group_meshlets, optimize_mesh, MeshVertex,
     },
     need_to_binarize, to_local_path, ExtensionHandler,
 };
@@ -22,6 +22,7 @@ use gltf::{
     Accessor, Camera, Gltf, Node, Primitive, Semantic, Texture,
 };
 
+use inox_bvh::{create_linearized_bvh, BVHTree, AABB};
 use inox_graphics::{
     LightData, LightType, MaterialData, MaterialFlags, TextureType, MAX_LOD_LEVELS,
     MAX_TEXTURE_COORDS_SETS,
@@ -107,23 +108,16 @@ pub struct GltfCompiler {
     shared_data: SharedDataRc,
     data_raw_folder: PathBuf,
     data_folder: PathBuf,
-    optimize_meshes: bool,
     node_index: usize,
     material_index: usize,
 }
 
 impl GltfCompiler {
-    pub fn new(
-        shared_data: SharedDataRc,
-        data_raw_folder: &Path,
-        data_folder: &Path,
-        optimize_meshes: bool,
-    ) -> Self {
+    pub fn new(shared_data: SharedDataRc, data_raw_folder: &Path, data_folder: &Path) -> Self {
         Self {
             shared_data,
             data_raw_folder: data_raw_folder.to_path_buf(),
             data_folder: data_folder.to_path_buf(),
-            optimize_meshes,
             node_index: 0,
             material_index: 0,
         }
@@ -372,21 +366,59 @@ impl GltfCompiler {
         let indices = self.extract_indices(path, primitive);
         let mut geometry = GltfGeometry { vertices, indices };
         generate_tangents(&mut geometry);
-        let mut mesh_data =
-            optimize_mesh(self.optimize_meshes, &geometry.vertices, &geometry.indices);
-        compute_meshlets(&mut mesh_data);
+
+        let (mesh_vertices, geometry_indices) =
+            optimize_mesh(&geometry.vertices, &geometry.indices);
+
+        let mut meshlet_indices_offset = 0;
+        let mut meshlets_per_lod = Vec::new();
+        let (meshlets, mut mesh_indices) = compute_meshlets(&mesh_vertices, &geometry_indices);
+        meshlets_per_lod.push(meshlets);
+        meshlet_indices_offset += mesh_indices.len();
 
         let mut is_meshlet_tree_created = false;
         let mut level = 0;
         while !is_meshlet_tree_created {
-            let meshlets_info = build_meshlets_info(&mut mesh_data, level);
-            let groups = group_meshlets(&meshlets_info);
+            let previous_lod_meshlets = meshlets_per_lod.last().unwrap();
+            let meshlets_adjacency = build_meshlets_adjacency(previous_lod_meshlets, &mesh_indices);
+            let groups = group_meshlets(&meshlets_adjacency);
             level += 1;
-            generate_meshlets_for_level(level, &groups, &mut mesh_data);
-            is_meshlet_tree_created = groups.len() == 1 || level >= MAX_LOD_LEVELS;
+            let (mut cluster_indices, cluster_meshlets) = compute_clusters(
+                &groups,
+                previous_lod_meshlets,
+                meshlet_indices_offset,
+                &mesh_vertices,
+                &mesh_indices,
+            );
+
+            meshlet_indices_offset += cluster_indices.len();
+            mesh_indices.append(&mut cluster_indices);
+            meshlets_per_lod.push(cluster_meshlets);
+
+            is_meshlet_tree_created = groups.len() == 1 || level >= (MAX_LOD_LEVELS - 1);
         }
 
+        let mut mesh_data = create_mesh_data(&mesh_vertices, &mesh_indices);
+        mesh_data.meshlets = meshlets_per_lod;
+        mesh_data.meshlets.reverse();
+        mesh_data.meshlets_bvh.clear();
         mesh_data.material = material_path.to_path_buf();
+
+        mesh_data
+            .meshlets
+            .iter()
+            .enumerate()
+            .for_each(|(lod_level, meshlets)| {
+                println!("LOD {} has {} meshlets", lod_level, meshlets.len());
+
+                let mut meshlets_aabbs = Vec::new();
+                meshlets_aabbs.resize_with(meshlets.len(), AABB::empty);
+                meshlets.iter().enumerate().for_each(|(i, m)| {
+                    meshlets_aabbs[i] = AABB::create(m.aabb_min, m.aabb_max, i as _);
+                });
+                let bvh = BVHTree::new(&meshlets_aabbs);
+                mesh_data.meshlets_bvh.push(create_linearized_bvh(&bvh));
+            });
 
         self.create_file(
             path,
