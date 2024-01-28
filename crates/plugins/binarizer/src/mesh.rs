@@ -211,6 +211,7 @@ pub fn build_meshlets_adjacency(
     indices: &[u32],
 ) -> Vec<MeshletAdjacency> {
     let mut meshlets_info = Vec::with_capacity(meshlets.len());
+    let mut edge_meshlets_map: HashMap<Edge, Vec<usize>> = HashMap::default();
     meshlets
         .iter()
         .enumerate()
@@ -234,17 +235,41 @@ pub fn build_meshlets_adjacency(
                     v2: i3.max(i1),
                 };
                 edges_hit_count
+                    .entry(e1.clone())
+                    .and_modify(|v| *v += 1)
+                    .or_insert(1);
+                edges_hit_count
+                    .entry(e2.clone())
+                    .and_modify(|v| *v += 1)
+                    .or_insert(1);
+                edges_hit_count
+                    .entry(e3.clone())
+                    .and_modify(|v| *v += 1)
+                    .or_insert(1);
+                edge_meshlets_map
                     .entry(e1)
-                    .and_modify(|v| *v += 1)
-                    .or_insert(1);
-                edges_hit_count
+                    .and_modify(|v| {
+                        if !v.contains(&meshlet_index) {
+                            v.push(meshlet_index)
+                        }
+                    })
+                    .or_insert(vec![meshlet_index]);
+                edge_meshlets_map
                     .entry(e2)
-                    .and_modify(|v| *v += 1)
-                    .or_insert(1);
-                edges_hit_count
+                    .and_modify(|v| {
+                        if !v.contains(&meshlet_index) {
+                            v.push(meshlet_index)
+                        }
+                    })
+                    .or_insert(vec![meshlet_index]);
+                edge_meshlets_map
                     .entry(e3)
-                    .and_modify(|v| *v += 1)
-                    .or_insert(1);
+                    .and_modify(|v| {
+                        if !v.contains(&meshlet_index) {
+                            v.push(meshlet_index)
+                        }
+                    })
+                    .or_insert(vec![meshlet_index]);
             }
             let mut edges = Vec::new();
             for (e, count) in edges_hit_count {
@@ -261,29 +286,33 @@ pub fn build_meshlets_adjacency(
 
     let num_meshlets = meshlets_info.len();
     debug_assert!(num_meshlets == meshlets.len());
-    if num_meshlets > 1 {
-        for i in 0..num_meshlets {
-            for j in 0..num_meshlets {
-                if i != j {
-                    let num_adjacency = meshlets_info[i].edges.iter().fold(0, |c, e1| {
-                        let num =
-                            meshlets_info[j]
-                                .edges
+
+    meshlets_info
+        .iter_mut()
+        .enumerate()
+        .for_each(|(info_index, info)| {
+            info.edges.iter().for_each(|e| {
+                if edge_meshlets_map[e].len() > 1 {
+                    edge_meshlets_map[e].iter().for_each(|&meshlet_index| {
+                        if meshlet_index != info_index {
+                            if let Some(i) = info
+                                .adjacent_meshlets
                                 .iter()
-                                .fold(0, |c, e2| if e1 == e2 { c + 1 } else { c });
-                        c + num
+                                .position(|l| l.0 == meshlet_index as u32)
+                            {
+                                info.adjacent_meshlets[i].1 += 1;
+                            } else {
+                                info.adjacent_meshlets.push((meshlet_index as u32, 1));
+                            }
+                        }
                     });
-                    let other_index = meshlets_info[j].meshlet_index;
-                    if num_adjacency > 0 {
-                        meshlets_info[i]
-                            .adjacent_meshlets
-                            .push((other_index, num_adjacency));
-                    }
                 }
-            }
-        }
-    }
+            });
+        });
     meshlets_info.iter_mut().for_each(|m| {
+        if m.adjacent_meshlets.is_empty() {
+            println!("Meshlet {} has no adjacency", m.meshlet_index);
+        }
         m.adjacent_meshlets
             .sort_by(|(_i, a), (_j, b)| b.partial_cmp(a).unwrap());
     });
@@ -486,7 +515,7 @@ pub fn compute_clusters(
         let target_count = (optimized_indices.len() as f32 * threshold) as usize / 3 * 3;
         let target_error = 0.01;
 
-        let simplified_indices = meshopt::simplify_decoder(
+        let mut simplified_indices = meshopt::simplify_decoder(
             &optimized_indices,
             &optimized_vertices,
             target_count,
@@ -494,6 +523,10 @@ pub fn compute_clusters(
             meshopt::SimplifyOptions::LockBorder,
             None,
         );
+
+        if simplified_indices.is_empty() {
+            simplified_indices = optimized_indices;
+        }
 
         let (mut meshlets, group_indices) =
             compute_meshlets(&optimized_vertices, &simplified_indices);

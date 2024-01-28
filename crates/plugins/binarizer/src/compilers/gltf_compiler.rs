@@ -408,16 +408,12 @@ impl GltfCompiler {
             .meshlets
             .iter()
             .enumerate()
-            .for_each(|(lod_level, meshlets)| {
-                println!("LOD {} has {} meshlets", lod_level, meshlets.len());
+            .for_each(|(_lod_level, meshlets)| {
+                //println!("LOD {} has {} meshlets", _lod_level, meshlets.len());
 
                 let mut meshlets_aabbs = Vec::new();
                 meshlets_aabbs.resize_with(meshlets.len(), AABB::empty);
                 meshlets.iter().enumerate().for_each(|(i, m)| {
-                    println!(
-                        "LOD {} Meshlet {} has as children {:?}",
-                        lod_level, i, m.child_meshlets
-                    );
                     meshlets_aabbs[i] = AABB::create(m.aabb_min, m.aabb_max, i as _);
                 });
                 let bvh = BVHTree::new(&meshlets_aabbs);
