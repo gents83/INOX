@@ -381,12 +381,18 @@ pub fn group_meshlets(meshlets_info: &[MeshletAdjacency]) -> Vec<Vec<u32>> {
                 .position(|m| m.meshlet_index == other_index)
             {
                 let mut m = available_meshlets.remove(other_available_index);
-                let index = m
+                if let Some(index) = m
                     .adjacent_meshlets
                     .iter()
                     .position(|v| v.0 == meshlet_info.meshlet_index)
-                    .unwrap();
-                m.adjacent_meshlets.remove(index);
+                {
+                    m.adjacent_meshlets.remove(index);
+                } else {
+                    println!(
+                        "Expecting to find meshlet {} but it's not there {:?}",
+                        meshlet_info.meshlet_index, m.adjacent_meshlets
+                    )
+                }
                 meshlet_group.push(m);
             }
         }
@@ -509,7 +515,7 @@ pub fn compute_clusters(
 
         let (optimized_vertices, optimized_indices) =
             optimize_mesh(&group_vertices, &group_indices);
-        
+
         let threshold = 1. / MESHLETS_GROUP_SIZE as f32;
         let target_count = (optimized_indices.len() as f32 * threshold) as usize / 3 * 3;
         let target_error = 0.01;
