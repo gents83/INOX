@@ -437,6 +437,7 @@ pub fn compute_clusters(
     vertices: &[MeshVertex],
     indices: &[u32],
 ) -> (Vec<u32>, Vec<MeshletData>) {
+    let mut indices_offset = mesh_indices_offset;
     let mut cluster_indices = Vec::new();
     let mut cluster_meshlets = Vec::new();
     groups.iter().for_each(|meshlets_indices| {
@@ -502,9 +503,9 @@ pub fn compute_clusters(
             global_group_indices.push(optimized_vertices[i as usize].global_index as u32);
         });
         meshlets.iter_mut().for_each(|m| {
-            m.indices_offset += mesh_indices_offset as u32;
+            m.indices_offset += indices_offset as u32;
         });
-
+        indices_offset += global_group_indices.len();
         cluster_indices.append(&mut global_group_indices);
         cluster_meshlets.append(&mut meshlets);
     });
