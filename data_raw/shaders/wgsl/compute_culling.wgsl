@@ -95,7 +95,10 @@ fn main(
         return;        
     }
 
-    let lod_level = 0u;
+    var lod_level = 0u;
+    if (constant_data.forced_lod_level > 0) {
+        lod_level = max(0u, u32(constant_data.forced_lod_level));
+    }
     if((*mesh).meshlets_count[lod_level] < 0) {
         return;
     }

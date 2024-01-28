@@ -47,6 +47,10 @@ struct Data {
     pub lut_pbr_ggx_texture_index: u32,
     pub env_map_texture_index: u32,
     pub num_lights: u32,
+    pub forced_lod_level: i32,
+    pub _empty1: u32,
+    pub _empty2: u32,
+    pub _empty3: u32,
 }
 
 impl Default for Data {
@@ -67,6 +71,10 @@ impl Default for Data {
             lut_pbr_ggx_texture_index: 0,
             env_map_texture_index: 0,
             num_lights: 0,
+            forced_lod_level: -1,
+            _empty1: 0,
+            _empty2: 0,
+            _empty3: 0,
         }
     }
 }
@@ -148,6 +156,16 @@ impl ConstantData {
     }
     pub fn num_lights(&self) -> u32 {
         self.data.num_lights
+    }
+    pub fn set_forced_lod_level(&mut self, n: i32) -> &mut Self {
+        if self.data.forced_lod_level != n {
+            self.data.forced_lod_level = n;
+            self.set_dirty(true);
+        }
+        self
+    }
+    pub fn forced_lod_level(&self) -> i32 {
+        self.data.forced_lod_level
     }
     #[allow(non_snake_case)]
     pub fn set_LUT(&mut self, lut_id: &Uid, texture_index: u32) -> &mut Self {

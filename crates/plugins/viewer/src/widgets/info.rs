@@ -11,6 +11,7 @@ use inox_graphics::{
     CONSTANT_DATA_FLAGS_DISPLAY_TANGENT, CONSTANT_DATA_FLAGS_DISPLAY_UV_0,
     CONSTANT_DATA_FLAGS_DISPLAY_UV_1, CONSTANT_DATA_FLAGS_DISPLAY_UV_2,
     CONSTANT_DATA_FLAGS_DISPLAY_UV_3, CONSTANT_DATA_FLAGS_NONE, CONSTANT_DATA_FLAGS_USE_IBL,
+    MAX_LOD_LEVELS,
 };
 use inox_math::{
     compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle, VecBase, Vector2,
@@ -610,6 +611,36 @@ impl Info {
                                     .write()
                                     .unwrap()
                                     .set_num_bounces(indirect_light_num_bounces)
+                                    .set_frame_index(0);
+                            }
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Forced LOD level: ");
+                            let mut forced_lod_level = {
+                                let v = data
+                                    .params
+                                    .render_context
+                                    .global_buffers()
+                                    .constant_data
+                                    .read()
+                                    .unwrap()
+                                    .forced_lod_level();
+                                v
+                            };
+                            let is_changed = ui
+                                .add(
+                                    DragValue::new(&mut forced_lod_level)
+                                        .clamp_range(-1..=(MAX_LOD_LEVELS as i32 - 1)),
+                                )
+                                .changed();
+                            if is_changed {
+                                data.params
+                                    .render_context
+                                    .global_buffers()
+                                    .constant_data
+                                    .write()
+                                    .unwrap()
+                                    .set_forced_lod_level(forced_lod_level)
                                     .set_frame_index(0);
                             }
                         });
