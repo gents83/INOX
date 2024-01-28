@@ -80,6 +80,8 @@ Following screenshots are just related about INOX engine capabilities:
 
 ![LODs](https://github.com/gents83/INOX/assets/62186646/e3e70000-be47-47b3-8d3f-da94a74605b4)
 
+![Sponza](https://github.com/gents83/INOX/assets/62186646/1e04e4df-0966-4a1f-af51-6e44397ffaa8)
+
 ![Hot-code-reload-test](https://user-images.githubusercontent.com/62186646/130698279-9daa7b9a-1f3c-4556-be0c-37f8a1c4431e.gif)
 
 ![Profiler example](https://user-images.githubusercontent.com/62186646/120451742-f9968e80-c391-11eb-962e-13d132e09847.jpg)
