@@ -76,9 +76,9 @@ Useful hotkeys to know:
 
 Following screenshots are just related about INOX engine capabilities:
 
-![Editor test](https://user-images.githubusercontent.com/62186646/130697761-056e6de4-fccb-42fc-8271-ccfa9ab0544f.gif)
+![PBR_IBL](https://github.com/gents83/INOX/assets/62186646/7e6ef5f5-f236-4ed2-8909-a4074614e2e3)
 
-![In-game_ui_tests](https://user-images.githubusercontent.com/62186646/127272503-6ff30eba-ea2a-46a0-bdc7-9be6cc32aee1.gif)
+![LODs](https://github.com/gents83/INOX/assets/62186646/e3e70000-be47-47b3-8d3f-da94a74605b4)
 
 ![Hot-code-reload-test](https://user-images.githubusercontent.com/62186646/130698279-9daa7b9a-1f3c-4556-be0c-37f8a1c4431e.gif)
 
