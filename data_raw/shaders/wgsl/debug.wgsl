@@ -139,9 +139,9 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
             let meshlet_id = (visibility_id >> 8u); 
             let meshlet_color = hash(meshlet_id + 1u);
             out_color = vec4<f32>(vec3<f32>(
-                f32(meshlet_color & 255u),
-                f32((meshlet_color >> 8u) & 255u),
-                f32((meshlet_color >> 16u) & 255u)
+                f32((meshlet_color << 1u) & 255u),
+                f32((meshlet_color >> 3u) & 255u),
+                f32((meshlet_color >> 7u) & 255u)
             ) / 255., 1.);
         }
     } 
