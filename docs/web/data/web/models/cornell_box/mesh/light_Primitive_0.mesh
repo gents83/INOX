@@ -30,12 +30,6 @@
     3,
     0,
     1,
-    2,
-    0,
-    2,
-    3,
-    0,
-    1,
     2
   ],
   "material": "models/cornell_box/material/light.material",
@@ -54,48 +48,12 @@
           "z": 1.9800003
         },
         "indices_count": 6,
-        "child_meshlets": [
-          1
-        ],
-        "triangles_bvh": []
-      }
-    ],
-    [
-      {
-        "aabb_min": {
-          "x": -0.4504032,
-          "y": -0.424711,
-          "z": 1.9799999
-        },
-        "indices_offset": 6,
-        "aabb_max": {
-          "x": 0.44040322,
-          "y": 0.4847108,
-          "z": 1.9800003
-        },
-        "indices_count": 6,
         "child_meshlets": [],
         "triangles_bvh": []
       }
     ]
   ],
   "meshlets_bvh": [
-    [
-      {
-        "min": [
-          -0.4504032,
-          -0.424711,
-          1.9799999
-        ],
-        "miss": -1,
-        "max": [
-          0.44040322,
-          0.4847108,
-          1.9800003
-        ],
-        "reference": 0
-      }
-    ],
     [
       {
         "min": [

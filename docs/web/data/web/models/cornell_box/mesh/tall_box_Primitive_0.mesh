@@ -62,36 +62,6 @@
     0,
     4,
     0,
-    6,
-    3,
-    1,
-    4,
-    3,
-    2,
-    1,
-    5,
-    2,
-    3,
-    5,
-    7,
-    2,
-    6,
-    7,
-    5,
-    0,
-    2,
-    7,
-    0,
-    1,
-    2,
-    6,
-    0,
-    7,
-    4,
-    1,
-    0,
-    4,
-    0,
     6
   ],
   "material": "models/cornell_box/material/tallBox.material",
@@ -110,48 +80,12 @@
           "z": 1.2
         },
         "indices_count": 30,
-        "child_meshlets": [
-          1
-        ],
-        "triangles_bvh": []
-      }
-    ],
-    [
-      {
-        "aabb_min": {
-          "x": -0.71,
-          "y": -0.09,
-          "z": 0.0
-        },
-        "indices_offset": 30,
-        "aabb_max": {
-          "x": 0.04,
-          "y": 0.67,
-          "z": 1.2
-        },
-        "indices_count": 30,
         "child_meshlets": [],
         "triangles_bvh": []
       }
     ]
   ],
   "meshlets_bvh": [
-    [
-      {
-        "min": [
-          -0.71,
-          -0.09,
-          0.0
-        ],
-        "miss": -1,
-        "max": [
-          0.04,
-          0.67,
-          1.2
-        ],
-        "reference": 0
-      }
-    ],
     [
       {
         "min": [

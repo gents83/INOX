@@ -68,18 +68,6 @@
     3,
     0,
     1,
-    2,
-    4,
-    5,
-    6,
-    4,
-    6,
-    7,
-    0,
-    2,
-    3,
-    0,
-    1,
     2
   ],
   "material": "models/craftman/material/08_-_Default.material",
@@ -98,48 +86,12 @@
           "z": 1.8637025
         },
         "indices_count": 12,
-        "child_meshlets": [
-          1
-        ],
-        "triangles_bvh": []
-      }
-    ],
-    [
-      {
-        "aabb_min": {
-          "x": -4.265058,
-          "y": -3.921148,
-          "z": -1.8393257
-        },
-        "indices_offset": 12,
-        "aabb_max": {
-          "x": 3.9211488,
-          "y": 4.2650576,
-          "z": 1.8637025
-        },
-        "indices_count": 12,
         "child_meshlets": [],
         "triangles_bvh": []
       }
     ]
   ],
   "meshlets_bvh": [
-    [
-      {
-        "min": [
-          -4.265058,
-          -3.921148,
-          -1.8393257
-        ],
-        "miss": -1,
-        "max": [
-          3.9211488,
-          4.2650576,
-          1.8637025
-        ],
-        "reference": 0
-      }
-    ],
     [
       {
         "min": [
