@@ -5,10 +5,8 @@ use std::{
 };
 
 use crate::{
-    mesh::{
-        build_meshlets_adjacency, compute_clusters, compute_meshlets, create_mesh_data,
-        group_meshlets, optimize_mesh, MeshVertex,
-    },
+    adjacency::{build_meshlets_adjacency, group_meshlets},
+    mesh::{compute_clusters, compute_meshlets, create_mesh_data, optimize_mesh, MeshVertex},
     need_to_binarize, to_local_path, ExtensionHandler,
 };
 use gltf::{
@@ -380,7 +378,8 @@ impl GltfCompiler {
         let mut level = 0;
         while !is_meshlet_tree_created {
             let previous_lod_meshlets = meshlets_per_lod.last_mut().unwrap();
-            let meshlets_adjacency = build_meshlets_adjacency(previous_lod_meshlets, &mesh_indices);
+            let meshlets_adjacency =
+                build_meshlets_adjacency(previous_lod_meshlets, &mesh_vertices, &mesh_indices);
             let groups = group_meshlets(&meshlets_adjacency);
             level += 1;
             let (mut cluster_indices, cluster_meshlets) = compute_clusters(

@@ -1,5 +1,6 @@
 use std::f32::consts::PI;
 
+use crate::VecBaseFloat;
 use crate::Vector3;
 use cgmath::Rotation;
 use cgmath::Zero;
@@ -7,6 +8,7 @@ use cgmath::Zero;
 pub type Quaternion = cgmath::Quaternion<f32>;
 
 pub trait Quat {
+    fn from_vector(v: Vector3) -> Quaternion;
     fn from_euler_angles(roll_yaw_pitch: Vector3) -> Quaternion;
     fn to_euler_angles(&self) -> Vector3;
     fn transform_point(&self, p: Vector3) -> Vector3;
@@ -14,6 +16,9 @@ pub trait Quat {
 }
 
 impl Quat for Quaternion {
+    fn from_vector(v: Vector3) -> Quaternion {
+        cgmath::Quaternion::from_sv(v.length(), v)
+    }
     fn to_euler_angles(&self) -> Vector3 {
         let mut roll_yaw_pitch = Vector3::zero();
 

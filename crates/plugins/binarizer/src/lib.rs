@@ -6,6 +6,7 @@ pub use crate::plugin::*;
 pub use crate::system::*;
 pub use crate::utils::*;
 
+mod adjacency;
 mod compilers;
 mod config;
 mod mesh;
