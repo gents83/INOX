@@ -376,7 +376,7 @@ impl GltfCompiler {
         meshlets_per_lod.push(meshlets);
         mesh_indices_offset += mesh_indices.len();
 
-        let mut is_meshlet_tree_created = false;
+        let mut is_meshlet_tree_created = meshlets_offset <= 1;
         let mut level = 0;
         while !is_meshlet_tree_created {
             let previous_lod_meshlets = meshlets_per_lod.last_mut().unwrap();

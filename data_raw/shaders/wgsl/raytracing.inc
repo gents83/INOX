@@ -102,17 +102,9 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
                 meshlet_id = meshlets_offset + reference;              
                 let meshlet = &meshlets.data[meshlet_id];
                 meshlet_indices_offset = (*meshlet).indices_offset;
-                let cone_axis_cutoff = unpack4x8snorm((*meshlet).cone_axis_cutoff) / 127.;
-                let cone_axis = rotate_vector(cone_axis_cutoff.xyz, mesh_orientation); 
-                let is_culled = dot(cone_axis, direction) >= (cone_axis_cutoff.w + length(node.max-node.min));
                 blas_sibling = node.miss;
-                hit_type = select(HIT_DATA_TRIANGLE, hit_type, is_culled);
-                node_index = select(i32((*meshlet).triangles_bhv_index) + 1, blas_sibling, is_culled);
-                let should_go_to_tlas = node_index < 0;
-                hit_type = select(hit_type, HIT_DATA_TLAS, should_go_to_tlas);
-                node_index = select(node_index, tlas_sibling, should_go_to_tlas);
-                origin = select(origin, world_ray_origin, should_go_to_tlas);
-                direction = select(direction, world_ray_direction, should_go_to_tlas);
+                hit_type = HIT_DATA_TRIANGLE;
+                node_index = i32((*meshlet).triangles_bhv_index) + 1;
             }
             else {  
                 hit_type = HIT_DATA_BLAS;
