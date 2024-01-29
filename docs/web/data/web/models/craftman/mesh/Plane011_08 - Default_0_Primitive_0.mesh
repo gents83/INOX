@@ -117,7 +117,7 @@
         },
         "indices_count": 12,
         "child_meshlets": [
-          0
+          1
         ],
         "triangles_bvh": []
       }

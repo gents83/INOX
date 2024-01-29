@@ -129,7 +129,7 @@
         },
         "indices_count": 30,
         "child_meshlets": [
-          0
+          1
         ],
         "triangles_bvh": []
       }
