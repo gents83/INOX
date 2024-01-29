@@ -155,8 +155,8 @@ where
     let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
 
     let mut new_meshlets = Vec::new();
-    let max_vertices = 64;
-    let max_triangles = 124;
+    let max_vertices = 128;
+    let max_triangles = 256;
     let cone_weight = 0.7;
     let meshlets = meshopt::build_meshlets(
         indices,
@@ -196,6 +196,7 @@ pub fn compute_clusters(
     groups: &[Vec<u32>],
     parent_meshlets: &mut [MeshletData],
     mesh_indices_offset: usize,
+    meshlets_offset: usize,
     vertices: &[MeshVertex],
     indices: &[u32],
 ) -> (Vec<u32>, Vec<MeshletData>) {
@@ -277,7 +278,7 @@ pub fn compute_clusters(
             for i in 0..meshlets.len() {
                 meshlet
                     .child_meshlets
-                    .push((cluster_meshlets.len() + i) as u32);
+                    .push((meshlets_offset + cluster_meshlets.len() + i) as u32);
             }
         });
         cluster_indices.append(&mut global_group_indices);

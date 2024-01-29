@@ -82,10 +82,8 @@ impl GlobalBuffers {
 
         let mut meshlets = Vec::new();
         let mut lod_data = Vec::new();
-        let mut starting_child_offset = 0;
-        mesh_data.meshlets.iter().rev().for_each(|meshlets_data| {
+        mesh_data.meshlets.iter().for_each(|meshlets_data| {
             lod_data.push(meshlets_data.len());
-            starting_child_offset += meshlets_data.len();
             meshlets_data.iter().for_each(|meshlet_data| {
                 let triangle_id = generate_random_uid();
                 self.triangles_ids
@@ -114,7 +112,7 @@ impl GlobalBuffers {
                     .iter()
                     .enumerate()
                     .for_each(|(index, &mi)| {
-                        child_meshlets[index] = (starting_child_offset + mi as usize) as i32;
+                        child_meshlets[index] = mi as i32;
                     });
                 let meshlet = GPUMeshlet {
                     mesh_index,
@@ -149,7 +147,17 @@ impl GlobalBuffers {
             .unwrap()
             .allocate(mesh_id, meshlets.as_slice())
             .1;
-        (blas_index, meshlet_range.start, lod_data)
+        let meshlet_start_index = meshlet_range.start as i32;
+        self.meshlets.write().unwrap().data_mut()[meshlet_range]
+            .iter_mut()
+            .for_each(|m| {
+                m.child_meshlets.iter_mut().for_each(|v| {
+                    if *v >= 0 {
+                        *v += meshlet_start_index;
+                    }
+                });
+            });
+        (blas_index, meshlet_start_index as _, lod_data)
     }
     fn add_vertex_data(
         &self,

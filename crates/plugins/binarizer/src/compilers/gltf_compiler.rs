@@ -368,11 +368,13 @@ impl GltfCompiler {
         let (mesh_vertices, geometry_indices) =
             optimize_mesh(&geometry.vertices, &geometry.indices);
 
-        let mut meshlet_indices_offset = 0;
+        let mut mesh_indices_offset = 0;
+        let mut meshlets_offset = 0;
         let mut meshlets_per_lod = Vec::new();
         let (meshlets, mut mesh_indices) = compute_meshlets(&mesh_vertices, &geometry_indices);
+        meshlets_offset += meshlets.len();
         meshlets_per_lod.push(meshlets);
-        meshlet_indices_offset += mesh_indices.len();
+        mesh_indices_offset += mesh_indices.len();
 
         let mut is_meshlet_tree_created = false;
         let mut level = 0;
@@ -385,13 +387,15 @@ impl GltfCompiler {
             let (mut cluster_indices, cluster_meshlets) = compute_clusters(
                 &groups,
                 previous_lod_meshlets,
-                meshlet_indices_offset,
+                mesh_indices_offset,
+                meshlets_offset,
                 &mesh_vertices,
                 &mesh_indices,
             );
 
-            meshlet_indices_offset += cluster_indices.len();
+            mesh_indices_offset += cluster_indices.len();
             mesh_indices.append(&mut cluster_indices);
+            meshlets_offset += cluster_meshlets.len();
             meshlets_per_lod.push(cluster_meshlets);
 
             is_meshlet_tree_created = groups.len() == 1 || level >= (MAX_LOD_LEVELS - 1);
