@@ -34085,1263 +34085,6 @@
     [
       {
         "aabb_min": {
-          "x": 1234.1055,
-          "y": 79.9048,
-          "z": -114.6915
-        },
-        "indices_offset": 25842,
-        "aabb_max": {
-          "x": 1298.9733,
-          "y": 257.9683,
-          "z": 41.4676
-        },
-        "indices_count": 384,
-        "child_meshlets": [],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3796,
-          "y": 139.99,
-          "z": -113.3057
-        },
-        "indices_offset": 26226,
-        "aabb_max": {
-          "x": 1298.9733,
-          "y": 264.7612,
-          "z": 34.3463
-        },
-        "indices_count": 375,
-        "child_meshlets": [],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3811,
-          "y": 180.7527,
-          "z": -111.9711
-        },
-        "indices_offset": 26601,
-        "aabb_max": {
-          "x": -1414.4614,
-          "y": 263.8338,
-          "z": 35.0549
-        },
-        "indices_count": 159,
-        "child_meshlets": [],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3813,
-          "y": 79.9048,
-          "z": -113.2161
-        },
-        "indices_offset": 26760,
-        "aabb_max": {
-          "x": -1352.5923,
-          "y": 264.7612,
-          "z": 42.8534
-        },
-        "indices_count": 378,
-        "child_meshlets": [],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 1291.842,
-          "y": 214.7175,
-          "z": 24.8926
-        },
-        "indices_offset": 27138,
-        "aabb_max": {
-          "x": 1295.0533,
-          "y": 222.0866,
-          "z": 34.3463
-        },
-        "indices_count": 6,
-        "child_meshlets": [],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 1295.0364,
-          "y": 175.896,
-          "z": 36.2468
-        },
-        "indices_offset": 27144,
-        "aabb_max": {
-          "x": 1298.9691,
-          "y": 180.7527,
-          "z": 40.3104
-        },
-        "indices_count": 6,
-        "child_meshlets": [],
-        "triangles_bvh": []
-      }
-    ],
-    [
-      {
-        "aabb_min": {
-          "x": 1234.1055,
-          "y": 79.9048,
-          "z": -114.6915
-        },
-        "indices_offset": 24492,
-        "aabb_max": {
-          "x": 1298.9733,
-          "y": 257.9683,
-          "z": 41.4676
-        },
-        "indices_count": 384,
-        "child_meshlets": [
-          76,
-          77,
-          78
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3796,
-          "y": 139.99,
-          "z": -113.3057
-        },
-        "indices_offset": 24876,
-        "aabb_max": {
-          "x": 1298.9733,
-          "y": 264.7612,
-          "z": 34.3463
-        },
-        "indices_count": 366,
-        "child_meshlets": [
-          76,
-          77,
-          78
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3813,
-          "y": 79.9048,
-          "z": -113.2161
-        },
-        "indices_offset": 25242,
-        "aabb_max": {
-          "x": -1352.5923,
-          "y": 264.7612,
-          "z": 42.8534
-        },
-        "indices_count": 378,
-        "child_meshlets": [
-          79
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3811,
-          "y": 195.8704,
-          "z": -108.0518
-        },
-        "indices_offset": 25620,
-        "aabb_max": {
-          "x": -1414.4614,
-          "y": 258.8207,
-          "z": 35.0549
-        },
-        "indices_count": 117,
-        "child_meshlets": [
-          76,
-          77,
-          78
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3787,
-          "y": 202.2686,
-          "z": -108.0518
-        },
-        "indices_offset": 25737,
-        "aabb_max": {
-          "x": -1412.0483,
-          "y": 263.8338,
-          "z": -35.5631
-        },
-        "indices_count": 93,
-        "child_meshlets": [
-          76,
-          77,
-          78
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 1291.842,
-          "y": 214.7175,
-          "z": 24.8926
-        },
-        "indices_offset": 25830,
-        "aabb_max": {
-          "x": 1295.0533,
-          "y": 222.0866,
-          "z": 34.3463
-        },
-        "indices_count": 6,
-        "child_meshlets": [
-          80
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 1295.0364,
-          "y": 175.896,
-          "z": 36.2468
-        },
-        "indices_offset": 25836,
-        "aabb_max": {
-          "x": 1298.9691,
-          "y": 180.7527,
-          "z": 40.3104
-        },
-        "indices_count": 6,
-        "child_meshlets": [
-          81
-        ],
-        "triangles_bvh": []
-      }
-    ],
-    [
-      {
-        "aabb_min": {
-          "x": 1234.1055,
-          "y": 79.9048,
-          "z": -114.6915
-        },
-        "indices_offset": 22782,
-        "aabb_max": {
-          "x": 1298.9733,
-          "y": 257.9683,
-          "z": 41.4676
-        },
-        "indices_count": 384,
-        "child_meshlets": [
-          69,
-          70,
-          71,
-          72
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3796,
-          "y": 114.2255,
-          "z": -113.3057
-        },
-        "indices_offset": 23166,
-        "aabb_max": {
-          "x": 1298.9733,
-          "y": 264.7612,
-          "z": 34.3463
-        },
-        "indices_count": 375,
-        "child_meshlets": [
-          69,
-          70,
-          71,
-          72
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3811,
-          "y": 79.9048,
-          "z": -106.4168
-        },
-        "indices_offset": 23541,
-        "aabb_max": {
-          "x": -1352.5923,
-          "y": 264.7612,
-          "z": 35.0549
-        },
-        "indices_count": 363,
-        "child_meshlets": [
-          69,
-          70,
-          71,
-          72
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3787,
-          "y": 216.8092,
-          "z": -101.0579
-        },
-        "indices_offset": 23904,
-        "aabb_max": {
-          "x": -1412.9268,
-          "y": 263.8338,
-          "z": -35.5631
-        },
-        "indices_count": 63,
-        "child_meshlets": [
-          73
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3813,
-          "y": 92.166,
-          "z": -112.1485
-        },
-        "indices_offset": 23967,
-        "aabb_max": {
-          "x": -1399.346,
-          "y": 220.048,
-          "z": 42.8534
-        },
-        "indices_count": 483,
-        "child_meshlets": [
-          69,
-          70,
-          71,
-          72
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3774,
-          "y": 202.2686,
-          "z": -108.0518
-        },
-        "indices_offset": 24450,
-        "aabb_max": {
-          "x": -1412.0483,
-          "y": 221.0079,
-          "z": -76.9611
-        },
-        "indices_count": 30,
-        "child_meshlets": [
-          73
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 1291.842,
-          "y": 214.7175,
-          "z": 24.8926
-        },
-        "indices_offset": 24480,
-        "aabb_max": {
-          "x": 1295.0533,
-          "y": 222.0866,
-          "z": 34.3463
-        },
-        "indices_count": 6,
-        "child_meshlets": [
-          74
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 1295.0364,
-          "y": 175.896,
-          "z": 36.2468
-        },
-        "indices_offset": 24486,
-        "aabb_max": {
-          "x": 1298.9691,
-          "y": 180.7527,
-          "z": 40.3104
-        },
-        "indices_count": 6,
-        "child_meshlets": [
-          75
-        ],
-        "triangles_bvh": []
-      }
-    ],
-    [
-      {
-        "aabb_min": {
-          "x": 1234.1055,
-          "y": 79.9048,
-          "z": -114.6915
-        },
-        "indices_offset": 20706,
-        "aabb_max": {
-          "x": 1298.9733,
-          "y": 257.9683,
-          "z": 41.4676
-        },
-        "indices_count": 384,
-        "child_meshlets": [
-          61,
-          62,
-          63,
-          64
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3787,
-          "y": 114.2255,
-          "z": -106.8929
-        },
-        "indices_offset": 21090,
-        "aabb_max": {
-          "x": 1298.9733,
-          "y": 264.7612,
-          "z": 34.3463
-        },
-        "indices_count": 369,
-        "child_meshlets": [
-          61,
-          62,
-          63,
-          64
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3811,
-          "y": 79.9048,
-          "z": -113.2161
-        },
-        "indices_offset": 21459,
-        "aabb_max": {
-          "x": -1386.54,
-          "y": 254.2659,
-          "z": 35.0549
-        },
-        "indices_count": 312,
-        "child_meshlets": [
-          61,
-          62,
-          63,
-          64
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3796,
-          "y": 156.9387,
-          "z": -113.3057
-        },
-        "indices_offset": 21771,
-        "aabb_max": {
-          "x": -1352.4563,
-          "y": 264.7612,
-          "z": 16.1986
-        },
-        "indices_count": 486,
-        "child_meshlets": [
-          61,
-          62,
-          63,
-          64
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3794,
-          "y": 92.166,
-          "z": -112.1485
-        },
-        "indices_offset": 22257,
-        "aabb_max": {
-          "x": -1399.346,
-          "y": 221.0079,
-          "z": 42.8534
-        },
-        "indices_count": 498,
-        "child_meshlets": [
-          65,
-          66
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3813,
-          "y": 184.4995,
-          "z": 31.1536
-        },
-        "indices_offset": 22755,
-        "aabb_max": {
-          "x": -1422.2104,
-          "y": 192.6241,
-          "z": 40.6008
-        },
-        "indices_count": 15,
-        "child_meshlets": [
-          65,
-          66
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 1291.842,
-          "y": 214.7175,
-          "z": 24.8926
-        },
-        "indices_offset": 22770,
-        "aabb_max": {
-          "x": 1295.0533,
-          "y": 222.0866,
-          "z": 34.3463
-        },
-        "indices_count": 6,
-        "child_meshlets": [
-          67
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 1295.0364,
-          "y": 175.896,
-          "z": 36.2468
-        },
-        "indices_offset": 22776,
-        "aabb_max": {
-          "x": 1298.9691,
-          "y": 180.7527,
-          "z": 40.3104
-        },
-        "indices_count": 6,
-        "child_meshlets": [
-          68
-        ],
-        "triangles_bvh": []
-      }
-    ],
-    [
-      {
-        "aabb_min": {
-          "x": 1234.1055,
-          "y": 79.9048,
-          "z": -114.6915
-        },
-        "indices_offset": 17886,
-        "aabb_max": {
-          "x": 1298.9733,
-          "y": 257.9683,
-          "z": 41.4676
-        },
-        "indices_count": 384,
-        "child_meshlets": [
-          53,
-          54,
-          55
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1414.8193,
-          "y": 115.2402,
-          "z": -106.8929
-        },
-        "indices_offset": 18270,
-        "aabb_max": {
-          "x": 1298.9733,
-          "y": 264.7612,
-          "z": 34.3463
-        },
-        "indices_count": 372,
-        "child_meshlets": [
-          53,
-          54,
-          55
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3796,
-          "y": 156.9387,
-          "z": -109.6668
-        },
-        "indices_offset": 18642,
-        "aabb_max": {
-          "x": -1352.4563,
-          "y": 263.8338,
-          "z": 16.1986
-        },
-        "indices_count": 474,
-        "child_meshlets": [
-          56,
-          57,
-          58
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.4343,
-          "y": 79.9048,
-          "z": -113.2161
-        },
-        "indices_offset": 19116,
-        "aabb_max": {
-          "x": -1354.1135,
-          "y": 200.176,
-          "z": -13.4276
-        },
-        "indices_count": 498,
-        "child_meshlets": [
-          53,
-          54,
-          55
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3811,
-          "y": 129.4337,
-          "z": -64.4691
-        },
-        "indices_offset": 19614,
-        "aabb_max": {
-          "x": -1352.5923,
-          "y": 254.2659,
-          "z": 35.8171
-        },
-        "indices_count": 483,
-        "child_meshlets": [
-          53,
-          54,
-          55
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3784,
-          "y": 92.166,
-          "z": -108.0518
-        },
-        "indices_offset": 20097,
-        "aabb_max": {
-          "x": -1399.346,
-          "y": 221.0079,
-          "z": 24.1443
-        },
-        "indices_count": 300,
-        "child_meshlets": [
-          56,
-          57,
-          58
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3796,
-          "y": 167.3981,
-          "z": -113.3057
-        },
-        "indices_offset": 20397,
-        "aabb_max": {
-          "x": -1403.2783,
-          "y": 232.7941,
-          "z": -60.849
-        },
-        "indices_count": 132,
-        "child_meshlets": [
-          56,
-          57,
-          58
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 1291.842,
-          "y": 214.7175,
-          "z": 24.8926
-        },
-        "indices_offset": 20529,
-        "aabb_max": {
-          "x": 1295.0533,
-          "y": 222.0866,
-          "z": 34.3463
-        },
-        "indices_count": 6,
-        "child_meshlets": [
-          59
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 1295.0364,
-          "y": 175.896,
-          "z": 36.2468
-        },
-        "indices_offset": 20535,
-        "aabb_max": {
-          "x": 1298.9691,
-          "y": 180.7527,
-          "z": 40.3104
-        },
-        "indices_count": 6,
-        "child_meshlets": [
-          60
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3813,
-          "y": 144.59,
-          "z": -33.4687
-        },
-        "indices_offset": 20541,
-        "aabb_max": {
-          "x": -1408.523,
-          "y": 264.7612,
-          "z": 42.8534
-        },
-        "indices_count": 165,
-        "child_meshlets": [
-          56,
-          57,
-          58
-        ],
-        "triangles_bvh": []
-      }
-    ],
-    [
-      {
-        "aabb_min": {
-          "x": 1230.5217,
-          "y": 129.4337,
-          "z": -76.5355
-        },
-        "indices_offset": 14040,
-        "aabb_max": {
-          "x": 1298.9718,
-          "y": 264.7612,
-          "z": 34.3463
-        },
-        "indices_count": 438,
-        "child_meshlets": [
-          43,
-          44
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 1281.163,
-          "y": 146.3976,
-          "z": -112.5995
-        },
-        "indices_offset": 14478,
-        "aabb_max": {
-          "x": 1298.9733,
-          "y": 257.441,
-          "z": 37.36
-        },
-        "indices_count": 468,
-        "child_meshlets": [
-          43,
-          44
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3796,
-          "y": 156.9387,
-          "z": -108.4286
-        },
-        "indices_offset": 14946,
-        "aabb_max": {
-          "x": -1352.4563,
-          "y": 263.8338,
-          "z": 16.1986
-        },
-        "indices_count": 465,
-        "child_meshlets": [
-          45,
-          46,
-          47,
-          48
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3811,
-          "y": 151.4741,
-          "z": -78.4912
-        },
-        "indices_offset": 15411,
-        "aabb_max": {
-          "x": -1380.2385,
-          "y": 254.2659,
-          "z": 35.8171
-        },
-        "indices_count": 528,
-        "child_meshlets": [
-          45,
-          46,
-          47,
-          48
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3796,
-          "y": 167.3981,
-          "z": -113.3057
-        },
-        "indices_offset": 15939,
-        "aabb_max": {
-          "x": -1403.2783,
-          "y": 232.7941,
-          "z": -60.849
-        },
-        "indices_count": 132,
-        "child_meshlets": [
-          49
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 1230.5217,
-          "y": 79.9048,
-          "z": -114.6915
-        },
-        "indices_offset": 16071,
-        "aabb_max": {
-          "x": 1298.9733,
-          "y": 233.863,
-          "z": 31.515
-        },
-        "indices_count": 381,
-        "child_meshlets": [
-          43,
-          44
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1414.8193,
-          "y": 115.2402,
-          "z": -42.1359
-        },
-        "indices_offset": 16452,
-        "aabb_max": {
-          "x": 1298.9717,
-          "y": 235.2013,
-          "z": 41.4676
-        },
-        "indices_count": 255,
-        "child_meshlets": [
-          43,
-          44
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 1291.842,
-          "y": 214.7175,
-          "z": 24.8926
-        },
-        "indices_offset": 16707,
-        "aabb_max": {
-          "x": 1295.0533,
-          "y": 222.0866,
-          "z": 34.3463
-        },
-        "indices_count": 6,
-        "child_meshlets": [
-          50
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 1295.0364,
-          "y": 175.896,
-          "z": 36.2468
-        },
-        "indices_offset": 16713,
-        "aabb_max": {
-          "x": 1298.9691,
-          "y": 180.7527,
-          "z": 40.3104
-        },
-        "indices_count": 6,
-        "child_meshlets": [
-          51
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.4343,
-          "y": 79.9048,
-          "z": -97.6094
-        },
-        "indices_offset": 16719,
-        "aabb_max": {
-          "x": -1352.5923,
-          "y": 205.5608,
-          "z": -13.4276
-        },
-        "indices_count": 519,
-        "child_meshlets": [
-          45,
-          46,
-          47,
-          48
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3794,
-          "y": 92.166,
-          "z": -113.2161
-        },
-        "indices_offset": 17238,
-        "aabb_max": {
-          "x": -1392.471,
-          "y": 228.229,
-          "z": 24.1443
-        },
-        "indices_count": 483,
-        "child_meshlets": [
-          45,
-          46,
-          47,
-          48
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3813,
-          "y": 144.59,
-          "z": -33.4687
-        },
-        "indices_offset": 17721,
-        "aabb_max": {
-          "x": -1408.523,
-          "y": 264.7612,
-          "z": 42.8534
-        },
-        "indices_count": 165,
-        "child_meshlets": [
-          52
-        ],
-        "triangles_bvh": []
-      }
-    ],
-    [
-      {
-        "aabb_min": {
-          "x": -1414.8193,
-          "y": 113.4288,
-          "z": -114.6915
-        },
-        "indices_offset": 9126,
-        "aabb_max": {
-          "x": 1298.9716,
-          "y": 233.863,
-          "z": 8.6513
-        },
-        "indices_count": 369,
-        "child_meshlets": [
-          36,
-          37
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1419.7673,
-          "y": 151.4741,
-          "z": -23.6959
-        },
-        "indices_offset": 9495,
-        "aabb_max": {
-          "x": -1383.2524,
-          "y": 201.0341,
-          "z": 14.6103
-        },
-        "indices_count": 87,
-        "child_meshlets": [
-          33,
-          34,
-          35
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 1243.0565,
-          "y": 79.9048,
-          "z": -84.018
-        },
-        "indices_offset": 9582,
-        "aabb_max": {
-          "x": 1299.0264,
-          "y": 145.5246,
-          "z": 24.6755
-        },
-        "indices_count": 546,
-        "child_meshlets": [
-          36,
-          37
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 1258.1321,
-          "y": 106.3587,
-          "z": -95.9823
-        },
-        "indices_offset": 10128,
-        "aabb_max": {
-          "x": 1298.9717,
-          "y": 235.2013,
-          "z": 41.4676
-        },
-        "indices_count": 477,
-        "child_meshlets": [
-          36,
-          37
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 1291.842,
-          "y": 214.7175,
-          "z": 24.8926
-        },
-        "indices_offset": 10605,
-        "aabb_max": {
-          "x": 1295.0533,
-          "y": 222.0866,
-          "z": 34.3463
-        },
-        "indices_count": 6,
-        "child_meshlets": [
-          38
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 1230.5217,
-          "y": 129.4337,
-          "z": -76.5355
-        },
-        "indices_offset": 10611,
-        "aabb_max": {
-          "x": 1298.9718,
-          "y": 264.7612,
-          "z": 34.3463
-        },
-        "indices_count": 441,
-        "child_meshlets": [
-          31,
-          32
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 1281.163,
-          "y": 146.3976,
-          "z": -112.5995
-        },
-        "indices_offset": 11052,
-        "aabb_max": {
-          "x": 1298.9733,
-          "y": 258.1403,
-          "z": 37.36
-        },
-        "indices_count": 495,
-        "child_meshlets": [
-          31,
-          32
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 1295.0364,
-          "y": 175.896,
-          "z": 36.2468
-        },
-        "indices_offset": 11547,
-        "aabb_max": {
-          "x": 1298.9691,
-          "y": 180.7527,
-          "z": 40.3104
-        },
-        "indices_count": 6,
-        "child_meshlets": [
-          39
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3811,
-          "y": 156.9387,
-          "z": -65.0462
-        },
-        "indices_offset": 11553,
-        "aabb_max": {
-          "x": -1352.4563,
-          "y": 259.6681,
-          "z": 35.8171
-        },
-        "indices_count": 507,
-        "child_meshlets": [
-          33,
-          34,
-          35
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3787,
-          "y": 158.8314,
-          "z": -97.5889
-        },
-        "indices_offset": 12060,
-        "aabb_max": {
-          "x": -1380.2385,
-          "y": 263.8338,
-          "z": 33.9724
-        },
-        "indices_count": 453,
-        "child_meshlets": [
-          33,
-          34,
-          35
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3794,
-          "y": 122.9085,
-          "z": -113.2161
-        },
-        "indices_offset": 12513,
-        "aabb_max": {
-          "x": -1404.843,
-          "y": 264.7612,
-          "z": -21.1312
-        },
-        "indices_count": 252,
-        "child_meshlets": [
-          40,
-          41,
-          42
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.4343,
-          "y": 79.9048,
-          "z": -96.5136
-        },
-        "indices_offset": 12765,
-        "aabb_max": {
-          "x": -1352.5923,
-          "y": 182.8545,
-          "z": -13.4276
-        },
-        "indices_count": 537,
-        "child_meshlets": [
-          40,
-          41,
-          42
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3813,
-          "y": 92.166,
-          "z": -60.2042
-        },
-        "indices_offset": 13302,
-        "aabb_max": {
-          "x": -1364.6096,
-          "y": 205.5608,
-          "z": 42.8534
-        },
-        "indices_count": 510,
-        "child_meshlets": [
-          40,
-          41,
-          42
-        ],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": -1427.3796,
-          "y": 167.3981,
-          "z": -113.3057
-        },
-        "indices_offset": 13812,
-        "aabb_max": {
-          "x": -1389.346,
-          "y": 242.159,
-          "z": -55.3222
-        },
-        "indices_count": 228,
-        "child_meshlets": [
-          33,
-          34,
-          35
-        ],
-        "triangles_bvh": []
-      }
-    ],
-    [
-      {
-        "aabb_min": {
           "x": 1224.0483,
           "y": 113.4288,
           "z": -76.0138
@@ -35677,1745 +34420,1266 @@
         ],
         "triangles_bvh": []
       }
+    ],
+    [
+      {
+        "aabb_min": {
+          "x": -1414.8193,
+          "y": 113.4288,
+          "z": -114.6915
+        },
+        "indices_offset": 9126,
+        "aabb_max": {
+          "x": 1298.9716,
+          "y": 233.863,
+          "z": 8.6513
+        },
+        "indices_count": 369,
+        "child_meshlets": [
+          36,
+          37
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1419.7673,
+          "y": 151.4741,
+          "z": -23.6959
+        },
+        "indices_offset": 9495,
+        "aabb_max": {
+          "x": -1383.2524,
+          "y": 201.0341,
+          "z": 14.6103
+        },
+        "indices_count": 87,
+        "child_meshlets": [
+          33,
+          34,
+          35
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 1243.0565,
+          "y": 79.9048,
+          "z": -84.018
+        },
+        "indices_offset": 9582,
+        "aabb_max": {
+          "x": 1299.0264,
+          "y": 145.5246,
+          "z": 24.6755
+        },
+        "indices_count": 546,
+        "child_meshlets": [
+          36,
+          37
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 1258.1321,
+          "y": 106.3587,
+          "z": -95.9823
+        },
+        "indices_offset": 10128,
+        "aabb_max": {
+          "x": 1298.9717,
+          "y": 235.2013,
+          "z": 41.4676
+        },
+        "indices_count": 477,
+        "child_meshlets": [
+          36,
+          37
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 1291.842,
+          "y": 214.7175,
+          "z": 24.8926
+        },
+        "indices_offset": 10605,
+        "aabb_max": {
+          "x": 1295.0533,
+          "y": 222.0866,
+          "z": 34.3463
+        },
+        "indices_count": 6,
+        "child_meshlets": [
+          38
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 1230.5217,
+          "y": 129.4337,
+          "z": -76.5355
+        },
+        "indices_offset": 10611,
+        "aabb_max": {
+          "x": 1298.9718,
+          "y": 264.7612,
+          "z": 34.3463
+        },
+        "indices_count": 441,
+        "child_meshlets": [
+          31,
+          32
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 1281.163,
+          "y": 146.3976,
+          "z": -112.5995
+        },
+        "indices_offset": 11052,
+        "aabb_max": {
+          "x": 1298.9733,
+          "y": 258.1403,
+          "z": 37.36
+        },
+        "indices_count": 495,
+        "child_meshlets": [
+          31,
+          32
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 1295.0364,
+          "y": 175.896,
+          "z": 36.2468
+        },
+        "indices_offset": 11547,
+        "aabb_max": {
+          "x": 1298.9691,
+          "y": 180.7527,
+          "z": 40.3104
+        },
+        "indices_count": 6,
+        "child_meshlets": [
+          39
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3811,
+          "y": 156.9387,
+          "z": -65.0462
+        },
+        "indices_offset": 11553,
+        "aabb_max": {
+          "x": -1352.4563,
+          "y": 259.6681,
+          "z": 35.8171
+        },
+        "indices_count": 507,
+        "child_meshlets": [
+          33,
+          34,
+          35
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3787,
+          "y": 158.8314,
+          "z": -97.5889
+        },
+        "indices_offset": 12060,
+        "aabb_max": {
+          "x": -1380.2385,
+          "y": 263.8338,
+          "z": 33.9724
+        },
+        "indices_count": 453,
+        "child_meshlets": [
+          33,
+          34,
+          35
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3794,
+          "y": 122.9085,
+          "z": -113.2161
+        },
+        "indices_offset": 12513,
+        "aabb_max": {
+          "x": -1404.843,
+          "y": 264.7612,
+          "z": -21.1312
+        },
+        "indices_count": 252,
+        "child_meshlets": [
+          40,
+          41,
+          42
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.4343,
+          "y": 79.9048,
+          "z": -96.5136
+        },
+        "indices_offset": 12765,
+        "aabb_max": {
+          "x": -1352.5923,
+          "y": 182.8545,
+          "z": -13.4276
+        },
+        "indices_count": 537,
+        "child_meshlets": [
+          40,
+          41,
+          42
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3813,
+          "y": 92.166,
+          "z": -60.2042
+        },
+        "indices_offset": 13302,
+        "aabb_max": {
+          "x": -1364.6096,
+          "y": 205.5608,
+          "z": 42.8534
+        },
+        "indices_count": 510,
+        "child_meshlets": [
+          40,
+          41,
+          42
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3796,
+          "y": 167.3981,
+          "z": -113.3057
+        },
+        "indices_offset": 13812,
+        "aabb_max": {
+          "x": -1389.346,
+          "y": 242.159,
+          "z": -55.3222
+        },
+        "indices_count": 228,
+        "child_meshlets": [
+          33,
+          34,
+          35
+        ],
+        "triangles_bvh": []
+      }
+    ],
+    [
+      {
+        "aabb_min": {
+          "x": 1230.5217,
+          "y": 129.4337,
+          "z": -76.5355
+        },
+        "indices_offset": 14040,
+        "aabb_max": {
+          "x": 1298.9718,
+          "y": 264.7612,
+          "z": 34.3463
+        },
+        "indices_count": 438,
+        "child_meshlets": [
+          43,
+          44
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 1281.163,
+          "y": 146.3976,
+          "z": -112.5995
+        },
+        "indices_offset": 14478,
+        "aabb_max": {
+          "x": 1298.9733,
+          "y": 257.441,
+          "z": 37.36
+        },
+        "indices_count": 468,
+        "child_meshlets": [
+          43,
+          44
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3796,
+          "y": 156.9387,
+          "z": -108.4286
+        },
+        "indices_offset": 14946,
+        "aabb_max": {
+          "x": -1352.4563,
+          "y": 263.8338,
+          "z": 16.1986
+        },
+        "indices_count": 465,
+        "child_meshlets": [
+          45,
+          46,
+          47,
+          48
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3811,
+          "y": 151.4741,
+          "z": -78.4912
+        },
+        "indices_offset": 15411,
+        "aabb_max": {
+          "x": -1380.2385,
+          "y": 254.2659,
+          "z": 35.8171
+        },
+        "indices_count": 528,
+        "child_meshlets": [
+          45,
+          46,
+          47,
+          48
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3796,
+          "y": 167.3981,
+          "z": -113.3057
+        },
+        "indices_offset": 15939,
+        "aabb_max": {
+          "x": -1403.2783,
+          "y": 232.7941,
+          "z": -60.849
+        },
+        "indices_count": 132,
+        "child_meshlets": [
+          49
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 1230.5217,
+          "y": 79.9048,
+          "z": -114.6915
+        },
+        "indices_offset": 16071,
+        "aabb_max": {
+          "x": 1298.9733,
+          "y": 233.863,
+          "z": 31.515
+        },
+        "indices_count": 381,
+        "child_meshlets": [
+          43,
+          44
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1414.8193,
+          "y": 115.2402,
+          "z": -42.1359
+        },
+        "indices_offset": 16452,
+        "aabb_max": {
+          "x": 1298.9717,
+          "y": 235.2013,
+          "z": 41.4676
+        },
+        "indices_count": 255,
+        "child_meshlets": [
+          43,
+          44
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 1291.842,
+          "y": 214.7175,
+          "z": 24.8926
+        },
+        "indices_offset": 16707,
+        "aabb_max": {
+          "x": 1295.0533,
+          "y": 222.0866,
+          "z": 34.3463
+        },
+        "indices_count": 6,
+        "child_meshlets": [
+          50
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 1295.0364,
+          "y": 175.896,
+          "z": 36.2468
+        },
+        "indices_offset": 16713,
+        "aabb_max": {
+          "x": 1298.9691,
+          "y": 180.7527,
+          "z": 40.3104
+        },
+        "indices_count": 6,
+        "child_meshlets": [
+          51
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.4343,
+          "y": 79.9048,
+          "z": -97.6094
+        },
+        "indices_offset": 16719,
+        "aabb_max": {
+          "x": -1352.5923,
+          "y": 205.5608,
+          "z": -13.4276
+        },
+        "indices_count": 519,
+        "child_meshlets": [
+          45,
+          46,
+          47,
+          48
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3794,
+          "y": 92.166,
+          "z": -113.2161
+        },
+        "indices_offset": 17238,
+        "aabb_max": {
+          "x": -1392.471,
+          "y": 228.229,
+          "z": 24.1443
+        },
+        "indices_count": 483,
+        "child_meshlets": [
+          45,
+          46,
+          47,
+          48
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3813,
+          "y": 144.59,
+          "z": -33.4687
+        },
+        "indices_offset": 17721,
+        "aabb_max": {
+          "x": -1408.523,
+          "y": 264.7612,
+          "z": 42.8534
+        },
+        "indices_count": 165,
+        "child_meshlets": [
+          52
+        ],
+        "triangles_bvh": []
+      }
+    ],
+    [
+      {
+        "aabb_min": {
+          "x": 1234.1055,
+          "y": 79.9048,
+          "z": -114.6915
+        },
+        "indices_offset": 17886,
+        "aabb_max": {
+          "x": 1298.9733,
+          "y": 257.9683,
+          "z": 41.4676
+        },
+        "indices_count": 384,
+        "child_meshlets": [
+          53,
+          54,
+          55
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1414.8193,
+          "y": 115.2402,
+          "z": -106.8929
+        },
+        "indices_offset": 18270,
+        "aabb_max": {
+          "x": 1298.9733,
+          "y": 264.7612,
+          "z": 34.3463
+        },
+        "indices_count": 372,
+        "child_meshlets": [
+          53,
+          54,
+          55
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3796,
+          "y": 156.9387,
+          "z": -109.6668
+        },
+        "indices_offset": 18642,
+        "aabb_max": {
+          "x": -1352.4563,
+          "y": 263.8338,
+          "z": 16.1986
+        },
+        "indices_count": 474,
+        "child_meshlets": [
+          56,
+          57,
+          58
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.4343,
+          "y": 79.9048,
+          "z": -113.2161
+        },
+        "indices_offset": 19116,
+        "aabb_max": {
+          "x": -1354.1135,
+          "y": 200.176,
+          "z": -13.4276
+        },
+        "indices_count": 498,
+        "child_meshlets": [
+          53,
+          54,
+          55
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3811,
+          "y": 129.4337,
+          "z": -64.4691
+        },
+        "indices_offset": 19614,
+        "aabb_max": {
+          "x": -1352.5923,
+          "y": 254.2659,
+          "z": 35.8171
+        },
+        "indices_count": 483,
+        "child_meshlets": [
+          53,
+          54,
+          55
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3784,
+          "y": 92.166,
+          "z": -108.0518
+        },
+        "indices_offset": 20097,
+        "aabb_max": {
+          "x": -1399.346,
+          "y": 221.0079,
+          "z": 24.1443
+        },
+        "indices_count": 300,
+        "child_meshlets": [
+          56,
+          57,
+          58
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3796,
+          "y": 167.3981,
+          "z": -113.3057
+        },
+        "indices_offset": 20397,
+        "aabb_max": {
+          "x": -1403.2783,
+          "y": 232.7941,
+          "z": -60.849
+        },
+        "indices_count": 132,
+        "child_meshlets": [
+          56,
+          57,
+          58
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 1291.842,
+          "y": 214.7175,
+          "z": 24.8926
+        },
+        "indices_offset": 20529,
+        "aabb_max": {
+          "x": 1295.0533,
+          "y": 222.0866,
+          "z": 34.3463
+        },
+        "indices_count": 6,
+        "child_meshlets": [
+          59
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 1295.0364,
+          "y": 175.896,
+          "z": 36.2468
+        },
+        "indices_offset": 20535,
+        "aabb_max": {
+          "x": 1298.9691,
+          "y": 180.7527,
+          "z": 40.3104
+        },
+        "indices_count": 6,
+        "child_meshlets": [
+          60
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3813,
+          "y": 144.59,
+          "z": -33.4687
+        },
+        "indices_offset": 20541,
+        "aabb_max": {
+          "x": -1408.523,
+          "y": 264.7612,
+          "z": 42.8534
+        },
+        "indices_count": 165,
+        "child_meshlets": [
+          56,
+          57,
+          58
+        ],
+        "triangles_bvh": []
+      }
+    ],
+    [
+      {
+        "aabb_min": {
+          "x": 1234.1055,
+          "y": 79.9048,
+          "z": -114.6915
+        },
+        "indices_offset": 20706,
+        "aabb_max": {
+          "x": 1298.9733,
+          "y": 257.9683,
+          "z": 41.4676
+        },
+        "indices_count": 384,
+        "child_meshlets": [
+          61,
+          62,
+          63,
+          64
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3787,
+          "y": 114.2255,
+          "z": -106.8929
+        },
+        "indices_offset": 21090,
+        "aabb_max": {
+          "x": 1298.9733,
+          "y": 264.7612,
+          "z": 34.3463
+        },
+        "indices_count": 369,
+        "child_meshlets": [
+          61,
+          62,
+          63,
+          64
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3811,
+          "y": 79.9048,
+          "z": -113.2161
+        },
+        "indices_offset": 21459,
+        "aabb_max": {
+          "x": -1386.54,
+          "y": 254.2659,
+          "z": 35.0549
+        },
+        "indices_count": 312,
+        "child_meshlets": [
+          61,
+          62,
+          63,
+          64
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3796,
+          "y": 156.9387,
+          "z": -113.3057
+        },
+        "indices_offset": 21771,
+        "aabb_max": {
+          "x": -1352.4563,
+          "y": 264.7612,
+          "z": 16.1986
+        },
+        "indices_count": 486,
+        "child_meshlets": [
+          61,
+          62,
+          63,
+          64
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3794,
+          "y": 92.166,
+          "z": -112.1485
+        },
+        "indices_offset": 22257,
+        "aabb_max": {
+          "x": -1399.346,
+          "y": 221.0079,
+          "z": 42.8534
+        },
+        "indices_count": 498,
+        "child_meshlets": [
+          65,
+          66
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3813,
+          "y": 184.4995,
+          "z": 31.1536
+        },
+        "indices_offset": 22755,
+        "aabb_max": {
+          "x": -1422.2104,
+          "y": 192.6241,
+          "z": 40.6008
+        },
+        "indices_count": 15,
+        "child_meshlets": [
+          65,
+          66
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 1291.842,
+          "y": 214.7175,
+          "z": 24.8926
+        },
+        "indices_offset": 22770,
+        "aabb_max": {
+          "x": 1295.0533,
+          "y": 222.0866,
+          "z": 34.3463
+        },
+        "indices_count": 6,
+        "child_meshlets": [
+          67
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 1295.0364,
+          "y": 175.896,
+          "z": 36.2468
+        },
+        "indices_offset": 22776,
+        "aabb_max": {
+          "x": 1298.9691,
+          "y": 180.7527,
+          "z": 40.3104
+        },
+        "indices_count": 6,
+        "child_meshlets": [
+          68
+        ],
+        "triangles_bvh": []
+      }
+    ],
+    [
+      {
+        "aabb_min": {
+          "x": 1234.1055,
+          "y": 79.9048,
+          "z": -114.6915
+        },
+        "indices_offset": 22782,
+        "aabb_max": {
+          "x": 1298.9733,
+          "y": 257.9683,
+          "z": 41.4676
+        },
+        "indices_count": 384,
+        "child_meshlets": [
+          69,
+          70,
+          71,
+          72
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3796,
+          "y": 114.2255,
+          "z": -113.3057
+        },
+        "indices_offset": 23166,
+        "aabb_max": {
+          "x": 1298.9733,
+          "y": 264.7612,
+          "z": 34.3463
+        },
+        "indices_count": 375,
+        "child_meshlets": [
+          69,
+          70,
+          71,
+          72
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3811,
+          "y": 79.9048,
+          "z": -106.4168
+        },
+        "indices_offset": 23541,
+        "aabb_max": {
+          "x": -1352.5923,
+          "y": 264.7612,
+          "z": 35.0549
+        },
+        "indices_count": 363,
+        "child_meshlets": [
+          69,
+          70,
+          71,
+          72
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3787,
+          "y": 216.8092,
+          "z": -101.0579
+        },
+        "indices_offset": 23904,
+        "aabb_max": {
+          "x": -1412.9268,
+          "y": 263.8338,
+          "z": -35.5631
+        },
+        "indices_count": 63,
+        "child_meshlets": [
+          73
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3813,
+          "y": 92.166,
+          "z": -112.1485
+        },
+        "indices_offset": 23967,
+        "aabb_max": {
+          "x": -1399.346,
+          "y": 220.048,
+          "z": 42.8534
+        },
+        "indices_count": 483,
+        "child_meshlets": [
+          69,
+          70,
+          71,
+          72
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3774,
+          "y": 202.2686,
+          "z": -108.0518
+        },
+        "indices_offset": 24450,
+        "aabb_max": {
+          "x": -1412.0483,
+          "y": 221.0079,
+          "z": -76.9611
+        },
+        "indices_count": 30,
+        "child_meshlets": [
+          73
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 1291.842,
+          "y": 214.7175,
+          "z": 24.8926
+        },
+        "indices_offset": 24480,
+        "aabb_max": {
+          "x": 1295.0533,
+          "y": 222.0866,
+          "z": 34.3463
+        },
+        "indices_count": 6,
+        "child_meshlets": [
+          74
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 1295.0364,
+          "y": 175.896,
+          "z": 36.2468
+        },
+        "indices_offset": 24486,
+        "aabb_max": {
+          "x": 1298.9691,
+          "y": 180.7527,
+          "z": 40.3104
+        },
+        "indices_count": 6,
+        "child_meshlets": [
+          75
+        ],
+        "triangles_bvh": []
+      }
+    ],
+    [
+      {
+        "aabb_min": {
+          "x": 1234.1055,
+          "y": 79.9048,
+          "z": -114.6915
+        },
+        "indices_offset": 24492,
+        "aabb_max": {
+          "x": 1298.9733,
+          "y": 257.9683,
+          "z": 41.4676
+        },
+        "indices_count": 384,
+        "child_meshlets": [
+          76,
+          77,
+          78
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3796,
+          "y": 139.99,
+          "z": -113.3057
+        },
+        "indices_offset": 24876,
+        "aabb_max": {
+          "x": 1298.9733,
+          "y": 264.7612,
+          "z": 34.3463
+        },
+        "indices_count": 366,
+        "child_meshlets": [
+          76,
+          77,
+          78
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3813,
+          "y": 79.9048,
+          "z": -113.2161
+        },
+        "indices_offset": 25242,
+        "aabb_max": {
+          "x": -1352.5923,
+          "y": 264.7612,
+          "z": 42.8534
+        },
+        "indices_count": 378,
+        "child_meshlets": [
+          79
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3811,
+          "y": 195.8704,
+          "z": -108.0518
+        },
+        "indices_offset": 25620,
+        "aabb_max": {
+          "x": -1414.4614,
+          "y": 258.8207,
+          "z": 35.0549
+        },
+        "indices_count": 117,
+        "child_meshlets": [
+          76,
+          77,
+          78
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3787,
+          "y": 202.2686,
+          "z": -108.0518
+        },
+        "indices_offset": 25737,
+        "aabb_max": {
+          "x": -1412.0483,
+          "y": 263.8338,
+          "z": -35.5631
+        },
+        "indices_count": 93,
+        "child_meshlets": [
+          76,
+          77,
+          78
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 1291.842,
+          "y": 214.7175,
+          "z": 24.8926
+        },
+        "indices_offset": 25830,
+        "aabb_max": {
+          "x": 1295.0533,
+          "y": 222.0866,
+          "z": 34.3463
+        },
+        "indices_count": 6,
+        "child_meshlets": [
+          80
+        ],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 1295.0364,
+          "y": 175.896,
+          "z": 36.2468
+        },
+        "indices_offset": 25836,
+        "aabb_max": {
+          "x": 1298.9691,
+          "y": 180.7527,
+          "z": 40.3104
+        },
+        "indices_count": 6,
+        "child_meshlets": [
+          81
+        ],
+        "triangles_bvh": []
+      }
+    ],
+    [
+      {
+        "aabb_min": {
+          "x": 1234.1055,
+          "y": 79.9048,
+          "z": -114.6915
+        },
+        "indices_offset": 25842,
+        "aabb_max": {
+          "x": 1298.9733,
+          "y": 257.9683,
+          "z": 41.4676
+        },
+        "indices_count": 384,
+        "child_meshlets": [],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3796,
+          "y": 139.99,
+          "z": -113.3057
+        },
+        "indices_offset": 26226,
+        "aabb_max": {
+          "x": 1298.9733,
+          "y": 264.7612,
+          "z": 34.3463
+        },
+        "indices_count": 375,
+        "child_meshlets": [],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3811,
+          "y": 180.7527,
+          "z": -111.9711
+        },
+        "indices_offset": 26601,
+        "aabb_max": {
+          "x": -1414.4614,
+          "y": 263.8338,
+          "z": 35.0549
+        },
+        "indices_count": 159,
+        "child_meshlets": [],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": -1427.3813,
+          "y": 79.9048,
+          "z": -113.2161
+        },
+        "indices_offset": 26760,
+        "aabb_max": {
+          "x": -1352.5923,
+          "y": 264.7612,
+          "z": 42.8534
+        },
+        "indices_count": 378,
+        "child_meshlets": [],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 1291.842,
+          "y": 214.7175,
+          "z": 24.8926
+        },
+        "indices_offset": 27138,
+        "aabb_max": {
+          "x": 1295.0533,
+          "y": 222.0866,
+          "z": 34.3463
+        },
+        "indices_count": 6,
+        "child_meshlets": [],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 1295.0364,
+          "y": 175.896,
+          "z": 36.2468
+        },
+        "indices_offset": 27144,
+        "aabb_max": {
+          "x": 1298.9691,
+          "y": 180.7527,
+          "z": 40.3104
+        },
+        "indices_count": 6,
+        "child_meshlets": [],
+        "triangles_bvh": []
+      }
     ]
   ],
   "meshlets_bvh": [
-    [
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 6,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          1234.1055,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 3,
-        "max": [
-          1298.9733,
-          257.9683,
-          41.4676
-        ],
-        "reference": 0
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 6,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3796,
-          139.99,
-          -113.3057
-        ],
-        "miss": 5,
-        "max": [
-          1298.9733,
-          264.7612,
-          34.3463
-        ],
-        "reference": 1
-      },
-      {
-        "min": [
-          -1427.3811,
-          180.7527,
-          -111.9711
-        ],
-        "miss": 6,
-        "max": [
-          -1414.4614,
-          263.8338,
-          35.0549
-        ],
-        "reference": 2
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -113.2161
-        ],
-        "miss": 8,
-        "max": [
-          -1352.5923,
-          264.7612,
-          42.8534
-        ],
-        "reference": 3
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          1291.842,
-          214.7175,
-          24.8926
-        ],
-        "miss": 10,
-        "max": [
-          1295.0533,
-          222.0866,
-          34.3463
-        ],
-        "reference": 4
-      },
-      {
-        "min": [
-          1295.0364,
-          175.896,
-          36.2468
-        ],
-        "miss": -1,
-        "max": [
-          1298.9691,
-          180.7527,
-          40.3104
-        ],
-        "reference": 5
-      }
-    ],
-    [
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 6,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          1234.1055,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 3,
-        "max": [
-          1298.9733,
-          257.9683,
-          41.4676
-        ],
-        "reference": 0
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 6,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3796,
-          139.99,
-          -113.3057
-        ],
-        "miss": 5,
-        "max": [
-          1298.9733,
-          264.7612,
-          34.3463
-        ],
-        "reference": 1
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -113.2161
-        ],
-        "miss": 6,
-        "max": [
-          -1352.5923,
-          264.7612,
-          42.8534
-        ],
-        "reference": 2
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 10,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3811,
-          195.8704,
-          -108.0518
-        ],
-        "miss": 9,
-        "max": [
-          -1414.4614,
-          258.8207,
-          35.0549
-        ],
-        "reference": 3
-      },
-      {
-        "min": [
-          -1427.3787,
-          202.2686,
-          -108.0518
-        ],
-        "miss": 10,
-        "max": [
-          -1412.0483,
-          263.8338,
-          -35.5631
-        ],
-        "reference": 4
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          1291.842,
-          214.7175,
-          24.8926
-        ],
-        "miss": 12,
-        "max": [
-          1295.0533,
-          222.0866,
-          34.3463
-        ],
-        "reference": 5
-      },
-      {
-        "min": [
-          1295.0364,
-          175.896,
-          36.2468
-        ],
-        "miss": -1,
-        "max": [
-          1298.9691,
-          180.7527,
-          40.3104
-        ],
-        "reference": 6
-      }
-    ],
-    [
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 8,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 5,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          1234.1055,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 4,
-        "max": [
-          1298.9733,
-          257.9683,
-          41.4676
-        ],
-        "reference": 0
-      },
-      {
-        "min": [
-          -1427.3796,
-          114.2255,
-          -113.3057
-        ],
-        "miss": 5,
-        "max": [
-          1298.9733,
-          264.7612,
-          34.3463
-        ],
-        "reference": 1
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 8,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3811,
-          79.9048,
-          -106.4168
-        ],
-        "miss": 7,
-        "max": [
-          -1352.5923,
-          264.7612,
-          35.0549
-        ],
-        "reference": 2
-      },
-      {
-        "min": [
-          -1427.3787,
-          216.8092,
-          -101.0579
-        ],
-        "miss": 8,
-        "max": [
-          -1412.9268,
-          263.8338,
-          -35.5631
-        ],
-        "reference": 3
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 12,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3813,
-          92.166,
-          -112.1485
-        ],
-        "miss": 11,
-        "max": [
-          -1399.346,
-          220.048,
-          42.8534
-        ],
-        "reference": 4
-      },
-      {
-        "min": [
-          -1427.3774,
-          202.2686,
-          -108.0518
-        ],
-        "miss": 12,
-        "max": [
-          -1412.0483,
-          221.0079,
-          -76.9611
-        ],
-        "reference": 5
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          1291.842,
-          214.7175,
-          24.8926
-        ],
-        "miss": 14,
-        "max": [
-          1295.0533,
-          222.0866,
-          34.3463
-        ],
-        "reference": 6
-      },
-      {
-        "min": [
-          1295.0364,
-          175.896,
-          36.2468
-        ],
-        "miss": -1,
-        "max": [
-          1298.9691,
-          180.7527,
-          40.3104
-        ],
-        "reference": 7
-      }
-    ],
-    [
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 8,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 5,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          1234.1055,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 4,
-        "max": [
-          1298.9733,
-          257.9683,
-          41.4676
-        ],
-        "reference": 0
-      },
-      {
-        "min": [
-          -1427.3787,
-          114.2255,
-          -106.8929
-        ],
-        "miss": 5,
-        "max": [
-          1298.9733,
-          264.7612,
-          34.3463
-        ],
-        "reference": 1
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 8,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3811,
-          79.9048,
-          -113.2161
-        ],
-        "miss": 7,
-        "max": [
-          -1386.54,
-          254.2659,
-          35.0549
-        ],
-        "reference": 2
-      },
-      {
-        "min": [
-          -1427.3796,
-          156.9387,
-          -113.3057
-        ],
-        "miss": 8,
-        "max": [
-          -1352.4563,
-          264.7612,
-          16.1986
-        ],
-        "reference": 3
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 12,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3794,
-          92.166,
-          -112.1485
-        ],
-        "miss": 11,
-        "max": [
-          -1399.346,
-          221.0079,
-          42.8534
-        ],
-        "reference": 4
-      },
-      {
-        "min": [
-          -1427.3813,
-          184.4995,
-          31.1536
-        ],
-        "miss": 12,
-        "max": [
-          -1422.2104,
-          192.6241,
-          40.6008
-        ],
-        "reference": 5
-      },
-      {
-        "min": [
-          -1427.3813,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          1291.842,
-          214.7175,
-          24.8926
-        ],
-        "miss": 14,
-        "max": [
-          1295.0533,
-          222.0866,
-          34.3463
-        ],
-        "reference": 6
-      },
-      {
-        "min": [
-          1295.0364,
-          175.896,
-          36.2468
-        ],
-        "miss": -1,
-        "max": [
-          1298.9691,
-          180.7527,
-          40.3104
-        ],
-        "reference": 7
-      }
-    ],
-    [
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 10,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 5,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          1234.1055,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 4,
-        "max": [
-          1298.9733,
-          257.9683,
-          41.4676
-        ],
-        "reference": 0
-      },
-      {
-        "min": [
-          -1414.8193,
-          115.2402,
-          -106.8929
-        ],
-        "miss": 5,
-        "max": [
-          1298.9733,
-          264.7612,
-          34.3463
-        ],
-        "reference": 1
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 10,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3796,
-          156.9387,
-          -109.6668
-        ],
-        "miss": 7,
-        "max": [
-          -1352.4563,
-          263.8338,
-          16.1986
-        ],
-        "reference": 2
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 10,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -113.2161
-        ],
-        "miss": 9,
-        "max": [
-          -1354.1135,
-          200.176,
-          -13.4276
-        ],
-        "reference": 3
-      },
-      {
-        "min": [
-          -1427.3811,
-          129.4337,
-          -64.4691
-        ],
-        "miss": 10,
-        "max": [
-          -1352.5923,
-          254.2659,
-          35.8171
-        ],
-        "reference": 4
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 14,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3784,
-          92.166,
-          -108.0518
-        ],
-        "miss": 13,
-        "max": [
-          -1399.346,
-          221.0079,
-          24.1443
-        ],
-        "reference": 5
-      },
-      {
-        "min": [
-          -1427.3796,
-          167.3981,
-          -113.3057
-        ],
-        "miss": 14,
-        "max": [
-          -1403.2783,
-          232.7941,
-          -60.849
-        ],
-        "reference": 6
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          1291.842,
-          214.7175,
-          24.8926
-        ],
-        "miss": 16,
-        "max": [
-          1295.0533,
-          222.0866,
-          34.3463
-        ],
-        "reference": 7
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          1295.0364,
-          175.896,
-          36.2468
-        ],
-        "miss": 18,
-        "max": [
-          1298.9691,
-          180.7527,
-          40.3104
-        ],
-        "reference": 8
-      },
-      {
-        "min": [
-          -1427.3813,
-          144.59,
-          -33.4687
-        ],
-        "miss": -1,
-        "max": [
-          -1408.523,
-          264.7612,
-          42.8534
-        ],
-        "reference": 9
-      }
-    ],
-    [
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 12,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 7,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          1230.5217,
-          129.4337,
-          -76.5355
-        ],
-        "miss": 4,
-        "max": [
-          1298.9718,
-          264.7612,
-          34.3463
-        ],
-        "reference": 0
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 7,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          1281.163,
-          146.3976,
-          -112.5995
-        ],
-        "miss": 6,
-        "max": [
-          1298.9733,
-          257.441,
-          37.36
-        ],
-        "reference": 1
-      },
-      {
-        "min": [
-          -1427.3796,
-          156.9387,
-          -108.4286
-        ],
-        "miss": 7,
-        "max": [
-          -1352.4563,
-          263.8338,
-          16.1986
-        ],
-        "reference": 2
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 12,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3811,
-          151.4741,
-          -78.4912
-        ],
-        "miss": 9,
-        "max": [
-          -1380.2385,
-          254.2659,
-          35.8171
-        ],
-        "reference": 3
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 12,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3796,
-          167.3981,
-          -113.3057
-        ],
-        "miss": 11,
-        "max": [
-          -1403.2783,
-          232.7941,
-          -60.849
-        ],
-        "reference": 4
-      },
-      {
-        "min": [
-          1230.5217,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 12,
-        "max": [
-          1298.9733,
-          233.863,
-          31.515
-        ],
-        "reference": 5
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 18,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1414.8193,
-          115.2402,
-          -42.1359
-        ],
-        "miss": 15,
-        "max": [
-          1298.9717,
-          235.2013,
-          41.4676
-        ],
-        "reference": 6
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 18,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          1291.842,
-          214.7175,
-          24.8926
-        ],
-        "miss": 17,
-        "max": [
-          1295.0533,
-          222.0866,
-          34.3463
-        ],
-        "reference": 7
-      },
-      {
-        "min": [
-          1295.0364,
-          175.896,
-          36.2468
-        ],
-        "miss": 18,
-        "max": [
-          1298.9691,
-          180.7527,
-          40.3104
-        ],
-        "reference": 8
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -97.6094
-        ],
-        "miss": 20,
-        "max": [
-          -1352.5923,
-          205.5608,
-          -13.4276
-        ],
-        "reference": 9
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1298.9733,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3794,
-          92.166,
-          -113.2161
-        ],
-        "miss": 22,
-        "max": [
-          -1392.471,
-          228.229,
-          24.1443
-        ],
-        "reference": 10
-      },
-      {
-        "min": [
-          -1427.3813,
-          144.59,
-          -33.4687
-        ],
-        "miss": -1,
-        "max": [
-          -1408.523,
-          264.7612,
-          42.8534
-        ],
-        "reference": 11
-      }
-    ],
-    [
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1299.0264,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 14,
-        "max": [
-          1299.0264,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 7,
-        "max": [
-          1299.0264,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1414.8193,
-          113.4288,
-          -114.6915
-        ],
-        "miss": 4,
-        "max": [
-          1298.9716,
-          233.863,
-          8.6513
-        ],
-        "reference": 0
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 7,
-        "max": [
-          1299.0264,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1419.7673,
-          151.4741,
-          -23.6959
-        ],
-        "miss": 6,
-        "max": [
-          -1383.2524,
-          201.0341,
-          14.6103
-        ],
-        "reference": 1
-      },
-      {
-        "min": [
-          1243.0565,
-          79.9048,
-          -84.018
-        ],
-        "miss": 7,
-        "max": [
-          1299.0264,
-          145.5246,
-          24.6755
-        ],
-        "reference": 2
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 14,
-        "max": [
-          1299.0264,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 11,
-        "max": [
-          1299.0264,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          1258.1321,
-          106.3587,
-          -95.9823
-        ],
-        "miss": 10,
-        "max": [
-          1298.9717,
-          235.2013,
-          41.4676
-        ],
-        "reference": 3
-      },
-      {
-        "min": [
-          1291.842,
-          214.7175,
-          24.8926
-        ],
-        "miss": 11,
-        "max": [
-          1295.0533,
-          222.0866,
-          34.3463
-        ],
-        "reference": 4
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 14,
-        "max": [
-          1299.0264,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          1230.5217,
-          129.4337,
-          -76.5355
-        ],
-        "miss": 13,
-        "max": [
-          1298.9718,
-          264.7612,
-          34.3463
-        ],
-        "reference": 5
-      },
-      {
-        "min": [
-          1281.163,
-          146.3976,
-          -112.5995
-        ],
-        "miss": 14,
-        "max": [
-          1298.9733,
-          258.1403,
-          37.36
-        ],
-        "reference": 6
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1299.0264,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 20,
-        "max": [
-          1299.0264,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          1295.0364,
-          175.896,
-          36.2468
-        ],
-        "miss": 17,
-        "max": [
-          1298.9691,
-          180.7527,
-          40.3104
-        ],
-        "reference": 7
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 20,
-        "max": [
-          1299.0264,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3811,
-          156.9387,
-          -65.0462
-        ],
-        "miss": 19,
-        "max": [
-          -1352.4563,
-          259.6681,
-          35.8171
-        ],
-        "reference": 8
-      },
-      {
-        "min": [
-          -1427.3787,
-          158.8314,
-          -97.5889
-        ],
-        "miss": 20,
-        "max": [
-          -1380.2385,
-          263.8338,
-          33.9724
-        ],
-        "reference": 9
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1299.0264,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": 24,
-        "max": [
-          1299.0264,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3794,
-          122.9085,
-          -113.2161
-        ],
-        "miss": 23,
-        "max": [
-          -1404.843,
-          264.7612,
-          -21.1312
-        ],
-        "reference": 10
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -96.5136
-        ],
-        "miss": 24,
-        "max": [
-          -1352.5923,
-          182.8545,
-          -13.4276
-        ],
-        "reference": 11
-      },
-      {
-        "min": [
-          -1427.4343,
-          79.9048,
-          -114.6915
-        ],
-        "miss": -1,
-        "max": [
-          1299.0264,
-          264.7612,
-          42.8534
-        ],
-        "reference": -1
-      },
-      {
-        "min": [
-          -1427.3813,
-          92.166,
-          -60.2042
-        ],
-        "miss": 26,
-        "max": [
-          -1364.6096,
-          205.5608,
-          42.8534
-        ],
-        "reference": 12
-      },
-      {
-        "min": [
-          -1427.3796,
-          167.3981,
-          -113.3057
-        ],
-        "miss": -1,
-        "max": [
-          -1389.346,
-          242.159,
-          -55.3222
-        ],
-        "reference": 13
-      }
-    ],
     [
       {
         "min": [
@@ -37878,6 +36142,1742 @@
           35.8171
         ],
         "reference": 16
+      }
+    ],
+    [
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1299.0264,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 14,
+        "max": [
+          1299.0264,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 7,
+        "max": [
+          1299.0264,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1414.8193,
+          113.4288,
+          -114.6915
+        ],
+        "miss": 4,
+        "max": [
+          1298.9716,
+          233.863,
+          8.6513
+        ],
+        "reference": 0
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 7,
+        "max": [
+          1299.0264,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1419.7673,
+          151.4741,
+          -23.6959
+        ],
+        "miss": 6,
+        "max": [
+          -1383.2524,
+          201.0341,
+          14.6103
+        ],
+        "reference": 1
+      },
+      {
+        "min": [
+          1243.0565,
+          79.9048,
+          -84.018
+        ],
+        "miss": 7,
+        "max": [
+          1299.0264,
+          145.5246,
+          24.6755
+        ],
+        "reference": 2
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 14,
+        "max": [
+          1299.0264,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 11,
+        "max": [
+          1299.0264,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          1258.1321,
+          106.3587,
+          -95.9823
+        ],
+        "miss": 10,
+        "max": [
+          1298.9717,
+          235.2013,
+          41.4676
+        ],
+        "reference": 3
+      },
+      {
+        "min": [
+          1291.842,
+          214.7175,
+          24.8926
+        ],
+        "miss": 11,
+        "max": [
+          1295.0533,
+          222.0866,
+          34.3463
+        ],
+        "reference": 4
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 14,
+        "max": [
+          1299.0264,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          1230.5217,
+          129.4337,
+          -76.5355
+        ],
+        "miss": 13,
+        "max": [
+          1298.9718,
+          264.7612,
+          34.3463
+        ],
+        "reference": 5
+      },
+      {
+        "min": [
+          1281.163,
+          146.3976,
+          -112.5995
+        ],
+        "miss": 14,
+        "max": [
+          1298.9733,
+          258.1403,
+          37.36
+        ],
+        "reference": 6
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1299.0264,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 20,
+        "max": [
+          1299.0264,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          1295.0364,
+          175.896,
+          36.2468
+        ],
+        "miss": 17,
+        "max": [
+          1298.9691,
+          180.7527,
+          40.3104
+        ],
+        "reference": 7
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 20,
+        "max": [
+          1299.0264,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3811,
+          156.9387,
+          -65.0462
+        ],
+        "miss": 19,
+        "max": [
+          -1352.4563,
+          259.6681,
+          35.8171
+        ],
+        "reference": 8
+      },
+      {
+        "min": [
+          -1427.3787,
+          158.8314,
+          -97.5889
+        ],
+        "miss": 20,
+        "max": [
+          -1380.2385,
+          263.8338,
+          33.9724
+        ],
+        "reference": 9
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1299.0264,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 24,
+        "max": [
+          1299.0264,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3794,
+          122.9085,
+          -113.2161
+        ],
+        "miss": 23,
+        "max": [
+          -1404.843,
+          264.7612,
+          -21.1312
+        ],
+        "reference": 10
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -96.5136
+        ],
+        "miss": 24,
+        "max": [
+          -1352.5923,
+          182.8545,
+          -13.4276
+        ],
+        "reference": 11
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1299.0264,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3813,
+          92.166,
+          -60.2042
+        ],
+        "miss": 26,
+        "max": [
+          -1364.6096,
+          205.5608,
+          42.8534
+        ],
+        "reference": 12
+      },
+      {
+        "min": [
+          -1427.3796,
+          167.3981,
+          -113.3057
+        ],
+        "miss": -1,
+        "max": [
+          -1389.346,
+          242.159,
+          -55.3222
+        ],
+        "reference": 13
+      }
+    ],
+    [
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 12,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 7,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          1230.5217,
+          129.4337,
+          -76.5355
+        ],
+        "miss": 4,
+        "max": [
+          1298.9718,
+          264.7612,
+          34.3463
+        ],
+        "reference": 0
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 7,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          1281.163,
+          146.3976,
+          -112.5995
+        ],
+        "miss": 6,
+        "max": [
+          1298.9733,
+          257.441,
+          37.36
+        ],
+        "reference": 1
+      },
+      {
+        "min": [
+          -1427.3796,
+          156.9387,
+          -108.4286
+        ],
+        "miss": 7,
+        "max": [
+          -1352.4563,
+          263.8338,
+          16.1986
+        ],
+        "reference": 2
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 12,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3811,
+          151.4741,
+          -78.4912
+        ],
+        "miss": 9,
+        "max": [
+          -1380.2385,
+          254.2659,
+          35.8171
+        ],
+        "reference": 3
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 12,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3796,
+          167.3981,
+          -113.3057
+        ],
+        "miss": 11,
+        "max": [
+          -1403.2783,
+          232.7941,
+          -60.849
+        ],
+        "reference": 4
+      },
+      {
+        "min": [
+          1230.5217,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 12,
+        "max": [
+          1298.9733,
+          233.863,
+          31.515
+        ],
+        "reference": 5
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 18,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1414.8193,
+          115.2402,
+          -42.1359
+        ],
+        "miss": 15,
+        "max": [
+          1298.9717,
+          235.2013,
+          41.4676
+        ],
+        "reference": 6
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 18,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          1291.842,
+          214.7175,
+          24.8926
+        ],
+        "miss": 17,
+        "max": [
+          1295.0533,
+          222.0866,
+          34.3463
+        ],
+        "reference": 7
+      },
+      {
+        "min": [
+          1295.0364,
+          175.896,
+          36.2468
+        ],
+        "miss": 18,
+        "max": [
+          1298.9691,
+          180.7527,
+          40.3104
+        ],
+        "reference": 8
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -97.6094
+        ],
+        "miss": 20,
+        "max": [
+          -1352.5923,
+          205.5608,
+          -13.4276
+        ],
+        "reference": 9
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3794,
+          92.166,
+          -113.2161
+        ],
+        "miss": 22,
+        "max": [
+          -1392.471,
+          228.229,
+          24.1443
+        ],
+        "reference": 10
+      },
+      {
+        "min": [
+          -1427.3813,
+          144.59,
+          -33.4687
+        ],
+        "miss": -1,
+        "max": [
+          -1408.523,
+          264.7612,
+          42.8534
+        ],
+        "reference": 11
+      }
+    ],
+    [
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 10,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 5,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          1234.1055,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 4,
+        "max": [
+          1298.9733,
+          257.9683,
+          41.4676
+        ],
+        "reference": 0
+      },
+      {
+        "min": [
+          -1414.8193,
+          115.2402,
+          -106.8929
+        ],
+        "miss": 5,
+        "max": [
+          1298.9733,
+          264.7612,
+          34.3463
+        ],
+        "reference": 1
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 10,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3796,
+          156.9387,
+          -109.6668
+        ],
+        "miss": 7,
+        "max": [
+          -1352.4563,
+          263.8338,
+          16.1986
+        ],
+        "reference": 2
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 10,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -113.2161
+        ],
+        "miss": 9,
+        "max": [
+          -1354.1135,
+          200.176,
+          -13.4276
+        ],
+        "reference": 3
+      },
+      {
+        "min": [
+          -1427.3811,
+          129.4337,
+          -64.4691
+        ],
+        "miss": 10,
+        "max": [
+          -1352.5923,
+          254.2659,
+          35.8171
+        ],
+        "reference": 4
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 14,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3784,
+          92.166,
+          -108.0518
+        ],
+        "miss": 13,
+        "max": [
+          -1399.346,
+          221.0079,
+          24.1443
+        ],
+        "reference": 5
+      },
+      {
+        "min": [
+          -1427.3796,
+          167.3981,
+          -113.3057
+        ],
+        "miss": 14,
+        "max": [
+          -1403.2783,
+          232.7941,
+          -60.849
+        ],
+        "reference": 6
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          1291.842,
+          214.7175,
+          24.8926
+        ],
+        "miss": 16,
+        "max": [
+          1295.0533,
+          222.0866,
+          34.3463
+        ],
+        "reference": 7
+      },
+      {
+        "min": [
+          -1427.4343,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          1295.0364,
+          175.896,
+          36.2468
+        ],
+        "miss": 18,
+        "max": [
+          1298.9691,
+          180.7527,
+          40.3104
+        ],
+        "reference": 8
+      },
+      {
+        "min": [
+          -1427.3813,
+          144.59,
+          -33.4687
+        ],
+        "miss": -1,
+        "max": [
+          -1408.523,
+          264.7612,
+          42.8534
+        ],
+        "reference": 9
+      }
+    ],
+    [
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 8,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 5,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          1234.1055,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 4,
+        "max": [
+          1298.9733,
+          257.9683,
+          41.4676
+        ],
+        "reference": 0
+      },
+      {
+        "min": [
+          -1427.3787,
+          114.2255,
+          -106.8929
+        ],
+        "miss": 5,
+        "max": [
+          1298.9733,
+          264.7612,
+          34.3463
+        ],
+        "reference": 1
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 8,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3811,
+          79.9048,
+          -113.2161
+        ],
+        "miss": 7,
+        "max": [
+          -1386.54,
+          254.2659,
+          35.0549
+        ],
+        "reference": 2
+      },
+      {
+        "min": [
+          -1427.3796,
+          156.9387,
+          -113.3057
+        ],
+        "miss": 8,
+        "max": [
+          -1352.4563,
+          264.7612,
+          16.1986
+        ],
+        "reference": 3
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 12,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3794,
+          92.166,
+          -112.1485
+        ],
+        "miss": 11,
+        "max": [
+          -1399.346,
+          221.0079,
+          42.8534
+        ],
+        "reference": 4
+      },
+      {
+        "min": [
+          -1427.3813,
+          184.4995,
+          31.1536
+        ],
+        "miss": 12,
+        "max": [
+          -1422.2104,
+          192.6241,
+          40.6008
+        ],
+        "reference": 5
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          1291.842,
+          214.7175,
+          24.8926
+        ],
+        "miss": 14,
+        "max": [
+          1295.0533,
+          222.0866,
+          34.3463
+        ],
+        "reference": 6
+      },
+      {
+        "min": [
+          1295.0364,
+          175.896,
+          36.2468
+        ],
+        "miss": -1,
+        "max": [
+          1298.9691,
+          180.7527,
+          40.3104
+        ],
+        "reference": 7
+      }
+    ],
+    [
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 8,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 5,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          1234.1055,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 4,
+        "max": [
+          1298.9733,
+          257.9683,
+          41.4676
+        ],
+        "reference": 0
+      },
+      {
+        "min": [
+          -1427.3796,
+          114.2255,
+          -113.3057
+        ],
+        "miss": 5,
+        "max": [
+          1298.9733,
+          264.7612,
+          34.3463
+        ],
+        "reference": 1
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 8,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3811,
+          79.9048,
+          -106.4168
+        ],
+        "miss": 7,
+        "max": [
+          -1352.5923,
+          264.7612,
+          35.0549
+        ],
+        "reference": 2
+      },
+      {
+        "min": [
+          -1427.3787,
+          216.8092,
+          -101.0579
+        ],
+        "miss": 8,
+        "max": [
+          -1412.9268,
+          263.8338,
+          -35.5631
+        ],
+        "reference": 3
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 12,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3813,
+          92.166,
+          -112.1485
+        ],
+        "miss": 11,
+        "max": [
+          -1399.346,
+          220.048,
+          42.8534
+        ],
+        "reference": 4
+      },
+      {
+        "min": [
+          -1427.3774,
+          202.2686,
+          -108.0518
+        ],
+        "miss": 12,
+        "max": [
+          -1412.0483,
+          221.0079,
+          -76.9611
+        ],
+        "reference": 5
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          1291.842,
+          214.7175,
+          24.8926
+        ],
+        "miss": 14,
+        "max": [
+          1295.0533,
+          222.0866,
+          34.3463
+        ],
+        "reference": 6
+      },
+      {
+        "min": [
+          1295.0364,
+          175.896,
+          36.2468
+        ],
+        "miss": -1,
+        "max": [
+          1298.9691,
+          180.7527,
+          40.3104
+        ],
+        "reference": 7
+      }
+    ],
+    [
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 6,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          1234.1055,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 3,
+        "max": [
+          1298.9733,
+          257.9683,
+          41.4676
+        ],
+        "reference": 0
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 6,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3796,
+          139.99,
+          -113.3057
+        ],
+        "miss": 5,
+        "max": [
+          1298.9733,
+          264.7612,
+          34.3463
+        ],
+        "reference": 1
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -113.2161
+        ],
+        "miss": 6,
+        "max": [
+          -1352.5923,
+          264.7612,
+          42.8534
+        ],
+        "reference": 2
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 10,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3811,
+          195.8704,
+          -108.0518
+        ],
+        "miss": 9,
+        "max": [
+          -1414.4614,
+          258.8207,
+          35.0549
+        ],
+        "reference": 3
+      },
+      {
+        "min": [
+          -1427.3787,
+          202.2686,
+          -108.0518
+        ],
+        "miss": 10,
+        "max": [
+          -1412.0483,
+          263.8338,
+          -35.5631
+        ],
+        "reference": 4
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          1291.842,
+          214.7175,
+          24.8926
+        ],
+        "miss": 12,
+        "max": [
+          1295.0533,
+          222.0866,
+          34.3463
+        ],
+        "reference": 5
+      },
+      {
+        "min": [
+          1295.0364,
+          175.896,
+          36.2468
+        ],
+        "miss": -1,
+        "max": [
+          1298.9691,
+          180.7527,
+          40.3104
+        ],
+        "reference": 6
+      }
+    ],
+    [
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 6,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          1234.1055,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 3,
+        "max": [
+          1298.9733,
+          257.9683,
+          41.4676
+        ],
+        "reference": 0
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": 6,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3796,
+          139.99,
+          -113.3057
+        ],
+        "miss": 5,
+        "max": [
+          1298.9733,
+          264.7612,
+          34.3463
+        ],
+        "reference": 1
+      },
+      {
+        "min": [
+          -1427.3811,
+          180.7527,
+          -111.9711
+        ],
+        "miss": 6,
+        "max": [
+          -1414.4614,
+          263.8338,
+          35.0549
+        ],
+        "reference": 2
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -113.2161
+        ],
+        "miss": 8,
+        "max": [
+          -1352.5923,
+          264.7612,
+          42.8534
+        ],
+        "reference": 3
+      },
+      {
+        "min": [
+          -1427.3813,
+          79.9048,
+          -114.6915
+        ],
+        "miss": -1,
+        "max": [
+          1298.9733,
+          264.7612,
+          42.8534
+        ],
+        "reference": -1
+      },
+      {
+        "min": [
+          1291.842,
+          214.7175,
+          24.8926
+        ],
+        "miss": 10,
+        "max": [
+          1295.0533,
+          222.0866,
+          34.3463
+        ],
+        "reference": 4
+      },
+      {
+        "min": [
+          1295.0364,
+          175.896,
+          36.2468
+        ],
+        "miss": -1,
+        "max": [
+          1298.9691,
+          180.7527,
+          40.3104
+        ],
+        "reference": 5
       }
     ]
   ]

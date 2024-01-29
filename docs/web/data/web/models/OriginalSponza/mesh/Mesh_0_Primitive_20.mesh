@@ -475,24 +475,6 @@
           "y": 133.7213,
           "z": -221.4872
         },
-        "indices_offset": 96,
-        "aabb_max": {
-          "x": 513.3608,
-          "y": 214.3549,
-          "z": 145.1284
-        },
-        "indices_count": 96,
-        "child_meshlets": [],
-        "triangles_bvh": []
-      }
-    ],
-    [
-      {
-        "aabb_min": {
-          "x": -644.9331,
-          "y": 133.7213,
-          "z": -221.4872
-        },
         "indices_offset": 0,
         "aabb_max": {
           "x": 513.3608,
@@ -503,6 +485,24 @@
         "child_meshlets": [
           1
         ],
+        "triangles_bvh": []
+      }
+    ],
+    [
+      {
+        "aabb_min": {
+          "x": -644.9331,
+          "y": 133.7213,
+          "z": -221.4872
+        },
+        "indices_offset": 96,
+        "aabb_max": {
+          "x": 513.3608,
+          "y": 214.3549,
+          "z": 145.1284
+        },
+        "indices_count": 96,
+        "child_meshlets": [],
         "triangles_bvh": []
       }
     ]

@@ -2303,56 +2303,6 @@
           "y": 0.0,
           "z": 0.00013061524
         },
-        "indices_offset": 849,
-        "aabb_max": {
-          "x": 0.0005615234,
-          "y": 0.0,
-          "z": 0.00042431641
-        },
-        "indices_count": 375,
-        "child_meshlets": [],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 0.0006357422,
-          "y": 0.0,
-          "z": 0.00013061524
-        },
-        "indices_offset": 1224,
-        "aabb_max": {
-          "x": 0.0011572265,
-          "y": 0.0,
-          "z": 0.00042431641
-        },
-        "indices_count": 378,
-        "child_meshlets": [],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 0.0009599609,
-          "y": 0.0,
-          "z": 0.00010986328
-        },
-        "indices_offset": 1602,
-        "aabb_max": {
-          "x": 0.0014550781,
-          "y": 0.0,
-          "z": 0.00041625978
-        },
-        "indices_count": 96,
-        "child_meshlets": [],
-        "triangles_bvh": []
-      }
-    ],
-    [
-      {
-        "aabb_min": {
-          "x": 0.000005859375,
-          "y": 0.0,
-          "z": 0.00013061524
-        },
         "indices_offset": 0,
         "aabb_max": {
           "x": 0.0005615234,
@@ -2405,6 +2355,56 @@
           4,
           5
         ],
+        "triangles_bvh": []
+      }
+    ],
+    [
+      {
+        "aabb_min": {
+          "x": 0.000005859375,
+          "y": 0.0,
+          "z": 0.00013061524
+        },
+        "indices_offset": 849,
+        "aabb_max": {
+          "x": 0.0005615234,
+          "y": 0.0,
+          "z": 0.00042431641
+        },
+        "indices_count": 375,
+        "child_meshlets": [],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 0.0006357422,
+          "y": 0.0,
+          "z": 0.00013061524
+        },
+        "indices_offset": 1224,
+        "aabb_max": {
+          "x": 0.0011572265,
+          "y": 0.0,
+          "z": 0.00042431641
+        },
+        "indices_count": 378,
+        "child_meshlets": [],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 0.0009599609,
+          "y": 0.0,
+          "z": 0.00010986328
+        },
+        "indices_offset": 1602,
+        "aabb_max": {
+          "x": 0.0014550781,
+          "y": 0.0,
+          "z": 0.00041625978
+        },
+        "indices_count": 96,
+        "child_meshlets": [],
         "triangles_bvh": []
       }
     ]

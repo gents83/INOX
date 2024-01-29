@@ -3779,72 +3779,6 @@
           "y": 0.0,
           "z": 0.00012402344
         },
-        "indices_offset": 1401,
-        "aabb_max": {
-          "x": 0.0003647766,
-          "y": 0.0,
-          "z": 0.00042431641
-        },
-        "indices_count": 372,
-        "child_meshlets": [],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 0.00030517578,
-          "y": 0.0,
-          "z": 0.00019750977
-        },
-        "indices_offset": 1773,
-        "aabb_max": {
-          "x": 0.0008167782,
-          "y": 0.0,
-          "z": 0.00042431641
-        },
-        "indices_count": 369,
-        "child_meshlets": [],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 0.00079142733,
-          "y": 0.0,
-          "z": 0.00019750977
-        },
-        "indices_offset": 2142,
-        "aabb_max": {
-          "x": 0.001311676,
-          "y": 0.0,
-          "z": 0.00042431641
-        },
-        "indices_count": 372,
-        "child_meshlets": [],
-        "triangles_bvh": []
-      },
-      {
-        "aabb_min": {
-          "x": 0.0012873535,
-          "y": 0.0,
-          "z": 0.00010986328
-        },
-        "indices_offset": 2514,
-        "aabb_max": {
-          "x": 0.0017768554,
-          "y": 0.0,
-          "z": 0.00042431641
-        },
-        "indices_count": 288,
-        "child_meshlets": [],
-        "triangles_bvh": []
-      }
-    ],
-    [
-      {
-        "aabb_min": {
-          "x": 0.000045166016,
-          "y": 0.0,
-          "z": 0.00012402344
-        },
         "indices_offset": 0,
         "aabb_max": {
           "x": 0.0003647766,
@@ -3921,6 +3855,72 @@
           6,
           7
         ],
+        "triangles_bvh": []
+      }
+    ],
+    [
+      {
+        "aabb_min": {
+          "x": 0.000045166016,
+          "y": 0.0,
+          "z": 0.00012402344
+        },
+        "indices_offset": 1401,
+        "aabb_max": {
+          "x": 0.0003647766,
+          "y": 0.0,
+          "z": 0.00042431641
+        },
+        "indices_count": 372,
+        "child_meshlets": [],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 0.00030517578,
+          "y": 0.0,
+          "z": 0.00019750977
+        },
+        "indices_offset": 1773,
+        "aabb_max": {
+          "x": 0.0008167782,
+          "y": 0.0,
+          "z": 0.00042431641
+        },
+        "indices_count": 369,
+        "child_meshlets": [],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 0.00079142733,
+          "y": 0.0,
+          "z": 0.00019750977
+        },
+        "indices_offset": 2142,
+        "aabb_max": {
+          "x": 0.001311676,
+          "y": 0.0,
+          "z": 0.00042431641
+        },
+        "indices_count": 372,
+        "child_meshlets": [],
+        "triangles_bvh": []
+      },
+      {
+        "aabb_min": {
+          "x": 0.0012873535,
+          "y": 0.0,
+          "z": 0.00010986328
+        },
+        "indices_offset": 2514,
+        "aabb_max": {
+          "x": 0.0017768554,
+          "y": 0.0,
+          "z": 0.00042431641
+        },
+        "indices_count": 288,
+        "child_meshlets": [],
         "triangles_bvh": []
       }
     ]
