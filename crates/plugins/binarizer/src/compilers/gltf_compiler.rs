@@ -411,7 +411,7 @@ impl GltfCompiler {
             .iter()
             .enumerate()
             .for_each(|(_lod_level, meshlets)| {
-                println!("LOD {} has {} meshlets", _lod_level, meshlets.len());
+                //println!("LOD {} has {} meshlets", _lod_level, meshlets.len());
 
                 let mut meshlets_aabbs = Vec::new();
                 meshlets_aabbs.resize_with(meshlets.len(), AABB::empty);
