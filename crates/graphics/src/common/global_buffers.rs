@@ -77,13 +77,13 @@ impl GlobalBuffers {
         mesh_id: &MeshId,
         mesh_index: u32,
         indices_offset: u32,
-    ) -> (usize, usize, Vec<usize>) {
+    ) -> (usize, usize, Vec<usize>, Vec<usize>) {
         inox_profiler::scoped_profile!("render_buffers::extract_meshlets");
 
         let mut meshlets = Vec::new();
-        let mut lod_data = Vec::new();
+        let mut lod_meshlets_count = Vec::new();
         mesh_data.meshlets.iter().for_each(|meshlets_data| {
-            lod_data.push(meshlets_data.len());
+            lod_meshlets_count.push(meshlets_data.len());
             meshlets_data.iter().for_each(|meshlet_data| {
                 let triangle_id = generate_random_uid();
                 self.triangles_ids
@@ -124,6 +124,14 @@ impl GlobalBuffers {
                 meshlets.push(meshlet);
             });
         });
+        let mut lod_meshlets_starting_offset = Vec::with_capacity(lod_meshlets_count.len());
+        let mut lod_meshlets_ending_offset = Vec::with_capacity(lod_meshlets_count.len());
+        let mut total_offset = 0;
+        lod_meshlets_count.iter().for_each(|&count| {
+            lod_meshlets_starting_offset.push(total_offset);
+            total_offset += count;
+            lod_meshlets_ending_offset.push(total_offset);
+        });
         if meshlets.is_empty() {
             inox_log::debug_log!("No meshlet data for mesh {:?}", mesh_id);
         }
@@ -148,16 +156,26 @@ impl GlobalBuffers {
             .allocate(mesh_id, meshlets.as_slice())
             .1;
         let meshlet_start_index = meshlet_range.start as i32;
+        let mut lod_index = 0;
         self.meshlets.write().unwrap().data_mut()[meshlet_range]
             .iter_mut()
-            .for_each(|m| {
+            .enumerate()
+            .for_each(|(i, m)| {
+                if i == lod_meshlets_ending_offset[lod_index] {
+                    lod_index += 1;
+                }
                 m.child_meshlets.iter_mut().for_each(|v| {
                     if *v >= 0 {
-                        *v += meshlet_start_index;
+                        *v += meshlet_start_index + lod_meshlets_starting_offset[lod_index] as i32;
                     }
                 });
             });
-        (blas_index, meshlet_start_index as _, lod_data)
+        (
+            blas_index,
+            meshlet_start_index as _,
+            lod_meshlets_starting_offset,
+            lod_meshlets_ending_offset,
+        )
     }
     fn add_vertex_data(
         &self,
@@ -230,7 +248,7 @@ impl GlobalBuffers {
 
         let (vertex_offset, indices_offset, attributes_offset) =
             self.add_vertex_data(mesh_id, mesh_index as _, mesh_data);
-        let (blas_index, meshlet_offset, lod_data) =
+        let (blas_index, meshlet_offset, lod_starting_offsets, lod_ending_offsets) =
             self.extract_meshlets(mesh_data, mesh_id, mesh_index as _, indices_offset);
 
         {
@@ -241,12 +259,12 @@ impl GlobalBuffers {
             mesh.flags_and_vertices_attribute_layout = mesh_data.vertex_layout.into();
             mesh.blas_index = blas_index as _;
             mesh.meshlets_offset = meshlet_offset as _;
-            mesh.meshlets_count
+            mesh.lods_meshlets_offset
                 .iter_mut()
                 .enumerate()
                 .for_each(|(i, c)| {
-                    if i < lod_data.len() {
-                        *c = lod_data[i] as _;
+                    if i < lod_starting_offsets.len() && i < lod_ending_offsets.len() {
+                        *c = ((lod_starting_offsets[i]) << 16 | (lod_ending_offsets[i])) as _;
                     }
                 });
         }

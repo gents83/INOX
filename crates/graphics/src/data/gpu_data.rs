@@ -61,7 +61,7 @@ pub struct GPUMesh {
     pub meshlets_offset: u32,
     pub scale: [f32; 3],
     pub blas_index: u32,
-    pub meshlets_count: [i32; MAX_LOD_LEVELS],
+    pub lods_meshlets_offset: [u32; MAX_LOD_LEVELS], // 16 bits start | 16 bits end
 }
 
 impl Default for GPUMesh {
@@ -76,7 +76,7 @@ impl Default for GPUMesh {
             scale: [1.; 3],
             flags_and_vertices_attribute_layout: 0,
             orientation: [0., 0., 0., 1.],
-            meshlets_count: [-1; MAX_LOD_LEVELS],
+            lods_meshlets_offset: [0; MAX_LOD_LEVELS],
         }
     }
 }

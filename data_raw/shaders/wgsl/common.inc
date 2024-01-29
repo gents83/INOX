@@ -155,7 +155,7 @@ struct Mesh {
     meshlets_offset: u32,
     scale: vec3<f32>,
     blas_index: u32,
-    meshlets_count: array<i32, MAX_LOD_LEVELS>,
+    lods_meshlets_offset: array<u32, MAX_LOD_LEVELS>,
 };
 
 struct Meshlet {

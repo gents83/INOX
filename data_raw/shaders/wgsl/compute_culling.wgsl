@@ -99,21 +99,16 @@ fn main(
     if (constant_data.forced_lod_level > 0) {
         lod_level = max(0u, u32(constant_data.forced_lod_level));
     }
-    if((*mesh).meshlets_count[lod_level] < 0) {
-        return;
-    }
-    let meshlets_count = u32((*mesh).meshlets_count[lod_level]);
     var lod_starting_offset = 0u;
-    for(var i = 0u; i < lod_level; i++) {
-        if (*mesh).meshlets_count[i] > 0 {
-            lod_starting_offset += u32((*mesh).meshlets_count[i]);
-        }
+    var lod_ending_offset = 0u;
+    if (*mesh).lods_meshlets_offset[lod_level] != 0u {
+        lod_starting_offset = (*mesh).lods_meshlets_offset[lod_level] >> 16u;
+        lod_ending_offset = (*mesh).lods_meshlets_offset[lod_level] & 0x0000FFFFu;
     }
-    if (meshlet_id < lod_starting_offset || meshlet_id >= lod_starting_offset + meshlets_count) {
+    if (meshlet_id < ((*mesh).meshlets_offset + lod_starting_offset) || meshlet_id >= ((*mesh).meshlets_offset + lod_ending_offset)) {
         return;
     }
 
-    let meshlet_index = (*mesh).meshlets_offset - meshlet_id;
     let bb_id = (*meshlet).triangles_bhv_index;
     let bb = &bhv.data[bb_id];
     let max = transform_vector((*bb).max, (*mesh).position, (*mesh).orientation, (*mesh).scale);
