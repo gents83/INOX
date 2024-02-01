@@ -61,7 +61,7 @@
         },
         "indices_count": 6,
         "child_meshlets": [],
-        "triangles_bvh": []
+        "bhv_offset": 0
       }
     ]
   ],

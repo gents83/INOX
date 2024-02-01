@@ -3978,13 +3978,8 @@
           "z": 0.00042431641
         },
         "indices_count": 372,
-        "child_meshlets": [
-          4,
-          5,
-          6,
-          7
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 0
       },
       {
         "aabb_min": {
@@ -3999,13 +3994,8 @@
           "z": 0.00042431641
         },
         "indices_count": 372,
-        "child_meshlets": [
-          4,
-          5,
-          6,
-          7
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 1
       },
       {
         "aabb_min": {
@@ -4020,13 +4010,8 @@
           "z": 0.00041625978
         },
         "indices_count": 366,
-        "child_meshlets": [
-          4,
-          5,
-          6,
-          7
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 2
       },
       {
         "aabb_min": {
@@ -4041,13 +4026,8 @@
           "z": 0.00042431641
         },
         "indices_count": 360,
-        "child_meshlets": [
-          4,
-          5,
-          6,
-          7
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 3
       }
     ],
     [
@@ -4064,8 +4044,13 @@
           "z": 0.00042431641
         },
         "indices_count": 372,
-        "child_meshlets": [],
-        "triangles_bvh": []
+        "child_meshlets": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "bhv_offset": 0
       },
       {
         "aabb_min": {
@@ -4080,8 +4065,13 @@
           "z": 0.00042431641
         },
         "indices_count": 372,
-        "child_meshlets": [],
-        "triangles_bvh": []
+        "child_meshlets": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "bhv_offset": 1
       },
       {
         "aabb_min": {
@@ -4096,8 +4086,13 @@
           "z": 0.00041625978
         },
         "indices_count": 366,
-        "child_meshlets": [],
-        "triangles_bvh": []
+        "child_meshlets": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "bhv_offset": 2
       },
       {
         "aabb_min": {
@@ -4112,8 +4107,13 @@
           "z": 0.00042431641
         },
         "indices_count": 360,
-        "child_meshlets": [],
-        "triangles_bvh": []
+        "child_meshlets": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "bhv_offset": 3
       }
     ]
   ],

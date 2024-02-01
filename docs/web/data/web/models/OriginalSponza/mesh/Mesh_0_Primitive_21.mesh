@@ -147380,11 +147380,8 @@
           "z": 145.4665
         },
         "indices_count": 603,
-        "child_meshlets": [
-          109,
-          110
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 0
       },
       {
         "aabb_min": {
@@ -147399,11 +147396,8 @@
           "z": 145.4665
         },
         "indices_count": 510,
-        "child_meshlets": [
-          109,
-          110
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 1
       },
       {
         "aabb_min": {
@@ -147418,11 +147412,8 @@
           "z": 145.3599
         },
         "indices_count": 549,
-        "child_meshlets": [
-          111,
-          112
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 2
       },
       {
         "aabb_min": {
@@ -147437,11 +147428,8 @@
           "z": 145.4665
         },
         "indices_count": 546,
-        "child_meshlets": [
-          109,
-          110
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 3
       },
       {
         "aabb_min": {
@@ -147456,11 +147444,8 @@
           "z": 145.3599
         },
         "indices_count": 564,
-        "child_meshlets": [
-          111,
-          112
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 4
       },
       {
         "aabb_min": {
@@ -147475,11 +147460,8 @@
           "z": 165.8782
         },
         "indices_count": 507,
-        "child_meshlets": [
-          111,
-          112
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 5
       },
       {
         "aabb_min": {
@@ -147494,11 +147476,8 @@
           "z": 168.72
         },
         "indices_count": 573,
-        "child_meshlets": [
-          111,
-          112
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 6
       },
       {
         "aabb_min": {
@@ -147513,12 +147492,8 @@
           "z": 168.72
         },
         "indices_count": 576,
-        "child_meshlets": [
-          113,
-          114,
-          115
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 7
       },
       {
         "aabb_min": {
@@ -147533,11 +147508,8 @@
           "z": 144.7358
         },
         "indices_count": 636,
-        "child_meshlets": [
-          116,
-          117
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 8
       },
       {
         "aabb_min": {
@@ -147552,11 +147524,8 @@
           "z": 167.9883
         },
         "indices_count": 633,
-        "child_meshlets": [
-          116,
-          117
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 9
       },
       {
         "aabb_min": {
@@ -147571,12 +147540,8 @@
           "z": 147.8248
         },
         "indices_count": 546,
-        "child_meshlets": [
-          113,
-          114,
-          115
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 10
       },
       {
         "aabb_min": {
@@ -147591,12 +147556,8 @@
           "z": 166.9503
         },
         "indices_count": 570,
-        "child_meshlets": [
-          113,
-          114,
-          115
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 11
       },
       {
         "aabb_min": {
@@ -147611,11 +147572,8 @@
           "z": 145.4663
         },
         "indices_count": 480,
-        "child_meshlets": [
-          118,
-          119
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 12
       },
       {
         "aabb_min": {
@@ -147630,11 +147588,8 @@
           "z": 145.3597
         },
         "indices_count": 558,
-        "child_meshlets": [
-          118,
-          119
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 13
       },
       {
         "aabb_min": {
@@ -147649,11 +147604,8 @@
           "z": 145.4663
         },
         "indices_count": 528,
-        "child_meshlets": [
-          118,
-          119
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 14
       },
       {
         "aabb_min": {
@@ -147668,11 +147620,8 @@
           "z": 145.3597
         },
         "indices_count": 606,
-        "child_meshlets": [
-          120,
-          121
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 15
       },
       {
         "aabb_min": {
@@ -147687,11 +147636,8 @@
           "z": 145.4663
         },
         "indices_count": 576,
-        "child_meshlets": [
-          120,
-          121
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 16
       },
       {
         "aabb_min": {
@@ -147706,11 +147652,8 @@
           "z": 142.9852
         },
         "indices_count": 507,
-        "child_meshlets": [
-          120,
-          121
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 17
       },
       {
         "aabb_min": {
@@ -147725,11 +147668,8 @@
           "z": 155.3829
         },
         "indices_count": 501,
-        "child_meshlets": [
-          118,
-          119
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 18
       },
       {
         "aabb_min": {
@@ -147744,12 +147684,8 @@
           "z": 159.3114
         },
         "indices_count": 519,
-        "child_meshlets": [
-          113,
-          114,
-          115
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 19
       },
       {
         "aabb_min": {
@@ -147764,11 +147700,8 @@
           "z": 147.5513
         },
         "indices_count": 537,
-        "child_meshlets": [
-          116,
-          117
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 20
       },
       {
         "aabb_min": {
@@ -147783,10 +147716,8 @@
           "z": 147.5513
         },
         "indices_count": 525,
-        "child_meshlets": [
-          122
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 21
       },
       {
         "aabb_min": {
@@ -147801,10 +147732,8 @@
           "z": 146.5078
         },
         "indices_count": 570,
-        "child_meshlets": [
-          122
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 22
       },
       {
         "aabb_min": {
@@ -147819,10 +147748,8 @@
           "z": 144.1895
         },
         "indices_count": 549,
-        "child_meshlets": [
-          122
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 23
       },
       {
         "aabb_min": {
@@ -147837,11 +147764,8 @@
           "z": 145.4665
         },
         "indices_count": 549,
-        "child_meshlets": [
-          109,
-          110
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 24
       },
       {
         "aabb_min": {
@@ -147856,11 +147780,8 @@
           "z": 170.4756
         },
         "indices_count": 504,
-        "child_meshlets": [
-          123,
-          124
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 25
       },
       {
         "aabb_min": {
@@ -147875,11 +147796,8 @@
           "z": 170.4665
         },
         "indices_count": 582,
-        "child_meshlets": [
-          123,
-          124
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 26
       },
       {
         "aabb_min": {
@@ -147894,11 +147812,8 @@
           "z": -194.4693
         },
         "indices_count": 573,
-        "child_meshlets": [
-          125,
-          126
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 27
       },
       {
         "aabb_min": {
@@ -147913,11 +147828,8 @@
           "z": -194.325
         },
         "indices_count": 570,
-        "child_meshlets": [
-          123,
-          124
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 28
       },
       {
         "aabb_min": {
@@ -147932,11 +147844,8 @@
           "z": -194.971
         },
         "indices_count": 510,
-        "child_meshlets": [
-          125,
-          126
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 29
       },
       {
         "aabb_min": {
@@ -147951,11 +147860,8 @@
           "z": -203.779
         },
         "indices_count": 441,
-        "child_meshlets": [
-          125,
-          126
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 30
       },
       {
         "aabb_min": {
@@ -147970,11 +147876,8 @@
           "z": -196.6229
         },
         "indices_count": 573,
-        "child_meshlets": [
-          125,
-          126
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 31
       },
       {
         "aabb_min": {
@@ -147989,11 +147892,8 @@
           "z": -215.1956
         },
         "indices_count": 588,
-        "child_meshlets": [
-          127,
-          128
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 32
       },
       {
         "aabb_min": {
@@ -148008,11 +147908,8 @@
           "z": -215.5959
         },
         "indices_count": 501,
-        "child_meshlets": [
-          127,
-          128
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 33
       },
       {
         "aabb_min": {
@@ -148027,11 +147924,8 @@
           "z": -215.5959
         },
         "indices_count": 558,
-        "child_meshlets": [
-          127,
-          128
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 34
       },
       {
         "aabb_min": {
@@ -148046,11 +147940,8 @@
           "z": -219.8314
         },
         "indices_count": 627,
-        "child_meshlets": [
-          127,
-          128
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 35
       },
       {
         "aabb_min": {
@@ -148065,10 +147956,8 @@
           "z": -216.6808
         },
         "indices_count": 546,
-        "child_meshlets": [
-          129
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 36
       },
       {
         "aabb_min": {
@@ -148083,10 +147972,8 @@
           "z": -195.0601
         },
         "indices_count": 534,
-        "child_meshlets": [
-          129
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 37
       },
       {
         "aabb_min": {
@@ -148101,11 +147988,8 @@
           "z": -197.0313
         },
         "indices_count": 564,
-        "child_meshlets": [
-          123,
-          124
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 38
       },
       {
         "aabb_min": {
@@ -148120,11 +148004,8 @@
           "z": -220.4543
         },
         "indices_count": 510,
-        "child_meshlets": [
-          130,
-          131
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 39
       },
       {
         "aabb_min": {
@@ -148139,11 +148020,8 @@
           "z": -217.5754
         },
         "indices_count": 543,
-        "child_meshlets": [
-          130,
-          131
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 40
       },
       {
         "aabb_min": {
@@ -148158,11 +148036,8 @@
           "z": -217.5754
         },
         "indices_count": 585,
-        "child_meshlets": [
-          132,
-          133
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 41
       },
       {
         "aabb_min": {
@@ -148177,11 +148052,8 @@
           "z": -217.5754
         },
         "indices_count": 612,
-        "child_meshlets": [
-          132,
-          133
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 42
       },
       {
         "aabb_min": {
@@ -148196,11 +148068,8 @@
           "z": -217.5754
         },
         "indices_count": 543,
-        "child_meshlets": [
-          132,
-          133
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 43
       },
       {
         "aabb_min": {
@@ -148215,11 +148084,8 @@
           "z": -217.5754
         },
         "indices_count": 618,
-        "child_meshlets": [
-          134,
-          135
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 44
       },
       {
         "aabb_min": {
@@ -148234,11 +148100,8 @@
           "z": -217.682
         },
         "indices_count": 540,
-        "child_meshlets": [
-          134,
-          135
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 45
       },
       {
         "aabb_min": {
@@ -148253,11 +148116,8 @@
           "z": -217.5756
         },
         "indices_count": 483,
-        "child_meshlets": [
-          136,
-          137
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 46
       },
       {
         "aabb_min": {
@@ -148272,11 +148132,8 @@
           "z": -217.5756
         },
         "indices_count": 588,
-        "child_meshlets": [
-          134,
-          135
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 47
       },
       {
         "aabb_min": {
@@ -148291,11 +148148,8 @@
           "z": -217.5756
         },
         "indices_count": 570,
-        "child_meshlets": [
-          134,
-          135
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 48
       },
       {
         "aabb_min": {
@@ -148310,11 +148164,8 @@
           "z": -217.5756
         },
         "indices_count": 585,
-        "child_meshlets": [
-          136,
-          137
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 49
       },
       {
         "aabb_min": {
@@ -148329,11 +148180,8 @@
           "z": -217.5756
         },
         "indices_count": 573,
-        "child_meshlets": [
-          136,
-          137
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 50
       },
       {
         "aabb_min": {
@@ -148348,11 +148196,8 @@
           "z": -218.0384
         },
         "indices_count": 534,
-        "child_meshlets": [
-          136,
-          137
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 51
       },
       {
         "aabb_min": {
@@ -148367,11 +148212,8 @@
           "z": -211.6009
         },
         "indices_count": 507,
-        "child_meshlets": [
-          138,
-          139
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 52
       },
       {
         "aabb_min": {
@@ -148386,11 +148228,8 @@
           "z": -211.6009
         },
         "indices_count": 531,
-        "child_meshlets": [
-          138,
-          139
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 53
       },
       {
         "aabb_min": {
@@ -148405,10 +148244,8 @@
           "z": -217.6822
         },
         "indices_count": 588,
-        "child_meshlets": [
-          140
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 54
       },
       {
         "aabb_min": {
@@ -148423,11 +148260,8 @@
           "z": -217.5756
         },
         "indices_count": 549,
-        "child_meshlets": [
-          141,
-          142
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 55
       },
       {
         "aabb_min": {
@@ -148442,11 +148276,8 @@
           "z": -217.5756
         },
         "indices_count": 495,
-        "child_meshlets": [
-          138,
-          139
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 56
       },
       {
         "aabb_min": {
@@ -148461,11 +148292,8 @@
           "z": -202.6591
         },
         "indices_count": 567,
-        "child_meshlets": [
-          141,
-          142
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 57
       },
       {
         "aabb_min": {
@@ -148480,11 +148308,8 @@
           "z": -194.325
         },
         "indices_count": 546,
-        "child_meshlets": [
-          141,
-          142
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 58
       },
       {
         "aabb_min": {
@@ -148499,11 +148324,8 @@
           "z": -194.325
         },
         "indices_count": 567,
-        "child_meshlets": [
-          143,
-          144
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 59
       },
       {
         "aabb_min": {
@@ -148518,11 +148340,8 @@
           "z": -198.8385
         },
         "indices_count": 522,
-        "child_meshlets": [
-          141,
-          142
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 60
       },
       {
         "aabb_min": {
@@ -148537,11 +148356,8 @@
           "z": -203.779
         },
         "indices_count": 444,
-        "child_meshlets": [
-          143,
-          144
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 61
       },
       {
         "aabb_min": {
@@ -148556,11 +148372,8 @@
           "z": -196.6229
         },
         "indices_count": 573,
-        "child_meshlets": [
-          143,
-          144
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 62
       },
       {
         "aabb_min": {
@@ -148575,11 +148388,8 @@
           "z": -215.1956
         },
         "indices_count": 594,
-        "child_meshlets": [
-          143,
-          144
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 63
       },
       {
         "aabb_min": {
@@ -148594,11 +148404,8 @@
           "z": -215.5959
         },
         "indices_count": 495,
-        "child_meshlets": [
-          145,
-          146
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 64
       },
       {
         "aabb_min": {
@@ -148613,11 +148420,8 @@
           "z": -215.5959
         },
         "indices_count": 555,
-        "child_meshlets": [
-          145,
-          146
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 65
       },
       {
         "aabb_min": {
@@ -148632,11 +148436,8 @@
           "z": -218.6122
         },
         "indices_count": 627,
-        "child_meshlets": [
-          145,
-          146
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 66
       },
       {
         "aabb_min": {
@@ -148651,12 +148452,8 @@
           "z": -216.6808
         },
         "indices_count": 555,
-        "child_meshlets": [
-          147,
-          148,
-          149
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 67
       },
       {
         "aabb_min": {
@@ -148671,12 +148468,8 @@
           "z": -195.0601
         },
         "indices_count": 537,
-        "child_meshlets": [
-          147,
-          148,
-          149
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 68
       },
       {
         "aabb_min": {
@@ -148691,12 +148484,8 @@
           "z": -202.8024
         },
         "indices_count": 546,
-        "child_meshlets": [
-          147,
-          148,
-          149
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 69
       },
       {
         "aabb_min": {
@@ -148711,10 +148500,8 @@
           "z": -218.0384
         },
         "indices_count": 537,
-        "child_meshlets": [
-          140
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 70
       },
       {
         "aabb_min": {
@@ -148729,10 +148516,8 @@
           "z": -217.5756
         },
         "indices_count": 588,
-        "child_meshlets": [
-          140
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 71
       },
       {
         "aabb_min": {
@@ -148747,11 +148532,8 @@
           "z": -217.5756
         },
         "indices_count": 552,
-        "child_meshlets": [
-          138,
-          139
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 72
       },
       {
         "aabb_min": {
@@ -148766,11 +148548,8 @@
           "z": -217.5754
         },
         "indices_count": 462,
-        "child_meshlets": [
-          150,
-          151
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 73
       },
       {
         "aabb_min": {
@@ -148785,11 +148564,8 @@
           "z": -217.5754
         },
         "indices_count": 564,
-        "child_meshlets": [
-          150,
-          151
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 74
       },
       {
         "aabb_min": {
@@ -148804,11 +148580,8 @@
           "z": -217.5754
         },
         "indices_count": 582,
-        "child_meshlets": [
-          150,
-          151
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 75
       },
       {
         "aabb_min": {
@@ -148823,11 +148596,8 @@
           "z": -217.5754
         },
         "indices_count": 516,
-        "child_meshlets": [
-          150,
-          151
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 76
       },
       {
         "aabb_min": {
@@ -148842,11 +148612,8 @@
           "z": -220.4543
         },
         "indices_count": 498,
-        "child_meshlets": [
-          152,
-          153
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 77
       },
       {
         "aabb_min": {
@@ -148861,11 +148628,8 @@
           "z": -217.5754
         },
         "indices_count": 543,
-        "child_meshlets": [
-          152,
-          153
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 78
       },
       {
         "aabb_min": {
@@ -148880,11 +148644,8 @@
           "z": -214.9229
         },
         "indices_count": 522,
-        "child_meshlets": [
-          152,
-          153
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 79
       },
       {
         "aabb_min": {
@@ -148899,11 +148660,8 @@
           "z": -211.6009
         },
         "indices_count": 597,
-        "child_meshlets": [
-          152,
-          153
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 80
       },
       {
         "aabb_min": {
@@ -148918,11 +148676,8 @@
           "z": 168.7202
         },
         "indices_count": 519,
-        "child_meshlets": [
-          154,
-          155
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 81
       },
       {
         "aabb_min": {
@@ -148937,11 +148692,8 @@
           "z": 166.6927
         },
         "indices_count": 570,
-        "child_meshlets": [
-          154,
-          155
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 82
       },
       {
         "aabb_min": {
@@ -148956,11 +148708,8 @@
           "z": 168.7202
         },
         "indices_count": 504,
-        "child_meshlets": [
-          154,
-          155
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 83
       },
       {
         "aabb_min": {
@@ -148975,11 +148724,8 @@
           "z": 159.3115
         },
         "indices_count": 435,
-        "child_meshlets": [
-          154,
-          155
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 84
       },
       {
         "aabb_min": {
@@ -148994,12 +148740,8 @@
           "z": 166.4332
         },
         "indices_count": 573,
-        "child_meshlets": [
-          156,
-          157,
-          158
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 85
       },
       {
         "aabb_min": {
@@ -149014,11 +148756,8 @@
           "z": 147.9499
         },
         "indices_count": 588,
-        "child_meshlets": [
-          159,
-          160
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 86
       },
       {
         "aabb_min": {
@@ -149033,11 +148772,8 @@
           "z": 147.3844
         },
         "indices_count": 558,
-        "child_meshlets": [
-          159,
-          160
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 87
       },
       {
         "aabb_min": {
@@ -149052,11 +148788,8 @@
           "z": 147.5515
         },
         "indices_count": 558,
-        "child_meshlets": [
-          159,
-          160
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 88
       },
       {
         "aabb_min": {
@@ -149071,11 +148804,8 @@
           "z": 147.5515
         },
         "indices_count": 615,
-        "child_meshlets": [
-          159,
-          160
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 89
       },
       {
         "aabb_min": {
@@ -149090,12 +148820,8 @@
           "z": 144.394
         },
         "indices_count": 552,
-        "child_meshlets": [
-          156,
-          157,
-          158
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 90
       },
       {
         "aabb_min": {
@@ -149110,12 +148836,8 @@
           "z": 144.7869
         },
         "indices_count": 537,
-        "child_meshlets": [
-          156,
-          157,
-          158
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 91
       },
       {
         "aabb_min": {
@@ -149130,12 +148852,8 @@
           "z": 167.9884
         },
         "indices_count": 603,
-        "child_meshlets": [
-          156,
-          157,
-          158
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 92
       },
       {
         "aabb_min": {
@@ -149150,10 +148868,8 @@
           "z": 144.736
         },
         "indices_count": 540,
-        "child_meshlets": [
-          161
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 93
       },
       {
         "aabb_min": {
@@ -149168,10 +148884,8 @@
           "z": 145.3601
         },
         "indices_count": 585,
-        "child_meshlets": [
-          161
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 94
       },
       {
         "aabb_min": {
@@ -149186,10 +148900,8 @@
           "z": 145.4667
         },
         "indices_count": 555,
-        "child_meshlets": [
-          161
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 95
       },
       {
         "aabb_min": {
@@ -149204,10 +148916,8 @@
           "z": 145.4667
         },
         "indices_count": 519,
-        "child_meshlets": [
-          161
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 96
       },
       {
         "aabb_min": {
@@ -149222,11 +148932,8 @@
           "z": 145.4667
         },
         "indices_count": 585,
-        "child_meshlets": [
-          162,
-          163
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 97
       },
       {
         "aabb_min": {
@@ -149241,11 +148948,8 @@
           "z": 144.0957
         },
         "indices_count": 594,
-        "child_meshlets": [
-          162,
-          163
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 98
       },
       {
         "aabb_min": {
@@ -149260,11 +148964,8 @@
           "z": 145.4667
         },
         "indices_count": 483,
-        "child_meshlets": [
-          162,
-          163
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 99
       },
       {
         "aabb_min": {
@@ -149279,11 +148980,8 @@
           "z": 145.3599
         },
         "indices_count": 534,
-        "child_meshlets": [
-          162,
-          163
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 100
       },
       {
         "aabb_min": {
@@ -149298,10 +148996,8 @@
           "z": 144.0955
         },
         "indices_count": 525,
-        "child_meshlets": [
-          164
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 101
       },
       {
         "aabb_min": {
@@ -149316,10 +149012,8 @@
           "z": 145.4665
         },
         "indices_count": 570,
-        "child_meshlets": [
-          164
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 102
       },
       {
         "aabb_min": {
@@ -149334,10 +149028,8 @@
           "z": 145.4665
         },
         "indices_count": 546,
-        "child_meshlets": [
-          164
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 103
       },
       {
         "aabb_min": {
@@ -149352,10 +149044,8 @@
           "z": 145.4665
         },
         "indices_count": 537,
-        "child_meshlets": [
-          164
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 104
       },
       {
         "aabb_min": {
@@ -149370,10 +149060,8 @@
           "z": 145.4665
         },
         "indices_count": 597,
-        "child_meshlets": [
-          165
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 105
       },
       {
         "aabb_min": {
@@ -149388,10 +149076,8 @@
           "z": 170.4758
         },
         "indices_count": 516,
-        "child_meshlets": [
-          165
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 106
       },
       {
         "aabb_min": {
@@ -149406,10 +149092,8 @@
           "z": 170.4667
         },
         "indices_count": 600,
-        "child_meshlets": [
-          165
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 107
       },
       {
         "aabb_min": {
@@ -149424,10 +149108,8 @@
           "z": 139.1898
         },
         "indices_count": 54,
-        "child_meshlets": [
-          165
-        ],
-        "triangles_bvh": []
+        "child_meshlets": [],
+        "bhv_offset": 108
       }
     ],
     [
@@ -149445,10 +149127,12 @@
         },
         "indices_count": 525,
         "child_meshlets": [
-          166,
-          167
+          0,
+          24,
+          3,
+          1
         ],
-        "triangles_bvh": []
+        "bhv_offset": 0
       },
       {
         "aabb_min": {
@@ -149464,10 +149148,12 @@
         },
         "indices_count": 87,
         "child_meshlets": [
-          168,
-          169
+          0,
+          24,
+          3,
+          1
         ],
-        "triangles_bvh": []
+        "bhv_offset": 1
       },
       {
         "aabb_min": {
@@ -149483,10 +149169,12 @@
         },
         "indices_count": 423,
         "child_meshlets": [
-          166,
-          167
+          2,
+          4,
+          5,
+          6
         ],
-        "triangles_bvh": []
+        "bhv_offset": 2
       },
       {
         "aabb_min": {
@@ -149502,10 +149190,12 @@
         },
         "indices_count": 300,
         "child_meshlets": [
-          170,
-          171
+          2,
+          4,
+          5,
+          6
         ],
-        "triangles_bvh": []
+        "bhv_offset": 3
       },
       {
         "aabb_min": {
@@ -149521,10 +149211,12 @@
         },
         "indices_count": 465,
         "child_meshlets": [
-          170,
-          171
+          7,
+          11,
+          10,
+          19
         ],
-        "triangles_bvh": []
+        "bhv_offset": 4
       },
       {
         "aabb_min": {
@@ -149540,10 +149232,12 @@
         },
         "indices_count": 417,
         "child_meshlets": [
-          168,
-          169
+          7,
+          11,
+          10,
+          19
         ],
-        "triangles_bvh": []
+        "bhv_offset": 5
       },
       {
         "aabb_min": {
@@ -149559,10 +149253,12 @@
         },
         "indices_count": 69,
         "child_meshlets": [
-          170,
-          171
+          7,
+          11,
+          10,
+          19
         ],
-        "triangles_bvh": []
+        "bhv_offset": 6
       },
       {
         "aabb_min": {
@@ -149578,10 +149274,11 @@
         },
         "indices_count": 561,
         "child_meshlets": [
-          170,
-          171
+          8,
+          9,
+          20
         ],
-        "triangles_bvh": []
+        "bhv_offset": 7
       },
       {
         "aabb_min": {
@@ -149597,10 +149294,11 @@
         },
         "indices_count": 375,
         "child_meshlets": [
-          168,
-          169
+          8,
+          9,
+          20
         ],
-        "triangles_bvh": []
+        "bhv_offset": 8
       },
       {
         "aabb_min": {
@@ -149616,10 +149314,12 @@
         },
         "indices_count": 450,
         "child_meshlets": [
-          172,
-          173
+          12,
+          14,
+          13,
+          18
         ],
-        "triangles_bvh": []
+        "bhv_offset": 9
       },
       {
         "aabb_min": {
@@ -149635,10 +149335,12 @@
         },
         "indices_count": 219,
         "child_meshlets": [
-          172,
-          173
+          12,
+          14,
+          13,
+          18
         ],
-        "triangles_bvh": []
+        "bhv_offset": 10
       },
       {
         "aabb_min": {
@@ -149654,10 +149356,11 @@
         },
         "indices_count": 456,
         "child_meshlets": [
-          172,
-          173
+          15,
+          16,
+          17
         ],
-        "triangles_bvh": []
+        "bhv_offset": 11
       },
       {
         "aabb_min": {
@@ -149673,10 +149376,11 @@
         },
         "indices_count": 93,
         "child_meshlets": [
-          172,
-          173
+          15,
+          16,
+          17
         ],
-        "triangles_bvh": []
+        "bhv_offset": 12
       },
       {
         "aabb_min": {
@@ -149692,10 +149396,11 @@
         },
         "indices_count": 408,
         "child_meshlets": [
-          168,
-          169
+          22,
+          23,
+          21
         ],
-        "triangles_bvh": []
+        "bhv_offset": 13
       },
       {
         "aabb_min": {
@@ -149711,10 +149416,12 @@
         },
         "indices_count": 432,
         "child_meshlets": [
-          166,
-          167
+          25,
+          26,
+          28,
+          38
         ],
-        "triangles_bvh": []
+        "bhv_offset": 14
       },
       {
         "aabb_min": {
@@ -149730,9 +149437,12 @@
         },
         "indices_count": 120,
         "child_meshlets": [
-          174
+          25,
+          26,
+          28,
+          38
         ],
-        "triangles_bvh": []
+        "bhv_offset": 15
       },
       {
         "aabb_min": {
@@ -149748,10 +149458,12 @@
         },
         "indices_count": 573,
         "child_meshlets": [
-          166,
-          167
+          27,
+          30,
+          29,
+          31
         ],
-        "triangles_bvh": []
+        "bhv_offset": 16
       },
       {
         "aabb_min": {
@@ -149767,9 +149479,12 @@
         },
         "indices_count": 282,
         "child_meshlets": [
-          174
+          27,
+          30,
+          29,
+          31
         ],
-        "triangles_bvh": []
+        "bhv_offset": 17
       },
       {
         "aabb_min": {
@@ -149785,10 +149500,12 @@
         },
         "indices_count": 576,
         "child_meshlets": [
-          175,
-          176
+          32,
+          33,
+          34,
+          35
         ],
-        "triangles_bvh": []
+        "bhv_offset": 18
       },
       {
         "aabb_min": {
@@ -149804,10 +149521,12 @@
         },
         "indices_count": 504,
         "child_meshlets": [
-          175,
-          176
+          32,
+          33,
+          34,
+          35
         ],
-        "triangles_bvh": []
+        "bhv_offset": 19
       },
       {
         "aabb_min": {
@@ -149823,10 +149542,10 @@
         },
         "indices_count": 450,
         "child_meshlets": [
-          175,
-          176
+          36,
+          37
         ],
-        "triangles_bvh": []
+        "bhv_offset": 20
       },
       {
         "aabb_min": {
@@ -149842,9 +149561,10 @@
         },
         "indices_count": 402,
         "child_meshlets": [
-          177
+          39,
+          40
         ],
-        "triangles_bvh": []
+        "bhv_offset": 21
       },
       {
         "aabb_min": {
@@ -149860,9 +149580,10 @@
         },
         "indices_count": 111,
         "child_meshlets": [
-          178
+          39,
+          40
         ],
-        "triangles_bvh": []
+        "bhv_offset": 22
       },
       {
         "aabb_min": {
@@ -149878,9 +149599,11 @@
         },
         "indices_count": 459,
         "child_meshlets": [
-          177
+          42,
+          43,
+          41
         ],
-        "triangles_bvh": []
+        "bhv_offset": 23
       },
       {
         "aabb_min": {
@@ -149896,9 +149619,11 @@
         },
         "indices_count": 129,
         "child_meshlets": [
-          178
+          42,
+          43,
+          41
         ],
-        "triangles_bvh": []
+        "bhv_offset": 24
       },
       {
         "aabb_min": {
@@ -149914,10 +149639,12 @@
         },
         "indices_count": 447,
         "child_meshlets": [
-          179,
-          180
+          44,
+          45,
+          47,
+          48
         ],
-        "triangles_bvh": []
+        "bhv_offset": 25
       },
       {
         "aabb_min": {
@@ -149933,10 +149660,12 @@
         },
         "indices_count": 129,
         "child_meshlets": [
-          179,
-          180
+          44,
+          45,
+          47,
+          48
         ],
-        "triangles_bvh": []
+        "bhv_offset": 26
       },
       {
         "aabb_min": {
@@ -149952,10 +149681,12 @@
         },
         "indices_count": 447,
         "child_meshlets": [
-          179,
-          180
+          46,
+          50,
+          49,
+          51
         ],
-        "triangles_bvh": []
+        "bhv_offset": 27
       },
       {
         "aabb_min": {
@@ -149971,10 +149702,12 @@
         },
         "indices_count": 156,
         "child_meshlets": [
-          181,
-          182
+          46,
+          50,
+          49,
+          51
         ],
-        "triangles_bvh": []
+        "bhv_offset": 28
       },
       {
         "aabb_min": {
@@ -149990,10 +149723,12 @@
         },
         "indices_count": 393,
         "child_meshlets": [
-          181,
-          182
+          52,
+          53,
+          56,
+          72
         ],
-        "triangles_bvh": []
+        "bhv_offset": 29
       },
       {
         "aabb_min": {
@@ -150009,9 +149744,12 @@
         },
         "indices_count": 126,
         "child_meshlets": [
-          183
+          52,
+          53,
+          56,
+          72
         ],
-        "triangles_bvh": []
+        "bhv_offset": 30
       },
       {
         "aabb_min": {
@@ -150027,10 +149765,11 @@
         },
         "indices_count": 477,
         "child_meshlets": [
-          181,
-          182
+          54,
+          70,
+          71
         ],
-        "triangles_bvh": []
+        "bhv_offset": 31
       },
       {
         "aabb_min": {
@@ -150046,10 +149785,12 @@
         },
         "indices_count": 438,
         "child_meshlets": [
-          181,
-          182
+          55,
+          57,
+          58,
+          60
         ],
-        "triangles_bvh": []
+        "bhv_offset": 32
       },
       {
         "aabb_min": {
@@ -150065,11 +149806,12 @@
         },
         "indices_count": 300,
         "child_meshlets": [
-          184,
-          185,
-          186
+          55,
+          57,
+          58,
+          60
         ],
-        "triangles_bvh": []
+        "bhv_offset": 33
       },
       {
         "aabb_min": {
@@ -150085,11 +149827,12 @@
         },
         "indices_count": 492,
         "child_meshlets": [
-          184,
-          185,
-          186
+          59,
+          61,
+          62,
+          63
         ],
-        "triangles_bvh": []
+        "bhv_offset": 34
       },
       {
         "aabb_min": {
@@ -150105,11 +149848,12 @@
         },
         "indices_count": 378,
         "child_meshlets": [
-          184,
-          185,
-          186
+          59,
+          61,
+          62,
+          63
         ],
-        "triangles_bvh": []
+        "bhv_offset": 35
       },
       {
         "aabb_min": {
@@ -150125,10 +149869,11 @@
         },
         "indices_count": 567,
         "child_meshlets": [
-          187,
-          188
+          64,
+          65,
+          66
         ],
-        "triangles_bvh": []
+        "bhv_offset": 36
       },
       {
         "aabb_min": {
@@ -150144,10 +149889,11 @@
         },
         "indices_count": 282,
         "child_meshlets": [
-          187,
-          188
+          64,
+          65,
+          66
         ],
-        "triangles_bvh": []
+        "bhv_offset": 37
       },
       {
         "aabb_min": {
@@ -150163,11 +149909,11 @@
         },
         "indices_count": 534,
         "child_meshlets": [
-          184,
-          185,
-          186
+          68,
+          69,
+          67
         ],
-        "triangles_bvh": []
+        "bhv_offset": 38
       },
       {
         "aabb_min": {
@@ -150183,10 +149929,11 @@
         },
         "indices_count": 447,
         "child_meshlets": [
-          187,
-          188
+          68,
+          69,
+          67
         ],
-        "triangles_bvh": []
+        "bhv_offset": 39
       },
       {
         "aabb_min": {
@@ -150202,10 +149949,11 @@
         },
         "indices_count": 9,
         "child_meshlets": [
-          187,
-          188
+          68,
+          69,
+          67
         ],
-        "triangles_bvh": []
+        "bhv_offset": 40
       },
       {
         "aabb_min": {
@@ -150221,10 +149969,12 @@
         },
         "indices_count": 486,
         "child_meshlets": [
-          189,
-          190
+          73,
+          74,
+          76,
+          75
         ],
-        "triangles_bvh": []
+        "bhv_offset": 41
       },
       {
         "aabb_min": {
@@ -150240,10 +149990,12 @@
         },
         "indices_count": 132,
         "child_meshlets": [
-          189,
-          190
+          73,
+          74,
+          76,
+          75
         ],
-        "triangles_bvh": []
+        "bhv_offset": 42
       },
       {
         "aabb_min": {
@@ -150259,10 +150011,12 @@
         },
         "indices_count": 450,
         "child_meshlets": [
-          193,
-          194
+          77,
+          78,
+          79,
+          80
         ],
-        "triangles_bvh": []
+        "bhv_offset": 43
       },
       {
         "aabb_min": {
@@ -150278,9 +150032,12 @@
         },
         "indices_count": 90,
         "child_meshlets": [
-          183
+          77,
+          78,
+          79,
+          80
         ],
-        "triangles_bvh": []
+        "bhv_offset": 44
       },
       {
         "aabb_min": {
@@ -150296,10 +150053,12 @@
         },
         "indices_count": 483,
         "child_meshlets": [
-          193,
-          194
+          81,
+          83,
+          84,
+          82
         ],
-        "triangles_bvh": []
+        "bhv_offset": 45
       },
       {
         "aabb_min": {
@@ -150315,10 +150074,12 @@
         },
         "indices_count": 21,
         "child_meshlets": [
-          193,
-          194
+          81,
+          83,
+          84,
+          82
         ],
-        "triangles_bvh": []
+        "bhv_offset": 46
       },
       {
         "aabb_min": {
@@ -150334,10 +150095,12 @@
         },
         "indices_count": 543,
         "child_meshlets": [
-          191,
-          192
+          85,
+          92,
+          91,
+          90
         ],
-        "triangles_bvh": []
+        "bhv_offset": 47
       },
       {
         "aabb_min": {
@@ -150353,11 +150116,12 @@
         },
         "indices_count": 531,
         "child_meshlets": [
-          195,
-          196,
-          197
+          85,
+          92,
+          91,
+          90
         ],
-        "triangles_bvh": []
+        "bhv_offset": 48
       },
       {
         "aabb_min": {
@@ -150373,11 +150137,12 @@
         },
         "indices_count": 147,
         "child_meshlets": [
-          195,
-          196,
-          197
+          85,
+          92,
+          91,
+          90
         ],
-        "triangles_bvh": []
+        "bhv_offset": 49
       },
       {
         "aabb_min": {
@@ -150393,10 +150158,12 @@
         },
         "indices_count": 582,
         "child_meshlets": [
-          191,
-          192
+          86,
+          87,
+          88,
+          89
         ],
-        "triangles_bvh": []
+        "bhv_offset": 50
       },
       {
         "aabb_min": {
@@ -150412,10 +150179,12 @@
         },
         "indices_count": 495,
         "child_meshlets": [
-          191,
-          192
+          86,
+          87,
+          88,
+          89
         ],
-        "triangles_bvh": []
+        "bhv_offset": 51
       },
       {
         "aabb_min": {
@@ -150431,11 +150200,12 @@
         },
         "indices_count": 549,
         "child_meshlets": [
-          195,
-          196,
-          197
+          93,
+          94,
+          95,
+          96
         ],
-        "triangles_bvh": []
+        "bhv_offset": 52
       },
       {
         "aabb_min": {
@@ -150451,11 +150221,12 @@
         },
         "indices_count": 414,
         "child_meshlets": [
-          195,
-          196,
-          197
+          97,
+          98,
+          99,
+          100
         ],
-        "triangles_bvh": []
+        "bhv_offset": 53
       },
       {
         "aabb_min": {
@@ -150471,9 +150242,12 @@
         },
         "indices_count": 132,
         "child_meshlets": [
-          198
+          97,
+          98,
+          99,
+          100
         ],
-        "triangles_bvh": []
+        "bhv_offset": 54
       },
       {
         "aabb_min": {
@@ -150489,9 +150263,12 @@
         },
         "indices_count": 540,
         "child_meshlets": [
-          199
+          101,
+          103,
+          102,
+          104
         ],
-        "triangles_bvh": []
+        "bhv_offset": 55
       },
       {
         "aabb_min": {
@@ -150507,9 +150284,12 @@
         },
         "indices_count": 441,
         "child_meshlets": [
-          199
+          105,
+          106,
+          107,
+          108
         ],
-        "triangles_bvh": []
+        "bhv_offset": 56
       }
     ],
     [
@@ -150527,10 +150307,12 @@
         },
         "indices_count": 405,
         "child_meshlets": [
-          200,
-          201
+          109,
+          111,
+          123,
+          125
         ],
-        "triangles_bvh": []
+        "bhv_offset": 0
       },
       {
         "aabb_min": {
@@ -150546,10 +150328,12 @@
         },
         "indices_count": 72,
         "child_meshlets": [
-          202,
-          203
+          109,
+          111,
+          123,
+          125
         ],
-        "triangles_bvh": []
+        "bhv_offset": 1
       },
       {
         "aabb_min": {
@@ -150565,10 +150349,12 @@
         },
         "indices_count": 444,
         "child_meshlets": [
-          200,
-          201
+          110,
+          122,
+          117,
+          114
         ],
-        "triangles_bvh": []
+        "bhv_offset": 2
       },
       {
         "aabb_min": {
@@ -150584,10 +150370,12 @@
         },
         "indices_count": 453,
         "child_meshlets": [
-          204,
-          205
+          110,
+          122,
+          117,
+          114
         ],
-        "triangles_bvh": []
+        "bhv_offset": 3
       },
       {
         "aabb_min": {
@@ -150603,10 +150391,12 @@
         },
         "indices_count": 573,
         "child_meshlets": [
-          204,
-          205
+          112,
+          113,
+          116,
+          115
         ],
-        "triangles_bvh": []
+        "bhv_offset": 4
       },
       {
         "aabb_min": {
@@ -150622,10 +150412,12 @@
         },
         "indices_count": 540,
         "child_meshlets": [
-          200,
-          201
+          112,
+          113,
+          116,
+          115
         ],
-        "triangles_bvh": []
+        "bhv_offset": 5
       },
       {
         "aabb_min": {
@@ -150641,10 +150433,12 @@
         },
         "indices_count": 585,
         "child_meshlets": [
-          204,
-          205
+          118,
+          120,
+          119,
+          121
         ],
-        "triangles_bvh": []
+        "bhv_offset": 6
       },
       {
         "aabb_min": {
@@ -150660,10 +150454,12 @@
         },
         "indices_count": 153,
         "child_meshlets": [
-          204,
-          205
+          118,
+          120,
+          119,
+          121
         ],
-        "triangles_bvh": []
+        "bhv_offset": 7
       },
       {
         "aabb_min": {
@@ -150679,10 +150475,10 @@
         },
         "indices_count": 378,
         "child_meshlets": [
-          200,
-          201
+          124,
+          126
         ],
-        "triangles_bvh": []
+        "bhv_offset": 8
       },
       {
         "aabb_min": {
@@ -150698,10 +150494,11 @@
         },
         "indices_count": 486,
         "child_meshlets": [
-          202,
-          203
+          129,
+          128,
+          127
         ],
-        "triangles_bvh": []
+        "bhv_offset": 9
       },
       {
         "aabb_min": {
@@ -150717,10 +150514,11 @@
         },
         "indices_count": 354,
         "child_meshlets": [
-          202,
-          203
+          129,
+          128,
+          127
         ],
-        "triangles_bvh": []
+        "bhv_offset": 10
       },
       {
         "aabb_min": {
@@ -150736,9 +150534,10 @@
         },
         "indices_count": 537,
         "child_meshlets": [
-          206
+          130,
+          132
         ],
-        "triangles_bvh": []
+        "bhv_offset": 11
       },
       {
         "aabb_min": {
@@ -150754,9 +150553,10 @@
         },
         "indices_count": 198,
         "child_meshlets": [
-          206
+          131,
+          133
         ],
-        "triangles_bvh": []
+        "bhv_offset": 12
       },
       {
         "aabb_min": {
@@ -150772,9 +150572,11 @@
         },
         "indices_count": 489,
         "child_meshlets": [
-          207
+          135,
+          136,
+          134
         ],
-        "triangles_bvh": []
+        "bhv_offset": 13
       },
       {
         "aabb_min": {
@@ -150790,9 +150592,11 @@
         },
         "indices_count": 54,
         "child_meshlets": [
-          207
+          135,
+          136,
+          134
         ],
-        "triangles_bvh": []
+        "bhv_offset": 14
       },
       {
         "aabb_min": {
@@ -150808,9 +150612,12 @@
         },
         "indices_count": 351,
         "child_meshlets": [
-          207
+          137,
+          138,
+          140,
+          141
         ],
-        "triangles_bvh": []
+        "bhv_offset": 15
       },
       {
         "aabb_min": {
@@ -150826,10 +150633,12 @@
         },
         "indices_count": 27,
         "child_meshlets": [
-          208,
-          209
+          137,
+          138,
+          140,
+          141
         ],
-        "triangles_bvh": []
+        "bhv_offset": 16
       },
       {
         "aabb_min": {
@@ -150845,10 +150654,10 @@
         },
         "indices_count": 210,
         "child_meshlets": [
-          210,
-          211
+          139,
+          153
         ],
-        "triangles_bvh": []
+        "bhv_offset": 17
       },
       {
         "aabb_min": {
@@ -150864,10 +150673,12 @@
         },
         "indices_count": 519,
         "child_meshlets": [
-          214,
-          215
+          142,
+          144,
+          147,
+          143
         ],
-        "triangles_bvh": []
+        "bhv_offset": 18
       },
       {
         "aabb_min": {
@@ -150883,10 +150694,12 @@
         },
         "indices_count": 516,
         "child_meshlets": [
-          212,
-          213
+          142,
+          144,
+          147,
+          143
         ],
-        "triangles_bvh": []
+        "bhv_offset": 19
       },
       {
         "aabb_min": {
@@ -150902,10 +150715,12 @@
         },
         "indices_count": 333,
         "child_meshlets": [
-          212,
-          213
+          142,
+          144,
+          147,
+          143
         ],
-        "triangles_bvh": []
+        "bhv_offset": 20
       },
       {
         "aabb_min": {
@@ -150921,10 +150736,12 @@
         },
         "indices_count": 477,
         "child_meshlets": [
-          208,
-          209
+          145,
+          148,
+          146,
+          149
         ],
-        "triangles_bvh": []
+        "bhv_offset": 21
       },
       {
         "aabb_min": {
@@ -150940,10 +150757,12 @@
         },
         "indices_count": 204,
         "child_meshlets": [
-          214,
-          215
+          145,
+          148,
+          146,
+          149
         ],
-        "triangles_bvh": []
+        "bhv_offset": 22
       },
       {
         "aabb_min": {
@@ -150959,9 +150778,10 @@
         },
         "indices_count": 483,
         "child_meshlets": [
-          216
+          151,
+          150
         ],
-        "triangles_bvh": []
+        "bhv_offset": 23
       },
       {
         "aabb_min": {
@@ -150977,9 +150797,10 @@
         },
         "indices_count": 81,
         "child_meshlets": [
-          216
+          151,
+          150
         ],
-        "triangles_bvh": []
+        "bhv_offset": 24
       },
       {
         "aabb_min": {
@@ -150995,10 +150816,11 @@
         },
         "indices_count": 540,
         "child_meshlets": [
-          217,
-          218
+          156,
+          159,
+          160
         ],
-        "triangles_bvh": []
+        "bhv_offset": 25
       },
       {
         "aabb_min": {
@@ -151014,10 +150836,11 @@
         },
         "indices_count": 468,
         "child_meshlets": [
-          217,
-          218
+          156,
+          159,
+          160
         ],
-        "triangles_bvh": []
+        "bhv_offset": 26
       },
       {
         "aabb_min": {
@@ -151033,10 +150856,11 @@
         },
         "indices_count": 408,
         "child_meshlets": [
-          210,
-          211
+          155,
+          154,
+          152
         ],
-        "triangles_bvh": []
+        "bhv_offset": 27
       },
       {
         "aabb_min": {
@@ -151052,9 +150876,11 @@
         },
         "indices_count": 138,
         "child_meshlets": [
-          216
+          155,
+          154,
+          152
         ],
-        "triangles_bvh": []
+        "bhv_offset": 28
       },
       {
         "aabb_min": {
@@ -151070,10 +150896,12 @@
         },
         "indices_count": 417,
         "child_meshlets": [
-          217,
-          218
+          157,
+          158,
+          161,
+          162
         ],
-        "triangles_bvh": []
+        "bhv_offset": 29
       },
       {
         "aabb_min": {
@@ -151089,10 +150917,12 @@
         },
         "indices_count": 510,
         "child_meshlets": [
-          219,
-          220
+          157,
+          158,
+          161,
+          162
         ],
-        "triangles_bvh": []
+        "bhv_offset": 30
       },
       {
         "aabb_min": {
@@ -151108,10 +150938,12 @@
         },
         "indices_count": 192,
         "child_meshlets": [
-          219,
-          220
+          157,
+          158,
+          161,
+          162
         ],
-        "triangles_bvh": []
+        "bhv_offset": 31
       },
       {
         "aabb_min": {
@@ -151127,10 +150959,9 @@
         },
         "indices_count": 132,
         "child_meshlets": [
-          219,
-          220
+          163
         ],
-        "triangles_bvh": []
+        "bhv_offset": 32
       },
       {
         "aabb_min": {
@@ -151146,10 +150977,10 @@
         },
         "indices_count": 441,
         "child_meshlets": [
-          217,
-          218
+          164,
+          165
         ],
-        "triangles_bvh": []
+        "bhv_offset": 33
       }
     ],
     [
@@ -151167,9 +150998,12 @@
         },
         "indices_count": 435,
         "child_meshlets": [
-          224
+          166,
+          168,
+          174,
+          171
         ],
-        "triangles_bvh": []
+        "bhv_offset": 0
       },
       {
         "aabb_min": {
@@ -151185,9 +151019,12 @@
         },
         "indices_count": 6,
         "child_meshlets": [
-          223
+          166,
+          168,
+          174,
+          171
         ],
-        "triangles_bvh": []
+        "bhv_offset": 1
       },
       {
         "aabb_min": {
@@ -151203,10 +151040,11 @@
         },
         "indices_count": 522,
         "child_meshlets": [
-          221,
-          222
+          167,
+          175,
+          176
         ],
-        "triangles_bvh": []
+        "bhv_offset": 2
       },
       {
         "aabb_min": {
@@ -151222,10 +151060,11 @@
         },
         "indices_count": 246,
         "child_meshlets": [
-          221,
-          222
+          167,
+          175,
+          176
         ],
-        "triangles_bvh": []
+        "bhv_offset": 3
       },
       {
         "aabb_min": {
@@ -151241,9 +151080,12 @@
         },
         "indices_count": 612,
         "child_meshlets": [
-          224
+          169,
+          170,
+          172,
+          173
         ],
-        "triangles_bvh": []
+        "bhv_offset": 4
       },
       {
         "aabb_min": {
@@ -151259,9 +151101,12 @@
         },
         "indices_count": 546,
         "child_meshlets": [
-          224
+          169,
+          170,
+          172,
+          173
         ],
-        "triangles_bvh": []
+        "bhv_offset": 5
       },
       {
         "aabb_min": {
@@ -151277,9 +151122,10 @@
         },
         "indices_count": 579,
         "child_meshlets": [
-          223
+          177,
+          178
         ],
-        "triangles_bvh": []
+        "bhv_offset": 6
       },
       {
         "aabb_min": {
@@ -151295,9 +151141,11 @@
         },
         "indices_count": 306,
         "child_meshlets": [
-          223
+          180,
+          181,
+          179
         ],
-        "triangles_bvh": []
+        "bhv_offset": 7
       },
       {
         "aabb_min": {
@@ -151313,11 +151161,10 @@
         },
         "indices_count": 447,
         "child_meshlets": [
-          225,
-          226,
-          227
+          182,
+          187
         ],
-        "triangles_bvh": []
+        "bhv_offset": 8
       },
       {
         "aabb_min": {
@@ -151333,10 +151180,10 @@
         },
         "indices_count": 57,
         "child_meshlets": [
-          228,
-          229
+          182,
+          187
         ],
-        "triangles_bvh": []
+        "bhv_offset": 9
       },
       {
         "aabb_min": {
@@ -151352,9 +151199,10 @@
         },
         "indices_count": 405,
         "child_meshlets": [
-          230
+          183,
+          193
         ],
-        "triangles_bvh": []
+        "bhv_offset": 10
       },
       {
         "aabb_min": {
@@ -151370,9 +151218,10 @@
         },
         "indices_count": 99,
         "child_meshlets": [
-          230
+          183,
+          193
         ],
-        "triangles_bvh": []
+        "bhv_offset": 11
       },
       {
         "aabb_min": {
@@ -151388,11 +151237,10 @@
         },
         "indices_count": 516,
         "child_meshlets": [
-          225,
-          226,
-          227
+          186,
+          185
         ],
-        "triangles_bvh": []
+        "bhv_offset": 12
       },
       {
         "aabb_min": {
@@ -151408,11 +151256,10 @@
         },
         "indices_count": 297,
         "child_meshlets": [
-          225,
-          226,
-          227
+          186,
+          185
         ],
-        "triangles_bvh": []
+        "bhv_offset": 13
       },
       {
         "aabb_min": {
@@ -151428,10 +151275,10 @@
         },
         "indices_count": 510,
         "child_meshlets": [
-          228,
-          229
+          188,
+          184
         ],
-        "triangles_bvh": []
+        "bhv_offset": 14
       },
       {
         "aabb_min": {
@@ -151447,10 +151294,10 @@
         },
         "indices_count": 123,
         "child_meshlets": [
-          228,
-          229
+          188,
+          184
         ],
-        "triangles_bvh": []
+        "bhv_offset": 15
       },
       {
         "aabb_min": {
@@ -151466,9 +151313,11 @@
         },
         "indices_count": 288,
         "child_meshlets": [
-          230
+          190,
+          194,
+          189
         ],
-        "triangles_bvh": []
+        "bhv_offset": 16
       },
       {
         "aabb_min": {
@@ -151484,9 +151333,12 @@
         },
         "indices_count": 489,
         "child_meshlets": [
-          230
+          191,
+          195,
+          199,
+          192
         ],
-        "triangles_bvh": []
+        "bhv_offset": 17
       },
       {
         "aabb_min": {
@@ -151502,9 +151354,12 @@
         },
         "indices_count": 255,
         "child_meshlets": [
-          231
+          191,
+          195,
+          199,
+          192
         ],
-        "triangles_bvh": []
+        "bhv_offset": 18
       },
       {
         "aabb_min": {
@@ -151520,9 +151375,11 @@
         },
         "indices_count": 573,
         "child_meshlets": [
-          231
+          196,
+          198,
+          197
         ],
-        "triangles_bvh": []
+        "bhv_offset": 19
       },
       {
         "aabb_min": {
@@ -151538,9 +151395,11 @@
         },
         "indices_count": 159,
         "child_meshlets": [
-          231
+          196,
+          198,
+          197
         ],
-        "triangles_bvh": []
+        "bhv_offset": 20
       }
     ],
     [
@@ -151558,10 +151417,10 @@
         },
         "indices_count": 525,
         "child_meshlets": [
-          232,
-          233
+          202,
+          203
         ],
-        "triangles_bvh": []
+        "bhv_offset": 0
       },
       {
         "aabb_min": {
@@ -151577,10 +151436,10 @@
         },
         "indices_count": 231,
         "child_meshlets": [
-          232,
-          233
+          202,
+          203
         ],
-        "triangles_bvh": []
+        "bhv_offset": 1
       },
       {
         "aabb_min": {
@@ -151596,10 +151455,11 @@
         },
         "indices_count": 225,
         "child_meshlets": [
-          232,
-          233
+          201,
+          206,
+          207
         ],
-        "triangles_bvh": []
+        "bhv_offset": 2
       },
       {
         "aabb_min": {
@@ -151615,10 +151475,11 @@
         },
         "indices_count": 387,
         "child_meshlets": [
-          232,
-          233
+          205,
+          204,
+          200
         ],
-        "triangles_bvh": []
+        "bhv_offset": 3
       },
       {
         "aabb_min": {
@@ -151634,11 +151495,11 @@
         },
         "indices_count": 576,
         "child_meshlets": [
-          234,
-          235,
-          236
+          208,
+          212,
+          213
         ],
-        "triangles_bvh": []
+        "bhv_offset": 4
       },
       {
         "aabb_min": {
@@ -151654,11 +151515,11 @@
         },
         "indices_count": 531,
         "child_meshlets": [
-          234,
-          235,
-          236
+          208,
+          212,
+          213
         ],
-        "triangles_bvh": []
+        "bhv_offset": 5
       },
       {
         "aabb_min": {
@@ -151674,9 +151535,11 @@
         },
         "indices_count": 39,
         "child_meshlets": [
-          237
+          208,
+          212,
+          213
         ],
-        "triangles_bvh": []
+        "bhv_offset": 6
       },
       {
         "aabb_min": {
@@ -151692,11 +151555,11 @@
         },
         "indices_count": 516,
         "child_meshlets": [
-          234,
-          235,
-          236
+          209,
+          215,
+          214
         ],
-        "triangles_bvh": []
+        "bhv_offset": 7
       },
       {
         "aabb_min": {
@@ -151712,11 +151575,11 @@
         },
         "indices_count": 102,
         "child_meshlets": [
-          234,
-          235,
-          236
+          209,
+          215,
+          214
         ],
-        "triangles_bvh": []
+        "bhv_offset": 8
       },
       {
         "aabb_min": {
@@ -151732,9 +151595,12 @@
         },
         "indices_count": 309,
         "child_meshlets": [
-          238
+          210,
+          217,
+          216,
+          211
         ],
-        "triangles_bvh": []
+        "bhv_offset": 9
       },
       {
         "aabb_min": {
@@ -151750,9 +151616,11 @@
         },
         "indices_count": 453,
         "child_meshlets": [
-          238
+          218,
+          219,
+          220
         ],
-        "triangles_bvh": []
+        "bhv_offset": 10
       }
     ],
     [
@@ -151770,10 +151638,12 @@
         },
         "indices_count": 360,
         "child_meshlets": [
-          239,
-          240
+          221,
+          224,
+          222,
+          223
         ],
-        "triangles_bvh": []
+        "bhv_offset": 0
       },
       {
         "aabb_min": {
@@ -151789,9 +151659,12 @@
         },
         "indices_count": 78,
         "child_meshlets": [
-          241
+          221,
+          224,
+          222,
+          223
         ],
-        "triangles_bvh": []
+        "bhv_offset": 1
       },
       {
         "aabb_min": {
@@ -151807,10 +151680,12 @@
         },
         "indices_count": 543,
         "child_meshlets": [
-          239,
-          240
+          225,
+          228,
+          226,
+          229
         ],
-        "triangles_bvh": []
+        "bhv_offset": 2
       },
       {
         "aabb_min": {
@@ -151826,10 +151701,12 @@
         },
         "indices_count": 591,
         "child_meshlets": [
-          239,
-          240
+          225,
+          228,
+          226,
+          229
         ],
-        "triangles_bvh": []
+        "bhv_offset": 3
       },
       {
         "aabb_min": {
@@ -151845,9 +151722,12 @@
         },
         "indices_count": 453,
         "child_meshlets": [
-          241
+          225,
+          228,
+          226,
+          229
         ],
-        "triangles_bvh": []
+        "bhv_offset": 4
       },
       {
         "aabb_min": {
@@ -151863,9 +151743,9 @@
         },
         "indices_count": 39,
         "child_meshlets": [
-          241
+          227
         ],
-        "triangles_bvh": []
+        "bhv_offset": 5
       },
       {
         "aabb_min": {
@@ -151881,10 +151761,10 @@
         },
         "indices_count": 252,
         "child_meshlets": [
-          239,
-          240
+          230,
+          231
         ],
-        "triangles_bvh": []
+        "bhv_offset": 6
       }
     ],
     [
@@ -151902,9 +151782,12 @@
         },
         "indices_count": 357,
         "child_meshlets": [
-          242
+          232,
+          234,
+          235,
+          238
         ],
-        "triangles_bvh": []
+        "bhv_offset": 0
       },
       {
         "aabb_min": {
@@ -151920,9 +151803,12 @@
         },
         "indices_count": 111,
         "child_meshlets": [
-          243
+          232,
+          234,
+          235,
+          238
         ],
-        "triangles_bvh": []
+        "bhv_offset": 1
       },
       {
         "aabb_min": {
@@ -151938,9 +151824,11 @@
         },
         "indices_count": 522,
         "child_meshlets": [
-          242
+          233,
+          236,
+          237
         ],
-        "triangles_bvh": []
+        "bhv_offset": 2
       }
     ],
     [
@@ -151957,8 +151845,11 @@
           "z": 170.4756
         },
         "indices_count": 327,
-        "child_meshlets": [],
-        "triangles_bvh": []
+        "child_meshlets": [
+          239,
+          241
+        ],
+        "bhv_offset": 0
       },
       {
         "aabb_min": {
@@ -151973,8 +151864,10 @@
           "z": 170.4758
         },
         "indices_count": 105,
-        "child_meshlets": [],
-        "triangles_bvh": []
+        "child_meshlets": [
+          240
+        ],
+        "bhv_offset": 1
       }
     ]
   ],
