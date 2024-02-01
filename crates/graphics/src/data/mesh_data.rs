@@ -18,7 +18,7 @@ pub struct MeshletData {
     pub aabb_max: Vector3,
     pub indices_count: u32,
     pub child_meshlets: Vec<u32>,
-    pub triangles_bvh: Vec<GPUBVHNode>,
+    pub bhv_offset: u32,
 }
 
 impl Default for MeshletData {
@@ -29,7 +29,7 @@ impl Default for MeshletData {
             indices_offset: 0,
             indices_count: 0,
             child_meshlets: Vec::default(),
-            triangles_bvh: Vec::default(),
+            bhv_offset: 0,
         }
     }
 }
@@ -220,29 +220,6 @@ impl MeshData {
             .indices
             .iter()
             .for_each(|i| self.indices.push(*i + vertex_offset));
-
-        let meshlet = self.meshlets[lod_level].last().unwrap();
-        let mut triangles_aabbs = Vec::new();
-        triangles_aabbs.resize_with(
-            (1 + meshlet.indices_count - meshlet.indices_offset) as usize / 3,
-            AABB::empty,
-        );
-        let mut i = meshlet.indices_offset;
-        while i < meshlet.indices_count {
-            let triangle_id = (i / 3) as usize;
-            let v1 = self.position(self.indices[i as usize] as _);
-            i += 1;
-            let v2 = self.position(self.indices[i as usize] as _);
-            i += 1;
-            let v3 = self.position(self.indices[i as usize] as _);
-            i += 1;
-            let min = v1.min(v2).min(v3);
-            let max = v1.max(v2).max(v3);
-            triangles_aabbs[triangle_id] = AABB::create(min, max, triangle_id as _);
-        }
-        let bvh = BVHTree::new(&triangles_aabbs);
-        let meshlet = self.meshlets[lod_level].last_mut().unwrap();
-        meshlet.triangles_bvh = create_linearized_bvh(&bvh);
 
         let mut meshlets_aabbs = Vec::new();
         meshlets_aabbs.resize_with(self.meshlets.len(), AABB::empty);

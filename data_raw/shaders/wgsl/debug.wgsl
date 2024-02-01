@@ -68,7 +68,7 @@ fn draw_triangle_from_visibility(visibility_id: u32, pixel: vec2<u32>, dimension
     let meshlet = &meshlets.data[meshlet_id];
     let index_offset = (*meshlet).indices_offset + (primitive_id * 3u);
 
-    let mesh_id = u32((*meshlet).mesh_index);
+    let mesh_id = (*meshlet).mesh_index_and_lod_level >> 3u;
     let mesh = &meshes.data[mesh_id];
     let position_offset = (*mesh).vertices_position_offset;
     

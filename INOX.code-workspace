@@ -6,12 +6,15 @@
 	],
 	"extensions": {
 		"recommendations": [
-			"bungcip.better-toml",
+			"rust-lang.rust-analyzer",
+			"tamasfe.even-better-toml",
 			"ms-vscode.cpptools",
 			"vadimcn.vscode-lldb",
 			"ms-python.python",
-			"rust-lang.rust-analyzer",
-			"PolyMeilex.wgsl"
+			"ms-python.vscode-pylance",
+			"slevesque.shader",
+			"PolyMeilex.wgsl",
+			"GitHub.vscode-pull-request-github",
 		]
 	},
 	"settings": {

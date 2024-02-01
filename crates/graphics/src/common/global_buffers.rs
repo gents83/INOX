@@ -9,13 +9,13 @@ use std::{
 use inox_bvh::{create_linearized_bvh, BVHTree, GPUBVHNode, AABB};
 use inox_math::{quantize_half, Mat4Ops, Matrix4, VecBase, Vector2};
 use inox_resources::{to_slice, Buffer, HashBuffer, ResourceId};
-use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
+use inox_uid::{generate_static_uid_from_string, Uid};
 
 use crate::{
     AsBinding, ConstantDataRw, DispatchCommandSize, GPUMaterial, GPUMesh, GPUMeshlet,
     GPURuntimeVertexData, Light, LightData, LightId, Material, MaterialData, MaterialFlags,
     MaterialId, Mesh, MeshData, MeshFlags, MeshId, RenderCommandsPerType, TextureId, TextureInfo,
-    TextureType, VecF32, VecU32, MESHLETS_GROUP_SIZE,
+    TextureType, VecF32, VecU32, MAX_LOD_LEVELS, MESHLETS_GROUP_SIZE,
 };
 
 pub const TLAS_UID: ResourceId = generate_static_uid_from_string("TLAS");
@@ -65,7 +65,6 @@ pub struct GlobalBuffers {
     pub vertex_positions: VertexPositionsBuffer,
     pub vertex_attributes: VertexAttributesBuffer,
     pub runtime_vertices: RuntimeVerticesBuffer,
-    pub culling_result: ArrayU32,
     pub tlas_start_index: AtomicCounter,
     pub data_buffers: DataBuffers,
 }
@@ -82,48 +81,32 @@ impl GlobalBuffers {
 
         let mut meshlets = Vec::new();
         let mut lod_meshlets_count = Vec::new();
-        mesh_data.meshlets.iter().for_each(|meshlets_data| {
-            lod_meshlets_count.push(meshlets_data.len());
-            meshlets_data.iter().for_each(|meshlet_data| {
-                let triangle_id = generate_random_uid();
-                self.triangles_ids
-                    .write()
-                    .unwrap()
-                    .entry(*mesh_id)
-                    .or_default()
-                    .push(triangle_id);
-                let triangle_bhv_range = self
-                    .bvh
-                    .write()
-                    .unwrap()
-                    .allocate(&triangle_id, &meshlet_data.triangles_bvh)
-                    .1;
-                let triangles_bhv_index = triangle_bhv_range.start as _;
-                self.bvh.write().unwrap().data_mut()[triangle_bhv_range]
-                    .iter_mut()
-                    .for_each(|n| {
-                        if n.miss >= 0 {
-                            n.miss += triangles_bhv_index as i32;
-                        }
-                    });
-                let mut child_meshlets = [-1; MESHLETS_GROUP_SIZE];
-                meshlet_data
-                    .child_meshlets
-                    .iter()
-                    .enumerate()
-                    .for_each(|(index, &mi)| {
-                        child_meshlets[index] = mi as i32;
-                    });
-                let meshlet = GPUMeshlet {
-                    mesh_index,
-                    indices_offset: (indices_offset + meshlet_data.indices_offset) as _,
-                    indices_count: meshlet_data.indices_count,
-                    triangles_bhv_index,
-                    child_meshlets,
-                };
-                meshlets.push(meshlet);
+        mesh_data
+            .meshlets
+            .iter()
+            .enumerate()
+            .for_each(|(lod_level, meshlets_data)| {
+                lod_meshlets_count.push(meshlets_data.len());
+                meshlets_data.iter().for_each(|meshlet_data| {
+                    let mut child_meshlets = [-1; MESHLETS_GROUP_SIZE];
+                    meshlet_data
+                        .child_meshlets
+                        .iter()
+                        .enumerate()
+                        .for_each(|(index, &mi)| {
+                            child_meshlets[index] = mi as i32;
+                        });
+                    let meshlet = GPUMeshlet {
+                        mesh_index_and_lod_level: (mesh_index << 3)
+                            | ((MAX_LOD_LEVELS - 1 - lod_level) as u32),
+                        indices_offset: (indices_offset + meshlet_data.indices_offset) as _,
+                        indices_count: meshlet_data.indices_count,
+                        bvh_offset: meshlet_data.bhv_offset,
+                        child_meshlets,
+                    };
+                    meshlets.push(meshlet);
+                });
             });
-        });
         let mut lod_meshlets_starting_offset = Vec::with_capacity(lod_meshlets_count.len());
         let mut lod_meshlets_ending_offset = Vec::with_capacity(lod_meshlets_count.len());
         let mut total_offset = 0;
@@ -164,12 +147,15 @@ impl GlobalBuffers {
                 if i == lod_meshlets_ending_offset[lod_index] {
                     lod_index += 1;
                 }
+                m.bvh_offset += blas_index as u32;
                 m.child_meshlets.iter_mut().for_each(|v| {
                     if *v >= 0 {
-                        *v += meshlet_start_index + lod_meshlets_starting_offset[lod_index] as i32;
+                        *v += meshlet_start_index;
                     }
                 });
             });
+        lod_meshlets_starting_offset.reverse();
+        lod_meshlets_ending_offset.reverse();
         (
             blas_index,
             meshlet_start_index as _,
@@ -269,15 +255,6 @@ impl GlobalBuffers {
                 });
         }
         self.recreate_tlas();
-        self.update_culling_data();
-    }
-    fn update_culling_data(&self) {
-        let num_meshlets = self.meshlets.read().unwrap().item_count();
-        let count = ((num_meshlets as u32 + ATOMIC_SIZE - 1) / ATOMIC_SIZE) as usize;
-        self.culling_result
-            .write()
-            .unwrap()
-            .set(vec![u32::MAX; count]);
     }
     fn recreate_tlas(&self) {
         inox_profiler::scoped_profile!("render_buffers::recreate_tlas");
@@ -406,7 +383,6 @@ impl GlobalBuffers {
         if recreate_tlas {
             self.recreate_tlas();
         }
-        self.update_culling_data();
     }
     pub fn add_material(&self, material_id: &MaterialId, material: &mut Material) {
         inox_profiler::scoped_profile!("render_buffers::add_material");

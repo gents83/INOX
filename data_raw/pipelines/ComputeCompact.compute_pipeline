@@ -1,3 +1,0 @@
-{
-    "shader": "shaders/wgsl/compute_compact.shader"
-}

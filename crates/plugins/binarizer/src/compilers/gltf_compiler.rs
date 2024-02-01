@@ -369,14 +369,14 @@ impl GltfCompiler {
             optimize_mesh(&geometry.vertices, &geometry.indices);
 
         let mut mesh_indices_offset = 0;
-        let mut meshlets_offset = 0;
+        let mut previous_meshlets_starting_offset = 0;
         let mut meshlets_per_lod = Vec::new();
         let (meshlets, mut mesh_indices) = compute_meshlets(&mesh_vertices, &geometry_indices);
-        meshlets_offset += meshlets.len();
+
+        let mut is_meshlet_tree_created = meshlets.len() <= 1;
         meshlets_per_lod.push(meshlets);
         mesh_indices_offset += mesh_indices.len();
 
-        let mut is_meshlet_tree_created = meshlets_offset <= 1;
         let mut level = 0;
         while !is_meshlet_tree_created {
             let previous_lod_meshlets = meshlets_per_lod.last_mut().unwrap();
@@ -384,18 +384,19 @@ impl GltfCompiler {
                 build_meshlets_adjacency(previous_lod_meshlets, &mesh_vertices, &mesh_indices);
             let groups = group_meshlets(&meshlets_adjacency);
             level += 1;
+
             let (mut cluster_indices, cluster_meshlets) = compute_clusters(
                 &groups,
                 previous_lod_meshlets,
+                previous_meshlets_starting_offset,
                 mesh_indices_offset,
-                meshlets_offset,
                 &mesh_vertices,
                 &mesh_indices,
             );
 
             mesh_indices_offset += cluster_indices.len();
             mesh_indices.append(&mut cluster_indices);
-            meshlets_offset += cluster_meshlets.len();
+            previous_meshlets_starting_offset += meshlets_per_lod[level - 1].len();
             meshlets_per_lod.push(cluster_meshlets);
 
             is_meshlet_tree_created = groups.len() == 1 || level >= (MAX_LOD_LEVELS - 1);
@@ -408,15 +409,16 @@ impl GltfCompiler {
 
         mesh_data
             .meshlets
-            .iter()
+            .iter_mut()
             .enumerate()
             .for_each(|(_lod_level, meshlets)| {
                 //println!("LOD {} has {} meshlets", _lod_level, meshlets.len());
 
                 let mut meshlets_aabbs = Vec::new();
                 meshlets_aabbs.resize_with(meshlets.len(), AABB::empty);
-                meshlets.iter().enumerate().for_each(|(i, m)| {
+                meshlets.iter_mut().enumerate().for_each(|(i, m)| {
                     meshlets_aabbs[i] = AABB::create(m.aabb_min, m.aabb_max, i as _);
+                    m.bhv_offset = i as _;
                 });
                 let bvh = BVHTree::new(&meshlets_aabbs);
                 mesh_data.meshlets_bvh.push(create_linearized_bvh(&bvh));

@@ -25,7 +25,7 @@ fn pixel_to_world(image_pixel: vec2<u32>, image_size: vec2<u32>, depth: f32) -> 
 
 fn clip_to_world(clip_coords: vec2<f32>, depth: f32) -> vec3<f32> {    
     var world_pos = constant_data.inverse_view_proj * vec4<f32>(clip_coords, depth, 1.);
-    world_pos /= world_pos.w;
+    world_pos /= -world_pos.w;
     return world_pos.xyz;
 }
 
@@ -35,9 +35,7 @@ fn world_to_clip(world_pos: vec3<f32>) -> vec3<f32> {
 }
 
 fn view_pos() -> vec3<f32> {    
-    var world_pos = constant_data.inverse_view_proj * vec4<f32>(0.,0.,0., 1.);
-    world_pos /= world_pos.w;
-    return world_pos.xyz;
+    return clip_to_world(vec2<f32>(0.), 0.);
 }
 
 fn compute_barycentrics_3d(p1: vec3<f32>, p2: vec3<f32>, p3: vec3<f32>, p: vec3<f32>) -> vec3<f32> {

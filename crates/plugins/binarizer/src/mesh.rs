@@ -195,8 +195,8 @@ where
 pub fn compute_clusters(
     groups: &[Vec<u32>],
     parent_meshlets: &mut [MeshletData],
+    parent_meshlets_offset: usize,
     mesh_indices_offset: usize,
-    meshlets_offset: usize,
     vertices: &[MeshVertex],
     indices: &[u32],
 ) -> (Vec<u32>, Vec<MeshletData>) {
@@ -270,17 +270,13 @@ pub fn compute_clusters(
         });
         meshlets.iter_mut().for_each(|m| {
             m.indices_offset += indices_offset as u32;
+            meshlets_indices.iter().for_each(|&meshlet_index| {
+                m.child_meshlets
+                    .push(parent_meshlets_offset as u32 + meshlet_index);
+            });
         });
         indices_offset += global_group_indices.len();
 
-        meshlets_indices.iter().for_each(|&meshlet_index| {
-            let meshlet = &mut parent_meshlets[meshlet_index as usize];
-            for i in 0..meshlets.len() {
-                meshlet
-                    .child_meshlets
-                    .push((meshlets_offset + cluster_meshlets.len() + i) as u32);
-            }
-        });
         cluster_indices.append(&mut global_group_indices);
         cluster_meshlets.append(&mut meshlets);
     });

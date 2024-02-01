@@ -159,10 +159,10 @@ struct Mesh {
 };
 
 struct Meshlet {
-    @location(5) mesh_index: u32,
+    @location(5) mesh_index_and_lod_level: u32, // 29 mesh + 3 lod bits
     @location(6) indices_offset: u32,
     @location(7) indices_count: u32,
-    @location(8) triangles_bhv_index: u32,
+    @location(8) bvh_offset: u32,
     @location(9) child_meshlets: vec4<i32>,
 };
 

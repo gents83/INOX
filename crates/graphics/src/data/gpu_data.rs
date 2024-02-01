@@ -94,10 +94,10 @@ impl GPUMesh {
 #[repr(C, align(16))]
 #[derive(Default, PartialEq, Clone, Copy, Debug)]
 pub struct GPUMeshlet {
-    pub mesh_index: u32,
+    pub mesh_index_and_lod_level: u32, // 29 mesh + 3 lod bits
     pub indices_offset: u32,
     pub indices_count: u32,
-    pub triangles_bhv_index: u32,
+    pub bvh_offset: u32,
     pub child_meshlets: [i32; MESHLETS_GROUP_SIZE],
 }
 
