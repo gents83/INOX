@@ -170,25 +170,27 @@ impl Pass for CullingPass {
         const INITIAL_OFFSET: u32 = 2;
         let mut max_meshlets_size = INITIAL_OFFSET + num_meshlets as u32 + ATOMIC_SIZE;
         max_meshlets_size += ATOMIC_SIZE - (max_meshlets_size % ATOMIC_SIZE);
-        if self.update_meshes {
-            let mut meshlet_data = vec![0; max_meshlets_size as usize];
-            let mut lod0_meshlets_count = INITIAL_OFFSET;
-            self.meshes.read().unwrap().for_each_entry(|_, mesh| {
-                let meshlets_start = mesh.meshlets_offset + (mesh.lods_meshlets_offset[0] >> 16);
-                let meshlets_end =
-                    mesh.meshlets_offset + (mesh.lods_meshlets_offset[0] & 0x0000FFFF);
-                for i in meshlets_start..meshlets_end {
-                    meshlet_data[lod0_meshlets_count as usize] = i;
-                    lod0_meshlets_count += 1;
-                }
-            });
-            lod0_meshlets_count -= INITIAL_OFFSET;
-            meshlet_data[0] = lod0_meshlets_count as _;
-            self.culling_data.lod0_meshlets_count = lod0_meshlets_count as _;
-            self.culling_data.set_dirty(true);
+        //if self.update_meshes {
+        let mut meshlet_data = vec![0; max_meshlets_size as usize];
+        let mut processing_data = vec![0; max_meshlets_size as usize];
+        let mut lod0_meshlets_count = INITIAL_OFFSET;
+        self.meshes.read().unwrap().for_each_entry(|_, mesh| {
+            let meshlets_start = mesh.meshlets_offset + (mesh.lods_meshlets_offset[0] >> 16);
+            let meshlets_end = mesh.meshlets_offset + (mesh.lods_meshlets_offset[0] & 0x0000FFFF);
+            for i in meshlets_start..meshlets_end {
+                meshlet_data[lod0_meshlets_count as usize] = i;
+                processing_data[i as usize] = 1;
+                lod0_meshlets_count += 1;
+            }
+        });
+        lod0_meshlets_count -= INITIAL_OFFSET;
+        meshlet_data[0] = lod0_meshlets_count as _;
+        self.culling_data.lod0_meshlets_count = lod0_meshlets_count as _;
+        self.culling_data.set_dirty(true);
 
-            self.meshlet_culling_data.write().unwrap().set(meshlet_data);
-        }
+        self.meshlet_culling_data.write().unwrap().set(meshlet_data);
+        self.processing_data.write().unwrap().set(processing_data);
+        //}
 
         let draw_command_type = self.draw_commands_type();
 
@@ -199,11 +201,6 @@ impl Pass for CullingPass {
             }
             commands.counter.count = 0;
             commands.counter.set_dirty(true);
-
-            self.processing_data
-                .write()
-                .unwrap()
-                .set(vec![0; max_meshlets_size as usize]);
 
             self.binding_data
                 .add_uniform_buffer(

@@ -67,10 +67,11 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>, 
     @builtin(workgroup_id) workgroup_id: vec3<u32>
 ) {
-    while(true) {
+    loop {
         let meshlets_to_process = atomicLoad(&meshlet_culling_data[LAST_MESHLET_TO_CHECK_INDEX]);
         let meshlet_index = atomicAdd(&meshlet_culling_data[MESHLET_CURRENT_INDEX], 1u);
         if (meshlet_index >= meshlets_to_process) {
+            atomicSub(&meshlet_culling_data[MESHLET_CURRENT_INDEX], 1u);
             break;
         }
         let meshlet_id = atomicLoad(&meshlet_culling_data[MESHLET_OFFSET + meshlet_index]);
