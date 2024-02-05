@@ -171,7 +171,7 @@ impl Pass for CullingPass {
         max_meshlets_size += ATOMIC_SIZE - (max_meshlets_size % ATOMIC_SIZE);
         if self.update_meshes {
             let mut meshlet_data = vec![0; max_meshlets_size as usize];
-            let mut processing_data = vec![0; max_meshlets_size as usize];
+            let processing_data = vec![0; max_meshlets_size as usize];
             let mut lod0_meshlets_count = 0;
             self.meshes.read().unwrap().for_each_entry(|_, mesh| {
                 let meshlets_start = mesh.meshlets_offset + (mesh.lods_meshlets_offset[0] >> 16);
@@ -179,7 +179,6 @@ impl Pass for CullingPass {
                     mesh.meshlets_offset + (mesh.lods_meshlets_offset[0] & 0x0000FFFF);
                 for i in meshlets_start..meshlets_end {
                     meshlet_data[lod0_meshlets_count as usize] = i;
-                    processing_data[i as usize] = 1;
                     lod0_meshlets_count += 1;
                 }
             });
