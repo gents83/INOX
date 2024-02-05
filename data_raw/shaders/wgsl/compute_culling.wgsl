@@ -32,10 +32,6 @@ var<storage, read_write> processing_data: array<atomic<u32>>;
 #import "matrix_utils.inc"
 #import "geom_utils.inc"
 
-const LAST_MESHLET_TO_CHECK_INDEX: u32 = 0u;
-const MESHLET_CURRENT_INDEX: u32 = 1u;
-const MESHLET_OFFSET: u32 = 2u;
-
 //ScreenSpace Frustum Culling
 fn is_box_inside_frustum(min: vec3<f32>, max: vec3<f32>, frustum: array<vec4<f32>, 4>) -> bool {
     var visible: bool = false;    
@@ -58,24 +54,26 @@ fn is_box_inside_frustum(min: vec3<f32>, max: vec3<f32>, frustum: array<vec4<f32
     return visible;
 }
 
+var<workgroup> global_current_index: atomic<u32>;
+var<workgroup> global_total_number: atomic<u32>;
 
 @compute
-@workgroup_size(1, 1, 1)
+@workgroup_size(32, 1, 1)
 fn main(
     @builtin(local_invocation_id) local_invocation_id: vec3<u32>, 
     @builtin(local_invocation_index) local_invocation_index: u32, 
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>, 
     @builtin(workgroup_id) workgroup_id: vec3<u32>
 ) {
+    let total = arrayLength(&meshlets.data);
+    atomicStore(&global_total_number, culling_data.lod0_meshlets_count);
+
+    var meshlet_index = local_invocation_id.x;
     loop {
-        let meshlets_to_process = atomicLoad(&meshlet_culling_data[LAST_MESHLET_TO_CHECK_INDEX]);
-        let meshlet_index = atomicAdd(&meshlet_culling_data[MESHLET_CURRENT_INDEX], 1u);
-        if (meshlet_index >= meshlets_to_process) {
-            atomicSub(&meshlet_culling_data[MESHLET_CURRENT_INDEX], 1u);
+        if (meshlet_index >= atomicLoad(&global_total_number)) {
             break;
         }
-        let meshlet_id = atomicLoad(&meshlet_culling_data[MESHLET_OFFSET + meshlet_index]);
-        let total = arrayLength(&meshlets.data);
+        let meshlet_id = atomicLoad(&meshlet_culling_data[meshlet_index]);
         if (meshlet_id >= total) {
             break;
         }
@@ -85,6 +83,7 @@ fn main(
         let mesh = meshes.data[mesh_id];
         let flags = (mesh.flags_and_vertices_attribute_layout & 0xFFFF0000u) >> 16u;
         if (flags != culling_data.mesh_flags) {
+            meshlet_index++;
             continue;
         }
 
@@ -107,6 +106,7 @@ fn main(
         frustum[3] = normalize_plane(row3 - row1);
 
         if !is_box_inside_frustum(min, max, frustum) {
+            meshlet_index++;
             continue;
         }
 
@@ -120,47 +120,45 @@ fn main(
             lod_level = MAX_LOD_LEVELS - 1 - u32(constant_data.forced_lod_level);
         }
         let meshlet_lod_level = meshlet.mesh_index_and_lod_level & 7u;
-        if(meshlet_lod_level > lod_level) {
-            continue;
+        if(meshlet_lod_level == lod_level) {
+            let command_index = atomicAdd(&commands_count, 1u);
+            let command = &commands.data[command_index];
+            (*command).vertex_count = meshlet.indices_count;
+            (*command).instance_count = 1u;
+            (*command).base_index = meshlet.indices_offset;
+            (*command).vertex_offset = i32(mesh.vertices_position_offset);
+            (*command).base_instance = meshlet_id;
         }
         else if(meshlet_lod_level < lod_level) {
             if(meshlet.child_meshlets.x >= 0) {
                 let result = atomicCompareExchangeWeak(&processing_data[meshlet.child_meshlets.x], 0u, 1u);
                 if(result.exchanged) {
-                    let index = MESHLET_OFFSET + atomicAdd(&meshlet_culling_data[LAST_MESHLET_TO_CHECK_INDEX], 1u);
+                    let index = atomicAdd(&global_total_number, 1u);
                     atomicStore(&meshlet_culling_data[index], u32(meshlet.child_meshlets.x));
                 }
             }
             if(meshlet.child_meshlets.y >= 0) {
                 let result = atomicCompareExchangeWeak(&processing_data[meshlet.child_meshlets.y], 0u, 1u);
                 if(result.exchanged) {
-                    let index = MESHLET_OFFSET + atomicAdd(&meshlet_culling_data[LAST_MESHLET_TO_CHECK_INDEX], 1u);
+                    let index = atomicAdd(&global_total_number, 1u);
                     atomicStore(&meshlet_culling_data[index], u32(meshlet.child_meshlets.y));
                 }
             }
             if(meshlet.child_meshlets.z >= 0) {
                 let result = atomicCompareExchangeWeak(&processing_data[meshlet.child_meshlets.z], 0u, 1u);
                 if(result.exchanged) {
-                    let index = MESHLET_OFFSET + atomicAdd(&meshlet_culling_data[LAST_MESHLET_TO_CHECK_INDEX], 1u);
+                    let index = atomicAdd(&global_total_number, 1u);
                     atomicStore(&meshlet_culling_data[index], u32(meshlet.child_meshlets.z));
                 }
             }
             if(meshlet.child_meshlets.w >= 0) {
                 let result = atomicCompareExchangeWeak(&processing_data[meshlet.child_meshlets.w], 0u, 1u);
                 if(result.exchanged) {
-                    let index = MESHLET_OFFSET + atomicAdd(&meshlet_culling_data[LAST_MESHLET_TO_CHECK_INDEX], 1u);
+                    let index = atomicAdd(&global_total_number, 1u);
                     atomicStore(&meshlet_culling_data[index], u32(meshlet.child_meshlets.w));
                 }
             }
-            continue;
         }
-
-        let command_index = atomicAdd(&commands_count, 1u);
-        let command = &commands.data[command_index];
-        (*command).vertex_count = meshlet.indices_count;
-        (*command).instance_count = 1u;
-        (*command).base_index = meshlet.indices_offset;
-        (*command).vertex_offset = i32(mesh.vertices_position_offset);
-        (*command).base_instance = meshlet_id;
+        meshlet_index++;
     }    
 }
