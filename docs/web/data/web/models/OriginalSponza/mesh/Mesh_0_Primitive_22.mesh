@@ -67154,8 +67154,8 @@
         "indices_count": 456,
         "child_meshlets": [
           0,
-          1,
-          8
+          8,
+          1
         ],
         "bhv_offset": 0
       },
@@ -67174,8 +67174,8 @@
         "indices_count": 18,
         "child_meshlets": [
           0,
-          1,
-          8
+          8,
+          1
         ],
         "bhv_offset": 1
       },

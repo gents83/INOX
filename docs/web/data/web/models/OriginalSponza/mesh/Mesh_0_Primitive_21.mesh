@@ -151556,8 +151556,8 @@
         "indices_count": 516,
         "child_meshlets": [
           209,
-          215,
-          214
+          214,
+          215
         ],
         "bhv_offset": 7
       },
@@ -151576,8 +151576,8 @@
         "indices_count": 102,
         "child_meshlets": [
           209,
-          215,
-          214
+          214,
+          215
         ],
         "bhv_offset": 8
       },
