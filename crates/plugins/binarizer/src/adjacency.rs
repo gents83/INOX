@@ -96,6 +96,34 @@ pub(crate) struct MeshletAdjacency {
     adjacent_meshlets: Vec<(u32, usize)>,
 }
 
+pub fn find_border_vertices(indices: &[u32]) -> Vec<u32> {
+    let mut border_vertices = Vec::with_capacity(indices.len());
+    let num_triangles = indices.len() / 3;
+    let mut edges_hit_count: HashMap<Edge, u32> = HashMap::default();
+    for triangle_index in 0..num_triangles {
+        let i1 = indices[triangle_index * 3];
+        let i2 = indices[triangle_index * 3 + 1];
+        let i3 = indices[triangle_index * 3 + 2];
+        let e1 = Edge::create(i1, i2);
+        let e2 = Edge::create(i2, i3);
+        let e3 = Edge::create(i3, i1);
+        e1.add_to_hit_count(&mut edges_hit_count);
+        e2.add_to_hit_count(&mut edges_hit_count);
+        e3.add_to_hit_count(&mut edges_hit_count);
+    }
+    for (e, count) in edges_hit_count {
+        if count == 1 {
+            if !border_vertices.contains(&e.v1) {
+                border_vertices.push(e.v1);
+            }
+            if !border_vertices.contains(&e.v2) {
+                border_vertices.push(e.v2);
+            }
+        }
+    }
+    border_vertices
+}
+
 pub fn build_meshlets_adjacency<T>(
     meshlets: &[MeshletData],
     vertices: &[T],

@@ -85,8 +85,8 @@ web-sys = { version = "0.3.66", features = [
     "PerformanceTiming"
 ] }
 
-#[patch."https://github.com/gwihlidal/meshopt-rs"]
-#meshopt = { git = "https://github.com/gents83/meshopt-rs"}
+[patch."https://github.com/gwihlidal/meshopt-rs"]
+meshopt = { git = "https://github.com/gents83/meshopt-rs", branch = "traverse_breda_vertex_lock" }
 
 [patch."https://github.com/Wumpf/wgpu-profiler"]
 wgpu-profiler = { git = "https://github.com/gents83/wgpu-profiler.git", branch = "wgpu-updated"}

@@ -5,6 +5,8 @@ use inox_math::{VecBase, Vector2, Vector3, Vector4};
 use inox_resources::to_slice;
 use meshopt::DecodePosition;
 
+use crate::adjacency::find_border_vertices;
+
 #[derive(Debug, Clone, Copy)]
 pub struct MeshVertex {
     pub pos: Vector3,
@@ -230,20 +232,30 @@ pub fn compute_clusters(
             aabb_min = aabb_min.min(meshlet.aabb_min);
         });
 
-        let (optimized_vertices, optimized_indices) =
-            optimize_mesh(&group_vertices, &group_indices);
+        let (optimized_vertices, optimized_indices) = (group_vertices, group_indices);
+        //optimize_mesh(&group_vertices, &group_indices);
 
         let target_count = (optimized_indices.len() as f32 * 0.5) as usize;
         let target_error = 0.01;
 
+        let border_vertices = find_border_vertices(&optimized_indices);
         let mut simplified_indices = meshopt::simplify_decoder(
             &optimized_indices,
             &optimized_vertices,
             target_count,
             target_error,
-            meshopt::SimplifyOptions::LockBorder,
-            None,
+            0,
+            Some(&border_vertices),
         );
+
+        if simplified_indices.len() >= optimized_indices.len() {
+            inox_log::debug_log!(
+                "No simplification happened [from {} to {}] even if only {} locked_vertices",
+                optimized_indices.len(),
+                simplified_indices.len(),
+                border_vertices.len()
+            );
+        }
 
         if simplified_indices.is_empty() {
             simplified_indices = optimized_indices;
@@ -309,7 +321,7 @@ fn simplify_test() {
         &vertices,
         target_count,
         target_error,
-        meshopt::SimplifyOptions::LockBorder,
+        1, //meshopt::SimplifyOptions::LockBorder,
         None,
     );
 
