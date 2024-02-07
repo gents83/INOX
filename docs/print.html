@@ -166,7 +166,7 @@
 <img src="https://img.shields.io/badge/license-Apache-blue.svg" alt="Apache" /></p>
 <h2 id="inox-1"><a class="header" href="#inox-1">INOX</a></h2>
 <p>It's a Game Engine written in <em><strong>Rust</strong></em> with some bindings for external libs and with <em><strong>Blender</strong></em> as editor.</p>
-<p>INOX is a game engine written in <em><strong>Rust</strong></em> and developed by <a href="https://twitter.com/gents83">GENTS</a>. </p>
+<p>INOX is a game engine written in <em><strong>Rust</strong></em> and developed by <a href="https://twitter.com/gents83">GENTS</a>.</p>
 <p>The main idea behind INOX is to use <a href="https://www.blender.org/">Blender</a> as external editor, even being able to create visual logic scripting nodes in it, and then have a button to launch the <em><strong>Rust</strong></em> engine, that should be scalable to create games of any scale and for users with every kind of experience.</p>
 <p><em><strong>Rust</strong></em> will give to INOX high performance, reliability and safe code, while <em><strong>Blender</strong></em> will bring easy customization and powerful editor capabilities.</p>
 <p>You can see it in action directly online in web at this <a href="https://gents83.github.io/INOX/web/">link</a></p>
@@ -180,16 +180,16 @@
 <li>The rendering engine should support different GFX API as well (like Vulkan, DirectX, Metal, etc)</li>
 <li>The engine should be multi-threaded both on CPU and GPU to reach high-end performances</li>
 <li>The engine should support streaming, quick background loading and hot-reload of Code and Data</li>
-<li><em><strong>Blender</strong></em> should be used as external 3D scene, Material, Animation and other content edition </li>
+<li><em><strong>Blender</strong></em> should be used as external 3D scene, Material, Animation and other content edition</li>
 <li>INOX should generate a <em><strong>Blender</strong></em> addon that could be installed in order to launch and communicate with it</li>
-<li><em><strong>Blender</strong></em> should be used as external editor with new custom INOX editors (like Logic Node Visual Scripting, etc) </li>
+<li><em><strong>Blender</strong></em> should be used as external editor with new custom INOX editors (like Logic Node Visual Scripting, etc)</li>
 <li>From <em><strong>Blender</strong></em> the user should be able to see the same scene rendered in INOX just pressing a button</li>
 <li>INOX Engine could be used just as a high quality rendering engine</li>
 <li>INOX Engine could be used to run game logic</li>
 </ul>
 <h2 id="notes"><a class="header" href="#notes">Notes</a></h2>
 <p>Not ready yet for production.
-INOX is in active development, it still lacks many features code architecture or interfaces could still change. 
+INOX is in active development, it still lacks many features code architecture or interfaces could still change.
 New releases could still have breaking changes.</p>
 <div style="break-before: page; page-break-before: always;"></div><h2 id="features"><a class="header" href="#features">Features</a></h2>
 <p>Here you can find a list of features that are currently supported by the library.</p>
@@ -219,7 +219,7 @@ Launch and execute <em>SABI</em> directly from <em>Blender</em> <br />
 Data binarization, shader compilation, etc as background task and per target platform <br />
   See more info in <em>sabibinarizer</em> crate section</li>
 <li><input disabled="" type="checkbox" checked=""/>
-Hot reload of code while INOX engine is running </li>
+Hot reload of code while INOX engine is running</li>
 <li><input disabled="" type="checkbox" checked=""/>
 Hot reload of data reloading on the fly while INOX engine is running</li>
 <li><input disabled="" type="checkbox" checked=""/>
@@ -227,7 +227,7 @@ In-game GUI integration using <a href="https://github.com/emilk/egui">egui</a> b
 <li><input disabled="" type="checkbox" checked=""/>
 Documentations using <a href="https://rust-lang.github.io/mdBook/">mdBook</a></li>
 <li><input disabled="" type="checkbox" checked=""/>
-Continous integration and build support using Github Actions </li>
+Continous integration and build support using Github Actions</li>
 <li><input disabled="" type="checkbox" checked=""/>
 <em><strong>INOX</strong></em> &lt;-&gt; <em><strong>Blender</strong></em> communication through TCP connection</li>
 <li><input disabled="" type="checkbox" checked=""/>
@@ -243,7 +243,7 @@ Possibility to run Phases in parallel when not dependent</li>
 <li><input disabled="" type="checkbox" checked=""/>
 Plugin indipendent and ability to enable\disable them at runtime</li>
 <li><input disabled="" type="checkbox" checked=""/>
-Dynamic vertex layout and storage buffers per-shader </li>
+Dynamic vertex layout and storage buffers per-shader</li>
 <li><input disabled="" type="checkbox" checked=""/>
 Support for both glsl and wgsl shaders</li>
 <li><input disabled="" type="checkbox" checked=""/>
@@ -260,7 +260,7 @@ Add multithreading workers for WASM target on web</li>
 <li><input disabled="" type="checkbox"/>
 Raytracing on GPU</li>
 <li><input disabled="" type="checkbox"/>
-Quick example of game </li>
+Quick example of game</li>
 <li><input disabled="" type="checkbox"/>
 Integrate KTX universal texture compression</li>
 </ul>
@@ -378,7 +378,7 @@ It also contains the basic window system and the main loop.</p>
 </li>
 <li>
 <p><a href="INOX/binarizer"><strong>binarizer</strong></a>: <br />
-This crate is used on pc platforms to binarize raw data into <em><strong>INOX</strong></em> data format. 
+This crate is used on pc platforms to binarize raw data into <em><strong>INOX</strong></em> data format.
 It supports simple copy, font texture generation, gltf conversion, textures and shaders.</p>
 </li>
 <li>
@@ -411,7 +411,7 @@ It's a useful crate to handle logging on different platforms.</p>
 <li>
 <p><a href="INOX/math"><strong>math</strong></a>: <br />
 This crate contains math classes and utilities. <br />
-It wraps cgmath crate. </p>
+It wraps cgmath crate.</p>
 </li>
 <li>
 <p><a href="INOX/messenger"><strong>messenger</strong></a>: <br />
@@ -463,7 +463,7 @@ It's a useful crate to handle unique identifiers generation and handling.</p>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h2 id="external-dependencies"><a class="header" href="#external-dependencies">External Dependencies</a></h2>
 <p>In this page you'll find a list of external dependencies that are required from the <em><strong>INOX</strong></em> engine
-and that are referenced inside Cargo.toml as git submodules used in the workspace. </p>
+and that are referenced inside Cargo.toml as git submodules used in the workspace.</p>
 <ul>
 <li><a href="https://github.com/rustgd/cgmath"><strong>cgmath</strong></a>: <br />
 A linear algebra and mathematics library for computer graphics <br />
