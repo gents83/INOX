@@ -70,9 +70,13 @@ fn main(
     atomicStore(&commands_count, 0u);
     workgroupBarrier();
 
+    workgroupBarrier();
     var work_index = atomicAdd(&head, 1u);
+    workgroupBarrier();
     if(work_index >= tail) {
+        workgroupBarrier();
         atomicSub(&head, 1u);
+        workgroupBarrier();
     }
 
     workgroupBarrier();
@@ -104,17 +108,16 @@ fn main(
         let bb_min = transform_vector((*bb).min, mesh.position, mesh.orientation, mesh.scale);
         let min = min(bb_min, bb_max);
         let max = max(bb_min, bb_max);
-        let mvp = constant_data.proj * culling_data.view;
-        let row0 = matrix_row(mvp, 0u);
-        let row1 = matrix_row(mvp, 1u);
-        let row3 = matrix_row(mvp, 3u);
 
+        let clip_mvp = constant_data.proj * culling_data.view;
+        let row0 = matrix_row(clip_mvp, 0u);
+        let row1 = matrix_row(clip_mvp, 1u);
+        let row3 = matrix_row(clip_mvp, 3u);
         var frustum: array<vec4<f32>, 4>;
         frustum[0] = normalize_plane(row3 + row0);
         frustum[1] = normalize_plane(row3 - row0);
         frustum[2] = normalize_plane(row3 + row1);
         frustum[3] = normalize_plane(row3 - row1);
-
         if !is_box_inside_frustum(min, max, frustum) {
             workgroupBarrier();
             work_index = atomicAdd(&head, 1u);
@@ -129,11 +132,22 @@ fn main(
         }
 
         //Evaluate cam distance to decide if lod is ok to use for this meshlet or to use childrens
-        let min_distance = clip_to_world(vec2<f32>(0.), 0.);
-        let max_distance = clip_to_world(vec2<f32>(0.), 1.);
-        let total_distance = length(max_distance - min_distance) * 0.25;
-        let distance = length(min - culling_data.view[3].xyz);
-        var lod_level = u32(max((1. - (length(distance - min_distance) / total_distance)) * f32(MAX_LOD_LEVELS), 0.0));
+        var lod_level = 0u;
+
+        //let min_distance = clip_to_world(vec2<f32>(0.), 0.);
+        //let max_distance = clip_to_world(vec2<f32>(0.), 1.);
+        //let total_distance = length(max_distance - min_distance) * 0.25;
+        //let distance = length(min - culling_data.view[3].xyz);
+        //let distance_lod_level = u32(max((1. - (length(distance - min_distance) / total_distance)) * f32(MAX_LOD_LEVELS), 0.0));
+
+        var ncd_min = clip_mvp * vec4<f32>(min, 1.);
+        let screen_min = clip_to_normalized(ncd_min.xy / ncd_min.w);
+        var ncd_max = clip_mvp * vec4<f32>(max, 1.);
+        let screen_max = clip_to_normalized(ncd_max.xy / ncd_max.w);
+        let screen_size = max(max(screen_max.x, screen_min.x), max(screen_max.y, screen_min.y));
+        let size_lod_level = min(u32(max(screen_size * (f32(MAX_LOD_LEVELS) * 1.25), 0.0)), MAX_LOD_LEVELS - 1u);
+        lod_level = size_lod_level;
+
         if (constant_data.forced_lod_level >= 0) {
             lod_level = MAX_LOD_LEVELS - 1 - u32(constant_data.forced_lod_level);
         }
