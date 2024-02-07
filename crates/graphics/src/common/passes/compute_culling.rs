@@ -312,7 +312,7 @@ impl Pass for CullingPass {
             render_context,
             &mut self.binding_data,
             command_buffer,
-            32,
+            1,
             1,
             1,
         );
