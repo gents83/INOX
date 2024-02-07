@@ -365,13 +365,13 @@ impl GltfCompiler {
         let mut geometry = GltfGeometry { vertices, indices };
         generate_tangents(&mut geometry);
 
-        let (mesh_vertices, geometry_indices) =
+        let (geometry_vertices, geometry_indices) =
             optimize_mesh(&geometry.vertices, &geometry.indices);
 
         let mut mesh_indices_offset = 0;
         let mut previous_meshlets_starting_offset = 0;
         let mut meshlets_per_lod = Vec::new();
-        let (meshlets, mut mesh_indices) = compute_meshlets(&mesh_vertices, &geometry_indices);
+        let (meshlets, mut mesh_indices) = compute_meshlets(&geometry_vertices, &geometry_indices);
 
         let mut is_meshlet_tree_created = meshlets.len() <= 1;
         meshlets_per_lod.push(meshlets);
@@ -381,7 +381,7 @@ impl GltfCompiler {
         while !is_meshlet_tree_created {
             let previous_lod_meshlets = meshlets_per_lod.last_mut().unwrap();
             let meshlets_adjacency =
-                build_meshlets_adjacency(previous_lod_meshlets, &mesh_vertices, &mesh_indices);
+                build_meshlets_adjacency(previous_lod_meshlets, &geometry_vertices, &mesh_indices);
             let groups = group_meshlets(&meshlets_adjacency);
             level += 1;
 
@@ -390,7 +390,7 @@ impl GltfCompiler {
                 previous_lod_meshlets,
                 previous_meshlets_starting_offset,
                 mesh_indices_offset,
-                &mesh_vertices,
+                &geometry_vertices,
                 &mesh_indices,
             );
 
@@ -402,7 +402,7 @@ impl GltfCompiler {
             is_meshlet_tree_created = groups.len() == 1 || level >= (MAX_LOD_LEVELS - 1);
         }
 
-        let mut mesh_data = create_mesh_data(&mesh_vertices, &mesh_indices);
+        let mut mesh_data = create_mesh_data(&geometry_vertices, &mesh_indices);
         mesh_data.meshlets = meshlets_per_lod;
         mesh_data.meshlets_bvh.clear();
         mesh_data.material = material_path.to_path_buf();

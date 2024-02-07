@@ -96,6 +96,7 @@ pub(crate) struct MeshletAdjacency {
     adjacent_meshlets: Vec<(u32, usize)>,
 }
 
+#[allow(dead_code)]
 pub fn find_border_vertices(indices: &[u32]) -> Vec<u32> {
     let mut border_vertices = Vec::with_capacity(indices.len());
     let num_triangles = indices.len() / 3;

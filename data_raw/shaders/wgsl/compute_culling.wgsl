@@ -129,7 +129,7 @@ fn main(
             let screen_min = clip_to_normalized(ncd_min.xy / ncd_min.w);
             var ncd_max = clip_mvp * vec4<f32>(max, 1.);
             let screen_max = clip_to_normalized(ncd_max.xy / ncd_max.w);
-            let screen_diff = screen_max - screen_min;
+            let screen_diff = max(screen_max, screen_min) - min(screen_max, screen_min);
             let screen_size = saturate(max(screen_diff.x, screen_diff.y));
             let size_lod_level = min(u32(max(screen_size * (f32(MAX_LOD_LEVELS) * 1.25), 0.0)), MAX_LOD_LEVELS - 1u);
             desired_lod_level = i32(size_lod_level);
