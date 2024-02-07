@@ -1,6 +1,6 @@
 use std::mem::size_of;
 
-use inox_graphics::{MeshData, MeshletData, VertexAttributeLayout, MESHLETS_GROUP_SIZE};
+use inox_graphics::{MeshData, MeshletData, VertexAttributeLayout};
 use inox_math::{VecBase, Vector2, Vector3, Vector4};
 use inox_resources::to_slice;
 use meshopt::DecodePosition;
@@ -157,7 +157,7 @@ where
     let mut new_meshlets = Vec::new();
     let max_vertices = 128;
     let max_triangles = 256;
-    let cone_weight = 0.7;
+    let cone_weight = 0.5;
     let meshlets = meshopt::build_meshlets(
         indices,
         vertex_data_adapter.as_ref().unwrap(),
@@ -221,19 +221,8 @@ pub fn compute_clusters(
                     index
                 } else {
                     let pos = vertices[global_index].pos;
-                    let group_index = if let Some(index) = group_vertices
-                        .iter()
-                        .position(|v: &LocalVertex| v.pos == pos)
-                    {
-                        index
-                    } else {
-                        group_vertices.push(LocalVertex {
-                            pos: vertices[global_index].pos,
-                            global_index,
-                        });
-                        group_vertices.len() - 1
-                    };
-                    group_index
+                    group_vertices.push(LocalVertex { pos, global_index });
+                    group_vertices.len() - 1
                 };
                 group_indices.push(group_index as u32);
             }
@@ -244,8 +233,7 @@ pub fn compute_clusters(
         let (optimized_vertices, optimized_indices) =
             optimize_mesh(&group_vertices, &group_indices);
 
-        let threshold = 1. / MESHLETS_GROUP_SIZE as f32;
-        let target_count = (optimized_indices.len() as f32 * threshold) as usize / 3 * 3;
+        let target_count = (optimized_indices.len() as f32 * 0.5) as usize;
         let target_error = 0.01;
 
         let mut simplified_indices = meshopt::simplify_decoder(
@@ -281,4 +269,52 @@ pub fn compute_clusters(
         cluster_meshlets.append(&mut meshlets);
     });
     (cluster_indices, cluster_meshlets)
+}
+
+#[test]
+fn simplify_test() {
+    // 4----5----6
+    // |    |    |
+    // 1----2----7
+    // |    |    |
+    // 0----3----8
+    #[rustfmt::skip]
+    let vertices = [
+        LocalVertex{ pos: Vector3::new(0., 0., 0.), global_index: 0 },
+        LocalVertex{ pos: Vector3::new(0., 1., 0.), global_index: 1 },
+        LocalVertex{ pos: Vector3::new(1., 1., 0.), global_index: 2 },
+        LocalVertex{ pos: Vector3::new(1., 0., 0.), global_index: 3 },
+        LocalVertex{ pos: Vector3::new(0., 2., 0.), global_index: 4 },
+        LocalVertex{ pos: Vector3::new(1., 2., 0.), global_index: 5 },
+        LocalVertex{ pos: Vector3::new(2., 2., 0.), global_index: 6 },
+        LocalVertex{ pos: Vector3::new(2., 1., 0.), global_index: 7 },
+        LocalVertex{ pos: Vector3::new(2., 0., 0.), global_index: 8 },
+    ];
+    #[rustfmt::skip]
+    let indices = [
+        0, 1, 2,
+        2, 3, 0,
+        1, 4, 5,
+        5, 2, 1,
+        2, 5, 6,
+        6, 7, 2,
+        2, 7, 3,
+        3, 7, 8,
+    ];
+    let target_count = 6;
+    let target_error = 0.01;
+
+    let simplified_indices = meshopt::simplify_decoder(
+        &indices,
+        &vertices,
+        target_count,
+        target_error,
+        meshopt::SimplifyOptions::LockBorder,
+        None,
+    );
+
+    debug_assert!(
+        simplified_indices.len() < indices.len(),
+        "No simplification happened"
+    );
 }
