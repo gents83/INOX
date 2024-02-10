@@ -1,14 +1,15 @@
 use std::path::PathBuf;
 
 use crate::{
-    ArrayU32, AsBinding, BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer,
-    ComputePass, ComputePassData, ConstantDataRw, DrawCommandType, DrawCommandsBuffer, GpuBuffer,
-    Mesh, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderContextRc,
-    ShaderStage, TextureView, ATOMIC_SIZE,
+    ArrayI32, ArrayU32, AsBinding, BVHBuffer, BindingData, BindingFlags, BindingInfo,
+    CommandBuffer, ComputePass, ComputePassData, ConstantDataRw, DrawCommandType,
+    DrawCommandsBuffer, GpuBuffer, Mesh, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass,
+    RenderContext, RenderContextRc, ShaderStage, TextureView, ATOMIC_SIZE,
 };
 
 use inox_commands::CommandParser;
 use inox_core::ContextRc;
+
 use inox_messenger::{implement_message, Listener};
 use inox_resources::{DataTypeResource, DataTypeResourceEvent, Resource, ResourceEvent};
 use inox_uid::generate_random_uid;
@@ -81,10 +82,10 @@ pub struct CullingPass {
     commands: DrawCommandsBuffer,
     meshes: MeshesBuffer,
     meshlets: MeshletsBuffer,
-    bhv: BVHBuffer,
+    bvh: BVHBuffer,
     culling_data: CullingData,
     meshlet_culling_data: ArrayU32,
-    processing_data: ArrayU32,
+    processing_data: ArrayI32,
     listener: Listener,
     update_camera: bool,
     update_meshes: bool,
@@ -132,11 +133,11 @@ impl Pass for CullingPass {
             commands: render_context.global_buffers().draw_commands.clone(),
             meshes: render_context.global_buffers().meshes.clone(),
             meshlets: render_context.global_buffers().meshlets.clone(),
-            bhv: render_context.global_buffers().bvh.clone(),
+            bvh: render_context.global_buffers().bvh.clone(),
             binding_data: BindingData::new(render_context, CULLING_PASS_NAME),
             culling_data: CullingData::default(),
             meshlet_culling_data: ArrayU32::default(),
-            processing_data: ArrayU32::default(),
+            processing_data: ArrayI32::default(),
             listener,
             update_camera: true,
             update_meshes: true,
@@ -169,11 +170,20 @@ impl Pass for CullingPass {
         let num_meshlets = self.meshlets.read().unwrap().item_count();
         let mut max_meshlets_size = num_meshlets as u32 + ATOMIC_SIZE;
         max_meshlets_size += ATOMIC_SIZE - (max_meshlets_size % ATOMIC_SIZE);
+        let processing_data = vec![-1; max_meshlets_size as usize];
+        self.processing_data.write().unwrap().set(processing_data);
+
         if self.update_meshes {
             let mut meshlet_data = vec![0; max_meshlets_size as usize];
-            let processing_data = vec![0; max_meshlets_size as usize];
             let mut lod0_meshlets_count = 0;
             self.meshes.read().unwrap().for_each_entry(|_, mesh| {
+                //for i in 0..MAX_LOD_LEVELS {
+                //    println!(
+                //        "LOD[{i}] range {} - {}",
+                //        (mesh.lods_meshlets_offset[i] >> 16),
+                //        (mesh.lods_meshlets_offset[i] & 0x0000FFFF)
+                //    );
+                //}
                 let meshlets_start = mesh.meshlets_offset + (mesh.lods_meshlets_offset[0] >> 16);
                 let meshlets_end =
                     mesh.meshlets_offset + (mesh.lods_meshlets_offset[0] & 0x0000FFFF);
@@ -186,9 +196,84 @@ impl Pass for CullingPass {
             self.culling_data.set_dirty(true);
 
             self.meshlet_culling_data.write().unwrap().set(meshlet_data);
-            self.processing_data.write().unwrap().set(processing_data);
         }
+        /*
+        println!(
+            "START TEST for {} meshlets",
+            self.culling_data.lod0_meshlets_count
+        );
 
+        let global_count =
+            std::sync::Arc::new(AtomicU32::new(self.culling_data.lod0_meshlets_count));
+        let global_index = std::sync::Arc::new(AtomicU32::new(0));
+        let commands_count = std::sync::Arc::new(AtomicU32::new(0));
+        let mut threads = Vec::new();
+        for thread_index in 0..32 {
+            let thread_name = format!("Thread_{}", thread_index);
+            let builder = thread::Builder::new().name(thread_name);
+
+            let local_index = thread_index;
+            let global_count = global_count.clone();
+            let global_index: std::sync::Arc<AtomicU32> = global_index.clone();
+            let commands_count: std::sync::Arc<AtomicU32> = commands_count.clone();
+            let meshlets = self.meshlets.clone();
+            let meshlet_culling_data = self.meshlet_culling_data.clone();
+            let processing_data = self.processing_data.clone();
+            let lod0_meshlets_count = self.culling_data.lod0_meshlets_count;
+            let forced_lod_level = 2;
+
+            let t = builder
+                .spawn(move || {
+                    if local_index >= global_count.load(std::sync::atomic::Ordering::Relaxed) {
+                        return;
+                    }
+                    loop {
+                        let index = global_index.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        if index >= global_count.load(std::sync::atomic::Ordering::Relaxed) {
+                            global_index.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+                            break;
+                        }
+                        let meshlet_id =
+                            meshlet_culling_data.read().unwrap().data()[index as usize];
+                        let meshlet = meshlets.read().unwrap().data()[meshlet_id as usize];
+                        let meshlet_lod_level = meshlet.mesh_index_and_lod_level & 7;
+
+                        let mut desired_lod_level = -1;
+                        if index > lod0_meshlets_count {
+                            desired_lod_level =
+                                processing_data.read().unwrap().data()[meshlet_id as usize] as i32;
+                        }
+                        if desired_lod_level < 0 {
+                            desired_lod_level = forced_lod_level;
+                        }
+
+                        let lod_level = desired_lod_level as u32;
+                        if meshlet_lod_level < lod_level {
+                            for child in meshlet.child_meshlets {
+                                let mut data = processing_data.write().unwrap();
+                                if child >= 0 && data.data()[child as usize] == 0 {
+                                    data.data_mut()[child as usize] = lod_level;
+                                    let index = global_count
+                                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                    meshlet_culling_data.write().unwrap().data_mut()
+                                        [index as usize] = child as u32;
+                                }
+                            }
+                        } else if meshlet_lod_level == lod_level {
+                            let command_index =
+                                commands_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                            println!("Command[{}]: Adding meshlet {}", command_index, meshlet_id);
+                        }
+                    }
+                })
+                .unwrap();
+            threads.push(t);
+        }
+        for t in threads {
+            t.join().ok();
+        }
+        println!("END TEST");
+        */
         let draw_command_type = self.draw_commands_type();
 
         if let Some(commands) = self.commands.write().unwrap().get_mut(&mesh_flags) {
@@ -241,7 +326,7 @@ impl Pass for CullingPass {
                     },
                 )
                 .add_storage_buffer(
-                    &mut *self.bhv.write().unwrap(),
+                    &mut *self.bvh.write().unwrap(),
                     Some("BHV"),
                     BindingInfo {
                         group_index: 0,

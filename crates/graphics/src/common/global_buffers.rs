@@ -15,7 +15,7 @@ use crate::{
     AsBinding, ConstantDataRw, DispatchCommandSize, GPUMaterial, GPUMesh, GPUMeshlet,
     GPURuntimeVertexData, Light, LightData, LightId, Material, MaterialData, MaterialFlags,
     MaterialId, Mesh, MeshData, MeshFlags, MeshId, RenderCommandsPerType, TextureId, TextureInfo,
-    TextureType, VecF32, VecU32, MAX_LOD_LEVELS, MESHLETS_GROUP_SIZE,
+    TextureType, VecF32, VecI32, VecU32, MAX_LOD_LEVELS, MESHLETS_GROUP_SIZE,
 };
 
 pub const TLAS_UID: ResourceId = generate_static_uid_from_string("TLAS");
@@ -45,6 +45,7 @@ pub type VertexAttributesBuffer = Arc<RwLock<Buffer<u32, 0>>>; //MeshId <-> [u32
 pub type RuntimeVerticesBuffer = Arc<RwLock<Buffer<GPURuntimeVertexData, 0>>>;
 pub type AtomicCounter = Arc<RwLock<AtomicU32>>;
 pub type ArrayU32 = Arc<RwLock<VecU32>>;
+pub type ArrayI32 = Arc<RwLock<VecI32>>;
 pub type ArrayF32 = Arc<RwLock<VecF32>>;
 pub type DataBuffers = [ArrayF32; NUM_DATA_BUFFER];
 

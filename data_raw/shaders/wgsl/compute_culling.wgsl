@@ -27,7 +27,7 @@ var<storage, read_write> commands: DrawIndexedCommands;
 @group(1) @binding(2)
 var<storage, read_write> meshlet_culling_data: array<atomic<u32>>;
 @group(1) @binding(3)
-var<storage, read_write> processing_data: array<atomic<u32>>;
+var<storage, read_write> processing_data: array<atomic<i32>>;
 
 #import "matrix_utils.inc"
 #import "geom_utils.inc"
@@ -53,8 +53,6 @@ fn is_box_inside_frustum(min: vec3<f32>, max: vec3<f32>, frustum: array<vec4<f32
     }   
     return visible;
 }
-
-const MAX_STACK_SIZE: u32 = 4096 * 4;
 
 var<workgroup> global_index: atomic<u32>;
 var<workgroup> global_count: atomic<u32>;
@@ -86,7 +84,7 @@ fn main(
         let meshlet_id = atomicLoad(&meshlet_culling_data[index]);
         var desired_lod_level = -1;
         if(index > culling_data.lod0_meshlets_count) {             
-            desired_lod_level = i32(atomicLoad(&processing_data[meshlet_id]));
+            desired_lod_level = atomicLoad(&processing_data[meshlet_id]);
         }
          
         let meshlet = meshlets.data[meshlet_id];
@@ -117,22 +115,23 @@ fn main(
             return;
         }
 
-        //Evaluate cam distance to decide if lod is ok to use for this meshlet or to use childrens
+        //Evaluate screen occupancy to decide if lod is ok to use for this meshlet or to use childrens
         if(desired_lod_level < 0) {
-            //let min_distance = clip_to_world(vec2<f32>(0.), 0.);
-            //let max_distance = clip_to_world(vec2<f32>(0.), 1.);
-            //let total_distance = length(max_distance - min_distance) * 0.25;
-            //let distance = length(min - culling_data.view[3].xyz);
-            //let distance_lod_level = u32(max((1. - (length(distance - min_distance) / total_distance)) * f32(MAX_LOD_LEVELS), 0.0));
-
-            var ncd_min = clip_mvp * vec4<f32>(min, 1.);
-            let screen_min = clip_to_normalized(ncd_min.xy / ncd_min.w);
-            var ncd_max = clip_mvp * vec4<f32>(max, 1.);
-            let screen_max = clip_to_normalized(ncd_max.xy / ncd_max.w);
+            let ncd_min = clip_mvp * vec4<f32>(min, 1.);
+            let clip_min = ncd_min.xyz / ncd_min.w;
+            let screen_min = clip_to_normalized(clip_min.xy);
+            let ncd_max = clip_mvp * vec4<f32>(max, 1.);
+            let clip_max = ncd_max.xyz / ncd_max.w;
+            let screen_max = clip_to_normalized(clip_max.xy);
             let screen_diff = max(screen_max, screen_min) - min(screen_max, screen_min);
-            let screen_size = saturate(max(screen_diff.x, screen_diff.y));
-            let size_lod_level = min(u32(max(screen_size * (f32(MAX_LOD_LEVELS) * 1.25), 0.0)), MAX_LOD_LEVELS - 1u);
-            desired_lod_level = i32(size_lod_level);
+            if clip_min.z > 1. && clip_max.z > 1. {
+                desired_lod_level = 0;
+            }
+            else { 
+                let screen_occupancy = max(screen_diff.x, screen_diff.y);     
+                let f_max = f32(MAX_LOD_LEVELS - 1u);   
+                desired_lod_level = i32(clamp(u32(screen_occupancy * f_max), 0u, MAX_LOD_LEVELS - 1u));
+            }
         }
         if (constant_data.forced_lod_level >= 0) {
             desired_lod_level = i32(MAX_LOD_LEVELS - 1 - u32(constant_data.forced_lod_level));
@@ -142,35 +141,35 @@ fn main(
         let lod_level = u32(desired_lod_level);
         if(meshlet_lod_level < lod_level) {  
             if(meshlet.child_meshlets.x >= 0) {                 
-                let result = atomicCompareExchangeWeak(&processing_data[meshlet.child_meshlets.x], 0u, lod_level);
+                let result = atomicCompareExchangeWeak(&processing_data[meshlet.child_meshlets.x], -1, desired_lod_level);
                 if(result.exchanged) {
                     let child_index = atomicAdd(&global_count, 1u);
                     atomicStore(&meshlet_culling_data[child_index], u32(meshlet.child_meshlets.x));
                 }
             }  
             if(meshlet.child_meshlets.y >= 0) {                 
-                let result = atomicCompareExchangeWeak(&processing_data[meshlet.child_meshlets.y], 0u, lod_level);
+                let result = atomicCompareExchangeWeak(&processing_data[meshlet.child_meshlets.y], -1, desired_lod_level);
                 if(result.exchanged) {                     
                     let child_index = atomicAdd(&global_count, 1u);                     
                     atomicStore(&meshlet_culling_data[child_index], u32(meshlet.child_meshlets.y));                     
                 }
             }  
             if(meshlet.child_meshlets.z >= 0) {                 
-                let result = atomicCompareExchangeWeak(&processing_data[meshlet.child_meshlets.z], 0u, lod_level);
+                let result = atomicCompareExchangeWeak(&processing_data[meshlet.child_meshlets.z], -1, desired_lod_level);
                 if(result.exchanged) {                     
                     let child_index = atomicAdd(&global_count, 1u);                     
                     atomicStore(&meshlet_culling_data[child_index], u32(meshlet.child_meshlets.z));                     
                 }
             }  
             if(meshlet.child_meshlets.w >= 0) {                 
-                let result = atomicCompareExchangeWeak(&processing_data[meshlet.child_meshlets.w], 0u, lod_level);
+                let result = atomicCompareExchangeWeak(&processing_data[meshlet.child_meshlets.w], -1, desired_lod_level);
                 if(result.exchanged) {                     
                     let child_index = atomicAdd(&global_count, 1u);                     
                     atomicStore(&meshlet_culling_data[child_index], u32(meshlet.child_meshlets.w));                     
                 }
             }          
         } 
-        else 
+        else if(meshlet_lod_level == lod_level)
         {     
             let command_index = atomicAdd(&commands_count, 1u);             
             let command = &commands.data[command_index];
