@@ -26,6 +26,7 @@ pub trait VecBase<T> {
     fn max(self, rhs: Self) -> Self;
     fn min(self, rhs: Self) -> Self;
     fn dot_product(self, rhs: Self) -> T;
+    fn modulo(self, rhs: Self) -> Self;
 }
 pub trait VecBaseFloat<T> {
     fn length(self) -> T;
@@ -69,6 +70,9 @@ macro_rules! implement_vector_base {
             }
             fn dot_product(self, rhs: Self) -> $Type {
                 self.dot(rhs)
+            }
+            fn modulo(self, rhs: Self) -> Self {
+                self.rem_element_wise(rhs)
             }
         }
     };

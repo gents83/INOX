@@ -23,6 +23,9 @@ macro_rules! implement_matrix_base {
 
 pub trait Mat4Ops {
     fn from_euler_angles(roll_yaw_pitch: Vector3) -> Self;
+    fn try_inverse(&self) -> Option<Self>
+    where
+        Self: Sized;
     fn inverse(&self) -> Self;
     fn set_translation(&mut self, translation: Vector3) -> &mut Self;
     fn add_translation(&mut self, translation: Vector3) -> &mut Self;
@@ -63,6 +66,10 @@ macro_rules! implement_matrix4_operations {
             #[inline]
             fn from_euler_angles(rotation: Vector3) -> Self {
                 Matrix4::from(Quaternion::from_euler_angles(rotation))
+            }
+            #[inline]
+            fn try_inverse(&self) -> Option<Self> {
+                self.inverse_transform()
             }
             #[inline]
             fn inverse(&self) -> Self {
