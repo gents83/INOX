@@ -224,8 +224,19 @@ pub fn compute_clusters(
         let (optimized_vertices, optimized_indices) =
             optimize_mesh(&group_vertices, &group_indices);
 
+        /*
+        let locked_indices = crate::adjacency::find_border_vertices(&optimized_indices);
+
+        let mut simplified_indices = crate::simplify::simplify(
+            &optimized_vertices,
+            &optimized_indices,
+            0.5,
+            Some(&locked_indices),
+        );
+        */
+
         let target_count = (optimized_indices.len() as f32 * 0.5) as usize;
-        let target_error = 0.01;
+        let target_error = 0.9;
 
         let mut simplified_indices = meshopt::simplify_decoder(
             &optimized_indices,
@@ -272,6 +283,9 @@ pub fn compute_clusters(
 
 #[test]
 fn simplify_test() {
+    use crate::adjacency::find_border_vertices;
+    use crate::simplify::simplify;
+
     // 4----5----6
     // |    |    |
     // 1----2----7
@@ -300,9 +314,10 @@ fn simplify_test() {
         2, 7, 3,
         3, 7, 8,
     ];
+    let locked_indices = find_border_vertices(&indices);
+
     let target_count = 6;
     let target_error = 0.01;
-
     let simplified_indices = meshopt::simplify_decoder(
         &indices,
         &vertices,
@@ -313,7 +328,14 @@ fn simplify_test() {
     );
 
     debug_assert!(
-        simplified_indices.len() < indices.len(),
-        "No simplification happened"
+        !simplified_indices.is_empty() && simplified_indices.len() < indices.len(),
+        "No simplification happened with meshoptimizer"
+    );
+
+    let simplified_indices = simplify(&vertices, &indices, 0.5, Some(&locked_indices));
+
+    debug_assert!(
+        !simplified_indices.is_empty() && simplified_indices.len() < indices.len(),
+        "No simplification happened with custom simplify"
     );
 }

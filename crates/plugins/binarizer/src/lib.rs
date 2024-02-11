@@ -11,5 +11,6 @@ mod compilers;
 mod config;
 mod mesh;
 pub mod plugin;
+mod simplify;
 mod system;
 pub mod utils;
