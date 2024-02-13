@@ -2,6 +2,7 @@
 
 pub use crate::angle::*;
 pub use crate::frustum::*;
+pub use crate::hash::*;
 pub use crate::matrix::*;
 pub use crate::packing::*;
 pub use crate::parser::*;
@@ -13,6 +14,7 @@ pub use crate::vector::*;
 
 pub mod angle;
 pub mod frustum;
+pub mod hash;
 pub mod matrix;
 pub mod packing;
 pub mod parser;
