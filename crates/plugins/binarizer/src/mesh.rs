@@ -40,9 +40,9 @@ impl meshopt::DecodePosition for MeshVertex {
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-struct LocalVertex {
-    pos: Vector3,
-    global_index: usize,
+pub(crate) struct LocalVertex {
+    pub(crate) pos: Vector3,
+    pub(crate) global_index: usize,
 }
 
 impl Default for LocalVertex {
@@ -224,16 +224,7 @@ pub fn compute_clusters(
         let (optimized_vertices, optimized_indices) =
             optimize_mesh(&group_vertices, &group_indices);
 
-        /*
         let locked_indices = crate::adjacency::find_border_vertices(&optimized_indices);
-
-        let mut simplified_indices = crate::simplify::simplify(
-            &optimized_vertices,
-            &optimized_indices,
-            0.5,
-            Some(&locked_indices),
-        );
-        */
 
         let target_count = (optimized_indices.len() as f32 * 0.5) as usize;
         let target_error = 0.9;
@@ -247,7 +238,9 @@ pub fn compute_clusters(
             None,
         );
 
-        if simplified_indices.len() >= optimized_indices.len() {
+        if locked_indices.len() > optimized_vertices.len() + 1
+            && simplified_indices.len() >= optimized_indices.len()
+        {
             inox_log::debug_log!(
                 "No simplification happened [from {} to {}]",
                 optimized_indices.len(),
@@ -279,63 +272,4 @@ pub fn compute_clusters(
         cluster_meshlets.append(&mut meshlets);
     });
     (cluster_indices, cluster_meshlets)
-}
-
-#[test]
-fn simplify_test() {
-    use crate::adjacency::find_border_vertices;
-    use crate::simplify::simplify;
-
-    // 4----5----6
-    // |    |    |
-    // 1----2----7
-    // |    |    |
-    // 0----3----8
-    #[rustfmt::skip]
-    let vertices = [
-        LocalVertex{ pos: Vector3::new(0., 0., 0.), global_index: 0 },
-        LocalVertex{ pos: Vector3::new(0., 1., 0.), global_index: 1 },
-        LocalVertex{ pos: Vector3::new(1., 1., 0.), global_index: 2 },
-        LocalVertex{ pos: Vector3::new(1., 0., 0.), global_index: 3 },
-        LocalVertex{ pos: Vector3::new(0., 2., 0.), global_index: 4 },
-        LocalVertex{ pos: Vector3::new(1., 2., 0.), global_index: 5 },
-        LocalVertex{ pos: Vector3::new(2., 2., 0.), global_index: 6 },
-        LocalVertex{ pos: Vector3::new(2., 1., 0.), global_index: 7 },
-        LocalVertex{ pos: Vector3::new(2., 0., 0.), global_index: 8 },
-    ];
-    #[rustfmt::skip]
-    let indices = [
-        0, 1, 2,
-        2, 3, 0,
-        1, 4, 5,
-        5, 2, 1,
-        2, 5, 6,
-        6, 7, 2,
-        2, 7, 3,
-        3, 7, 8,
-    ];
-    let locked_indices = find_border_vertices(&indices);
-
-    let target_count = 6;
-    let target_error = 0.01;
-    let simplified_indices = meshopt::simplify_decoder(
-        &indices,
-        &vertices,
-        target_count,
-        target_error,
-        meshopt::SimplifyOptions::LockBorder,
-        None,
-    );
-
-    debug_assert!(
-        !simplified_indices.is_empty() && simplified_indices.len() < indices.len(),
-        "No simplification happened with meshoptimizer"
-    );
-
-    let simplified_indices = simplify(&vertices, &indices, 0.5, Some(&locked_indices));
-
-    debug_assert!(
-        !simplified_indices.is_empty() && simplified_indices.len() < indices.len(),
-        "No simplification happened with custom simplify"
-    );
 }

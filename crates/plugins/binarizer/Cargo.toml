@@ -10,7 +10,8 @@ crate-type = ["rlib", "cdylib"]
 
 [target.'cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))'.dependencies]
 meshopt = { workspace = true }
-mikktspace = { worspace = true } 
+mikktspace = { workspace = true } 
+metis = { workspace = true } 
 naga = { workspace = true }
 rspirv = { workspace = true }
 regex = { workspace = true }
