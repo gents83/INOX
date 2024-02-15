@@ -270,15 +270,13 @@ pub fn group_meshlets_with_metis(meshlets_info: &[MeshletAdjacency]) -> Vec<Vec<
     });
     xadj.push(adjncy.len() as i32);
 
-    let num_groups = (meshlets_info.len() as f32 / (MESHLETS_GROUP_SIZE - 1) as f32).ceil() as usize;
+    let num_groups =
+        (meshlets_info.len() as f32 / (MESHLETS_GROUP_SIZE - 1) as f32).ceil() as usize;
     let mut meshlets_groups = Vec::new();
     if let Ok(graph) = metis::Graph::new(1, num_groups as _, &xadj, &adjncy) {
         let mut part = vec![0; meshlets_info.len()];
 
-        if let Ok(_result) = graph
-            .set_adjwgt(&adjwgt)
-            .part_kway(&mut part)
-        {
+        if let Ok(_result) = graph.set_adjwgt(&adjwgt).part_kway(&mut part) {
             for group_index in 0..num_groups {
                 let mut group = Vec::new();
                 part.iter().enumerate().for_each(|(i, &v)| {
@@ -290,7 +288,6 @@ pub fn group_meshlets_with_metis(meshlets_info: &[MeshletAdjacency]) -> Vec<Vec<
                 meshlets_groups.push(group);
             }
             meshlets_groups.sort();
-            println!("Result[{}] = {:?}", _result, meshlets_groups);
         }
     }
 
