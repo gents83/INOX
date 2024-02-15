@@ -149,7 +149,7 @@ impl RenderContext {
             };
             let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
                 backends,
-                flags: wgpu::InstanceFlags::all(),
+                flags: wgpu::InstanceFlags::advanced_debugging(),
                 ..Default::default()
             });
             let surface = Self::create_surface(&instance, handle.clone());
