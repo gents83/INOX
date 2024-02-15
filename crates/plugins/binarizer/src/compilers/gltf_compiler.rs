@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    adjacency::{build_meshlets_adjacency, group_meshlets},
+    adjacency::{build_meshlets_adjacency, group_meshlets_with_metis},
     mesh::{compute_clusters, compute_meshlets, create_mesh_data, optimize_mesh, MeshVertex},
     need_to_binarize, to_local_path, ExtensionHandler,
 };
@@ -382,7 +382,7 @@ impl GltfCompiler {
             let previous_lod_meshlets = meshlets_per_lod.last_mut().unwrap();
             let meshlets_adjacency =
                 build_meshlets_adjacency(previous_lod_meshlets, &geometry_vertices, &mesh_indices);
-            let groups = group_meshlets(&meshlets_adjacency);
+            let groups = group_meshlets_with_metis(&meshlets_adjacency);
             level += 1;
 
             let (mut cluster_indices, cluster_meshlets) = compute_clusters(

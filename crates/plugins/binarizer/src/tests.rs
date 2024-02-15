@@ -33,7 +33,7 @@ fn simplify_test() {
         2, 7, 3,
         3, 7, 8,
     ];
-    let locked_indices = find_border_vertices(&indices);
+    let locked_indices = find_border_vertices(&vertices, &indices);
 
     debug_assert!(
         !locked_indices.is_empty() && locked_indices.len() < indices.len(),

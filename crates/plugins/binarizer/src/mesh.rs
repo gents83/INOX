@@ -224,7 +224,8 @@ pub fn compute_clusters(
         let (optimized_vertices, optimized_indices) =
             optimize_mesh(&group_vertices, &group_indices);
 
-        let locked_indices = crate::adjacency::find_border_vertices(&optimized_indices);
+        let locked_indices =
+            crate::adjacency::find_border_vertices(&optimized_vertices, &optimized_indices);
 
         let target_count = (optimized_indices.len() as f32 * 0.5) as usize;
         let target_error = 0.9;
