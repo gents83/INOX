@@ -4,7 +4,7 @@ use crate::{
     ArrayI32, ArrayU32, AsBinding, BVHBuffer, BindingData, BindingFlags, BindingInfo,
     CommandBuffer, ComputePass, ComputePassData, ConstantDataRw, DrawCommandType,
     DrawCommandsBuffer, GpuBuffer, Mesh, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass,
-    RenderContext, RenderContextRc, ShaderStage, TextureView, ATOMIC_SIZE,
+    RenderContext, RenderContextRc, ShaderStage, TextureView, ATOMIC_SIZE, MAX_LOD_LEVELS,
 };
 
 use inox_commands::CommandParser;
@@ -170,7 +170,7 @@ impl Pass for CullingPass {
         let num_meshlets = self.meshlets.read().unwrap().item_count();
         let mut max_meshlets_size = num_meshlets as u32 + ATOMIC_SIZE;
         max_meshlets_size += ATOMIC_SIZE - (max_meshlets_size % ATOMIC_SIZE);
-        let processing_data = vec![-1; max_meshlets_size as usize];
+        let processing_data = vec![MAX_LOD_LEVELS as i32; max_meshlets_size as usize];
         self.processing_data.write().unwrap().set(processing_data);
 
         if self.update_meshes {

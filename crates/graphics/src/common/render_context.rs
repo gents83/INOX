@@ -17,6 +17,7 @@ use crate::{
 };
 
 const USE_FORCED_VULKAN: bool = false;
+const USE_FORCED_DX12: bool = false;
 
 #[derive(PartialEq, Eq, Copy, Clone)]
 pub enum RendererState {
@@ -144,12 +145,14 @@ impl RenderContext {
         let (instance, surface, adapter, device, queue) = {
             let backends = if USE_FORCED_VULKAN {
                 wgpu::Backends::VULKAN
+            } else if USE_FORCED_DX12 {
+                wgpu::Backends::DX12
             } else {
                 wgpu::Backends::all()
             };
             let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
                 backends,
-                flags: wgpu::InstanceFlags::advanced_debugging(),
+                flags: wgpu::InstanceFlags::empty(),
                 ..Default::default()
             });
             let surface = Self::create_surface(&instance, handle.clone());

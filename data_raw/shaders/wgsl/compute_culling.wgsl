@@ -123,7 +123,7 @@ fn main(
             let ncd_max = clip_mvp * vec4<f32>(max, 1.);
             let clip_max = ncd_max.xyz / ncd_max.w;
             let screen_max = clip_to_normalized(clip_max.xy);
-            let screen_diff = max(screen_max, screen_min) - min(screen_max, screen_min);
+            let screen_diff = (max(screen_max, screen_min) - min(screen_max, screen_min)) * 2.;
             if clip_min.z > 1. && clip_max.z > 1. {
                 desired_lod_level = 0;
             }
@@ -140,33 +140,34 @@ fn main(
         let meshlet_lod_level = meshlet.mesh_index_and_lod_level & 7u;
         let lod_level = u32(desired_lod_level);
         if(meshlet_lod_level < lod_level) {  
+            let max_lod_level = i32(MAX_LOD_LEVELS);
             if(meshlet.child_meshlets.x >= 0) {                 
-                let result = atomicCompareExchangeWeak(&processing_data[meshlet.child_meshlets.x], -1, desired_lod_level);
-                if(result.exchanged) {
+                let v = atomicMin(&processing_data[meshlet.child_meshlets.x], desired_lod_level);
+                if (v == max_lod_level) {
                     let child_index = atomicAdd(&global_count, 1u);
                     atomicStore(&meshlet_culling_data[child_index], u32(meshlet.child_meshlets.x));
                 }
             }  
             if(meshlet.child_meshlets.y >= 0) {                 
-                let result = atomicCompareExchangeWeak(&processing_data[meshlet.child_meshlets.y], -1, desired_lod_level);
-                if(result.exchanged) {                     
+                let v = atomicMin(&processing_data[meshlet.child_meshlets.y], desired_lod_level);
+                if (v == max_lod_level) {
                     let child_index = atomicAdd(&global_count, 1u);                     
-                    atomicStore(&meshlet_culling_data[child_index], u32(meshlet.child_meshlets.y));                     
+                    atomicStore(&meshlet_culling_data[child_index], u32(meshlet.child_meshlets.y)); 
                 }
             }  
             if(meshlet.child_meshlets.z >= 0) {                 
-                let result = atomicCompareExchangeWeak(&processing_data[meshlet.child_meshlets.z], -1, desired_lod_level);
-                if(result.exchanged) {                     
+                let v = atomicMin(&processing_data[meshlet.child_meshlets.z], desired_lod_level);
+                if (v == max_lod_level) {
                     let child_index = atomicAdd(&global_count, 1u);                     
-                    atomicStore(&meshlet_culling_data[child_index], u32(meshlet.child_meshlets.z));                     
+                    atomicStore(&meshlet_culling_data[child_index], u32(meshlet.child_meshlets.z)); 
                 }
             }  
             if(meshlet.child_meshlets.w >= 0) {                 
-                let result = atomicCompareExchangeWeak(&processing_data[meshlet.child_meshlets.w], -1, desired_lod_level);
-                if(result.exchanged) {                     
+                let v = atomicMin(&processing_data[meshlet.child_meshlets.w], desired_lod_level);
+                if (v == max_lod_level) {
                     let child_index = atomicAdd(&global_count, 1u);                     
-                    atomicStore(&meshlet_culling_data[child_index], u32(meshlet.child_meshlets.w));                     
-                }
+                    atomicStore(&meshlet_culling_data[child_index], u32(meshlet.child_meshlets.w)); 
+                }  
             }          
         } 
         else if(meshlet_lod_level == lod_level)

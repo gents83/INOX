@@ -40,7 +40,7 @@ pub struct DrawIndexedCommand {
     pub base_instance: u32,
 }
 
-#[repr(C, align(4))]
+#[repr(C)]
 #[derive(Default, PartialEq, Eq, Clone, Copy, Debug)]
 pub struct DrawCommand {
     pub vertex_count: u32,
@@ -91,7 +91,7 @@ impl GPUMesh {
     }
 }
 
-#[repr(C, align(16))]
+#[repr(C)]
 #[derive(Default, PartialEq, Clone, Copy, Debug)]
 pub struct GPUMeshlet {
     pub mesh_index_and_lod_level: u32, // 29 mesh + 3 lod bits
@@ -114,7 +114,7 @@ impl GPUMeshlet {
     }
 }
 
-#[repr(C, align(16))]
+#[repr(C)]
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub struct GPUMaterial {
     pub roughness_factor: f32,
@@ -159,7 +159,7 @@ impl Default for GPUMaterial {
     }
 }
 
-#[repr(C, align(4))]
+#[repr(C)]
 #[derive(Default, PartialEq, Clone, Copy, Debug)]
 pub struct GPURuntimeVertexData {
     pub world_pos: [f32; 3],
