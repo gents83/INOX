@@ -371,7 +371,8 @@ impl GltfCompiler {
         let mut mesh_indices_offset = 0;
         let mut previous_meshlets_starting_offset = 0;
         let mut meshlets_per_lod = Vec::new();
-        let (meshlets, mut mesh_indices) = compute_meshlets(&geometry_vertices, &geometry_indices);
+        let (meshlets, mut mesh_indices) =
+            compute_meshlets(&geometry_vertices, &geometry_indices, 0);
 
         let mut is_meshlet_tree_created = meshlets.len() <= 1;
         meshlets_per_lod.push(meshlets);

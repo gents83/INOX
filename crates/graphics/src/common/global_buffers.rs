@@ -235,7 +235,7 @@ impl GlobalBuffers {
 
         let (vertex_offset, indices_offset, attributes_offset) =
             self.add_vertex_data(mesh_id, mesh_index as _, mesh_data);
-        let (blas_index, meshlet_offset, lod_starting_offsets, lod_ending_offsets) =
+        let (blas_index, meshlet_offset, lod_meshlets_starting_offset, lod_meshlets_ending_offsets) =
             self.extract_meshlets(mesh_data, mesh_id, mesh_index as _, indices_offset);
 
         {
@@ -250,8 +250,11 @@ impl GlobalBuffers {
                 .iter_mut()
                 .enumerate()
                 .for_each(|(i, c)| {
-                    if i < lod_starting_offsets.len() && i < lod_ending_offsets.len() {
-                        *c = ((lod_starting_offsets[i]) << 16 | (lod_ending_offsets[i])) as _;
+                    if i < lod_meshlets_starting_offset.len()
+                        && i < lod_meshlets_ending_offsets.len()
+                    {
+                        *c = ((lod_meshlets_starting_offset[i]) << 16
+                            | (lod_meshlets_ending_offsets[i])) as _;
                     }
                 });
         }

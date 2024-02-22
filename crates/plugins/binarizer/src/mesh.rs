@@ -133,7 +133,11 @@ pub fn create_mesh_data(vertices: &[MeshVertex], indices: &[u32]) -> MeshData {
     mesh_data
 }
 
-pub fn compute_meshlets<T>(vertices: &[T], indices: &[u32]) -> (Vec<MeshletData>, Vec<u32>)
+pub fn compute_meshlets<T>(
+    vertices: &[T],
+    indices: &[u32],
+    starting_offset: u32,
+) -> (Vec<MeshletData>, Vec<u32>)
 where
     T: DecodePosition,
 {
@@ -173,7 +177,7 @@ where
         });
         debug_assert!(new_indices.len() % 3 == 0);
         new_meshlets.push(MeshletData {
-            indices_offset: index_offset as _,
+            indices_offset: starting_offset + index_offset as u32,
             indices_count: m.triangles.len() as _,
             aabb_min,
             aabb_max,
@@ -221,47 +225,38 @@ pub fn compute_clusters(
             aabb_min = aabb_min.min(meshlet.aabb_min);
         });
 
-        let (optimized_vertices, optimized_indices) =
-            optimize_mesh(&group_vertices, &group_indices);
-
-        let locked_indices =
-            crate::adjacency::find_border_vertices(&optimized_vertices, &optimized_indices);
-
-        let target_count = (optimized_indices.len() as f32 * 0.5) as usize;
+        let target_count = (group_indices.len() as f32 * 0.5) as usize;
         let target_error = 0.9;
 
         let mut simplified_indices = meshopt::simplify_decoder(
-            &optimized_indices,
-            &optimized_vertices,
+            &group_indices,
+            &group_vertices,
             target_count,
             target_error,
             meshopt::SimplifyOptions::LockBorder,
             None,
         );
 
-        if locked_indices.len() > optimized_vertices.len() + 1
-            && simplified_indices.len() >= optimized_indices.len()
-        {
+        if simplified_indices.len() >= group_indices.len() {
             inox_log::debug_log!(
                 "No simplification happened [from {} to {}]",
-                optimized_indices.len(),
+                group_indices.len(),
                 simplified_indices.len(),
             );
         }
 
         if simplified_indices.is_empty() {
-            simplified_indices = optimized_indices;
+            simplified_indices = group_indices;
         }
 
         let (mut meshlets, group_indices) =
-            compute_meshlets(&optimized_vertices, &simplified_indices);
+            compute_meshlets(&group_vertices, &simplified_indices, indices_offset as u32);
 
         let mut global_group_indices = Vec::with_capacity(group_indices.len());
         group_indices.iter().for_each(|&i| {
-            global_group_indices.push(optimized_vertices[i as usize].global_index as u32);
+            global_group_indices.push(group_vertices[i as usize].global_index as u32);
         });
         meshlets.iter_mut().for_each(|m| {
-            m.indices_offset += indices_offset as u32;
             meshlets_indices.iter().for_each(|&meshlet_index| {
                 m.child_meshlets
                     .push(parent_meshlets_offset as u32 + meshlet_index);
