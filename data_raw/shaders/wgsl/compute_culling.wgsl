@@ -123,7 +123,7 @@ fn main(
             let ncd_max = clip_mvp * vec4<f32>(max, 1.);
             let clip_max = ncd_max.xyz / ncd_max.w;
             let screen_max = clip_to_normalized(clip_max.xy);
-            let screen_diff = (max(screen_max, screen_min) - min(screen_max, screen_min)) * 2.;
+            let screen_diff = (max(screen_max, screen_min) - min(screen_max, screen_min)) * 10.;
             if clip_min.z > 1. && clip_max.z > 1. {
                 desired_lod_level = 0;
             }
