@@ -58,12 +58,8 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
     var node_index = i32(tlas_starting_index) + 1;
     var visibility_id = 0u;
     var hit_type = HIT_DATA_TLAS;
-    var mesh_orientation = vec4<f32>(0.);
     var meshlets_offset = 0u;
-    var meshlet_indices_offset = 0u;
     var vertices_position_offset = 0u;
-    var meshlet_id = 0u;
-    var blas_sibling = 0;
     var tlas_sibling = 0;
     
     var node = bhv.data[u32(node_index)]; 
@@ -78,33 +74,28 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
         if(intersection < max_distance) {
             let reference = u32(node.reference);  
             //leaf node
-            if(hit_type == HIT_DATA_TRIANGLE) {     
-                let index_offset = meshlet_indices_offset + (reference * 3u);
-                let v1 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset]].world_pos;
-                let v2 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset + 1u]].world_pos;
-                let v3 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset + 2u]].world_pos;
-                let distance = intersect_triangle(world_ray_origin, world_ray_direction, max_distance, v1, v2, v3);
-                if(distance < max_distance) {
-                    visibility_id = ((meshlet_id + 1u) << 8u)  | reference;
-                    max_distance = distance;
+            if(hit_type == HIT_DATA_BLAS) {  
+                let meshlet_id = meshlets_offset + reference;              
+                let meshlet = meshlets.data[meshlet_id];
+                let triangle_count = meshlet.indices_count / 3u;
+                for(var i = 0u; i < triangle_count; i++)
+                {
+                    let index_offset = meshlet.indices_offset + (i * 3u);
+                    let v1 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset]].world_pos;
+                    let v2 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset + 1u]].world_pos;
+                    let v3 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset + 2u]].world_pos;
+                    let distance = intersect_triangle(world_ray_origin, world_ray_direction, max_distance, v1, v2, v3);
+                    if(distance < max_distance) {
+                        visibility_id = ((meshlet_id + 1u) << 8u)  | reference;
+                        max_distance = distance;
+                    }
                 }
                 node_index = node.miss;
-                let should_go_to_blas = node_index < 0;
-                hit_type = select(hit_type, HIT_DATA_BLAS, should_go_to_blas);
-                node_index = select(node_index, blas_sibling, should_go_to_blas);
                 let should_go_to_tlas = node_index < 0;
                 hit_type = select(hit_type, HIT_DATA_TLAS, should_go_to_tlas);
                 node_index = select(node_index, tlas_sibling, should_go_to_tlas);
                 origin = select(origin, world_ray_origin, should_go_to_tlas);
                 direction = select(direction, world_ray_direction, should_go_to_tlas);
-            }
-            else if(hit_type == HIT_DATA_BLAS) {  
-                meshlet_id = meshlets_offset + reference;              
-                let meshlet = &meshlets.data[meshlet_id];
-                meshlet_indices_offset = (*meshlet).indices_offset;
-                blas_sibling = node.miss;
-                hit_type = HIT_DATA_TRIANGLE;
-                node_index = i32((*meshlet).triangles_bhv_index) + 1;
             }
             else {  
                 hit_type = HIT_DATA_BLAS;
@@ -112,7 +103,6 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
                 let mesh = &meshes.data[reference];  
                 meshlets_offset = (*mesh).meshlets_offset;
                 vertices_position_offset = (*mesh).vertices_position_offset;
-                mesh_orientation = (*mesh).orientation;
                 node_index = i32((*mesh).blas_index) + 1;  //We add 1 here to avoid checking same aabb 
 
                 let matrix = transform_matrix((*mesh).position, (*mesh).orientation, (*mesh).scale);    
@@ -125,9 +115,6 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
         }
         else {
             node_index = node.miss;
-            let should_go_to_blas = hit_type == HIT_DATA_TRIANGLE && node_index < 0;
-            hit_type = select(hit_type, HIT_DATA_BLAS, should_go_to_blas);
-            node_index = select(node_index, blas_sibling, should_go_to_blas);
             let should_go_to_tlas = hit_type == HIT_DATA_BLAS && node_index < 0;
             hit_type = select(hit_type, HIT_DATA_TLAS, should_go_to_tlas);
             node_index = select(node_index, tlas_sibling, should_go_to_tlas);
