@@ -281,7 +281,9 @@ impl ViewerSystem {
         camera_object
             .get_mut()
             .set_position(Vector3::new(0.0, 0.0, -50.0));
-        camera_object.get_mut().look_at(Vector3::new(0.0, 0.0, 0.0));
+        camera_object
+            .get_mut()
+            .look_towards(Vector3::new(0.0, 0.0, -1.0));
         let camera = camera_object.get_mut().add_default_component::<Camera>(
             self.context.shared_data(),
             self.context.message_hub(),

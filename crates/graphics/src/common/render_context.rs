@@ -150,9 +150,16 @@ impl RenderContext {
             } else {
                 wgpu::Backends::all()
             };
+            #[allow(unused_assignments)]
+            let mut flags = wgpu::InstanceFlags::empty();
+            #[cfg(not(target_arch = "wasm32"))]
+            #[cfg(debug_assertions)]
+            {
+                flags = wgpu::InstanceFlags::debugging();
+            }
             let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
                 backends,
-                flags: wgpu::InstanceFlags::empty(),
+                flags,
                 ..Default::default()
             });
             let surface = Self::create_surface(&instance, handle.clone());

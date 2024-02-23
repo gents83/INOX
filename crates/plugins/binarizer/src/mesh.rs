@@ -60,6 +60,7 @@ impl meshopt::DecodePosition for LocalVertex {
     }
 }
 
+#[allow(dead_code)]
 pub fn optimize_mesh<T>(vertices: &[T], indices: &[u32]) -> (Vec<T>, Vec<u32>)
 where
     T: Clone + Default + DecodePosition,

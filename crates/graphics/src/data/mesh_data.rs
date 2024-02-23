@@ -182,7 +182,7 @@ impl MeshData {
         let vertex_offset = self.vertex_count() as u32;
         let index_offset = self.index_count() as u32;
 
-        if as_separate_meshlet || self.meshlets.is_empty() {
+        if as_separate_meshlet || self.meshlets[lod_level].is_empty() {
             let meshlet = MeshletData {
                 indices_offset: index_offset as _,
                 indices_count: mesh_data.index_count() as _,

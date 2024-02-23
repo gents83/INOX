@@ -13,7 +13,6 @@ pub enum VertexAttributeLayout {
     HasUV2 = 1 << 4, //	1 packed u32 with uv in 2f16 (at runtime then 2 float)
     HasUV3 = 1 << 5, //	1 packed u32 with uv in 2f16 (at runtime then 2 float)
     HasUV4 = 1 << 6, //	1 packed u32 with uv in 2f16 (at runtime then 2 float)
-    MaxAttributesShift = 7,
 }
 
 impl VertexAttributeLayout {

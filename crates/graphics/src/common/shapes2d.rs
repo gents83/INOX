@@ -39,7 +39,7 @@ pub fn create_quad_with_texture(rect: Vector4, z: f32, tex_coords: Vector4) -> M
         [1., -1., 0.].into(),
         [tex_coords.z, tex_coords.y].into(),
     );
-    mesh_data.indices = [0, 1, 2, 3, 0, 2].to_vec();
+    mesh_data.indices = [0, 3, 2, 2, 1, 0].to_vec();
 
     let meshlet = MeshletData {
         indices_count: mesh_data.index_count() as _,
