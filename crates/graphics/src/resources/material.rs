@@ -7,7 +7,9 @@ use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceEvent, ResourceId, ResourceTrait,
     SerializableResource, SharedDataRc,
 };
-use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
+use inox_serialize::{
+    inox_serializable::SerializableRegistryRc, read_from_file, SerializationType, SerializeFile,
+};
 
 pub type MaterialId = ResourceId;
 
@@ -46,10 +48,10 @@ impl SerializableResource for Material {
 
     fn deserialize_data(
         path: &std::path::Path,
-        registry: &SerializableRegistryRc,
+        registry: SerializableRegistryRc,
         f: Box<dyn FnMut(Self::DataType) + 'static>,
     ) {
-        read_from_file::<Self::DataType>(path, registry, f);
+        read_from_file::<Self::DataType>(path, registry, SerializationType::Binary, f);
     }
 }
 

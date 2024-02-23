@@ -15,5 +15,6 @@ crate-type = ["lib"]
 serde_derive = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+flexbuffers = { workspace = true }
 inox_filesystem = { path = "../filesystem" }
 inox_serializable = { path = "./serializable" }

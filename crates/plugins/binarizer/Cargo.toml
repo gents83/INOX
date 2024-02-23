@@ -16,6 +16,7 @@ naga = { workspace = true }
 rspirv = { workspace = true }
 regex = { workspace = true }
 gltf = { workspace = true }
+serde_json = { workspace = true }
 inox_bvh = { path = "../../bvh" }
 inox_commands = { path = "../../commands" }
 inox_core = { path = "../../core" }

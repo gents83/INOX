@@ -53,8 +53,8 @@ pub trait NodeTrait: Any + Send + Sync + 'static {
     fn execytion_type(&self) -> NodeExecutionType;
     fn execute(&mut self, pin: &PinId, context: &LogicContext) -> NodeState;
     fn duplicate(&self) -> Box<dyn NodeTrait + Send + Sync>;
-    fn serialize_node(&self, registry: &SerializableRegistryRc) -> String;
-    fn deserialize_node(&self, s: &str, registry: &SerializableRegistryRc) -> Option<Self>
+    fn serialize_node(&self, registry: SerializableRegistryRc) -> Vec<u8>;
+    fn deserialize_node(&self, s: &[u8], registry: SerializableRegistryRc) -> Option<Self>
     where
         Self: Sized;
 }

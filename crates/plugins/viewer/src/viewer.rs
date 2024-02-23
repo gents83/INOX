@@ -14,7 +14,7 @@ use inox_graphics::{
 use inox_platform::Window;
 use inox_resources::ConfigBase;
 use inox_scene::{ObjectSystem, ScriptSystem};
-use inox_serialize::read_from_file;
+use inox_serialize::{read_from_file, SerializationType};
 use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
 
 use crate::{config::Config, systems::viewer_system::ViewerSystem};
@@ -92,6 +92,7 @@ impl Plugin for Viewer {
         read_from_file(
             config.get_filepath(self.name()).as_path(),
             context.shared_data().serializable_registry(),
+            SerializationType::Json,
             Box::new(move |data: Config| {
                 if let Some(ui_pass) =
                     shared_data.match_resource(|r: &RenderPass| r.name() == UI_PASS_NAME)

@@ -88,7 +88,7 @@ impl SerializableResource for Font {
     }
     fn deserialize_data(
         path: &Path,
-        _registry: &SerializableRegistryRc,
+        _registry: SerializableRegistryRc,
         mut f: Box<dyn FnMut(Self::DataType) + 'static>,
     ) {
         f(FontData::new(path));

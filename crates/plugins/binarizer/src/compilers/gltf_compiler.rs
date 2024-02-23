@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fs::{self, create_dir_all, File},
     io::{Seek, SeekFrom},
     path::{Path, PathBuf},
@@ -22,7 +23,7 @@ use gltf::{
 
 use inox_bvh::{create_linearized_bvh, BVHTree, AABB};
 use inox_graphics::{
-    LightData, LightType, MaterialData, MaterialFlags, TextureType, MAX_LOD_LEVELS,
+    LightData, LightType, MaterialData, MaterialFlags, MeshData, TextureType, MAX_LOD_LEVELS,
     MAX_TEXTURE_COORDS_SETS,
 };
 use inox_log::debug_log;
@@ -34,7 +35,8 @@ use inox_nodes::LogicData;
 use inox_resources::SharedDataRc;
 use inox_scene::{CameraData, ObjectData, SceneData};
 use inox_serialize::{
-    deserialize, inox_serializable::SerializableRegistryRc, Deserialize, Serialize, SerializeFile,
+    deserialize, inox_serializable::SerializableRegistryRc, Deserialize, SerializationType,
+    Serialize, SerializeFile,
 };
 use mikktspace::{generate_tangents, Geometry};
 
@@ -108,6 +110,7 @@ pub struct GltfCompiler {
     data_folder: PathBuf,
     node_index: usize,
     material_index: usize,
+    meshes_paths: HashMap<String, PathBuf>,
 }
 
 impl GltfCompiler {
@@ -118,6 +121,7 @@ impl GltfCompiler {
             data_folder: data_folder.to_path_buf(),
             node_index: 0,
             material_index: 0,
+            meshes_paths: HashMap::default(),
         }
     }
 
@@ -360,78 +364,87 @@ impl GltfCompiler {
         primitive: &Primitive,
         material_path: &Path,
     ) -> PathBuf {
-        let vertices = self.extract_vertices(path, primitive);
-        let indices = self.extract_indices(path, primitive);
-        let mut geometry = GltfGeometry { vertices, indices };
-        generate_tangents(&mut geometry);
+        let new_path = self.compute_path_name::<MeshData>(path, mesh_name, "mesh");
+        if need_to_binarize(path, new_path.as_path()) {
+            let vertices = self.extract_vertices(path, primitive);
+            let indices = self.extract_indices(path, primitive);
+            let mut geometry = GltfGeometry { vertices, indices };
+            generate_tangents(&mut geometry);
 
-        let (geometry_vertices, geometry_indices) =
-            optimize_mesh(&geometry.vertices, &geometry.indices);
+            let (geometry_vertices, geometry_indices) =
+                optimize_mesh(&geometry.vertices, &geometry.indices);
 
-        let mut mesh_indices_offset = 0;
-        let mut previous_meshlets_starting_offset = 0;
-        let mut meshlets_per_lod = Vec::new();
-        let (meshlets, mut mesh_indices) =
-            compute_meshlets(&geometry_vertices, &geometry_indices, 0);
+            let mut mesh_indices_offset = 0;
+            let mut previous_meshlets_starting_offset = 0;
+            let mut meshlets_per_lod = Vec::new();
+            let (meshlets, mut mesh_indices) =
+                compute_meshlets(&geometry_vertices, &geometry_indices, 0);
 
-        let mut is_meshlet_tree_created = meshlets.len() <= 1;
-        meshlets_per_lod.push(meshlets);
-        mesh_indices_offset += mesh_indices.len();
+            let mut is_meshlet_tree_created = meshlets.len() <= 1;
+            meshlets_per_lod.push(meshlets);
+            mesh_indices_offset += mesh_indices.len();
 
-        let mut level = 0;
-        while !is_meshlet_tree_created {
-            let previous_lod_meshlets = meshlets_per_lod.last_mut().unwrap();
-            let meshlets_adjacency =
-                build_meshlets_adjacency(previous_lod_meshlets, &geometry_vertices, &mesh_indices);
-            let groups = group_meshlets_with_metis(&meshlets_adjacency);
-            level += 1;
+            let mut level = 0;
+            while !is_meshlet_tree_created {
+                let previous_lod_meshlets = meshlets_per_lod.last_mut().unwrap();
+                let meshlets_adjacency = build_meshlets_adjacency(
+                    previous_lod_meshlets,
+                    &geometry_vertices,
+                    &mesh_indices,
+                );
+                let groups = group_meshlets_with_metis(&meshlets_adjacency);
+                level += 1;
 
-            let (mut cluster_indices, cluster_meshlets) = compute_clusters(
-                &groups,
-                previous_lod_meshlets,
-                previous_meshlets_starting_offset,
-                mesh_indices_offset,
-                &geometry_vertices,
-                &mesh_indices,
-            );
+                let (mut cluster_indices, cluster_meshlets) = compute_clusters(
+                    &groups,
+                    previous_lod_meshlets,
+                    previous_meshlets_starting_offset,
+                    mesh_indices_offset,
+                    &geometry_vertices,
+                    &mesh_indices,
+                );
 
-            mesh_indices_offset += cluster_indices.len();
-            mesh_indices.append(&mut cluster_indices);
-            previous_meshlets_starting_offset += meshlets_per_lod[level - 1].len();
-            meshlets_per_lod.push(cluster_meshlets);
+                mesh_indices_offset += cluster_indices.len();
+                mesh_indices.append(&mut cluster_indices);
+                previous_meshlets_starting_offset += meshlets_per_lod[level - 1].len();
+                meshlets_per_lod.push(cluster_meshlets);
 
-            is_meshlet_tree_created = groups.len() == 1 || level >= (MAX_LOD_LEVELS - 1);
-        }
+                is_meshlet_tree_created = groups.len() == 1 || level >= (MAX_LOD_LEVELS - 1);
+            }
 
-        let mut mesh_data = create_mesh_data(&geometry_vertices, &mesh_indices);
-        mesh_data.meshlets = meshlets_per_lod;
-        mesh_data.meshlets_bvh.clear();
-        mesh_data.material = material_path.to_path_buf();
+            let mut mesh_data = create_mesh_data(&geometry_vertices, &mesh_indices);
+            mesh_data.meshlets = meshlets_per_lod;
+            mesh_data.meshlets_bvh.clear();
+            mesh_data.material = material_path.to_path_buf();
 
-        mesh_data
-            .meshlets
-            .iter_mut()
-            .enumerate()
-            .for_each(|(_lod_level, meshlets)| {
-                //println!("LOD {} has {} meshlets", _lod_level, meshlets.len());
+            mesh_data
+                .meshlets
+                .iter_mut()
+                .enumerate()
+                .for_each(|(_lod_level, meshlets)| {
+                    //println!("LOD {} has {} meshlets", _lod_level, meshlets.len());
 
-                let mut meshlets_aabbs = Vec::new();
-                meshlets_aabbs.resize_with(meshlets.len(), AABB::empty);
-                meshlets.iter_mut().enumerate().for_each(|(i, m)| {
-                    meshlets_aabbs[i] = AABB::create(m.aabb_min, m.aabb_max, i as _);
-                    m.bhv_offset = i as _;
+                    let mut meshlets_aabbs = Vec::new();
+                    meshlets_aabbs.resize_with(meshlets.len(), AABB::empty);
+                    meshlets.iter_mut().enumerate().for_each(|(i, m)| {
+                        meshlets_aabbs[i] = AABB::create(m.aabb_min, m.aabb_max, i as _);
+                        m.bhv_offset = i as _;
+                    });
+                    let bvh = BVHTree::new(&meshlets_aabbs);
+                    mesh_data.meshlets_bvh.push(create_linearized_bvh(&bvh));
                 });
-                let bvh = BVHTree::new(&meshlets_aabbs);
-                mesh_data.meshlets_bvh.push(create_linearized_bvh(&bvh));
-            });
 
-        self.create_file(
-            path,
-            &mesh_data,
-            mesh_name,
-            "mesh",
-            self.shared_data.serializable_registry(),
-        )
+            self.create_file(
+                path,
+                &mesh_data,
+                mesh_name,
+                "mesh",
+                self.shared_data.serializable_registry(),
+                SerializationType::Binary,
+            )
+        } else {
+            new_path
+        }
     }
     fn process_texture(&mut self, path: &Path, texture: Texture) -> PathBuf {
         if let ImageSource::Uri {
@@ -453,164 +466,174 @@ impl GltfCompiler {
         PathBuf::new()
     }
     fn process_material_data(&mut self, path: &Path, primitive: &Primitive) -> PathBuf {
-        let mut material_data = MaterialData::default();
-
-        let material = primitive.material().pbr_metallic_roughness();
-        material_data.flags = MaterialFlags::MetallicRoughness;
-        //println!("Flags = MetallicRoughness");
-        material_data.base_color = material.base_color_factor().into();
-        material_data.roughness_factor = material.roughness_factor();
-        material_data.metallic_factor = material.metallic_factor();
-        if let Some(info) = material.base_color_texture() {
-            material_data.textures[TextureType::BaseColor as usize] =
-                self.process_texture(path, info.texture());
-            material_data.texcoords_set[TextureType::BaseColor as usize] = info.tex_coord() as _;
-        }
-        if let Some(info) = material.metallic_roughness_texture() {
-            material_data.textures[TextureType::MetallicRoughness as usize] =
-                self.process_texture(path, info.texture());
-            material_data.texcoords_set[TextureType::MetallicRoughness as usize] =
-                info.tex_coord() as _;
-        }
-
-        let material = primitive.material();
-        if material.unlit() {
-            material_data.flags |= MaterialFlags::Unlit;
-            //println!("Flags |= Unlit");
-        }
-        if let Some(texture) = material.normal_texture() {
-            material_data.textures[TextureType::Normal as usize] =
-                self.process_texture(path, texture.texture());
-            material_data.texcoords_set[TextureType::Normal as usize] = texture.tex_coord() as _;
-        }
-        if let Some(texture) = material.emissive_texture() {
-            material_data.textures[TextureType::Emissive as usize] =
-                self.process_texture(path, texture.texture());
-            material_data.texcoords_set[TextureType::Emissive as usize] = texture.tex_coord() as _;
-        }
-        if let Some(texture) = material.occlusion_texture() {
-            material_data.textures[TextureType::Occlusion as usize] =
-                self.process_texture(path, texture.texture());
-            material_data.texcoords_set[TextureType::Occlusion as usize] = texture.tex_coord() as _;
-            material_data.occlusion_strength = texture.strength();
-        };
-        material_data.alpha_cutoff = 0.5;
-        match material.alpha_mode() {
-            AlphaMode::Opaque => {
-                material_data.flags |= MaterialFlags::AlphaModeOpaque;
-                //println!("Flags |= AlphaModeOpaque");
-            }
-            AlphaMode::Mask => {
-                material_data.alpha_cutoff = 0.5;
-                material_data.flags |= MaterialFlags::AlphaModeMask;
-                //println!("Flags |= AlphaModeMask");
-            }
-            AlphaMode::Blend => {
-                material_data.flags |= MaterialFlags::AlphaModeBlend;
-                //println!("Flags |= AlphaModeBlend");
-            }
-        };
-        material_data.alpha_cutoff = primitive.material().alpha_cutoff().unwrap_or(1.);
-        material_data.emissive_color = [
-            primitive.material().emissive_factor()[0],
-            primitive.material().emissive_factor()[1],
-            primitive.material().emissive_factor()[2],
-        ]
-        .into();
-        if let Some(pbr) = material.pbr_specular_glossiness() {
-            material_data.flags |= MaterialFlags::SpecularGlossiness;
-            //println!("Flags |= SpecularGlossiness");
-            if let Some(texture) = pbr.specular_glossiness_texture() {
-                material_data.textures[TextureType::SpecularGlossiness as usize] =
-                    self.process_texture(path, texture.texture());
-                material_data.texcoords_set[TextureType::SpecularGlossiness as usize] =
-                    texture.tex_coord() as _;
-            }
-            if let Some(texture) = pbr.diffuse_texture() {
-                material_data.textures[TextureType::Diffuse as usize] =
-                    self.process_texture(path, texture.texture());
-                material_data.texcoords_set[TextureType::Diffuse as usize] =
-                    texture.tex_coord() as _;
-            }
-            material_data.diffuse_factor = pbr.diffuse_factor().into();
-            material_data.specular_glossiness_factor = [
-                pbr.specular_factor()[0],
-                pbr.specular_factor()[1],
-                pbr.specular_factor()[2],
-                pbr.glossiness_factor(),
-            ]
-            .into();
-        }
-
-        material_data.ior = if let Some(ior) = material.ior() {
-            material_data.flags |= MaterialFlags::Ior;
-            //println!("Flags |= Ior");
-            ior
-        } else {
-            1.5
-        };
-        if let Some(specular) = material.specular() {
-            material_data.flags |= MaterialFlags::Specular;
-            //println!("Flags |= Specular");
-            material_data.specular_factors = [
-                specular.specular_color_factor()[0],
-                specular.specular_color_factor()[1],
-                specular.specular_color_factor()[2],
-                specular.specular_factor(),
-            ]
-            .into();
-            if let Some(texture) = specular.specular_texture() {
-                material_data.textures[TextureType::Specular as usize] =
-                    self.process_texture(path, texture.texture());
-                material_data.texcoords_set[TextureType::Specular as usize] =
-                    texture.tex_coord() as _;
-            }
-            if let Some(texture) = specular.specular_color_texture() {
-                material_data.textures[TextureType::SpecularColor as usize] =
-                    self.process_texture(path, texture.texture());
-                material_data.texcoords_set[TextureType::SpecularColor as usize] =
-                    texture.tex_coord() as _;
-            }
-        }
-        if let Some(transmission) = material.transmission() {
-            material_data.flags |= MaterialFlags::Transmission;
-            //println!("Flags |= Transmission");
-            material_data.transmission_factor = transmission.transmission_factor();
-            if let Some(texture) = transmission.transmission_texture() {
-                material_data.textures[TextureType::Transmission as usize] =
-                    self.process_texture(path, texture.texture());
-                material_data.texcoords_set[TextureType::Transmission as usize] =
-                    texture.tex_coord() as _;
-            }
-        }
-        if let Some(volume) = material.volume() {
-            material_data.flags |= MaterialFlags::Volume;
-            //println!("Flags |= Volume");
-            material_data.attenuation_color_and_distance = [
-                volume.attenuation_color()[0],
-                volume.attenuation_color()[1],
-                volume.attenuation_color()[2],
-                volume.attenuation_distance(),
-            ]
-            .into();
-            if let Some(texture) = volume.thickness_texture() {
-                material_data.textures[TextureType::Thickness as usize] =
-                    self.process_texture(path, texture.texture());
-                material_data.texcoords_set[TextureType::Thickness as usize] =
-                    texture.tex_coord() as _;
-            }
-        }
-
-        //let flags: u32 = material_data.flags.into();
-        //println!("Flags = {} = {:b}", flags, material_data.flags);
         let name = format!("Material_{}", self.material_index);
-        self.create_file(
-            path,
-            &material_data,
-            primitive.material().name().unwrap_or(&name),
-            "material",
-            self.shared_data.serializable_registry(),
-        )
+        let new_path = self.compute_path_name::<MeshData>(path, &name, "material");
+        if need_to_binarize(path, new_path.as_path()) {
+            let mut material_data = MaterialData::default();
+
+            let material = primitive.material().pbr_metallic_roughness();
+            material_data.flags = MaterialFlags::MetallicRoughness;
+            //println!("Flags = MetallicRoughness");
+            material_data.base_color = material.base_color_factor().into();
+            material_data.roughness_factor = material.roughness_factor();
+            material_data.metallic_factor = material.metallic_factor();
+            if let Some(info) = material.base_color_texture() {
+                material_data.textures[TextureType::BaseColor as usize] =
+                    self.process_texture(path, info.texture());
+                material_data.texcoords_set[TextureType::BaseColor as usize] =
+                    info.tex_coord() as _;
+            }
+            if let Some(info) = material.metallic_roughness_texture() {
+                material_data.textures[TextureType::MetallicRoughness as usize] =
+                    self.process_texture(path, info.texture());
+                material_data.texcoords_set[TextureType::MetallicRoughness as usize] =
+                    info.tex_coord() as _;
+            }
+
+            let material = primitive.material();
+            if material.unlit() {
+                material_data.flags |= MaterialFlags::Unlit;
+                //println!("Flags |= Unlit");
+            }
+            if let Some(texture) = material.normal_texture() {
+                material_data.textures[TextureType::Normal as usize] =
+                    self.process_texture(path, texture.texture());
+                material_data.texcoords_set[TextureType::Normal as usize] =
+                    texture.tex_coord() as _;
+            }
+            if let Some(texture) = material.emissive_texture() {
+                material_data.textures[TextureType::Emissive as usize] =
+                    self.process_texture(path, texture.texture());
+                material_data.texcoords_set[TextureType::Emissive as usize] =
+                    texture.tex_coord() as _;
+            }
+            if let Some(texture) = material.occlusion_texture() {
+                material_data.textures[TextureType::Occlusion as usize] =
+                    self.process_texture(path, texture.texture());
+                material_data.texcoords_set[TextureType::Occlusion as usize] =
+                    texture.tex_coord() as _;
+                material_data.occlusion_strength = texture.strength();
+            };
+            material_data.alpha_cutoff = 0.5;
+            match material.alpha_mode() {
+                AlphaMode::Opaque => {
+                    material_data.flags |= MaterialFlags::AlphaModeOpaque;
+                    //println!("Flags |= AlphaModeOpaque");
+                }
+                AlphaMode::Mask => {
+                    material_data.alpha_cutoff = 0.5;
+                    material_data.flags |= MaterialFlags::AlphaModeMask;
+                    //println!("Flags |= AlphaModeMask");
+                }
+                AlphaMode::Blend => {
+                    material_data.flags |= MaterialFlags::AlphaModeBlend;
+                    //println!("Flags |= AlphaModeBlend");
+                }
+            };
+            material_data.alpha_cutoff = primitive.material().alpha_cutoff().unwrap_or(1.);
+            material_data.emissive_color = [
+                primitive.material().emissive_factor()[0],
+                primitive.material().emissive_factor()[1],
+                primitive.material().emissive_factor()[2],
+            ]
+            .into();
+            if let Some(pbr) = material.pbr_specular_glossiness() {
+                material_data.flags |= MaterialFlags::SpecularGlossiness;
+                //println!("Flags |= SpecularGlossiness");
+                if let Some(texture) = pbr.specular_glossiness_texture() {
+                    material_data.textures[TextureType::SpecularGlossiness as usize] =
+                        self.process_texture(path, texture.texture());
+                    material_data.texcoords_set[TextureType::SpecularGlossiness as usize] =
+                        texture.tex_coord() as _;
+                }
+                if let Some(texture) = pbr.diffuse_texture() {
+                    material_data.textures[TextureType::Diffuse as usize] =
+                        self.process_texture(path, texture.texture());
+                    material_data.texcoords_set[TextureType::Diffuse as usize] =
+                        texture.tex_coord() as _;
+                }
+                material_data.diffuse_factor = pbr.diffuse_factor().into();
+                material_data.specular_glossiness_factor = [
+                    pbr.specular_factor()[0],
+                    pbr.specular_factor()[1],
+                    pbr.specular_factor()[2],
+                    pbr.glossiness_factor(),
+                ]
+                .into();
+            }
+
+            material_data.ior = if let Some(ior) = material.ior() {
+                material_data.flags |= MaterialFlags::Ior;
+                //println!("Flags |= Ior");
+                ior
+            } else {
+                1.5
+            };
+            if let Some(specular) = material.specular() {
+                material_data.flags |= MaterialFlags::Specular;
+                //println!("Flags |= Specular");
+                material_data.specular_factors = [
+                    specular.specular_color_factor()[0],
+                    specular.specular_color_factor()[1],
+                    specular.specular_color_factor()[2],
+                    specular.specular_factor(),
+                ]
+                .into();
+                if let Some(texture) = specular.specular_texture() {
+                    material_data.textures[TextureType::Specular as usize] =
+                        self.process_texture(path, texture.texture());
+                    material_data.texcoords_set[TextureType::Specular as usize] =
+                        texture.tex_coord() as _;
+                }
+                if let Some(texture) = specular.specular_color_texture() {
+                    material_data.textures[TextureType::SpecularColor as usize] =
+                        self.process_texture(path, texture.texture());
+                    material_data.texcoords_set[TextureType::SpecularColor as usize] =
+                        texture.tex_coord() as _;
+                }
+            }
+            if let Some(transmission) = material.transmission() {
+                material_data.flags |= MaterialFlags::Transmission;
+                //println!("Flags |= Transmission");
+                material_data.transmission_factor = transmission.transmission_factor();
+                if let Some(texture) = transmission.transmission_texture() {
+                    material_data.textures[TextureType::Transmission as usize] =
+                        self.process_texture(path, texture.texture());
+                    material_data.texcoords_set[TextureType::Transmission as usize] =
+                        texture.tex_coord() as _;
+                }
+            }
+            if let Some(volume) = material.volume() {
+                material_data.flags |= MaterialFlags::Volume;
+                //println!("Flags |= Volume");
+                material_data.attenuation_color_and_distance = [
+                    volume.attenuation_color()[0],
+                    volume.attenuation_color()[1],
+                    volume.attenuation_color()[2],
+                    volume.attenuation_distance(),
+                ]
+                .into();
+                if let Some(texture) = volume.thickness_texture() {
+                    material_data.textures[TextureType::Thickness as usize] =
+                        self.process_texture(path, texture.texture());
+                    material_data.texcoords_set[TextureType::Thickness as usize] =
+                        texture.tex_coord() as _;
+                }
+            }
+
+            //let flags: u32 = material_data.flags.into();
+            //println!("Flags = {} = {:b}", flags, material_data.flags);
+            self.create_file(
+                path,
+                &material_data,
+                primitive.material().name().unwrap_or(&name),
+                "material",
+                self.shared_data.serializable_registry(),
+                SerializationType::Binary,
+            )
+        } else {
+            new_path
+        }
     }
 
     fn process_node(
@@ -630,22 +653,13 @@ impl GltfCompiler {
         object_data.transform = object_transform;
 
         if let Some(mesh) = node.mesh() {
-            for (primitive_index, primitive) in mesh.primitives().enumerate() {
-                let name = format!("{node_name}_Primitive_{primitive_index}");
-                let material_path = self.process_material_data(path, &primitive);
-                let material_path = to_local_path(
-                    material_path.as_path(),
-                    self.data_raw_folder.as_path(),
-                    self.data_folder.as_path(),
+            for (primitive_index, _primitive) in mesh.primitives().enumerate() {
+                let name = format!(
+                    "{}_Primitive_{primitive_index}",
+                    mesh.name().unwrap_or("Mesh")
                 );
-                let mesh_path =
-                    self.process_mesh_data(path, &name, &primitive, material_path.as_path());
-                let mesh_path = to_local_path(
-                    mesh_path.as_path(),
-                    self.data_raw_folder.as_path(),
-                    self.data_folder.as_path(),
-                );
-                object_data.components.push(mesh_path);
+                let mesh_path = self.meshes_paths.get(&name).unwrap();
+                object_data.components.push(mesh_path.clone());
             }
         }
         if let Some(camera) = node.camera() {
@@ -666,8 +680,8 @@ impl GltfCompiler {
             ));
         }
         if let Some(extras) = node.extras() {
-            if let Ok(extras) = deserialize::<Extras>(
-                extras.to_string().as_str(),
+            if let Some(extras) = deserialize::<Extras>(
+                extras.to_string().as_bytes(),
                 self.shared_data.serializable_registry(),
             ) {
                 if !extras.inox_properties.logic.name.is_empty() {
@@ -728,6 +742,7 @@ impl GltfCompiler {
                 node_name,
                 "object",
                 self.shared_data.serializable_registry(),
+                SerializationType::Binary,
             ),
         )
     }
@@ -773,6 +788,7 @@ impl GltfCompiler {
                 &name,
                 "light",
                 self.shared_data.serializable_registry(),
+                SerializationType::Binary,
             ),
         )
     }
@@ -801,12 +817,37 @@ impl GltfCompiler {
                 &name,
                 "camera",
                 self.shared_data.serializable_registry(),
+                SerializationType::Binary,
             ),
         )
     }
 
     pub fn process_path(&mut self, path: &Path) {
+        self.meshes_paths.clear();
+
         if let Ok(gltf) = Gltf::open(path) {
+            for mesh in gltf.meshes() {
+                for (primitive_index, primitive) in mesh.primitives().enumerate() {
+                    let name = format!(
+                        "{}_Primitive_{primitive_index}",
+                        mesh.name().unwrap_or("Mesh")
+                    );
+                    let material_path = self.process_material_data(path, &primitive);
+                    let material_path = to_local_path(
+                        material_path.as_path(),
+                        self.data_raw_folder.as_path(),
+                        self.data_folder.as_path(),
+                    );
+                    let mesh_path =
+                        self.process_mesh_data(path, &name, &primitive, material_path.as_path());
+                    let mesh_path = to_local_path(
+                        mesh_path.as_path(),
+                        self.data_raw_folder.as_path(),
+                        self.data_folder.as_path(),
+                    );
+                    self.meshes_paths.insert(name, mesh_path);
+                }
+            }
             for scene in gltf.scenes() {
                 let mut scene_data = SceneData::default();
                 let scene_name = path
@@ -851,6 +892,7 @@ impl GltfCompiler {
                         scene_name,
                         "",
                         self.shared_data.serializable_registry(),
+                        SerializationType::Binary,
                     );
                 }
             }
@@ -889,7 +931,8 @@ impl GltfCompiler {
         data: &T,
         new_name: &str,
         folder: &str,
-        serializable_registry: &SerializableRegistryRc,
+        serializable_registry: SerializableRegistryRc,
+        serialization_type: SerializationType,
     ) -> PathBuf
     where
         T: Serialize + SerializeFile + Clone + 'static,
@@ -901,7 +944,11 @@ impl GltfCompiler {
         }
         if need_to_binarize(path, new_path.as_path()) {
             debug_log!("Serializing {:?}", new_path);
-            data.save_to_file(new_path.as_path(), serializable_registry);
+            data.save_to_file(
+                new_path.as_path(),
+                serializable_registry,
+                serialization_type,
+            );
         }
         new_path
     }

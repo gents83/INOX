@@ -17,7 +17,7 @@ use inox_log::debug_log;
 use inox_messenger::MessageHubRc;
 use inox_platform::PlatformType;
 use inox_resources::SharedDataRc;
-use inox_serialize::SerializeFile;
+use inox_serialize::{SerializationType, SerializeFile};
 use inox_uid::generate_random_uid;
 use regex::Regex;
 
@@ -155,8 +155,11 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
                         spirv_code,
                         ..Default::default()
                     };
-                    shader_data
-                        .save_to_file(new_path.as_path(), self.shared_data.serializable_registry());
+                    shader_data.save_to_file(
+                        new_path.as_path(),
+                        self.shared_data.serializable_registry(),
+                        SerializationType::Binary,
+                    );
                     send_reloaded_event(&self.message_hub, new_path.as_path());
                 }
                 delete_file(temp_path);
@@ -246,6 +249,7 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
                             shader_data.save_to_file(
                                 new_path.as_path(),
                                 self.shared_data.serializable_registry(),
+                                SerializationType::Binary,
                             );
                             send_reloaded_event(&self.message_hub, new_path.as_path());
                         }

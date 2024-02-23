@@ -103,22 +103,19 @@ macro_rules! implement_node {
             }
             fn serialize_node(
                 &self,
-                registry: &inox_serializable::SerializableRegistryRc,
-            ) -> String {
+                registry: inox_serializable::SerializableRegistryRc,
+            ) -> Vec<u8> {
                 inox_serialize::serialize(self, registry)
             }
             fn deserialize_node(
                 &self,
-                s: &str,
-                registry: &inox_serializable::SerializableRegistryRc,
+                s: &[u8],
+                registry: inox_serializable::SerializableRegistryRc,
             ) -> Option<Self>
             where
                 Self: Sized,
             {
-                if let Ok(n) = inox_serialize::deserialize(s, registry) {
-                    return Some(n);
-                }
-                None
+                inox_serialize::deserialize(s, registry)
             }
         }
     };

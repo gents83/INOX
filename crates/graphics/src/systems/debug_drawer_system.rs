@@ -12,7 +12,7 @@ use inox_messenger::{Listener, MessageHubRc};
 use inox_resources::{
     ConfigBase, ConfigEvent, DataTypeResource, Handle, Resource, SerializableResource, SharedDataRc,
 };
-use inox_serialize::read_from_file;
+use inox_serialize::{read_from_file, SerializationType};
 use inox_uid::{generate_random_uid, generate_uid_from_string};
 
 use super::config::Config;
@@ -302,7 +302,8 @@ impl System for DebugDrawerSystem {
         let filename = self.config.get_filename().to_string();
         read_from_file(
             self.config.get_filepath(plugin_name).as_path(),
-            self.shared_data.serializable_registry(),
+            self.shared_data.serializable_registry().clone(),
+            SerializationType::Json,
             Box::new(move |data: Config| {
                 message_hub.send_event(ConfigEvent::Loaded(filename.clone(), data));
             }),

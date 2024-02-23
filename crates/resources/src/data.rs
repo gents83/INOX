@@ -66,7 +66,7 @@ pub trait SerializableResource: DataTypeResource + Sized + Clone {
     fn extension() -> &'static str;
     fn deserialize_data(
         path: &Path,
-        registry: &SerializableRegistryRc,
+        registry: SerializableRegistryRc,
         f: Box<dyn FnMut(Self::DataType) + 'static>,
     );
     fn is_matching_extension(path: &Path) -> bool {
@@ -114,7 +114,7 @@ pub trait SerializableResource: DataTypeResource + Sized + Clone {
         let cloned_path = path.clone();
         Self::deserialize_data(
             path.as_path(),
-            shared_data.serializable_registry(),
+            shared_data.serializable_registry().clone(),
             Box::new(move |data| {
                 let resource_id = generate_uid_from_string(cloned_path.as_path().to_str().unwrap());
                 let resource = Self::new_resource(

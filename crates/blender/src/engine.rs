@@ -194,7 +194,7 @@ fn add_node_in_blender(
     let category = node.category();
     let base_class = "LogicNodeBase";
     let description = node.description();
-    let serialized_class = node.serialize_node(serializable_registry);
+    let serialized_class = node.serialize_node(serializable_registry.clone());
 
     py.import_bound("INOX")
         .unwrap()

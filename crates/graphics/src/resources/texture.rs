@@ -12,7 +12,9 @@ use inox_resources::{
 use inox_serialize::inox_serializable::SerializableRegistryRc;
 use inox_uid::{generate_random_uid, Uid, INVALID_UID};
 
-use crate::{TextureData, TextureFormat, TextureUsage, INVALID_INDEX, platform::has_multisampling_support};
+use crate::{
+    platform::has_multisampling_support, TextureData, TextureFormat, TextureUsage, INVALID_INDEX,
+};
 
 pub type TextureId = ResourceId;
 
@@ -120,7 +122,7 @@ impl SerializableResource for Texture {
 
     fn deserialize_data(
         path: &Path,
-        _registry: &SerializableRegistryRc,
+        _registry: SerializableRegistryRc,
         mut f: Box<dyn FnMut(Self::DataType) + 'static>,
     ) {
         let mut file = File::new(path);
@@ -142,11 +144,7 @@ impl SerializableResource for Texture {
                         format: TextureFormat::Rgba8Unorm,
                         data: Some(image_data.into_rgba8().to_vec()),
                         usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
-                        sample_count: if has_multisampling_support() {
-                            8
-                        } else {
-                            1
-                        },
+                        sample_count: if has_multisampling_support() { 8 } else { 1 },
                         is_LUT,
                     });
                 }

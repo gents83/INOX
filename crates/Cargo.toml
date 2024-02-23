@@ -46,6 +46,7 @@ image = { git = "https://github.com/image-rs/image", default-features = false, f
 pyo3 = { git = "https://github.com/PyO3/pyo3", features = ["macros", "extension-module", "auto-initialize", "abi3-py310", "generate-import-lib"] }
 rand = { git = "https://github.com/rust-random/rand", features = ["std"] }
 serde_json = { git = "https://github.com/serde-rs/json"}
+flexbuffers = { version = "2.0.0"}
 ttf-parser = { git = "https://github.com/RazrFalcon/ttf-parser" }
 superluminal-perf =  { git = "https://github.com/EmbarkStudios/superluminal-perf-rs" }
 uuid = { git = "https://github.com/uuid-rs/uuid", features = ["serde", "v4", "v5", "js"] }

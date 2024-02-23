@@ -78,7 +78,7 @@ impl From<usize> for TextureType {
     }
 }
 
-#[repr(C, align(16))]
+#[repr(C)]
 #[derive(Default, Debug, PartialEq, Clone, Copy)]
 pub struct TextureInfo {
     pub texture_and_layer_index: i32, //negatives are LUT textures - 29bit + 3bit

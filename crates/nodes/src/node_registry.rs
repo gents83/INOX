@@ -8,11 +8,11 @@ pub trait NodeType: Send + Sync + 'static {
     fn name(&self) -> &str;
     fn category(&self) -> &str;
     fn description(&self) -> &str;
-    fn serialize_node(&self, registry: &SerializableRegistryRc) -> String;
+    fn serialize_node(&self, registry: SerializableRegistryRc) -> Vec<u8>;
     fn deserialize_node(
         &self,
-        data: &str,
-        registry: &SerializableRegistryRc,
+        data: &[u8],
+        registry: SerializableRegistryRc,
     ) -> Option<Box<dyn NodeTrait + Send + Sync>>;
 }
 
@@ -35,13 +35,13 @@ where
     fn description(&self) -> &str {
         &self.description
     }
-    fn serialize_node(&self, registry: &SerializableRegistryRc) -> String {
+    fn serialize_node(&self, registry: SerializableRegistryRc) -> Vec<u8> {
         self.n.serialize_node(registry)
     }
     fn deserialize_node(
         &self,
-        data: &str,
-        registry: &SerializableRegistryRc,
+        data: &[u8],
+        registry: SerializableRegistryRc,
     ) -> Option<Box<dyn NodeTrait + Send + Sync>>
     where
         Self: Sized,
@@ -67,9 +67,9 @@ pub struct LogicNodeRegistry {
 implement_singleton!(LogicNodeRegistry);
 
 impl LogicNodeRegistry {
-    pub fn new(serializable_registry: &SerializableRegistryRc) -> Self {
+    pub fn new(serializable_registry: SerializableRegistryRc) -> Self {
         Self {
-            serializable_registry: serializable_registry.clone(),
+            serializable_registry,
             pin_types: Vec::new(),
             node_types: Vec::new(),
         }
@@ -123,9 +123,9 @@ impl LogicNodeRegistry {
             f(node.as_ref(), &self.serializable_registry);
         }
     }
-    pub fn deserialize_node(&self, data: &str) -> Option<Box<dyn NodeTrait + Send + Sync>> {
+    pub fn deserialize_node(&self, data: &[u8]) -> Option<Box<dyn NodeTrait + Send + Sync>> {
         for node in &self.node_types {
-            if let Some(n) = node.deserialize_node(data, &self.serializable_registry) {
+            if let Some(n) = node.deserialize_node(data, self.serializable_registry.clone()) {
                 debug_log!("Deserializing as {}", n.serializable_name());
                 return Some(n);
             }

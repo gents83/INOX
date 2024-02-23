@@ -8,10 +8,10 @@ use std::{
 
 pub static mut SERIALIZABLE_REGISTRY: Option<SerializableRegistryRc> = None;
 
-pub fn check_serializable_registry(registry: &SerializableRegistryRc) {
+pub fn check_serializable_registry(registry: SerializableRegistryRc) {
     unsafe {
         if SERIALIZABLE_REGISTRY.is_none() {
-            SERIALIZABLE_REGISTRY.replace(registry.clone());
+            SERIALIZABLE_REGISTRY.replace(registry);
         }
     }
 }

@@ -13,7 +13,7 @@ use inox_messenger::MessageHubRc;
 
 use inox_platform::PlatformType;
 use inox_resources::{ConfigBase, SharedDataRc};
-use inox_serialize::read_from_file;
+use inox_serialize::{read_from_file, SerializationType};
 use inox_uid::generate_uid_from_string;
 
 use crate::{
@@ -185,6 +185,7 @@ impl<const PLATFORM_TYPE: PlatformType> System for Binarizer<PLATFORM_TYPE> {
         let file_read_success = read_from_file(
             self.config.get_filepath(plugin_name).as_path(),
             self.shared_data.serializable_registry(),
+            SerializationType::Json,
             Box::new(move |data: Config| {
                 inox_log::debug_log!(
                     "Binarizer config says that end on completion is: {}",

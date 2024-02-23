@@ -13,7 +13,7 @@ use inox_core::{implement_unique_system_uid, ContextRc, System};
 use inox_log::debug_log;
 use inox_messenger::{Listener, MessageHubRc};
 use inox_resources::{ConfigBase, ConfigEvent, SharedDataRc};
-use inox_serialize::read_from_file;
+use inox_serialize::{read_from_file, SerializationType};
 
 use crate::config::Config;
 
@@ -76,6 +76,7 @@ impl System for Connector {
         read_from_file(
             self.config.get_filepath(plugin_name).as_path(),
             self.shared_data.serializable_registry(),
+            SerializationType::Json,
             Box::new(move |data: Config| {
                 message_hub.send_event(ConfigEvent::Loaded(filename.clone(), data));
             }),

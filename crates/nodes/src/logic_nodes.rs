@@ -109,7 +109,7 @@ fn test_node() {
     use crate::LogicNodeRegistry;
 
     let serializable_registry = SerializableRegistryRc::default();
-    let mut registry = LogicNodeRegistry::new(&serializable_registry);
+    let mut registry = LogicNodeRegistry::new(serializable_registry.clone());
     registry.register_node::<ScriptInitNode>();
     registry.register_node::<RustExampleNode>();
 
@@ -133,7 +133,7 @@ fn test_node() {
     assert_eq!(tree.get_links_count(), 4);
 
     let init = ScriptInitNode::default();
-    let serialized_data = init.serialize_node(&serializable_registry);
+    let serialized_data = init.serialize_node(serializable_registry.clone());
 
     if let Some(n) = registry.deserialize_node(&serialized_data) {
         tree.add_node(n);
@@ -168,7 +168,7 @@ fn test_node() {
     );
     assert!(*node_a.node().get_input::<bool>("in_bool").unwrap());
     assert!(!*node_a.node().get_output::<bool>("out_bool").unwrap());
-    let serialized_data = node_a.serialize_node(&serializable_registry);
+    let serialized_data = node_a.serialize_node(serializable_registry.clone());
 
     if let Some(n) = registry.deserialize_node(&serialized_data) {
         tree.add_node(n);
@@ -178,8 +178,8 @@ fn test_node() {
     tree.add_default_node::<RustExampleNode>("NodeB");
     assert_eq!(tree.get_nodes_count(), 3);
 
-    let serialized_tree = serialize(&tree, &serializable_registry);
-    if let Ok(new_tree) = deserialize::<NodeTree>(&serialized_tree, &serializable_registry) {
+    let serialized_tree = serialize(&tree, serializable_registry.clone());
+    if let Some(new_tree) = deserialize::<NodeTree>(&serialized_tree, serializable_registry) {
         let mut logic_data = LogicData::from(new_tree);
         logic_data.init();
         logic_data.execute(&std::time::Duration::from_millis(30));

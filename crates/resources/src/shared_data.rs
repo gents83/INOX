@@ -25,8 +25,8 @@ unsafe impl Send for SharedData {}
 unsafe impl Sync for SharedData {}
 
 impl SharedData {
-    pub fn serializable_registry(&self) -> &SerializableRegistryRc {
-        &self.serialization_registry
+    pub fn serializable_registry(&self) -> SerializableRegistryRc {
+        self.serialization_registry.clone()
     }
     #[inline]
     pub fn register_singleton<T>(&self, singleton: T)

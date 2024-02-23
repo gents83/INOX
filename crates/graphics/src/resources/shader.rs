@@ -5,7 +5,9 @@ use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, ResourceId, ResourceTrait, SerializableResource, SharedDataRc,
 };
-use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
+use inox_serialize::{
+    inox_serializable::SerializableRegistryRc, read_from_file, SerializationType,
+};
 use wgpu::ShaderModule;
 
 use crate::{RenderContext, ShaderData, SHADER_EXTENSION};
@@ -110,10 +112,10 @@ impl SerializableResource for Shader {
 
     fn deserialize_data(
         path: &std::path::Path,
-        registry: &SerializableRegistryRc,
+        registry: SerializableRegistryRc,
         f: Box<dyn FnMut(Self::DataType) + 'static>,
     ) {
-        read_from_file::<Self::DataType>(path, registry, f);
+        read_from_file::<Self::DataType>(path, registry, SerializationType::Binary, f);
     }
 }
 

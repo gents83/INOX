@@ -2,7 +2,7 @@ use inox_serialize::{Deserialize, Serialize};
 
 use crate::{BVHTree, INVALID_INDEX};
 
-#[repr(C, align(16))]
+#[repr(C)]
 #[derive(Serialize, Deserialize, Default, PartialEq, Clone, Copy, Debug)]
 #[serde(crate = "inox_serialize")]
 pub struct GPUBVHNode {

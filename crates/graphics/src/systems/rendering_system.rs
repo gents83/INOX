@@ -6,7 +6,7 @@ use inox_messenger::Listener;
 use inox_resources::{
     ConfigBase, ConfigEvent, Handle, OnCreateData, SerializableResource, SharedDataRc,
 };
-use inox_serialize::read_from_file;
+use inox_serialize::{read_from_file, SerializationType};
 
 use crate::{
     RenderContextRc, RendererState, Texture, ENV_MAP_UID, LUT_PBR_CHARLIE_UID, LUT_PBR_GGX_UID,
@@ -55,7 +55,8 @@ impl System for RenderingSystem {
         let filename = self.config.get_filename().to_string();
         read_from_file(
             self.config.get_filepath(plugin_name).as_path(),
-            self.shared_data.serializable_registry(),
+            self.shared_data.serializable_registry().clone(),
+            SerializationType::Json,
             Box::new(move |data: Config| {
                 message_hub.send_event(ConfigEvent::Loaded(filename.clone(), data));
             }),
