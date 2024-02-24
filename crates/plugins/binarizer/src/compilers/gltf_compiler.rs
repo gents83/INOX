@@ -377,7 +377,7 @@ impl GltfCompiler {
             let (meshlets, mut mesh_indices) =
                 compute_meshlets(&geometry.vertices, &geometry.indices, 0);
 
-            let mut is_meshlet_tree_created = true;//meshlets.len() <= 1;
+            let mut is_meshlet_tree_created = meshlets.len() <= 1;
             meshlets_per_lod.push(meshlets);
             mesh_indices_offset += mesh_indices.len();
 

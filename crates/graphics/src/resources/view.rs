@@ -79,6 +79,12 @@ impl View {
     pub fn proj(&self) -> Matrix4 {
         self.proj
     }
+    pub fn near(&self) -> f32 {
+        DEFAULT_NEAR
+    }
+    pub fn far(&self) -> f32 {
+        DEFAULT_FAR
+    }
     pub fn fov_in_radians(&self) -> Radians {
         self.fov_in_degrees.into()
     }

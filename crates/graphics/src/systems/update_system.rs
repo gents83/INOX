@@ -218,6 +218,8 @@ impl System for UpdateSystem {
             self.render_context.global_buffers().update_constant_data(
                 self.view.get().view(),
                 self.view.get().proj(),
+                self.view.get().near(),
+                self.view.get().far(),
                 screen_size,
                 self.mouse_coords,
             );

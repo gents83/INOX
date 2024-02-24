@@ -511,15 +511,15 @@ impl GlobalBuffers {
         &self,
         view: Matrix4,
         proj: Matrix4,
+        near: f32,
+        far: f32,
         screen_size: Vector2,
         debug_coords: Vector2,
     ) {
         inox_profiler::scoped_profile!("render_context::update_constant_data");
         self.constant_data.write().unwrap().update(
-            view,
-            proj,
-            screen_size,
-            debug_coords,
+            (view, proj, near, far),
+            (screen_size, debug_coords),
             self.tlas_start_index
                 .read()
                 .unwrap()

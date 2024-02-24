@@ -13,7 +13,7 @@ fn clip_to_normalized(clip_coords: vec2<f32>) -> vec2<f32> {
 
 fn pixel_to_clip(image_pixel: vec2<u32>, image_size: vec2<u32>) -> vec2<f32> {
     var clip_coords = 2. * pixel_to_normalized(image_pixel, image_size) - vec2<f32>(1.);
-    clip_coords.y = -clip_coords.y;
+    clip_coords.y *= -1.;
     return clip_coords;
 }
 
@@ -25,7 +25,7 @@ fn pixel_to_world(image_pixel: vec2<u32>, image_size: vec2<u32>, depth: f32) -> 
 
 fn clip_to_world(clip_coords: vec2<f32>, depth: f32) -> vec3<f32> {    
     var world_pos = constant_data.inverse_view_proj * vec4<f32>(clip_coords, depth, 1.);
-    world_pos /= -world_pos.w;
+    world_pos /= world_pos.w;
     return world_pos.xyz;
 }
 

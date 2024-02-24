@@ -114,8 +114,8 @@ struct ConstantData {
     environment_map_texture_index: u32,
     num_lights: u32,
     forced_lod_level: i32,
-    _empty1: u32,
-    _empty2: u32,
+    camera_near: f32,
+    camera_far: f32,
     _empty3: u32,
 };
 

@@ -48,8 +48,8 @@ struct Data {
     pub env_map_texture_index: u32,
     pub num_lights: u32,
     pub forced_lod_level: i32,
-    pub _empty1: u32,
-    pub _empty2: u32,
+    pub camera_near: f32,
+    pub camera_far: f32,
     pub _empty3: u32,
 }
 
@@ -72,8 +72,8 @@ impl Default for Data {
             env_map_texture_index: 0,
             num_lights: 0,
             forced_lod_level: -1,
-            _empty1: 0,
-            _empty2: 0,
+            camera_near: 0.,
+            camera_far: 0.,
             _empty3: 0,
         }
     }
@@ -183,27 +183,31 @@ impl ConstantData {
     }
     pub fn update(
         &mut self,
-        view: Matrix4,
-        proj: Matrix4,
-        screen_size: Vector2,
-        debug_coords: Vector2,
+        view_proj_near_far: (Matrix4, Matrix4, f32, f32),
+        screen_size_and_debug_coords: (Vector2, Vector2),
         tlas_starting_index: u32,
     ) -> bool {
-        let v = matrix4_to_array(view);
-        let p = matrix4_to_array(proj);
+        let v = matrix4_to_array(view_proj_near_far.0);
+        let p = matrix4_to_array(view_proj_near_far.1);
         if self.data.view != v
             || self.data.proj != p
-            || self.data.screen_size[0] != screen_size.x
-            || self.data.screen_size[1] != screen_size.y
+            || self.data.screen_size[0] != screen_size_and_debug_coords.0.x
+            || self.data.screen_size[1] != screen_size_and_debug_coords.0.y
         {
             self.data.frame_index = 0;
         }
         self.data.view = v;
         self.data.proj = p;
-        self.data.view_proj = matrix4_to_array(proj * view);
-        self.data.inverse_view_proj = matrix4_to_array((proj * view).inverse());
-        self.data.screen_size = screen_size.into();
-        self.data.debug_uv_coords = (debug_coords.div(screen_size)).into();
+        self.data.camera_near = view_proj_near_far.2;
+        self.data.camera_far = view_proj_near_far.3;
+        self.data.view_proj = matrix4_to_array(view_proj_near_far.1 * view_proj_near_far.0);
+        self.data.inverse_view_proj =
+            matrix4_to_array((view_proj_near_far.1 * view_proj_near_far.0).inverse());
+        self.data.screen_size = screen_size_and_debug_coords.0.into();
+        self.data.debug_uv_coords = (screen_size_and_debug_coords
+            .1
+            .div(screen_size_and_debug_coords.0))
+        .into();
         self.data.tlas_starting_index = tlas_starting_index;
         if self.data.flags & CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE == 0 {
             self.data.frame_index += 1;
