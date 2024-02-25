@@ -13,7 +13,7 @@ pub const DEFAULT_HEIGHT: u32 = 1080;
 pub const DEFAULT_FOV: f32 = 45.;
 pub const DEFAULT_ASPECT_RATIO: f32 = DEFAULT_WIDTH as f32 / DEFAULT_HEIGHT as f32;
 pub const DEFAULT_NEAR: f32 = 0.01;
-pub const DEFAULT_FAR: f32 = 100000.;
+pub const DEFAULT_FAR: f32 = 10000.;
 
 pub struct Renderer {
     render_context: Option<RenderContextRc>,

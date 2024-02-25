@@ -6,7 +6,7 @@ use inox_graphics::{
     platform::{has_multisampling_support, has_wireframe_support},
     rendering_system::RenderingSystem,
     update_system::UpdateSystem,
-    BlitPass, ComputePathTracingDirectPass, ComputePathTracingIndirectPass,
+    BlitPass, CommandsPass, ComputePathTracingDirectPass, ComputePathTracingIndirectPass,
     ComputeRuntimeVerticesPass, CullingPass, DebugPass, FinalizePass, Pass, RenderContextRc,
     RenderPass, Renderer, RendererRw, TextureFormat, TextureUsage, VisibilityBufferPass,
     WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH, SIZE_OF_DATA_BUFFER_ELEMENT, WIREFRAME_PASS_NAME,
@@ -258,6 +258,8 @@ impl Viewer {
         }
         let culling_pass = CullingPass::create(context, render_context);
         render_context.add_pass(culling_pass, is_enabled);
+        let commands_pass = CommandsPass::create(context, render_context);
+        render_context.add_pass(commands_pass, is_enabled);
     }
     fn create_visibility_pass(context: &ContextRc, render_context: &RenderContextRc) {
         let visibility_pass = VisibilityBufferPass::create(context, render_context);

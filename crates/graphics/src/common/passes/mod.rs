@@ -1,4 +1,5 @@
 pub use self::blit::*;
+pub use self::compute_commands::*;
 pub use self::compute_culling::*;
 pub use self::compute_pathtracing_direct::*;
 pub use self::compute_pathtracing_indirect::*;
@@ -10,6 +11,7 @@ pub use self::visibility::*;
 pub use self::wireframe::*;
 
 pub mod blit;
+pub mod compute_commands;
 pub mod compute_culling;
 pub mod compute_pathtracing_direct;
 pub mod compute_pathtracing_indirect;

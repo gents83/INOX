@@ -60,6 +60,7 @@ pub struct GlobalBuffers {
     pub dispatch_commands: DispatchCommandBuffer,
     pub meshes: MeshesBuffer,
     pub meshlets: MeshletsBuffer,
+    pub meshlets_lod_level: ArrayU32,
     pub bvh: BVHBuffer,
     pub triangles_ids: RwLock<HashMap<MeshId, Vec<ResourceId>>>,
     pub indices: IndicesBuffer,

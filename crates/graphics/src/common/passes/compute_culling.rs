@@ -1,10 +1,9 @@
 use std::path::PathBuf;
 
 use crate::{
-    ArrayI32, ArrayU32, AsBinding, BVHBuffer, BindingData, BindingFlags, BindingInfo,
-    CommandBuffer, ComputePass, ComputePassData, ConstantDataRw, DrawCommandType,
-    DrawCommandsBuffer, GpuBuffer, Mesh, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass,
-    RenderContext, RenderContextRc, ShaderStage, TextureView, ATOMIC_SIZE, MAX_LOD_LEVELS,
+    ArrayU32, AsBinding, BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer,
+    ComputePass, ComputePassData, ConstantDataRw, DrawCommandType, GpuBuffer, Mesh, MeshFlags,
+    MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView,
 };
 
 use inox_commands::CommandParser;
@@ -79,13 +78,11 @@ pub struct CullingPass {
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    commands: DrawCommandsBuffer,
     meshes: MeshesBuffer,
     meshlets: MeshletsBuffer,
+    meshlets_lod_level: ArrayU32,
     bvh: BVHBuffer,
     culling_data: CullingData,
-    meshlet_culling_data: ArrayU32,
-    processing_data: ArrayI32,
     listener: Listener,
     update_camera: bool,
     update_meshes: bool,
@@ -130,14 +127,12 @@ impl Pass for CullingPass {
                 None,
             ),
             constant_data: render_context.global_buffers().constant_data.clone(),
-            commands: render_context.global_buffers().draw_commands.clone(),
             meshes: render_context.global_buffers().meshes.clone(),
             meshlets: render_context.global_buffers().meshlets.clone(),
             bvh: render_context.global_buffers().bvh.clone(),
+            meshlets_lod_level: render_context.global_buffers().meshlets_lod_level.clone(),
             binding_data: BindingData::new(render_context, CULLING_PASS_NAME),
             culling_data: CullingData::default(),
-            meshlet_culling_data: ArrayU32::default(),
-            processing_data: ArrayI32::default(),
             listener,
             update_camera: true,
             update_meshes: true,
@@ -168,13 +163,10 @@ impl Pass for CullingPass {
         }
 
         let num_meshlets = self.meshlets.read().unwrap().item_count();
-        let mut max_meshlets_size = num_meshlets as u32 + ATOMIC_SIZE;
-        max_meshlets_size += ATOMIC_SIZE - (max_meshlets_size % ATOMIC_SIZE);
-        let processing_data = vec![MAX_LOD_LEVELS as i32; max_meshlets_size as usize];
-        self.processing_data.write().unwrap().set(processing_data);
+        let lods_array = vec![0u32; num_meshlets];
+        self.meshlets_lod_level.write().unwrap().set(lods_array);
 
         if self.update_meshes {
-            let mut meshlet_data = vec![0; max_meshlets_size as usize];
             let mut lod0_meshlets_count = 0;
             self.meshes.read().unwrap().for_each_entry(|_, mesh| {
                 //for i in 0..MAX_LOD_LEVELS {
@@ -187,121 +179,76 @@ impl Pass for CullingPass {
                 let meshlets_start = mesh.meshlets_offset + (mesh.lods_meshlets_offset[0] >> 16);
                 let meshlets_end =
                     mesh.meshlets_offset + (mesh.lods_meshlets_offset[0] & 0x0000FFFF);
-                for i in meshlets_start..meshlets_end {
-                    meshlet_data[lod0_meshlets_count as usize] = i;
-                    lod0_meshlets_count += 1;
-                }
+                lod0_meshlets_count += meshlets_end - meshlets_start;
             });
             self.culling_data.lod0_meshlets_count = lod0_meshlets_count as _;
             self.culling_data.set_dirty(true);
-
-            self.meshlet_culling_data.write().unwrap().set(meshlet_data);
         }
-        let draw_command_type = self.draw_commands_type();
 
-        if let Some(commands) = self.commands.write().unwrap().get_mut(&mesh_flags) {
-            let commands = commands.map.get_mut(&draw_command_type).unwrap();
-            if commands.commands.is_empty() {
-                return;
-            }
-            commands.counter.count = 0;
-            commands.counter.set_dirty(true);
+        self.binding_data
+            .add_uniform_buffer(
+                &mut *self.constant_data.write().unwrap(),
+                Some("ConstantData"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 0,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_uniform_buffer(
+                &mut self.culling_data,
+                Some("CullingData"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 1,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.meshlets.write().unwrap(),
+                Some("Meshlets"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 2,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.meshes.write().unwrap(),
+                Some("Meshes"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 3,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.bvh.write().unwrap(),
+                Some("BHV"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 4,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.meshlets_lod_level.write().unwrap(),
+                Some("Meshlets Lod level"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 5,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::ReadWrite,
+                },
+            );
 
-            self.binding_data
-                .add_uniform_buffer(
-                    &mut *self.constant_data.write().unwrap(),
-                    Some("ConstantData"),
-                    BindingInfo {
-                        group_index: 0,
-                        binding_index: 0,
-                        stage: ShaderStage::Compute,
-                        ..Default::default()
-                    },
-                )
-                .add_uniform_buffer(
-                    &mut self.culling_data,
-                    Some("CullingData"),
-                    BindingInfo {
-                        group_index: 0,
-                        binding_index: 1,
-                        stage: ShaderStage::Compute,
-                        ..Default::default()
-                    },
-                )
-                .add_storage_buffer(
-                    &mut *self.meshlets.write().unwrap(),
-                    Some("Meshlets"),
-                    BindingInfo {
-                        group_index: 0,
-                        binding_index: 2,
-                        stage: ShaderStage::Compute,
-                        ..Default::default()
-                    },
-                )
-                .add_storage_buffer(
-                    &mut *self.meshes.write().unwrap(),
-                    Some("Meshes"),
-                    BindingInfo {
-                        group_index: 0,
-                        binding_index: 3,
-                        stage: ShaderStage::Compute,
-                        ..Default::default()
-                    },
-                )
-                .add_storage_buffer(
-                    &mut *self.bvh.write().unwrap(),
-                    Some("BHV"),
-                    BindingInfo {
-                        group_index: 0,
-                        binding_index: 4,
-                        stage: ShaderStage::Compute,
-                        ..Default::default()
-                    },
-                )
-                .add_storage_buffer(
-                    &mut commands.counter,
-                    Some("Counter"),
-                    BindingInfo {
-                        group_index: 1,
-                        binding_index: 0,
-                        stage: ShaderStage::Compute,
-                        flags: BindingFlags::ReadWrite | BindingFlags::Indirect,
-                    },
-                )
-                .add_storage_buffer(
-                    &mut commands.commands,
-                    Some("Commands"),
-                    BindingInfo {
-                        group_index: 1,
-                        binding_index: 1,
-                        stage: ShaderStage::Compute,
-                        flags: BindingFlags::ReadWrite | BindingFlags::Indirect,
-                    },
-                )
-                .add_storage_buffer(
-                    &mut *self.meshlet_culling_data.write().unwrap(),
-                    Some("MeshletCullingData"),
-                    BindingInfo {
-                        group_index: 1,
-                        binding_index: 2,
-                        stage: ShaderStage::Compute,
-                        flags: BindingFlags::ReadWrite,
-                    },
-                )
-                .add_storage_buffer(
-                    &mut *self.processing_data.write().unwrap(),
-                    Some("ProcessingData"),
-                    BindingInfo {
-                        group_index: 1,
-                        binding_index: 3,
-                        stage: ShaderStage::Compute,
-                        flags: BindingFlags::ReadWrite,
-                    },
-                );
-
-            let mut pass = self.compute_pass.get_mut();
-            pass.init(render_context, &mut self.binding_data);
-        }
+        let mut pass = self.compute_pass.get_mut();
+        pass.init(render_context, &mut self.binding_data);
     }
 
     fn update(
@@ -310,17 +257,24 @@ impl Pass for CullingPass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
+        inox_profiler::scoped_profile!("compute_culling_pass::update");
+
         let num_meshlets = self.meshlets.read().unwrap().item_count();
         if num_meshlets == 0 {
             return;
         }
+
+        let workgroup_max_size = 32;
+        let workgroup_size = (workgroup_max_size
+            * ((num_meshlets + workgroup_max_size - 1) / workgroup_max_size))
+            / workgroup_max_size;
 
         let pass = self.compute_pass.get();
         pass.dispatch(
             render_context,
             &mut self.binding_data,
             command_buffer,
-            1,
+            workgroup_size as u32,
             1,
             1,
         );
