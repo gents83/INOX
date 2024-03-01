@@ -22,13 +22,13 @@ use gltf::{
 };
 
 use inox_bvh::{create_linearized_bvh, BVHTree, AABB};
-use inox_graphics::{
-    LightData, LightType, MaterialData, MaterialFlags, MeshData, TextureType, MAX_LOD_LEVELS,
-    MAX_TEXTURE_COORDS_SETS,
-};
 use inox_log::debug_log;
 use inox_math::{
     Mat4Ops, Matrix4, NewAngle, Parser, Radians, VecBase, Vector2, Vector3, Vector4, Vector4h,
+};
+use inox_render::{
+    LightData, LightType, MaterialData, MaterialFlags, MeshData, TextureType, MAX_LOD_LEVELS,
+    MAX_TEXTURE_COORDS_SETS,
 };
 
 use inox_nodes::LogicData;

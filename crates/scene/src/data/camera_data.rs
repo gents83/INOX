@@ -1,7 +1,7 @@
 use inox_math::{Degrees, NewAngle};
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
-use inox_graphics::{DEFAULT_ASPECT_RATIO, DEFAULT_FAR, DEFAULT_FOV, DEFAULT_NEAR};
+use inox_render::{DEFAULT_ASPECT_RATIO, DEFAULT_FAR, DEFAULT_FOV, DEFAULT_NEAR};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "inox_serialize")]

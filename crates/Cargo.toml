@@ -19,6 +19,7 @@ members = [
     "plugins/viewer",
     "plugins/connector",
     "profiler",
+    "render",
     "resources",
     "scene",
     "serialize",

@@ -1,10 +1,10 @@
 use std::{any::TypeId, marker::PhantomData};
 
 use egui::{Checkbox, CollapsingHeader, DragValue, TextEdit, Ui, Widget};
-use inox_graphics::{
+use inox_math::{Degrees, Matrix4, Vector2, Vector3, Vector4};
+use inox_render::{
     Font, Light, LightType, Material, Mesh, MeshFlags, RenderPipeline, Texture, View,
 };
-use inox_math::{Degrees, Matrix4, Vector2, Vector3, Vector4};
 use inox_resources::{
     GenericResource, ResourceCastTo, ResourceId, ResourceTrait, SerializableResource,
 };

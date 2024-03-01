@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
 
 use crate::{copy_into_data_folder, ExtensionHandler};
-use inox_graphics::{ComputePipeline, Light, Material, Mesh, RenderPipeline};
 use inox_log::debug_log;
 use inox_messenger::MessageHubRc;
 use inox_nodes::NodeTree;
+use inox_render::{ComputePipeline, Light, Material, Mesh, RenderPipeline};
 use inox_resources::SerializableResource;
 use inox_scene::{Camera, Object, Scene, Script};
 use inox_serialize::SerializeFile;

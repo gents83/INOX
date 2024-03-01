@@ -17,7 +17,7 @@ use inox_core::{
     SystemUID,
 };
 
-use inox_graphics::{Texture, TextureData, TextureFormat, TextureUsage};
+use inox_render::{Texture, TextureData, TextureFormat, TextureUsage};
 
 use inox_log::debug_log;
 use inox_messenger::{Listener, MessageHubRc};

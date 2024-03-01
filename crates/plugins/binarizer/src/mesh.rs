@@ -1,7 +1,7 @@
 use std::mem::size_of;
 
-use inox_graphics::{MeshData, MeshletData, VertexAttributeLayout};
 use inox_math::{VecBase, Vector2, Vector3, Vector4};
+use inox_render::{MeshData, MeshletData, VertexAttributeLayout};
 use inox_resources::to_slice;
 use meshopt::DecodePosition;
 

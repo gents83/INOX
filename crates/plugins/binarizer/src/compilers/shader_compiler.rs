@@ -10,12 +10,12 @@ use std::{
 
 use crate::{need_to_binarize, send_reloaded_event, ExtensionHandler};
 use inox_filesystem::delete_file;
-use inox_graphics::{
-    platform::shader_preprocessor_defs, read_spirv_from_bytes, ShaderData, SHADER_EXTENSION,
-};
 use inox_log::debug_log;
 use inox_messenger::MessageHubRc;
 use inox_platform::PlatformType;
+use inox_render::{
+    platform::shader_preprocessor_defs, read_spirv_from_bytes, ShaderData, SHADER_EXTENSION,
+};
 use inox_resources::SharedDataRc;
 use inox_serialize::{SerializationType, SerializeFile};
 use inox_uid::generate_random_uid;

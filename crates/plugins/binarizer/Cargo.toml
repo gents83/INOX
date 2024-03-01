@@ -21,13 +21,13 @@ inox_bvh = { path = "../../bvh" }
 inox_commands = { path = "../../commands" }
 inox_core = { path = "../../core" }
 inox_filesystem = { path = "../../filesystem" }
-inox_graphics = { path = "../../graphics" }
 inox_log = { path = "../../log" }
 inox_math = { path = "../../math" }
 inox_messenger = { path = "../../messenger" }
 inox_nodes = { path = "../../nodes" }
 inox_platform = { path = "../../platform" }
 inox_profiler = { path = "../../profiler" }
+inox_render = { path = "../../render" }
 inox_resources = { path = "../../resources" }
 inox_scene = { path = "../../scene" }
 inox_serialize = { path = "../../serialize" }

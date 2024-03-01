@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use inox_graphics::{MeshletData, HALF_MESHLETS_GROUP_SIZE, MESHLETS_GROUP_SIZE};
 use inox_math::{compute_hash_position, Vector3};
+use inox_render::{MeshletData, HALF_MESHLETS_GROUP_SIZE, MESHLETS_GROUP_SIZE};
 use meshopt::DecodePosition;
 
 #[derive(Default, Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Clone)]

@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
 use inox_core::ContextRc;
-use inox_graphics::{
+use inox_messenger::Listener;
+use inox_render::{
     declare_as_binding_vector, AsBinding, BindingData, BindingInfo, CommandBuffer, ConstantDataRw,
     DrawCommandType, GpuBuffer, LoadOperation, MeshFlags, Pass, RenderContext, RenderContextRc,
     RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType, ShaderStage,
     StoreOperation, TextureView, TexturesBuffer, VertexBufferLayoutBuilder, VertexFormat,
 };
-use inox_messenger::Listener;
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::generate_random_uid;
 

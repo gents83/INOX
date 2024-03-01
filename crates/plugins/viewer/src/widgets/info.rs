@@ -1,8 +1,15 @@
 use std::sync::atomic::Ordering;
 
 use inox_core::ContextRc;
-use inox_graphics::{
-    CullingEvent, DrawEvent, Light, LightType, Mesh, MeshFlags, MeshId, RenderContextRc,
+use inox_graphics::CullingEvent;
+use inox_math::{
+    compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle, VecBase, Vector2,
+    Vector3,
+};
+use inox_messenger::Listener;
+use inox_platform::{MouseEvent, MouseState, WindowEvent};
+use inox_render::{
+    DrawEvent, Light, LightType, Mesh, MeshFlags, MeshId, RenderContextRc,
     CONSTANT_DATA_FLAGS_DISPLAY_BASE_COLOR, CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT,
     CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX, CONSTANT_DATA_FLAGS_DISPLAY_METALLIC,
@@ -13,12 +20,6 @@ use inox_graphics::{
     CONSTANT_DATA_FLAGS_DISPLAY_UV_3, CONSTANT_DATA_FLAGS_NONE, CONSTANT_DATA_FLAGS_USE_IBL,
     MAX_LOD_LEVELS,
 };
-use inox_math::{
-    compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle, VecBase, Vector2,
-    Vector3,
-};
-use inox_messenger::Listener;
-use inox_platform::{MouseEvent, MouseState, WindowEvent};
 use inox_resources::{DataTypeResourceEvent, HashBuffer, Resource, ResourceEvent};
 use inox_scene::{Camera, Object, ObjectId, Scene};
 use inox_ui::{implement_widget_data, ComboBox, DragValue, UIWidget, Window};

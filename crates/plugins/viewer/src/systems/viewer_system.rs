@@ -1,13 +1,13 @@
 use inox_commands::CommandParser;
 use inox_core::{implement_unique_system_uid, ContextRc, System};
-use inox_graphics::{
-    create_quad, Material, MaterialData, Mesh, MeshData, MeshFlags, RenderContextRc, Texture,
-    VertexAttributeLayout, View,
-};
 use inox_log::debug_log;
 use inox_math::{Mat4Ops, Matrix4, VecBase, Vector2, Vector3};
 use inox_messenger::Listener;
 use inox_platform::{InputState, Key, KeyEvent, MouseEvent, MouseState, WindowEvent};
+use inox_render::{
+    create_quad, Material, MaterialData, Mesh, MeshData, MeshFlags, RenderContextRc, Texture,
+    VertexAttributeLayout, View,
+};
 use inox_resources::{DataTypeResource, Resource, SerializableResource, SerializableResourceEvent};
 use inox_scene::{Camera, Object, Scene};
 use inox_ui::UIWidget;
@@ -196,7 +196,7 @@ impl ViewerSystem {
             );
             material
                 .get_mut()
-                .set_texture(inox_graphics::TextureType::BaseColor, &texture);
+                .set_texture(inox_render::TextureType::BaseColor, &texture);
             mesh.get_mut()
                 .set_material(material)
                 .set_flags(MeshFlags::Visible | MeshFlags::Opaque);

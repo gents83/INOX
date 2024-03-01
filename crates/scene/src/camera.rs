@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use inox_graphics::{DEFAULT_ASPECT_RATIO, DEFAULT_FAR, DEFAULT_FOV, DEFAULT_NEAR};
 use inox_math::{convert_in_3d, Degrees, MatBase, Matrix4, NewAngle, Radians, Vector2, Vector3};
 use inox_messenger::MessageHubRc;
+use inox_render::{DEFAULT_ASPECT_RATIO, DEFAULT_FAR, DEFAULT_FOV, DEFAULT_NEAR};
 use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
     SharedDataRc,

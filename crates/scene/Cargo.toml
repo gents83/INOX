@@ -16,9 +16,9 @@ inox_core = { path = "../core" }
 inox_math = { path = "../math" }
 inox_nodes = { path = "../nodes" }
 inox_filesystem = { path = "../filesystem" }
-inox_graphics = { path = "../graphics" }
 inox_messenger = { path = "../messenger" }
 inox_profiler = { path = "../profiler" }
+inox_render = { path = "../render" }
 inox_resources = { path = "../resources" }
 inox_serialize = { path = "../serialize" }
 inox_time = { path = "../time" }

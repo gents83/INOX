@@ -4,9 +4,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use inox_graphics::{Light, Mesh};
 use inox_math::{Mat4Ops, MatBase, Matrix4, Vector3};
 use inox_messenger::MessageHubRc;
+use inox_render::{Light, Mesh};
 use inox_resources::{
     DataTypeResource, GenericResource, Handle, OnCreateData, Resource, ResourceCastTo,
     ResourceEvent, ResourceId, ResourceTrait, SerializableResource, SharedDataRc,

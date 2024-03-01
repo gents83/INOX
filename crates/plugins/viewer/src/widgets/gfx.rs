@@ -1,5 +1,5 @@
 use inox_core::ContextRc;
-use inox_graphics::RenderContextRc;
+use inox_render::RenderContextRc;
 
 use inox_messenger::MessageHubRc;
 use inox_resources::{Resource, SharedDataRc};

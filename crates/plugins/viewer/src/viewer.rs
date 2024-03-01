@@ -3,15 +3,18 @@ use std::path::PathBuf;
 use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
+    BlitPass, CommandsPass, ComputePathTracingDirectPass, ComputePathTracingIndirectPass,
+    ComputeRuntimeVerticesPass, CullingPass, DebugPass, FinalizePass, VisibilityBufferPass,
+    WireframePass, WIREFRAME_PASS_NAME,
+};
+use inox_platform::Window;
+use inox_render::{
     platform::{has_multisampling_support, has_wireframe_support},
     rendering_system::RenderingSystem,
     update_system::UpdateSystem,
-    BlitPass, CommandsPass, ComputePathTracingDirectPass, ComputePathTracingIndirectPass,
-    ComputeRuntimeVerticesPass, CullingPass, DebugPass, FinalizePass, Pass, RenderContextRc,
-    RenderPass, Renderer, RendererRw, TextureFormat, TextureUsage, VisibilityBufferPass,
-    WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH, SIZE_OF_DATA_BUFFER_ELEMENT, WIREFRAME_PASS_NAME,
+    Pass, RenderContextRc, RenderPass, Renderer, RendererRw, TextureFormat, TextureUsage,
+    DEFAULT_HEIGHT, DEFAULT_WIDTH, SIZE_OF_DATA_BUFFER_ELEMENT,
 };
-use inox_platform::Window;
 use inox_resources::ConfigBase;
 use inox_scene::{ObjectSystem, ScriptSystem};
 use inox_serialize::{read_from_file, SerializationType};

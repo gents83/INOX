@@ -1,4 +1,5 @@
-use inox_graphics::{RenderPass, BLIT_PASS_NAME};
+use inox_graphics::BLIT_PASS_NAME;
+use inox_render::RenderPass;
 
 use inox_messenger::MessageHubRc;
 use inox_resources::{Resource, SharedData, SharedDataRc};

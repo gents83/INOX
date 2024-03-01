@@ -1,5 +1,5 @@
 [package]
-name = "inox_graphics"
+name = "inox_render"
 edition.workspace = true
 version.workspace = true
 authors.workspace = true
@@ -23,7 +23,6 @@ inox_log = { path = "../log" }
 inox_math = { path = "../math" }
 inox_messenger = { path = "../messenger" }
 inox_platform = { path = "../platform" }
-inox_render = { path = "../render" }
 inox_resources = { path = "../resources" }
 inox_profiler = { path = "../profiler" }
 inox_serialize = { path = "../serialize" }

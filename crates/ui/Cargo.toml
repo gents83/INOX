@@ -20,8 +20,8 @@ inox_log = { path = "../log" }
 inox_messenger = { path = "../messenger" }
 inox_math = { path = "../math" }
 inox_filesystem = { path = "../filesystem" }
-inox_graphics = { path = "../graphics" }
 inox_platform = { path = "../platform" }
+inox_render = { path = "../render" }
 inox_profiler = { path = "../profiler" }
 inox_resources = { path = "../resources" }
 inox_serialize = { path = "../serialize" }

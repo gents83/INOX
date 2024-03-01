@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::{
+use inox_render::{
     create_arrow, create_circumference, create_colored_quad, create_cube_from_min_max, create_line,
     create_sphere, declare_as_binding_vector, AsBinding, BindingData, BindingInfo, CommandBuffer,
     ConstantDataRw, DrawCommandType, DrawCommandsBuffer, DrawEvent, DrawIndexedCommand,

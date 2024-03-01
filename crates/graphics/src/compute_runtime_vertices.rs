@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::{
+use inox_render::{
     BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
     ConstantDataRw, DrawCommandType, MeshFlags, MeshesBuffer, Pass, RenderContext, RenderContextRc,
     RuntimeVerticesBuffer, ShaderStage, TextureView, VertexPositionsBuffer,
