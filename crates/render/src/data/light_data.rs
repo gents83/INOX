@@ -16,7 +16,7 @@ pub enum LightType {
 #[repr(C)]
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
 #[serde(crate = "inox_serialize")]
-pub struct LightData {
+pub struct GPULight {
     pub position: [f32; 3],
     pub light_type: u32,
     pub direction: [f32; 3],
@@ -29,13 +29,13 @@ pub struct LightData {
     pub _padding2: f32,
 }
 
-impl SerializeFile for LightData {
+impl SerializeFile for GPULight {
     fn extension() -> &'static str {
         "light"
     }
 }
 
-impl Default for LightData {
+impl Default for GPULight {
     fn default() -> Self {
         Self {
             position: [0.; 3],
@@ -52,7 +52,7 @@ impl Default for LightData {
     }
 }
 
-impl LightData {
+impl GPULight {
     #[allow(deref_nullptr)]
     pub fn debug_size(alignment_size: usize) {
         let total_size = std::mem::size_of::<Self>();

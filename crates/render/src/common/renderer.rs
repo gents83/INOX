@@ -27,6 +27,7 @@ unsafe impl Sync for Renderer {}
 
 impl Drop for Renderer {
     fn drop(&mut self) {
+        crate::unregister_gpu_data_types(&self.shared_data, &self.message_hub);
         crate::unregister_resource_types(&self.shared_data, &self.message_hub);
     }
 }
@@ -54,6 +55,7 @@ impl Renderer {
         F: FnOnce(&RenderContextRc) + 'static,
     {
         crate::register_resource_types(context.shared_data(), context.message_hub());
+        crate::register_gpu_data_types(context.shared_data(), context.message_hub());
 
         let renderer = Arc::new(RwLock::new(Renderer {
             render_context: None,

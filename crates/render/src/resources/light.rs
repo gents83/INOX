@@ -9,7 +9,7 @@ use inox_serialize::{
     inox_serializable::SerializableRegistryRc, read_from_file, SerializationType, SerializeFile,
 };
 
-use crate::{LightData, INVALID_INDEX};
+use crate::{GPULight, INVALID_INDEX};
 
 pub type LightId = ResourceId;
 
@@ -18,7 +18,7 @@ pub struct Light {
     filepath: PathBuf,
     id: LightId,
     message_hub: MessageHubRc,
-    data: LightData,
+    data: GPULight,
     light_index: i32,
     is_active: bool,
 }
@@ -45,7 +45,7 @@ impl SerializableResource for Light {
     }
 
     fn extension() -> &'static str {
-        LightData::extension()
+        GPULight::extension()
     }
 
     fn deserialize_data(
@@ -57,13 +57,13 @@ impl SerializableResource for Light {
     }
 }
 impl DataTypeResource for Light {
-    type DataType = LightData;
+    type DataType = GPULight;
 
     fn new(id: ResourceId, _shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
         Self {
             id,
             filepath: PathBuf::new(),
-            data: LightData::default(),
+            data: GPULight::default(),
             light_index: INVALID_INDEX,
             is_active: true,
             message_hub: message_hub.clone(),
@@ -102,12 +102,12 @@ impl Light {
     }
 
     #[inline]
-    pub fn data(&self) -> &LightData {
+    pub fn data(&self) -> &GPULight {
         &self.data
     }
 
     #[inline]
-    pub fn data_mut(&mut self) -> &mut LightData {
+    pub fn data_mut(&mut self) -> &mut GPULight {
         &mut self.data
     }
 

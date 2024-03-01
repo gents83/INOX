@@ -9,7 +9,7 @@ use inox_math::{
 use inox_messenger::Listener;
 use inox_platform::{MouseEvent, MouseState, WindowEvent};
 use inox_render::{
-    DrawEvent, Light, LightType, Mesh, MeshFlags, MeshId, RenderContextRc,
+    DrawEvent, Light, LightType, Mesh, MeshFlags, RenderContextRc,
     CONSTANT_DATA_FLAGS_DISPLAY_BASE_COLOR, CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT,
     CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX, CONSTANT_DATA_FLAGS_DISPLAY_METALLIC,
@@ -20,7 +20,7 @@ use inox_render::{
     CONSTANT_DATA_FLAGS_DISPLAY_UV_3, CONSTANT_DATA_FLAGS_NONE, CONSTANT_DATA_FLAGS_USE_IBL,
     MAX_LOD_LEVELS,
 };
-use inox_resources::{DataTypeResourceEvent, HashBuffer, Resource, ResourceEvent};
+use inox_resources::{Buffer, DataTypeResourceEvent, Resource, ResourceEvent};
 use inox_scene::{Camera, Object, ObjectId, Scene};
 use inox_ui::{implement_widget_data, ComboBox, DragValue, UIWidget, Window};
 use inox_uid::INVALID_UID;
@@ -99,7 +99,7 @@ implement_widget_data!(Data);
 pub struct Info {
     ui_page: Resource<UIWidget>,
     listener: Listener,
-    meshes: HashBuffer<MeshId, MeshInfo, 0>,
+    meshes: Buffer<MeshInfo, 0>,
 }
 
 impl Info {
@@ -163,7 +163,7 @@ impl Info {
         Self {
             ui_page: Self::create(data),
             listener,
-            meshes: HashBuffer::default(),
+            meshes: Buffer::default(),
         }
     }
 
@@ -211,7 +211,7 @@ impl Info {
                         max: meshlet.aabb_max,
                     });
                 });
-                self.meshes.insert(
+                self.meshes.push(
                     id,
                     MeshInfo {
                         meshlets,
@@ -223,7 +223,7 @@ impl Info {
                 ResourceEvent::Changed(id) => {
                     if let Some(data) = self.ui_page.get().data::<Data>() {
                         if let Some(mesh) = data.context.shared_data().get_resource::<Mesh>(id) {
-                            if let Some(m) = self.meshes.get_mut(id) {
+                            if let Some(m) = self.meshes.get_first_mut(id) {
                                 m.matrix = mesh.get().matrix();
                                 m.flags = *mesh.get().flags();
                             }
@@ -352,7 +352,7 @@ impl Info {
                     .meshes
                     .read()
                     .unwrap();
-                meshes.for_each_entry(|_, mesh| {
+                meshes.for_each_data(|_, _, mesh| {
                     let node = &bhv_data[mesh.blas_index as usize];
                     let matrix = Matrix4::from_translation_orientation_scale(
                         mesh.position.into(),
@@ -399,7 +399,7 @@ impl Info {
                     .read()
                     .unwrap();
                 meshes.iter().for_each(|mesh| {
-                    if let Some(nodes) = bhv.items(mesh.id()) {
+                    if let Some(nodes) = bhv.get(mesh.id()) {
                         nodes.iter().for_each(|n| {
                             let matrix = mesh.get().matrix();
                             data.context
@@ -442,8 +442,8 @@ impl Info {
             });
     }
 
-    fn show_meshlets_bounding_box(data: &mut Data, meshes: &HashBuffer<MeshId, MeshInfo, 0>) {
-        meshes.for_each_entry(|_id, mesh_info| {
+    fn show_meshlets_bounding_box(data: &mut Data, meshes: &Buffer<MeshInfo, 0>) {
+        meshes.for_each_data(|_, _id, mesh_info| {
             if mesh_info.flags.contains(MeshFlags::Visible) {
                 mesh_info.meshlets.iter().for_each(|meshlet_info| {
                     data.context
@@ -678,7 +678,7 @@ impl Info {
                                 .unwrap();
                             let light_type_none: u32 = LightType::None.into();
                             let mut num_lights = 0;
-                            lights.for_each_entry_mut(|i, l| {
+                            lights.for_each_data_mut(|i, _, l| {
                                 if l.light_type == light_type_none {
                                     return false;
                                 }

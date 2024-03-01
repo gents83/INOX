@@ -168,7 +168,7 @@ impl Pass for CullingPass {
 
         if self.update_meshes {
             let mut lod0_meshlets_count = 0;
-            self.meshes.read().unwrap().for_each_entry(|_, mesh| {
+            self.meshes.read().unwrap().for_each_data(|_, _, mesh| {
                 //for i in 0..MAX_LOD_LEVELS {
                 //    println!(
                 //        "LOD[{i}] range {} - {}",

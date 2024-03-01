@@ -1,5 +1,5 @@
 use crate::{GpuBuffer, RenderContext};
-use inox_resources::{Buffer, HashBuffer};
+use inox_resources::Buffer;
 pub type BufferId = u64;
 
 #[inline]
@@ -18,57 +18,6 @@ pub trait AsBinding {
     fn set_dirty(&mut self, is_dirty: bool);
     fn size(&self) -> u64;
     fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut GpuBuffer);
-}
-
-impl<Id, Data, const MAX_COUNT: usize> AsBinding for HashBuffer<Id, Data, MAX_COUNT>
-where
-    Id: Eq + std::hash::Hash + Copy,
-    Data: Default,
-{
-    fn is_dirty(&self) -> bool {
-        self.is_changed()
-    }
-
-    fn set_dirty(&mut self, is_dirty: bool) {
-        self.mark_as_changed(is_dirty);
-    }
-
-    fn size(&self) -> u64 {
-        self.buffer_len() as u64 * std::mem::size_of::<Data>() as u64
-    }
-
-    fn fill_buffer(&self, render_context: &crate::RenderContext, buffer: &mut crate::GpuBuffer) {
-        buffer.add_to_gpu_buffer(render_context, self.data());
-    }
-}
-
-impl<Id, Data, const MAX_COUNT: usize, const ARRAY_SIZE: usize> AsBinding
-    for [HashBuffer<Id, Data, MAX_COUNT>; ARRAY_SIZE]
-where
-    Id: Eq + std::hash::Hash + Copy,
-    Data: Default,
-{
-    fn is_dirty(&self) -> bool {
-        self.iter().any(|b| b.is_changed())
-    }
-
-    fn set_dirty(&mut self, is_dirty: bool) {
-        self.iter_mut().for_each(|b| b.mark_as_changed(is_dirty));
-    }
-
-    fn size(&self) -> u64 {
-        let mut len = 0;
-        self.iter().for_each(|b| {
-            len += b.buffer_len() as u64 * std::mem::size_of::<Data>() as u64;
-        });
-        len
-    }
-
-    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut crate::GpuBuffer) {
-        self.iter().for_each(|b| {
-            buffer.add_to_gpu_buffer(render_context, b.data());
-        });
-    }
 }
 
 impl<T, const MAX_COUNT: usize> AsBinding for Buffer<T, MAX_COUNT>

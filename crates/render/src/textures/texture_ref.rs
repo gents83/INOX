@@ -35,7 +35,7 @@ impl Deref for TextureView {
     }
 }
 
-pub struct GpuTexture {
+pub struct TextureRef {
     id: TextureId,
     texture: wgpu::Texture,
     view: TextureView,
@@ -46,7 +46,7 @@ pub struct GpuTexture {
     format: TextureFormat,
 }
 
-impl GpuTexture {
+impl TextureRef {
     pub fn create(
         device: &wgpu::Device,
         id: TextureId,

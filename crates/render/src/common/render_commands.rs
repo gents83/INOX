@@ -180,7 +180,7 @@ impl RenderCommandsPerType {
         mesh: &GPUMesh,
         meshlets: &Buffer<GPUMeshlet, MAX_COUNT>,
     ) -> &mut Self {
-        if let Some(meshlets) = meshlets.items(id) {
+        if let Some(meshlets) = meshlets.get(id) {
             let meshlet_entry = self.map.entry(DrawCommandType::PerMeshlet).or_default();
             meshlet_entry.remove_draw_commands(id);
             meshlet_entry.add_mesh_commands(id, mesh, meshlets, DrawCommandType::PerMeshlet);

@@ -2,6 +2,7 @@ use crate::print_field_size;
 
 use inox_bitmask::bitmask;
 use inox_math::decode_half;
+use inox_resources::ResourceTrait;
 use inox_serialize::{Deserialize, Serialize};
 
 #[bitmask]
@@ -80,14 +81,27 @@ impl From<usize> for TextureType {
 
 #[repr(C)]
 #[derive(Default, Debug, PartialEq, Clone, Copy)]
-pub struct TextureInfo {
+pub struct GPUTexture {
     pub texture_and_layer_index: i32, //negatives are LUT textures - 29bit + 3bit
     pub min: u32,
     pub max: u32,
     pub size: u32,
 }
 
-impl TextureInfo {
+impl ResourceTrait for GPUTexture {
+    fn is_initialized(&self) -> bool {
+        self.min > 0 && self.max > 0 && self.size > 0
+    }
+
+    fn invalidate(&mut self) -> &mut Self {
+        self.min = 0;
+        self.max = 0;
+        self.size = 0;
+        self
+    }
+}
+
+impl GPUTexture {
     #[allow(non_snake_case)]
     pub fn is_LUT(&self) -> bool {
         self.texture_and_layer_index.is_negative()
@@ -118,7 +132,7 @@ impl TextureInfo {
     }
 }
 
-impl TextureInfo {
+impl GPUTexture {
     #[allow(deref_nullptr)]
     pub fn debug_size(alignment_size: usize) {
         let total_size = std::mem::size_of::<Self>();

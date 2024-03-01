@@ -27,7 +27,7 @@ use inox_math::{
     Mat4Ops, Matrix4, NewAngle, Parser, Radians, VecBase, Vector2, Vector3, Vector4, Vector4h,
 };
 use inox_render::{
-    LightData, LightType, MaterialData, MaterialFlags, MeshData, TextureType, MAX_LOD_LEVELS,
+    GPULight, LightType, MaterialData, MaterialFlags, MeshData, TextureType, MAX_LOD_LEVELS,
     MAX_TEXTURE_COORDS_SETS,
 };
 
@@ -753,7 +753,7 @@ impl GltfCompiler {
         light: &Light,
         transform: &Matrix4,
     ) -> (NodeType, PathBuf) {
-        let mut light_data = LightData {
+        let mut light_data = GPULight {
             color: [light.color()[0], light.color()[1], light.color()[2]],
             direction: (-transform.forward()).into(),
             position: transform.translation().into(),

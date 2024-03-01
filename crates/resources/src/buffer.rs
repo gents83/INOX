@@ -126,6 +126,32 @@ where
     pub fn mark_as_changed(&mut self, is_changed: bool) {
         self.is_changed = is_changed;
     }
+    pub fn push(&mut self, id: &ResourceId, data: T) -> (bool, Range<usize>) {
+        self.remove(id);
+        self.collapse_free();
+        let mut need_realloc = false;
+        let size = 1;
+        let range;
+        if let Some(index) = self
+            .free
+            .iter()
+            .position(|d| (d.range.end - d.range.start) >= size)
+        {
+            let free_data = self.free.remove(index);
+            if (free_data.range.end - free_data.range.start) > size {
+                self.free.push(BufferData::new(
+                    &generate_random_uid(),
+                    free_data.range.start + size,
+                    free_data.range.end,
+                ));
+            }
+            range = self.insert_at(id, free_data.range.start, &[data]);
+        } else {
+            range = self.insert(id, &[data]);
+            need_realloc = true;
+        }
+        (need_realloc, range)
+    }
     pub fn allocate(&mut self, id: &ResourceId, data: &[T]) -> (bool, Range<usize>) {
         self.remove(id);
         self.collapse_free();
@@ -224,18 +250,24 @@ where
             .iter()
             .position(|b| (b.range.end - b.range.start) >= size)
     }
-    pub fn get(&self, id: &ResourceId) -> Option<&BufferData> {
+    pub fn indices(&self, id: &ResourceId) -> Option<&BufferData> {
         self.occupied.iter().find(|d| d.id == *id)
     }
-    pub fn items(&self, id: &ResourceId) -> Option<&[T]> {
+    pub fn get(&self, id: &ResourceId) -> Option<&[T]> {
         if let Some(buffer) = self.occupied.iter().find(|d| d.id == *id) {
             return Some(&self.data[buffer.range.start..buffer.range.end]);
         }
         None
     }
-    pub fn items_mut(&mut self, id: &ResourceId) -> Option<&mut [T]> {
+    pub fn get_mut(&mut self, id: &ResourceId) -> Option<&mut [T]> {
         if let Some(buffer) = self.occupied.iter().find(|d| d.id == *id) {
             return Some(&mut self.data[buffer.range.start..buffer.range.end]);
+        }
+        None
+    }
+    pub fn get_first_mut(&mut self, id: &ResourceId) -> Option<&mut T> {
+        if let Some(buffer) = self.occupied.iter().find(|d| d.id == *id) {
+            return Some(&mut self.data[buffer.range.start]);
         }
         None
     }
@@ -298,17 +330,19 @@ where
     }
     pub fn for_each_data_mut<F>(&mut self, mut f: F)
     where
-        F: FnMut(usize, &ResourceId, &mut T),
+        F: FnMut(usize, &ResourceId, &mut T) -> bool,
     {
+        let mut is_changed = false;
         self.occupied.iter().for_each(|b| {
             let func = &mut f;
             self.data[b.range.start..b.range.end]
                 .iter_mut()
                 .enumerate()
                 .for_each(|(i, d)| {
-                    func(b.range.start + i, &b.id, d);
+                    is_changed |= func(b.range.start + i, &b.id, d);
                 });
         });
+        self.is_changed |= is_changed;
     }
     pub fn data(&self) -> &[T] {
         &self.data

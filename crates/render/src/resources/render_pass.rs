@@ -7,8 +7,8 @@ use inox_resources::{
 };
 
 use crate::{
-    gpu_texture::GpuTexture,
     platform::{has_multisampling_support, is_indirect_mode_enabled},
+    texture_ref::TextureRef,
     AsBinding, BindingData, BufferId, CommandBuffer, DrawCommandType, GpuBuffer, LoadOperation,
     MeshFlags, RenderContext, RenderMode, RenderPassData, RenderPipeline, RenderTarget,
     StoreOperation, Texture, TextureId, TextureUsage, TextureView, VertexBufferLayoutBuilder,
@@ -19,7 +19,7 @@ pub type RenderPassId = ResourceId;
 
 pub struct RenderPassBeginData<'a> {
     pub render_core_context: &'a WebGpuContextRc,
-    pub render_targets: &'a [GpuTexture],
+    pub render_targets: &'a [TextureRef],
     pub buffers: &'a HashMap<BufferId, GpuBuffer>,
     pub surface_view: &'a TextureView,
     pub command_buffer: &'a mut CommandBuffer,
@@ -432,9 +432,9 @@ impl RenderPass {
             .meshes
             .read()
             .unwrap()
-            .for_each_id(|mesh_id, _, mesh| {
+            .for_each_data(|_i, mesh_id, mesh| {
                 let meshlets = render_context.global_buffers().meshlets.read().unwrap();
-                if let Some(meshlets) = meshlets.items(mesh_id) {
+                if let Some(meshlets) = meshlets.get(mesh_id) {
                     let flags = (mesh.flags_and_vertices_attribute_layout & 0xFFFF0000) >> 16;
                     if MeshFlags::from(flags) == mesh_flags {
                         let mut meshlet_index = mesh.meshlets_offset;
@@ -533,10 +533,10 @@ impl RenderPass {
             .meshes
             .read()
             .unwrap()
-            .for_each_id(|mesh_id, index, mesh| {
+            .for_each_data(|index, mesh_id, mesh| {
                 let flags = (mesh.flags_and_vertices_attribute_layout & 0xFFFF0000) >> 16;
                 if MeshFlags::from(flags) == mesh_flags {
-                    if let Some(meshlets) = meshlets.items(mesh_id) {
+                    if let Some(meshlets) = meshlets.get(mesh_id) {
                         let mut start = 0;
                         let mut end = 0;
                         meshlets.iter().enumerate().for_each(|(i, meshlet)| {

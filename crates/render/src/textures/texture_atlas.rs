@@ -2,18 +2,18 @@ use inox_log::debug_log;
 use inox_math::quantize_half;
 use inox_uid::generate_random_uid;
 
-use crate::{TextureBlock, TextureFormat, TextureId, TextureInfo, TextureView};
+use crate::{GPUTexture, TextureBlock, TextureFormat, TextureId, TextureView};
 
 use super::{
     area::{Area, AreaAllocator, DEFAULT_AREA_SIZE},
-    gpu_texture::GpuTexture,
+    texture_ref::TextureRef,
 };
 
 pub const DEFAULT_LAYER_COUNT: u32 = 8u32;
 pub const MAX_TEXTURE_ATLAS_COUNT: u32 = 8u32;
 
 pub struct TextureAtlas {
-    texture: GpuTexture,
+    texture: TextureRef,
     allocators: Vec<AreaAllocator>,
 }
 
@@ -24,7 +24,7 @@ impl TextureAtlas {
             allocators.push(AreaAllocator::new(DEFAULT_AREA_SIZE, DEFAULT_AREA_SIZE));
         }
         println!("Format {:?}", format);
-        let texture = GpuTexture::create(
+        let texture = TextureRef::create(
             device,
             generate_random_uid(),
             (
@@ -79,12 +79,12 @@ impl TextureAtlas {
         texture_index: i32,
         dimensions: (u32, u32),
         image_data: &[u8],
-    ) -> Option<TextureInfo> {
+    ) -> Option<GPUTexture> {
         for (layer_index, area_allocator) in self.allocators.iter_mut().enumerate() {
             if let Some(area) = area_allocator.allocate(id, dimensions.0, dimensions.1) {
                 self.texture
                     .send_to_gpu(device, encoder, layer_index as _, area, image_data);
-                return Some(TextureInfo {
+                return Some(GPUTexture {
                     texture_and_layer_index: (((texture_index as u32) << 3) | layer_index as u32)
                         as i32
                         * texture_index.signum(),
@@ -128,10 +128,10 @@ impl TextureAtlas {
         }
     }
 
-    pub fn texture_info(&self, texture_index: u32, texture_id: &TextureId) -> Option<TextureInfo> {
+    pub fn texture_info(&self, texture_index: u32, texture_id: &TextureId) -> Option<GPUTexture> {
         for (layer_index, area_allocator) in self.allocators.iter().enumerate() {
             if let Some(area) = area_allocator.get_area(texture_id) {
-                return Some(TextureInfo {
+                return Some(GPUTexture {
                     texture_and_layer_index: ((texture_index << 3) | layer_index as u32) as i32,
                     min: quantize_half(area.x as f32) as u32
                         | (quantize_half(area.y as f32) as u32) << 16,

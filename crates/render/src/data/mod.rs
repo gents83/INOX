@@ -5,6 +5,8 @@ pub use compute_pass_data::*;
 pub use compute_pipeline_data::*;
 pub use constant_data::*;
 pub use gpu_data::*;
+use inox_messenger::MessageHubRc;
+use inox_resources::SharedDataRc;
 pub use instance_data::*;
 pub use light_data::*;
 pub use material_data::*;
@@ -29,6 +31,14 @@ pub mod render_pipeline_data;
 pub mod shader_data;
 pub mod texture_data;
 pub mod vertex_data;
+
+pub fn register_gpu_data_types(shared_data: &SharedDataRc, message_hub: &MessageHubRc) {
+    shared_data.register_type::<GPUTexture>(message_hub);
+}
+
+pub fn unregister_gpu_data_types(shared_data: &SharedDataRc, message_hub: &MessageHubRc) {
+    shared_data.unregister_type::<GPUTexture>(message_hub);
+}
 
 #[macro_export]
 macro_rules! print_field_size {

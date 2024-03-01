@@ -2,9 +2,9 @@ use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use inox_log::debug_log;
 
-use crate::{TextureBlock, TextureFormat, TextureId, TextureInfo, TextureUsage};
+use crate::{GPUTexture, TextureBlock, TextureFormat, TextureId, TextureUsage};
 
-use super::{gpu_texture::GpuTexture, texture_atlas::TextureAtlas};
+use super::{texture_atlas::TextureAtlas, texture_ref::TextureRef};
 
 pub const DEBUG_TEXTURES: bool = false;
 
@@ -19,7 +19,7 @@ pub enum SamplerType {
 
 pub struct TextureHandler {
     texture_atlas: RwLock<Vec<TextureAtlas>>,
-    render_targets: RwLock<Vec<GpuTexture>>,
+    render_targets: RwLock<Vec<TextureRef>>,
     samplers: [wgpu::Sampler; SamplerType::Count as _],
 }
 
@@ -68,7 +68,7 @@ impl TextureHandler {
     pub fn textures_atlas(&self) -> RwLockReadGuard<Vec<TextureAtlas>> {
         self.texture_atlas.read().unwrap()
     }
-    pub fn render_targets(&self) -> RwLockReadGuard<Vec<GpuTexture>> {
+    pub fn render_targets(&self) -> RwLockReadGuard<Vec<TextureRef>> {
         self.render_targets.read().unwrap()
     }
 
@@ -111,7 +111,7 @@ impl TextureHandler {
         usage: TextureUsage,
         sample_count: u32,
     ) -> usize {
-        let texture = GpuTexture::create(
+        let texture = TextureRef::create(
             device,
             *id,
             (
@@ -143,7 +143,7 @@ impl TextureHandler {
         id: &TextureId,
         texture_params: (u32, u32, TextureFormat, bool),
         image_data: &[u8],
-    ) -> TextureInfo {
+    ) -> GPUTexture {
         for (texture_index, texture_atlas) in
             self.texture_atlas.write().unwrap().iter_mut().enumerate()
         {
@@ -231,7 +231,7 @@ impl TextureHandler {
         }
     }
 
-    pub fn texture_info(&self, id: &TextureId) -> Option<TextureInfo> {
+    pub fn texture_info(&self, id: &TextureId) -> Option<GPUTexture> {
         for (texture_index, texture_atlas) in self.texture_atlas.read().unwrap().iter().enumerate()
         {
             if let Some(texture_data) = texture_atlas.texture_info(texture_index as _, id) {

@@ -230,7 +230,11 @@ impl RenderContext {
             state: RwLock::new(RendererState::Submitted),
             webgpu: Arc::new(webgpu),
             binding_data_buffer: Arc::new(BindingDataBuffer::default()),
-            global_buffers: GlobalBuffers::default(),
+            global_buffers: GlobalBuffers {
+                shared_data: context.shared_data().clone(),
+                message_hub: context.message_hub().clone(),
+                ..Default::default()
+            },
             command_buffer: RwLock::new(None),
             surface: RwLock::new(None),
             render_targets: RwLock::new(Vec::new()),
