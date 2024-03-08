@@ -62,10 +62,10 @@ fn main(
 
     let meshlet = meshlets.data[meshlet_id];
     let mesh_id = meshlet.mesh_index_and_lod_level >> 3u;
-    let mesh = meshes.data[mesh_id];
+    let meshlet_lod_level = meshlet.mesh_index_and_lod_level & 7u;
+    var mesh = meshes.data[mesh_id];
     let flags = (mesh.flags_and_vertices_attribute_layout & 0xFFFF0000u) >> 16u;
     if (flags != culling_data.mesh_flags) {   
-        atomicStore(&meshlets_lod_level[meshlet_id], MAX_LOD_LEVELS);
         return;
     }
 
@@ -86,7 +86,6 @@ fn main(
     frustum[2] = normalize_plane(row3 + row1);
     frustum[3] = normalize_plane(row3 - row1);
     if !is_box_inside_frustum(min, max, frustum) {
-        atomicStore(&meshlets_lod_level[meshlet_id], MAX_LOD_LEVELS);
         return;
     }
 
@@ -113,19 +112,22 @@ fn main(
     if (constant_data.forced_lod_level >= 0) {
         desired_lod_level = MAX_LOD_LEVELS - 1u - u32(constant_data.forced_lod_level);
     }
-    
-    atomicMax(&meshlets_lod_level[meshlet_id], desired_lod_level);
-    
-    if(meshlet.child_meshlets.x >= 0) {
-        atomicMax(&meshlets_lod_level[meshlet.child_meshlets.x], desired_lod_level);
+
+    if(meshlet_lod_level == desired_lod_level) {
+        atomicAnd(&meshlets_lod_level[meshlet_id], 0u);
     }
-    if(meshlet.child_meshlets.y >= 0) {
-        atomicMax(&meshlets_lod_level[meshlet.child_meshlets.y], desired_lod_level);
-    }
-    if(meshlet.child_meshlets.z >= 0) {
-        atomicMax(&meshlets_lod_level[meshlet.child_meshlets.z], desired_lod_level);
-    }
-    if(meshlet.child_meshlets.w >= 0) {
-        atomicMax(&meshlets_lod_level[meshlet.child_meshlets.w], desired_lod_level);
+    else if(desired_lod_level == (meshlet_lod_level + 1u)) {
+        if(meshlet.child_meshlets.x >= 0) {
+            atomicAnd(&meshlets_lod_level[meshlet.child_meshlets.x], 0u);
+        }
+        if(meshlet.child_meshlets.y >= 0) {
+            atomicAnd(&meshlets_lod_level[meshlet.child_meshlets.y], 0u);
+        }
+        if(meshlet.child_meshlets.z >= 0) {
+            atomicAnd(&meshlets_lod_level[meshlet.child_meshlets.z], 0u);
+        }
+        if(meshlet.child_meshlets.w >= 0) {
+            atomicAnd(&meshlets_lod_level[meshlet.child_meshlets.w], 0u);
+        }
     }
 }

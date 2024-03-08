@@ -25,7 +25,7 @@ fn main(
     let meshlet = meshlets.data[global_invocation_id.x];
     let meshlet_lod_level = meshlet.mesh_index_and_lod_level & 7u;
     let desired_lod_level = meshlets_lod_level[meshlet_id];
-    if(meshlet_lod_level != desired_lod_level) {     
+    if(desired_lod_level != 0u) {     
         return;
     }
     let mesh_id = meshlet.mesh_index_and_lod_level >> 3u;
