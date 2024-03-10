@@ -1,6 +1,7 @@
 use crate::exporter::Exporter;
 use inox_resources::Singleton;
 use inox_serialize::inox_serializable::SerializableRegistryRc;
+use pyo3::prelude::PyAnyMethods;
 use pyo3::{pyclass, pymethods, PyResult, Python};
 
 use inox_binarizer::Binarizer;
@@ -196,7 +197,7 @@ fn add_node_in_blender(
     let description = node.description();
     let serialized_class = node.serialize_node(serializable_registry.clone());
 
-    py.import("INOX")
+    py.import_bound("INOX")
         .unwrap()
         .getattr("node_tree")
         .unwrap()
