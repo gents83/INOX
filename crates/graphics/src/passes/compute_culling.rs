@@ -1,9 +1,11 @@
 use std::path::PathBuf;
 
+use inox_bvh::GPUBVHNode;
 use inox_render::{
-    ArrayU32, AsBinding, BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer,
-    ComputePass, ComputePassData, ConstantDataRw, DrawCommandType, GpuBuffer, Mesh, MeshFlags,
-    MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView,
+    AsBinding, BVHBuffer, BindingData, BindingFlags, BindingInfo, BufferRef, CommandBuffer,
+    ComputePass, ComputePassData, ConstantDataRw, DrawCommandType, GPUMesh, GPUMeshlet, GPUVector,
+    Mesh, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderContextRc,
+    ShaderStage, TextureView,
 };
 
 use inox_commands::CommandParser;
@@ -15,6 +17,10 @@ use inox_uid::generate_random_uid;
 
 pub const CULLING_PIPELINE: &str = "pipelines/ComputeCulling.compute_pipeline";
 pub const CULLING_PASS_NAME: &str = "CullingPass";
+
+#[repr(C)]
+#[derive(Default, PartialEq, Clone, Copy, Debug)]
+pub struct MeshletLodLevel(pub u32);
 
 #[derive(Debug, PartialOrd, PartialEq, Eq, Clone)]
 pub enum CullingEvent {
@@ -65,7 +71,7 @@ impl AsBinding for CullingData {
             + std::mem::size_of_val(&self._padding1) as u64
             + std::mem::size_of_val(&self._padding2) as u64
     }
-    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut GpuBuffer) {
+    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut BufferRef) {
         buffer.add_to_gpu_buffer(render_context, &[self.view]);
         buffer.add_to_gpu_buffer(render_context, &[self.mesh_flags]);
         buffer.add_to_gpu_buffer(render_context, &[self.lod0_meshlets_count]);
@@ -80,7 +86,7 @@ pub struct CullingPass {
     constant_data: ConstantDataRw,
     meshes: MeshesBuffer,
     meshlets: MeshletsBuffer,
-    meshlets_lod_level: ArrayU32,
+    meshlets_lod_level: GPUVector<MeshletLodLevel>,
     bvh: BVHBuffer,
     culling_data: CullingData,
     listener: Listener,
@@ -127,10 +133,10 @@ impl Pass for CullingPass {
                 None,
             ),
             constant_data: render_context.global_buffers().constant_data.clone(),
-            meshes: render_context.global_buffers().meshes.clone(),
-            meshlets: render_context.global_buffers().meshlets.clone(),
-            bvh: render_context.global_buffers().bvh.clone(),
-            meshlets_lod_level: render_context.global_buffers().meshlets_lod_level.clone(),
+            meshes: render_context.global_buffers().buffer::<GPUMesh>(),
+            meshlets: render_context.global_buffers().buffer::<GPUMeshlet>(),
+            bvh: render_context.global_buffers().buffer::<GPUBVHNode>(),
+            meshlets_lod_level: render_context.global_buffers().vector::<MeshletLodLevel>(),
             binding_data: BindingData::new(render_context, CULLING_PASS_NAME),
             culling_data: CullingData::default(),
             listener,
@@ -163,8 +169,8 @@ impl Pass for CullingPass {
         }
 
         let num_meshlets = self.meshlets.read().unwrap().item_count();
-        let lods_array = vec![0u32; num_meshlets];
-        self.meshlets_lod_level.write().unwrap().set(lods_array);
+        let lods_array = vec![MeshletLodLevel(0); num_meshlets];
+        *self.meshlets_lod_level.write().unwrap() = lods_array;
 
         if self.update_meshes {
             let mut lod0_meshlets_count = 0;

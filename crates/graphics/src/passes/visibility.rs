@@ -2,9 +2,9 @@ use std::path::PathBuf;
 
 use inox_render::{
     BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, DrawCommandsBuffer,
-    GPURuntimeVertexData, IndicesBuffer, MeshFlags, Pass, RenderContext, RenderContextRc,
-    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, RuntimeVerticesBuffer,
-    ShaderStage, StoreOperation, Texture, TextureView,
+    GPURuntimeVertexData, GPUVertexIndices, IndicesBuffer, MeshFlags, Pass, RenderContext,
+    RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
+    RuntimeVerticesBuffer, ShaderStage, StoreOperation, Texture, TextureView,
 };
 
 use inox_core::ContextRc;
@@ -66,9 +66,11 @@ impl Pass for VisibilityBufferPass {
             ),
             binding_data: BindingData::new(render_context, VISIBILITY_BUFFER_PASS_NAME),
             constant_data: render_context.global_buffers().constant_data.clone(),
-            indices: render_context.global_buffers().indices.clone(),
+            indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
             commands_buffers: render_context.global_buffers().draw_commands.clone(),
-            runtime_vertices: render_context.global_buffers().runtime_vertices.clone(),
+            runtime_vertices: render_context
+                .global_buffers()
+                .buffer::<GPURuntimeVertexData>(),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {

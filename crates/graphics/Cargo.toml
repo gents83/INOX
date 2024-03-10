@@ -11,6 +11,7 @@ license.workspace = true
 crate-type = ["lib"]
 
 [dependencies]
+inox_bvh = { path = "../bvh" }
 inox_commands = { path = "../commands" }
 inox_core = { path = "../core" }
 inox_filesystem = { path = "../filesystem" }

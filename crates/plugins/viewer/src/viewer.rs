@@ -12,8 +12,8 @@ use inox_render::{
     platform::{has_multisampling_support, has_wireframe_support},
     rendering_system::RenderingSystem,
     update_system::UpdateSystem,
-    Pass, RenderContextRc, RenderPass, Renderer, RendererRw, TextureFormat, TextureUsage,
-    DEFAULT_HEIGHT, DEFAULT_WIDTH, SIZE_OF_DATA_BUFFER_ELEMENT,
+    GPULight, GPUMaterial, GPUTexture, Pass, RenderContextRc, RenderPass, Renderer, RendererRw,
+    TextureFormat, TextureUsage, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 use inox_resources::ConfigBase;
 use inox_scene::{ObjectSystem, ScriptSystem};
@@ -24,6 +24,10 @@ use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
 const ADD_CULLING_PASS: bool = true;
 const ADD_UI_PASS: bool = true;
+
+const MAX_NUM_LIGHTS: usize = 1024;
+const MAX_NUM_TEXTURES: usize = 65536;
+const MAX_NUM_MATERIALS: usize = 65536;
 
 enum RenderTargetType {
     Visibility = 0,
@@ -213,17 +217,25 @@ impl Viewer {
         );
         debug_assert!(_frame1 == RenderTargetType::Frame1 as usize);
     }
-    fn create_data_buffers(render_context: &RenderContextRc, width: u32, height: u32) {
+    fn create_data_buffers(render_context: &RenderContextRc, _width: u32, _height: u32) {
         render_context
             .global_buffers()
-            .data_buffers
-            .iter()
-            .for_each(|d| {
-                d.write()
-                    .unwrap()
-                    .data_mut()
-                    .resize(SIZE_OF_DATA_BUFFER_ELEMENT * (width * height) as usize, 0.);
-            });
+            .buffer::<GPUTexture>()
+            .write()
+            .unwrap()
+            .prealloc::<MAX_NUM_TEXTURES>();
+        render_context
+            .global_buffers()
+            .buffer::<GPULight>()
+            .write()
+            .unwrap()
+            .prealloc::<MAX_NUM_LIGHTS>();
+        render_context
+            .global_buffers()
+            .buffer::<GPUMaterial>()
+            .write()
+            .unwrap()
+            .prealloc::<MAX_NUM_MATERIALS>();
     }
     fn create_render_passes(context: &ContextRc, render_context: &RenderContextRc) {
         Self::create_compute_runtime_vertices_pass(context, render_context, true);

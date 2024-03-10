@@ -10,10 +10,9 @@ use inox_resources::{Resource, ResourceTrait, SharedDataRc};
 
 use crate::{
     platform::{platform_limits, required_gpu_features, setup_env},
-    BindingDataBuffer, BindingDataBufferRc, BufferId, ComputePipeline, DrawCommandType,
-    GlobalBuffers, GpuBuffer, Material, MeshFlags, Pass, RenderPass, RenderPipeline, Texture,
-    TextureFormat, TextureHandler, TextureHandlerRc, TextureId, TextureUsage, DEFAULT_HEIGHT,
-    DEFAULT_WIDTH,
+    BindingDataBuffer, BindingDataBufferRc, BufferId, BufferRef, ComputePipeline, DrawCommandType,
+    GlobalBuffers, Material, MeshFlags, Pass, RenderPass, RenderPipeline, Texture, TextureFormat,
+    TextureHandler, TextureHandlerRc, TextureId, TextureUsage, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 const USE_FORCED_VULKAN: bool = false;
@@ -230,11 +229,7 @@ impl RenderContext {
             state: RwLock::new(RendererState::Submitted),
             webgpu: Arc::new(webgpu),
             binding_data_buffer: Arc::new(BindingDataBuffer::default()),
-            global_buffers: GlobalBuffers {
-                shared_data: context.shared_data().clone(),
-                message_hub: context.message_hub().clone(),
-                ..Default::default()
-            },
+            global_buffers: GlobalBuffers::default(),
             command_buffer: RwLock::new(None),
             surface: RwLock::new(None),
             render_targets: RwLock::new(Vec::new()),
@@ -266,11 +261,11 @@ impl RenderContext {
         (config.width, config.height)
     }
 
-    pub fn buffers(&self) -> RwLockReadGuard<HashMap<BufferId, GpuBuffer>> {
+    pub fn buffers(&self) -> RwLockReadGuard<HashMap<BufferId, BufferRef>> {
         self.binding_data_buffer.buffers.read().unwrap()
     }
 
-    pub fn buffers_mut(&self) -> RwLockWriteGuard<HashMap<BufferId, GpuBuffer>> {
+    pub fn buffers_mut(&self) -> RwLockWriteGuard<HashMap<BufferId, BufferRef>> {
         self.binding_data_buffer.buffers.write().unwrap()
     }
 

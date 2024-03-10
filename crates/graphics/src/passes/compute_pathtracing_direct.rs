@@ -1,11 +1,13 @@
 use std::path::PathBuf;
 
+use inox_bvh::GPUBVHNode;
 use inox_render::{
     BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DataBuffers, DrawCommandType, IndicesBuffer, LightsBuffer, MaterialsBuffer,
-    MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderContextRc,
-    RuntimeVerticesBuffer, SamplerType, ShaderStage, TextureId, TextureView, TexturesBuffer,
-    VertexAttributesBuffer,
+    ConstantDataRw, DrawCommandType, GPULight, GPUMaterial, GPUMesh, GPUMeshlet,
+    GPURuntimeVertexData, GPUTexture, GPUVector, GPUVertexAttributes, GPUVertexIndices,
+    IndicesBuffer, LightsBuffer, MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass,
+    RenderContext, RenderContextRc, RuntimeVerticesBuffer, SamplerType, ShaderStage, TextureId,
+    TextureView, TexturesBuffer, VertexAttributesBuffer, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 use inox_core::ContextRc;
@@ -15,6 +17,17 @@ use inox_uid::{generate_random_uid, INVALID_UID};
 pub const COMPUTE_PATHTRACING_DIRECT_PIPELINE: &str =
     "pipelines/ComputePathtracingDirect.compute_pipeline";
 pub const COMPUTE_PATHTRACING_DIRECT_NAME: &str = "ComputePathTracingDirectPass";
+
+pub const SIZE_OF_DATA_BUFFER_ELEMENT: usize = 4;
+#[repr(C)]
+#[derive(Default, PartialEq, Clone, Copy, Debug)]
+pub struct RayPackedData(pub f32);
+#[repr(C)]
+#[derive(Default, PartialEq, Clone, Copy, Debug)]
+pub struct RadiancePackedData(pub f32);
+#[repr(C)]
+#[derive(Default, PartialEq, Clone, Copy, Debug)]
+pub struct ThroughputPackedData(pub f32);
 
 pub struct ComputePathTracingDirectPass {
     compute_pass: Resource<ComputePass>,
@@ -31,7 +44,9 @@ pub struct ComputePathTracingDirectPass {
     lights: LightsBuffer,
     visibility_texture: TextureId,
     depth_texture: TextureId,
-    data_buffers: DataBuffers,
+    data_buffer_0: GPUVector<RayPackedData>,
+    data_buffer_1: GPUVector<RadiancePackedData>,
+    data_buffer_2: GPUVector<ThroughputPackedData>,
     dimensions: (u32, u32),
 }
 unsafe impl Send for ComputePathTracingDirectPass {}
@@ -62,6 +77,27 @@ impl Pass for ComputePathTracingDirectPass {
             pipelines: vec![PathBuf::from(COMPUTE_PATHTRACING_DIRECT_PIPELINE)],
         };
 
+        let data_buffer_0 = render_context.global_buffers().vector::<RayPackedData>();
+        let data_buffer_1 = render_context
+            .global_buffers()
+            .vector::<RadiancePackedData>();
+        let data_buffer_2 = render_context
+            .global_buffers()
+            .vector::<ThroughputPackedData>();
+
+        data_buffer_0.write().unwrap().resize(
+            SIZE_OF_DATA_BUFFER_ELEMENT * (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
+            RayPackedData(0.),
+        );
+        data_buffer_1.write().unwrap().resize(
+            SIZE_OF_DATA_BUFFER_ELEMENT * (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
+            RadiancePackedData(0.),
+        );
+        data_buffer_2.write().unwrap().resize(
+            SIZE_OF_DATA_BUFFER_ELEMENT * (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
+            ThroughputPackedData(0.),
+        );
+
         Self {
             compute_pass: ComputePass::new_resource(
                 context.shared_data(),
@@ -71,16 +107,22 @@ impl Pass for ComputePathTracingDirectPass {
                 None,
             ),
             constant_data: render_context.global_buffers().constant_data.clone(),
-            meshes: render_context.global_buffers().meshes.clone(),
-            meshlets: render_context.global_buffers().meshlets.clone(),
-            bhv: render_context.global_buffers().bvh.clone(),
-            indices: render_context.global_buffers().indices.clone(),
-            runtime_vertices: render_context.global_buffers().runtime_vertices.clone(),
-            vertices_attributes: render_context.global_buffers().vertex_attributes.clone(),
-            textures: render_context.global_buffers().textures.clone(),
-            materials: render_context.global_buffers().materials.clone(),
-            lights: render_context.global_buffers().lights.clone(),
-            data_buffers: render_context.global_buffers().data_buffers.clone(),
+            meshes: render_context.global_buffers().buffer::<GPUMesh>(),
+            meshlets: render_context.global_buffers().buffer::<GPUMeshlet>(),
+            bhv: render_context.global_buffers().buffer::<GPUBVHNode>(),
+            indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
+            runtime_vertices: render_context
+                .global_buffers()
+                .buffer::<GPURuntimeVertexData>(),
+            vertices_attributes: render_context
+                .global_buffers()
+                .buffer::<GPUVertexAttributes>(),
+            textures: render_context.global_buffers().buffer::<GPUTexture>(),
+            materials: render_context.global_buffers().buffer::<GPUMaterial>(),
+            lights: render_context.global_buffers().buffer::<GPULight>(),
+            data_buffer_0,
+            data_buffer_1,
+            data_buffer_2,
             binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_DIRECT_NAME),
             visibility_texture: INVALID_UID,
             depth_texture: INVALID_UID,
@@ -214,7 +256,7 @@ impl Pass for ComputePathTracingDirectPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.data_buffers[0].write().unwrap(),
+                &mut *self.data_buffer_0.write().unwrap(),
                 Some("DataBuffer_0"),
                 BindingInfo {
                     group_index: 1,
@@ -224,7 +266,7 @@ impl Pass for ComputePathTracingDirectPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.data_buffers[1].write().unwrap(),
+                &mut *self.data_buffer_1.write().unwrap(),
                 Some("DataBuffer_1"),
                 BindingInfo {
                     group_index: 1,
@@ -234,7 +276,7 @@ impl Pass for ComputePathTracingDirectPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.data_buffers[2].write().unwrap(),
+                &mut *self.data_buffer_2.write().unwrap(),
                 Some("DataBuffer_2"),
                 BindingInfo {
                     group_index: 1,

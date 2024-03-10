@@ -1,4 +1,4 @@
-use std::{ops::Range, sync::Arc};
+use std::{any::Any, ops::Range, sync::Arc};
 
 use crate::ResourceId;
 use inox_uid::{generate_random_uid, INVALID_UID};
@@ -88,38 +88,40 @@ impl BufferData {
     }
 }
 
-pub struct Buffer<T, const PREALLOCATED_SIZE: usize> {
+#[derive(Default)]
+pub struct Buffer<T> {
     occupied: Vec<BufferData>,
     free: Vec<BufferData>,
     data: Vec<T>,
     is_changed: bool,
+    max_size: usize,
 }
 
-unsafe impl<T, const PREALLOCATED_SIZE: usize> Sync for Buffer<T, PREALLOCATED_SIZE> {}
-unsafe impl<T, const PREALLOCATED_SIZE: usize> Send for Buffer<T, PREALLOCATED_SIZE> {}
+unsafe impl<T> Sync for Buffer<T> {}
+unsafe impl<T> Send for Buffer<T> {}
 
-impl<T, const PREALLOCATED_SIZE: usize> Default for Buffer<T, PREALLOCATED_SIZE>
+impl<T> Buffer<T>
 where
-    T: Sized + Clone + Default,
+    T: Sized + Clone + 'static,
 {
-    fn default() -> Self {
-        Self {
-            occupied: Vec::new(),
-            free: vec![BufferData::new(
-                &generate_random_uid(),
-                0,
-                PREALLOCATED_SIZE,
-            )],
-            data: vec![T::default(); PREALLOCATED_SIZE],
-            is_changed: false,
-        }
+    pub fn prealloc<const PREALLOCATED_SIZE: usize>(&mut self)
+    where
+        T: Default,
+    {
+        self.free = vec![BufferData::new(
+            &generate_random_uid(),
+            0,
+            PREALLOCATED_SIZE,
+        )];
+        self.data = vec![T::default(); PREALLOCATED_SIZE];
+        self.max_size = PREALLOCATED_SIZE;
     }
-}
-
-impl<T, const PREALLOCATED_SIZE: usize> Buffer<T, PREALLOCATED_SIZE>
-where
-    T: Sized + Clone,
-{
+    pub fn as_any(&self) -> &dyn Any {
+        self
+    }
+    pub fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
     pub fn is_changed(&self) -> bool {
         self.is_changed
     }
@@ -183,10 +185,9 @@ where
     }
     fn insert(&mut self, id: &ResourceId, data: &[T]) -> Range<usize> {
         debug_assert!(
-            PREALLOCATED_SIZE == 0,
+            self.max_size == 0,
             "Trying to add in a buffer with preallocated size!!!"
         );
-
         let start = self.data.len();
         let size = data.len();
         let end = start + size;
@@ -442,7 +443,7 @@ fn test_buffer() {
     const NUM_VERTICES: u32 = 4;
     const NUM_MESHES: usize = 4;
 
-    let mut buffer = Buffer::<Data, 0>::default();
+    let mut buffer = Buffer::<Data>::default();
 
     let mut meshes = Vec::new();
     let mut mesh = Mesh::new();
@@ -590,9 +591,8 @@ fn test_buffer_fixed() {
         integer: i32,
     }
     const MAX_NUM_DATA: usize = 2;
-    let buffer = Arc::new(std::sync::RwLock::new(
-        Buffer::<Data, MAX_NUM_DATA>::default(),
-    ));
+    let buffer = Arc::new(std::sync::RwLock::new(Buffer::<Data>::default()));
+    buffer.write().unwrap().prealloc::<MAX_NUM_DATA>();
     let id_0 = generate_random_uid();
     let id_1 = generate_random_uid();
     buffer.write().unwrap().allocate(&id_0, &[Data::default()]);

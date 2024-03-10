@@ -9,10 +9,10 @@ use inox_resources::{
 use crate::{
     platform::{has_multisampling_support, is_indirect_mode_enabled},
     texture_ref::TextureRef,
-    AsBinding, BindingData, BufferId, CommandBuffer, DrawCommandType, GpuBuffer, LoadOperation,
-    MeshFlags, RenderContext, RenderMode, RenderPassData, RenderPipeline, RenderTarget,
-    StoreOperation, Texture, TextureId, TextureUsage, TextureView, VertexBufferLayoutBuilder,
-    WebGpuContextRc,
+    AsBinding, BindingData, BufferId, BufferRef, CommandBuffer, DrawCommandType, GPUMesh,
+    GPUMeshlet, LoadOperation, MeshFlags, RenderContext, RenderMode, RenderPassData,
+    RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId, TextureUsage, TextureView,
+    VertexBufferLayoutBuilder, WebGpuContextRc,
 };
 
 pub type RenderPassId = ResourceId;
@@ -20,7 +20,7 @@ pub type RenderPassId = ResourceId;
 pub struct RenderPassBeginData<'a> {
     pub render_core_context: &'a WebGpuContextRc,
     pub render_targets: &'a [TextureRef],
-    pub buffers: &'a HashMap<BufferId, GpuBuffer>,
+    pub buffers: &'a HashMap<BufferId, BufferRef>,
     pub surface_view: &'a TextureView,
     pub command_buffer: &'a mut CommandBuffer,
 }
@@ -429,11 +429,12 @@ impl RenderPass {
         let mesh_flags = self.pipeline().get().data().mesh_flags;
         render_context
             .global_buffers()
-            .meshes
+            .buffer::<GPUMesh>()
             .read()
             .unwrap()
             .for_each_data(|_i, mesh_id, mesh| {
-                let meshlets = render_context.global_buffers().meshlets.read().unwrap();
+                let meshlets = render_context.global_buffers().buffer::<GPUMeshlet>();
+                let meshlets = meshlets.read().unwrap();
                 if let Some(meshlets) = meshlets.get(mesh_id) {
                     let flags = (mesh.flags_and_vertices_attribute_layout & 0xFFFF0000) >> 16;
                     if MeshFlags::from(flags) == mesh_flags {
@@ -462,7 +463,7 @@ impl RenderPass {
     pub fn indirect_indexed_draw<'a>(
         &self,
         render_context: &RenderContext,
-        buffers: &'a HashMap<BufferId, GpuBuffer>,
+        buffers: &'a HashMap<BufferId, BufferRef>,
         draw_commands_type: DrawCommandType,
         mut render_pass: wgpu::RenderPass<'a>,
     ) {
@@ -527,10 +528,11 @@ impl RenderPass {
         inox_profiler::scoped_profile!("render_pass::draw_meshes");
 
         let mesh_flags = self.pipeline().get().data().mesh_flags;
-        let meshlets = render_context.global_buffers().meshlets.read().unwrap();
+        let meshlets = render_context.global_buffers().buffer::<GPUMeshlet>();
+        let meshlets = meshlets.read().unwrap();
         render_context
             .global_buffers()
-            .meshes
+            .buffer::<GPUMesh>()
             .read()
             .unwrap()
             .for_each_data(|index, mesh_id, mesh| {

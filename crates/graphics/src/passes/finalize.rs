@@ -1,15 +1,17 @@
 use std::path::PathBuf;
 
 use inox_render::{
-    BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DataBuffers,
-    DrawCommandType, MeshFlags, Pass, RenderContext, RenderContextRc, RenderPass,
-    RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation, Texture,
-    TextureView, NUM_FRAMES_OF_HISTORY,
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
+    GPUVector, MeshFlags, Pass, RenderContext, RenderContextRc, RenderPass, RenderPassBeginData,
+    RenderPassData, RenderTarget, ShaderStage, StoreOperation, Texture, TextureView,
+    NUM_FRAMES_OF_HISTORY,
 };
 
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Handle, Resource, ResourceTrait};
 use inox_uid::generate_random_uid;
+
+use crate::RadiancePackedData;
 
 pub const FINALIZE_PIPELINE: &str = "pipelines/Finalize.render_pipeline";
 pub const FINALIZE_NAME: &str = "FinalizePass";
@@ -18,7 +20,7 @@ pub struct FinalizePass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    data_buffers: DataBuffers,
+    data_buffer_1: GPUVector<RadiancePackedData>,
     frame_textures: [Handle<Texture>; NUM_FRAMES_OF_HISTORY],
     frame_index: usize,
 }
@@ -66,7 +68,9 @@ impl Pass for FinalizePass {
             ),
             constant_data: render_context.global_buffers().constant_data.clone(),
             binding_data: BindingData::new(render_context, FINALIZE_NAME),
-            data_buffers: render_context.global_buffers().data_buffers.clone(),
+            data_buffer_1: render_context
+                .global_buffers()
+                .vector::<RadiancePackedData>(),
             frame_textures: [NONE_TEXTURE_VALUE; NUM_FRAMES_OF_HISTORY],
             frame_index: 0,
         }
@@ -100,7 +104,7 @@ impl Pass for FinalizePass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.data_buffers[1].write().unwrap(),
+                &mut *self.data_buffer_1.write().unwrap(),
                 Some("DataBuffer_1"),
                 BindingInfo {
                     group_index: 0,

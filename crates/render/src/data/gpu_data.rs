@@ -161,6 +161,16 @@ impl Default for GPUMaterial {
 
 #[repr(C)]
 #[derive(Default, PartialEq, Clone, Copy, Debug)]
+pub struct GPUVertexIndices(pub u32);
+#[repr(C)]
+#[derive(Default, PartialEq, Clone, Copy, Debug)]
+pub struct GPUVertexPosition(pub u32);
+#[repr(C)]
+#[derive(Default, PartialEq, Clone, Copy, Debug)]
+pub struct GPUVertexAttributes(pub u32);
+
+#[repr(C)]
+#[derive(Default, PartialEq, Clone, Copy, Debug)]
 pub struct GPURuntimeVertexData {
     pub world_pos: [f32; 3],
     pub mesh_index: u32,

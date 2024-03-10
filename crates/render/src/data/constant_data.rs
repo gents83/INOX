@@ -7,7 +7,7 @@ use inox_math::{matrix4_to_array, Mat4Ops, MatBase, Matrix4, VecBase, Vector2};
 use inox_uid::Uid;
 
 use crate::{
-    AsBinding, GpuBuffer, RenderContext, DEFAULT_HEIGHT, DEFAULT_WIDTH, ENV_MAP_UID,
+    AsBinding, BufferRef, RenderContext, DEFAULT_HEIGHT, DEFAULT_WIDTH, ENV_MAP_UID,
     LUT_PBR_CHARLIE_UID, LUT_PBR_GGX_UID,
 };
 
@@ -97,7 +97,7 @@ impl AsBinding for ConstantData {
     fn size(&self) -> u64 {
         size_of::<Data>() as _
     }
-    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut GpuBuffer) {
+    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut BufferRef) {
         buffer.add_to_gpu_buffer(render_context, &[self.data]);
     }
 }

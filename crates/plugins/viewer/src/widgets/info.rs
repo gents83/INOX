@@ -1,5 +1,6 @@
 use std::sync::atomic::Ordering;
 
+use inox_bvh::GPUBVHNode;
 use inox_core::ContextRc;
 use inox_graphics::CullingEvent;
 use inox_math::{
@@ -9,7 +10,7 @@ use inox_math::{
 use inox_messenger::Listener;
 use inox_platform::{MouseEvent, MouseState, WindowEvent};
 use inox_render::{
-    DrawEvent, Light, LightType, Mesh, MeshFlags, RenderContextRc,
+    DrawEvent, GPULight, GPUMesh, Light, LightType, Mesh, MeshFlags, RenderContextRc,
     CONSTANT_DATA_FLAGS_DISPLAY_BASE_COLOR, CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT,
     CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX, CONSTANT_DATA_FLAGS_DISPLAY_METALLIC,
@@ -99,7 +100,7 @@ implement_widget_data!(Data);
 pub struct Info {
     ui_page: Resource<UIWidget>,
     listener: Listener,
-    meshes: Buffer<MeshInfo, 0>,
+    meshes: Buffer<MeshInfo>,
 }
 
 impl Info {
@@ -321,9 +322,8 @@ impl Info {
                     .params
                     .render_context
                     .global_buffers()
-                    .bvh
-                    .read()
-                    .unwrap();
+                    .buffer::<GPUBVHNode>();
+                let bhv = bhv.read().unwrap();
                 bhv.for_each_data(|i, _id, n| {
                     if i >= tlas_index as _ {
                         data.context
@@ -341,17 +341,15 @@ impl Info {
                     .params
                     .render_context
                     .global_buffers()
-                    .bvh
-                    .read()
-                    .unwrap();
+                    .buffer::<GPUBVHNode>();
+                let bhv = bhv.read().unwrap();
                 let bhv_data = bhv.data();
                 let meshes = data
                     .params
                     .render_context
                     .global_buffers()
-                    .meshes
-                    .read()
-                    .unwrap();
+                    .buffer::<GPUMesh>();
+                let meshes = meshes.read().unwrap();
                 meshes.for_each_data(|_, _, mesh| {
                     let node = &bhv_data[mesh.blas_index as usize];
                     let matrix = Matrix4::from_translation_orientation_scale(
@@ -395,9 +393,8 @@ impl Info {
                     .params
                     .render_context
                     .global_buffers()
-                    .bvh
-                    .read()
-                    .unwrap();
+                    .buffer::<GPUBVHNode>();
+                let bhv = bhv.read().unwrap();
                 meshes.iter().for_each(|mesh| {
                     if let Some(nodes) = bhv.get(mesh.id()) {
                         nodes.iter().for_each(|n| {
@@ -442,7 +439,7 @@ impl Info {
             });
     }
 
-    fn show_meshlets_bounding_box(data: &mut Data, meshes: &Buffer<MeshInfo, 0>) {
+    fn show_meshlets_bounding_box(data: &mut Data, meshes: &Buffer<MeshInfo>) {
         meshes.for_each_data(|_, _id, mesh_info| {
             if mesh_info.flags.contains(MeshFlags::Visible) {
                 mesh_info.meshlets.iter().for_each(|meshlet_info| {
@@ -669,13 +666,12 @@ impl Info {
                             }
                         });
                         ui.vertical(|ui| {
-                            let mut lights = data
+                            let lights = data
                                 .params
                                 .render_context
                                 .global_buffers()
-                                .lights
-                                .write()
-                                .unwrap();
+                                .buffer::<GPULight>();
+                            let mut lights = lights.write().unwrap();
                             let light_type_none: u32 = LightType::None.into();
                             let mut num_lights = 0;
                             lights.for_each_data_mut(|i, _, l| {

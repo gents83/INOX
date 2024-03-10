@@ -1,17 +1,20 @@
 use std::path::PathBuf;
 
 use inox_render::{
-    BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DataBuffers,
-    DrawCommandType, IndicesBuffer, LightsBuffer, LoadOperation, MaterialsBuffer, MeshFlags,
-    MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderContextRc, RenderPass,
-    RenderPassBeginData, RenderPassData, RenderTarget, RuntimeVerticesBuffer, SamplerType,
-    ShaderStage, StoreOperation, TextureId, TextureView, TexturesBuffer, VertexAttributesBuffer,
-    NUM_DATA_BUFFER,
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
+    GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPURuntimeVertexData, GPUTexture, GPUVector,
+    GPUVertexAttributes, GPUVertexIndices, IndicesBuffer, LightsBuffer, LoadOperation,
+    MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderContextRc,
+    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, RuntimeVerticesBuffer,
+    SamplerType, ShaderStage, StoreOperation, TextureId, TextureView, TexturesBuffer,
+    VertexAttributesBuffer,
 };
 
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::{generate_random_uid, INVALID_UID};
+
+use crate::{DebugPackedData, RadiancePackedData, RayPackedData, ThroughputPackedData};
 
 pub const DEBUG_PIPELINE: &str = "pipelines/Debug.render_pipeline";
 pub const DEBUG_PASS_NAME: &str = "DebugPass";
@@ -31,7 +34,10 @@ pub struct DebugPass {
     finalize_texture: TextureId,
     visibility_texture: TextureId,
     depth_texture: TextureId,
-    data_buffers: DataBuffers,
+    data_buffer_0: GPUVector<RayPackedData>,
+    data_buffer_1: GPUVector<RadiancePackedData>,
+    data_buffer_2: GPUVector<ThroughputPackedData>,
+    data_buffer_debug: GPUVector<DebugPackedData>,
 }
 unsafe impl Send for DebugPass {}
 unsafe impl Sync for DebugPass {}
@@ -79,18 +85,29 @@ impl Pass for DebugPass {
             ),
             binding_data: BindingData::new(render_context, DEBUG_PASS_NAME),
             constant_data: render_context.global_buffers().constant_data.clone(),
-            meshes: render_context.global_buffers().meshes.clone(),
-            meshlets: render_context.global_buffers().meshlets.clone(),
-            textures: render_context.global_buffers().textures.clone(),
-            materials: render_context.global_buffers().materials.clone(),
-            lights: render_context.global_buffers().lights.clone(),
-            indices: render_context.global_buffers().indices.clone(),
-            runtime_vertices: render_context.global_buffers().runtime_vertices.clone(),
-            vertices_attributes: render_context.global_buffers().vertex_attributes.clone(),
+            meshes: render_context.global_buffers().buffer::<GPUMesh>(),
+            meshlets: render_context.global_buffers().buffer::<GPUMeshlet>(),
+            textures: render_context.global_buffers().buffer::<GPUTexture>(),
+            materials: render_context.global_buffers().buffer::<GPUMaterial>(),
+            lights: render_context.global_buffers().buffer::<GPULight>(),
+            indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
+            runtime_vertices: render_context
+                .global_buffers()
+                .buffer::<GPURuntimeVertexData>(),
+            vertices_attributes: render_context
+                .global_buffers()
+                .buffer::<GPUVertexAttributes>(),
+            data_buffer_0: render_context.global_buffers().vector::<RayPackedData>(),
+            data_buffer_1: render_context
+                .global_buffers()
+                .vector::<RadiancePackedData>(),
+            data_buffer_2: render_context
+                .global_buffers()
+                .vector::<ThroughputPackedData>(),
+            data_buffer_debug: render_context.global_buffers().vector::<DebugPackedData>(),
             finalize_texture: INVALID_UID,
             visibility_texture: INVALID_UID,
             depth_texture: INVALID_UID,
-            data_buffers: render_context.global_buffers().data_buffers.clone(),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -231,19 +248,47 @@ impl Pass for DebugPass {
                 stage: ShaderStage::Fragment,
                 ..Default::default()
             });
-
-        for i in 0..NUM_DATA_BUFFER {
-            self.binding_data.add_storage_buffer(
-                &mut *self.data_buffers[i].write().unwrap(),
-                Some(format!("DataBuffer_{}", i).as_str()),
+        self.binding_data
+            .add_storage_buffer(
+                &mut *self.data_buffer_0.write().unwrap(),
+                Some("DataBuffer_0"),
                 BindingInfo {
                     group_index: 3,
-                    binding_index: i,
+                    binding_index: 0,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.data_buffer_1.write().unwrap(),
+                Some("DataBuffer_1"),
+                BindingInfo {
+                    group_index: 3,
+                    binding_index: 1,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.data_buffer_2.write().unwrap(),
+                Some("DataBuffer_2"),
+                BindingInfo {
+                    group_index: 3,
+                    binding_index: 2,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.data_buffer_debug.write().unwrap(),
+                Some("DataBuffer_Debug"),
+                BindingInfo {
+                    group_index: 3,
+                    binding_index: 3,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
             );
-        }
         pass.init(render_context, &mut self.binding_data, None, None);
     }
     fn update(

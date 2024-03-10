@@ -3,11 +3,11 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use crate::{AsBinding, BufferId, GpuBuffer, RenderContext};
+use crate::{AsBinding, BufferId, BufferRef, RenderContext};
 
 #[derive(Default)]
 pub struct BindingDataBuffer {
-    pub buffers: RwLock<HashMap<BufferId, GpuBuffer>>,
+    pub buffers: RwLock<HashMap<BufferId, BufferRef>>,
     changed_this_frame: RwLock<Vec<BufferId>>,
 }
 

@@ -1,4 +1,4 @@
-use crate::{GpuBuffer, RenderContext};
+use crate::{BufferRef, RenderContext};
 use inox_resources::Buffer;
 pub type BufferId = u64;
 
@@ -17,12 +17,12 @@ pub trait AsBinding {
     fn is_dirty(&self) -> bool;
     fn set_dirty(&mut self, is_dirty: bool);
     fn size(&self) -> u64;
-    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut GpuBuffer);
+    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut BufferRef);
 }
 
-impl<T, const MAX_COUNT: usize> AsBinding for Buffer<T, MAX_COUNT>
+impl<T> AsBinding for Buffer<T>
 where
-    T: Sized + Clone,
+    T: Sized + Clone + 'static,
 {
     fn is_dirty(&self) -> bool {
         self.is_changed()
@@ -36,15 +36,14 @@ where
         self.total_len() as u64 * std::mem::size_of::<T>() as u64
     }
 
-    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut crate::GpuBuffer) {
+    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut crate::BufferRef) {
         buffer.add_to_gpu_buffer(render_context, self.data());
     }
 }
 
-impl<T, const MAX_COUNT: usize, const ARRAY_SIZE: usize> AsBinding
-    for [Buffer<T, MAX_COUNT>; ARRAY_SIZE]
+impl<T, const ARRAY_SIZE: usize> AsBinding for [Buffer<T>; ARRAY_SIZE]
 where
-    T: Sized + Clone,
+    T: Sized + Clone + 'static,
 {
     fn is_dirty(&self) -> bool {
         self.iter().any(|b| b.is_changed())
@@ -62,10 +61,26 @@ where
         len
     }
 
-    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut crate::GpuBuffer) {
+    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut crate::BufferRef) {
         self.iter().for_each(|b| {
             buffer.add_to_gpu_buffer(render_context, b.data());
         });
+    }
+}
+
+impl<T> AsBinding for Vec<T> {
+    fn is_dirty(&self) -> bool {
+        false
+    }
+
+    fn set_dirty(&mut self, _is_dirty: bool) {}
+
+    fn size(&self) -> u64 {
+        self.len() as u64 * std::mem::size_of::<T>() as u64
+    }
+
+    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut BufferRef) {
+        buffer.add_to_gpu_buffer(render_context, self.as_slice());
     }
 }
 
@@ -102,7 +117,7 @@ macro_rules! declare_as_binding_vector {
             fn fill_buffer(
                 &self,
                 render_context: &$crate::RenderContext,
-                buffer: &mut $crate::GpuBuffer,
+                buffer: &mut $crate::BufferRef,
             ) {
                 buffer.add_to_gpu_buffer(render_context, self.data.as_slice());
             }
@@ -144,17 +159,10 @@ macro_rules! declare_as_dirty_binding {
             fn fill_buffer(
                 &self,
                 render_context: &$crate::RenderContext,
-                buffer: &mut $crate::GpuBuffer,
+                buffer: &mut $crate::BufferRef,
             ) {
                 buffer.add_to_gpu_buffer(render_context, &[*self]);
             }
         }
     };
 }
-
-declare_as_dirty_binding!(u32);
-declare_as_dirty_binding!(i32);
-declare_as_dirty_binding!(f32);
-declare_as_binding_vector!(VecU32, u32);
-declare_as_binding_vector!(VecI32, i32);
-declare_as_binding_vector!(VecF32, f32);

@@ -3,10 +3,11 @@ use std::path::PathBuf;
 use inox_core::ContextRc;
 use inox_messenger::Listener;
 use inox_render::{
-    declare_as_binding_vector, AsBinding, BindingData, BindingInfo, CommandBuffer, ConstantDataRw,
-    DrawCommandType, GpuBuffer, LoadOperation, MeshFlags, Pass, RenderContext, RenderContextRc,
-    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType, ShaderStage,
-    StoreOperation, TextureView, TexturesBuffer, VertexBufferLayoutBuilder, VertexFormat,
+    declare_as_binding_vector, AsBinding, BindingData, BindingInfo, BufferRef, CommandBuffer,
+    ConstantDataRw, DrawCommandType, GPUTexture, LoadOperation, MeshFlags, Pass, RenderContext,
+    RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType,
+    ShaderStage, StoreOperation, TextureView, TexturesBuffer, VertexBufferLayoutBuilder,
+    VertexFormat,
 };
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::generate_random_uid;
@@ -33,7 +34,7 @@ impl AsBinding for UIPassData {
     fn size(&self) -> u64 {
         std::mem::size_of::<f32>() as _
     }
-    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut GpuBuffer) {
+    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut BufferRef) {
         buffer.add_to_gpu_buffer(render_context, &[self.ui_scale]);
     }
 }
@@ -132,7 +133,7 @@ impl Pass for UIPass {
                 None,
             ),
             constant_data: render_context.global_buffers().constant_data.clone(),
-            textures: render_context.global_buffers().textures.clone(),
+            textures: render_context.global_buffers().buffer::<GPUTexture>(),
             binding_data: BindingData::new(render_context, UI_PASS_NAME),
             custom_data: UIPassData {
                 ui_scale: 1.,

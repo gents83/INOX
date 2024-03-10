@@ -42,14 +42,6 @@ var<storage, read> data_buffer_1: array<f32>;
 @group(3) @binding(2)
 var<storage, read> data_buffer_2: array<f32>;
 @group(3) @binding(3)
-var<storage, read> data_buffer_3: array<f32>;
-@group(3) @binding(4)
-var<storage, read> data_buffer_4: array<f32>;
-@group(3) @binding(5)
-var<storage, read> data_buffer_5: array<f32>;
-@group(3) @binding(6)
-var<storage, read> data_buffer_6: array<f32>;
-@group(3) @binding(7)
 var<storage, read> data_buffer_debug: array<f32>;
 
 #import "texture_utils.inc"

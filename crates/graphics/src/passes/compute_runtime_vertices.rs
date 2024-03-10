@@ -1,9 +1,11 @@
 use std::path::PathBuf;
 
+use inox_bvh::GPUBVHNode;
 use inox_render::{
     BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DrawCommandType, MeshFlags, MeshesBuffer, Pass, RenderContext, RenderContextRc,
-    RuntimeVerticesBuffer, ShaderStage, TextureView, VertexPositionsBuffer,
+    ConstantDataRw, DrawCommandType, GPUMesh, GPURuntimeVertexData, GPUVertexPosition, MeshFlags,
+    MeshesBuffer, Pass, RenderContext, RenderContextRc, RuntimeVerticesBuffer, ShaderStage,
+    TextureView, VertexPositionsBuffer,
 };
 
 use inox_core::ContextRc;
@@ -61,10 +63,14 @@ impl Pass for ComputeRuntimeVerticesPass {
             ),
             binding_data: BindingData::new(render_context, COMPUTE_RUNTIME_VERTICES_PASS_NAME),
             constant_data: render_context.global_buffers().constant_data.clone(),
-            bhv: render_context.global_buffers().bvh.clone(),
-            meshes: render_context.global_buffers().meshes.clone(),
-            vertices_positions: render_context.global_buffers().vertex_positions.clone(),
-            runtime_vertices: render_context.global_buffers().runtime_vertices.clone(),
+            bhv: render_context.global_buffers().buffer::<GPUBVHNode>(),
+            meshes: render_context.global_buffers().buffer::<GPUMesh>(),
+            vertices_positions: render_context
+                .global_buffers()
+                .buffer::<GPUVertexPosition>(),
+            runtime_vertices: render_context
+                .global_buffers()
+                .buffer::<GPURuntimeVertexData>(),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {

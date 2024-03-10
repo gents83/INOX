@@ -4,7 +4,7 @@ use inox_resources::to_slice;
 
 use crate::{AsBinding, RenderContext, WebGpuContext};
 
-pub struct GpuBuffer {
+pub struct BufferRef {
     gpu_buffer: Option<wgpu::Buffer>,
     usage: wgpu::BufferUsages,
     offset: u64,
@@ -12,7 +12,7 @@ pub struct GpuBuffer {
     name: String,
 }
 
-impl Default for GpuBuffer {
+impl Default for BufferRef {
     fn default() -> Self {
         Self {
             gpu_buffer: None,
@@ -24,13 +24,13 @@ impl Default for GpuBuffer {
     }
 }
 
-impl Drop for GpuBuffer {
+impl Drop for BufferRef {
     fn drop(&mut self) {
         self.release();
     }
 }
 
-impl GpuBuffer {
+impl BufferRef {
     pub fn size(&self) -> u64 {
         self.size
     }

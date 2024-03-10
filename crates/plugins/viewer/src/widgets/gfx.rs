@@ -1,5 +1,5 @@
 use inox_core::ContextRc;
-use inox_render::RenderContextRc;
+use inox_render::{GPUMesh, GPUMeshlet, GPUVertexIndices, GPUVertexPosition, RenderContextRc};
 
 use inox_messenger::MessageHubRc;
 use inox_resources::{Resource, SharedDataRc};
@@ -43,28 +43,28 @@ impl Gfx {
                 data.vertices_count = data
                     .render_context
                     .global_buffers()
-                    .vertex_positions
+                    .buffer::<GPUVertexPosition>()
                     .read()
                     .unwrap()
                     .item_count();
                 data.indices_count = data
                     .render_context
                     .global_buffers()
-                    .indices
+                    .buffer::<GPUVertexIndices>()
                     .read()
                     .unwrap()
                     .item_count();
                 data.meshes_count = data
                     .render_context
                     .global_buffers()
-                    .meshes
+                    .buffer::<GPUMesh>()
                     .read()
                     .unwrap()
                     .item_count();
                 data.meshlets_count = data
                     .render_context
                     .global_buffers()
-                    .meshlets
+                    .buffer::<GPUMeshlet>()
                     .read()
                     .unwrap()
                     .item_count();

@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use inox_resources::{Buffer, ResourceId};
 
 use crate::{
-    declare_as_binding_vector, AsBinding, DrawCommandType, DrawIndexedCommand, GPUMesh, GPUMeshlet,
-    GpuBuffer, RenderContext,
+    declare_as_binding_vector, AsBinding, BufferRef, DrawCommandType, DrawIndexedCommand, GPUMesh,
+    GPUMeshlet, RenderContext,
 };
 
 declare_as_binding_vector!(VecDrawIndexedCommand, DrawIndexedCommand);
@@ -33,7 +33,7 @@ impl AsBinding for RenderCommandsCount {
         std::mem::size_of_val(&self.count) as u64
     }
 
-    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut GpuBuffer) {
+    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut BufferRef) {
         buffer.add_to_gpu_buffer(render_context, &[self.count]);
     }
 }
@@ -41,7 +41,7 @@ impl AsBinding for RenderCommandsCount {
 #[derive(Default)]
 pub struct RenderCommands {
     pub counter: RenderCommandsCount,
-    pub commands: Buffer<DrawIndexedCommand, 0>,
+    pub commands: Buffer<DrawIndexedCommand>,
 }
 
 impl RenderCommands {
@@ -174,11 +174,11 @@ impl RenderCommandsPerType {
         entry.add_draw_commands(id, commands);
         self
     }
-    pub fn add_mesh_commands<const MAX_COUNT: usize>(
+    pub fn add_mesh_commands(
         &mut self,
         id: &ResourceId,
         mesh: &GPUMesh,
-        meshlets: &Buffer<GPUMeshlet, MAX_COUNT>,
+        meshlets: &Buffer<GPUMeshlet>,
     ) -> &mut Self {
         if let Some(meshlets) = meshlets.get(id) {
             let meshlet_entry = self.map.entry(DrawCommandType::PerMeshlet).or_default();

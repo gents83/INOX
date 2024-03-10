@@ -6,7 +6,7 @@ use inox_resources::{
 };
 
 use crate::{
-    BindingData, BufferId, CommandBuffer, ComputePassData, ComputePipeline, GpuBuffer,
+    BindingData, BufferId, BufferRef, CommandBuffer, ComputePassData, ComputePipeline,
     RenderContext,
 };
 
@@ -166,7 +166,7 @@ impl ComputePass {
         _render_context: &RenderContext,
         binding_data: &'a mut BindingData,
         command_buffer: &'a mut CommandBuffer,
-        buffers: &'a HashMap<BufferId, GpuBuffer>,
+        buffers: &'a HashMap<BufferId, BufferRef>,
         indirect_args_id: BufferId,
     ) {
         let mut is_ready = true;
