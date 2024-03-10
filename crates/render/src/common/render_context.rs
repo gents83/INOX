@@ -340,6 +340,7 @@ impl RenderContext {
                     self.add_image(encoder, &texture);
                     if let Some(texture_info) = self.texture_handler.texture_info(texture_id) {
                         let uniform_index = self.global_buffers.add_texture(
+                            self,
                             texture_id,
                             &texture_info,
                             texture.get().LUT_id(),

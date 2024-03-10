@@ -649,7 +649,7 @@ impl BindingData {
                             self.is_data_changed |= self
                                 .render_context
                                 .binding_data_buffer()
-                                .is_changed(buffer_id);
+                                .is_buffer_changed(*buffer_id);
                         }
                     });
                 });

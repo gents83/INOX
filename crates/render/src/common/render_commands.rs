@@ -17,18 +17,9 @@ pub struct RenderCommandsPerType {
 #[derive(Default)]
 pub struct RenderCommandsCount {
     pub count: u32,
-    is_dirty: bool,
 }
 
 impl AsBinding for RenderCommandsCount {
-    fn is_dirty(&self) -> bool {
-        self.is_dirty
-    }
-
-    fn set_dirty(&mut self, is_dirty: bool) {
-        self.is_dirty = is_dirty;
-    }
-
     fn size(&self) -> u64 {
         std::mem::size_of_val(&self.count) as u64
     }
@@ -45,59 +36,65 @@ pub struct RenderCommands {
 }
 
 impl RenderCommands {
-    pub fn rebind(&mut self) {
+    pub fn rebind(&mut self, render_context: &RenderContext) {
         self.commands.defrag();
         let count = self.commands.item_count() as _;
         if self.counter.count != count {
             self.counter.count = count;
-            self.counter.set_dirty(true);
+            self.counter.mark_as_dirty(render_context);
         }
     }
     fn bind(&mut self, render_context: &RenderContext, label: Option<&str>) {
-        if self.commands.is_dirty() {
-            let usage = wgpu::BufferUsages::STORAGE
-                | wgpu::BufferUsages::COPY_SRC
-                | wgpu::BufferUsages::COPY_DST
-                | wgpu::BufferUsages::INDIRECT;
-            render_context.binding_data_buffer().bind_buffer(
-                Some(label.unwrap_or("Commands")),
-                &mut self.commands,
-                usage,
-                render_context,
-            );
-        }
-        if self.counter.is_dirty() {
-            let usage = wgpu::BufferUsages::STORAGE
-                | wgpu::BufferUsages::COPY_SRC
-                | wgpu::BufferUsages::COPY_DST
-                | wgpu::BufferUsages::INDIRECT;
-            render_context.binding_data_buffer().bind_buffer(
-                Some("Counter"),
-                &mut self.counter,
-                usage,
-                render_context,
-            );
-        }
+        let usage = wgpu::BufferUsages::STORAGE
+            | wgpu::BufferUsages::COPY_SRC
+            | wgpu::BufferUsages::COPY_DST
+            | wgpu::BufferUsages::INDIRECT;
+        render_context.binding_data_buffer().bind_buffer(
+            Some(label.unwrap_or("Commands")),
+            &mut self.commands,
+            usage,
+            render_context,
+        );
+        let usage = wgpu::BufferUsages::STORAGE
+            | wgpu::BufferUsages::COPY_SRC
+            | wgpu::BufferUsages::COPY_DST
+            | wgpu::BufferUsages::INDIRECT;
+        render_context.binding_data_buffer().bind_buffer(
+            Some("Counter"),
+            &mut self.counter,
+            usage,
+            render_context,
+        );
     }
-    fn remove_draw_commands(&mut self, id: &ResourceId) -> &mut Self {
+    fn remove_draw_commands(
+        &mut self,
+        render_context: &RenderContext,
+        id: &ResourceId,
+    ) -> &mut Self {
         self.commands.remove(id);
-        self.rebind();
+        self.rebind(render_context);
         self
     }
 
-    fn add_draw_commands(&mut self, id: &ResourceId, commands: &[DrawIndexedCommand]) -> &mut Self {
+    fn add_draw_commands(
+        &mut self,
+        render_context: &RenderContext,
+        id: &ResourceId,
+        commands: &[DrawIndexedCommand],
+    ) -> &mut Self {
         if commands.is_empty() {
             return self;
         }
         let is_changed = self.commands.allocate(id, commands).0;
         if is_changed || self.counter.count != commands.len() as u32 {
             self.counter.count = commands.len() as _;
-            self.counter.set_dirty(true);
+            self.counter.mark_as_dirty(render_context);
         }
         self
     }
     fn add_mesh_commands(
         &mut self,
+        render_context: &RenderContext,
         id: &ResourceId,
         mesh: &GPUMesh,
         meshlets: &[GPUMeshlet],
@@ -147,7 +144,7 @@ impl RenderCommands {
             }
             _ => {}
         }
-        self.add_draw_commands(id, commands.as_slice())
+        self.add_draw_commands(render_context, id, commands.as_slice())
     }
 }
 
@@ -158,36 +155,54 @@ impl RenderCommandsPerType {
         }
         self
     }
-    pub fn remove_draw_commands(&mut self, id: &ResourceId) -> &mut Self {
+    pub fn remove_draw_commands(
+        &mut self,
+        render_context: &RenderContext,
+        id: &ResourceId,
+    ) -> &mut Self {
         self.map.iter_mut().for_each(|(_, entry)| {
-            entry.remove_draw_commands(id);
+            entry.remove_draw_commands(render_context, id);
         });
         self
     }
     pub fn add_draw_commands(
         &mut self,
+        render_context: &RenderContext,
         id: &ResourceId,
         commands: &[DrawIndexedCommand],
     ) -> &mut Self {
         let entry = self.map.entry(DrawCommandType::PerMeshlet).or_default();
-        entry.remove_draw_commands(id);
-        entry.add_draw_commands(id, commands);
+        entry.remove_draw_commands(render_context, id);
+        entry.add_draw_commands(render_context, id, commands);
         self
     }
     pub fn add_mesh_commands(
         &mut self,
+        render_context: &RenderContext,
         id: &ResourceId,
         mesh: &GPUMesh,
         meshlets: &Buffer<GPUMeshlet>,
     ) -> &mut Self {
         if let Some(meshlets) = meshlets.get(id) {
             let meshlet_entry = self.map.entry(DrawCommandType::PerMeshlet).or_default();
-            meshlet_entry.remove_draw_commands(id);
-            meshlet_entry.add_mesh_commands(id, mesh, meshlets, DrawCommandType::PerMeshlet);
+            meshlet_entry.remove_draw_commands(render_context, id);
+            meshlet_entry.add_mesh_commands(
+                render_context,
+                id,
+                mesh,
+                meshlets,
+                DrawCommandType::PerMeshlet,
+            );
 
             let triangle_entry = self.map.entry(DrawCommandType::PerTriangle).or_default();
-            triangle_entry.remove_draw_commands(id);
-            triangle_entry.add_mesh_commands(id, mesh, meshlets, DrawCommandType::PerTriangle);
+            triangle_entry.remove_draw_commands(render_context, id);
+            triangle_entry.add_mesh_commands(
+                render_context,
+                id,
+                mesh,
+                meshlets,
+                DrawCommandType::PerTriangle,
+            );
         }
 
         self

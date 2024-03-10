@@ -8,7 +8,7 @@ use crate::{AsBinding, BufferId, BufferRef, RenderContext};
 #[derive(Default)]
 pub struct BindingDataBuffer {
     pub buffers: RwLock<HashMap<BufferId, BufferRef>>,
-    changed_this_frame: RwLock<Vec<BufferId>>,
+    changed_this_frame: RwLock<HashMap<BufferId, bool>>,
 }
 
 pub type BindingDataBufferRc = Arc<BindingDataBuffer>;
@@ -17,12 +17,22 @@ impl BindingDataBuffer {
     pub fn has_buffer(&self, uid: &BufferId) -> bool {
         self.buffers.read().unwrap().contains_key(uid)
     }
-    pub fn is_changed(&self, uid: &BufferId) -> bool {
-        self.changed_this_frame
-            .read()
-            .unwrap()
-            .iter()
-            .any(|id| id == uid)
+    pub fn is_buffer_changed(&self, id: BufferId) -> bool {
+        if let Some(v) = self.changed_this_frame.read().unwrap().get(&id) {
+            return *v;
+        }
+        !self.buffers.read().unwrap().contains_key(&id)
+    }
+    fn is_buffer_or_usage_changed(&self, id: BufferId, usage: wgpu::BufferUsages) -> bool {
+        if self.is_buffer_changed(id) {
+            return true;
+        }
+        let buffers = self.buffers.read().unwrap();
+        let buffer = buffers.get(&id).unwrap();
+        usage != buffer.usage()
+    }
+    pub fn mark_buffer_as_changed(&self, id: BufferId) {
+        self.changed_this_frame.write().unwrap().insert(id, true);
     }
     pub fn reset_buffers_changed(&self) {
         self.changed_this_frame.write().unwrap().clear();
@@ -38,15 +48,12 @@ impl BindingDataBuffer {
         T: AsBinding,
     {
         let id = data.id();
-        let mut bind_data_buffer = self.buffers.write().unwrap();
-        let buffer = bind_data_buffer.entry(id).or_default();
-        if data.is_dirty() || usage != buffer.usage() {
-            let is_changed = buffer.bind(label, data, usage, render_context);
-            if is_changed {
-                self.changed_this_frame.write().unwrap().push(id);
-            }
-            return is_changed;
+        let mut is_changed = self.is_buffer_or_usage_changed(id, usage);
+        if is_changed {
+            let mut bind_data_buffer = self.buffers.write().unwrap();
+            let buffer = bind_data_buffer.entry(id).or_default();
+            is_changed |= buffer.bind(label, data, usage, render_context);
         }
-        false
+        is_changed
     }
 }

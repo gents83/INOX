@@ -92,43 +92,57 @@ impl UpdateSystem {
                         .on_texture_changed(t.id(), &mut command_buffer.encoder);
                 }
                 ResourceEvent::Destroyed(id) => {
-                    self.render_context.global_buffers().remove_texture(id);
+                    self.render_context
+                        .global_buffers()
+                        .remove_texture(&self.render_context, id);
                 }
             })
             .process_messages(|e: &DataTypeResourceEvent<Light>| {
                 let DataTypeResourceEvent::Loaded(id, light_data) = e;
-                self.render_context
-                    .global_buffers()
-                    .update_light(id, light_data);
+                self.render_context.global_buffers().update_light(
+                    &self.render_context,
+                    id,
+                    light_data,
+                );
             })
             .process_messages(|e: &ResourceEvent<Light>| match e {
                 ResourceEvent::Created(l) => {
-                    self.render_context
-                        .global_buffers()
-                        .add_light(l.id(), &mut l.get_mut());
+                    self.render_context.global_buffers().add_light(
+                        &self.render_context,
+                        l.id(),
+                        &mut l.get_mut(),
+                    );
                 }
                 ResourceEvent::Changed(id) => {
                     if let Some(light) = self.shared_data.get_resource::<Light>(id) {
-                        self.render_context
-                            .global_buffers()
-                            .update_light(id, light.get().data());
+                        self.render_context.global_buffers().update_light(
+                            &self.render_context,
+                            id,
+                            light.get().data(),
+                        );
                     }
                 }
                 ResourceEvent::Destroyed(id) => {
-                    self.render_context.global_buffers().remove_light(id);
+                    self.render_context
+                        .global_buffers()
+                        .remove_light(&self.render_context, id);
                 }
             })
             .process_messages(|e: &ResourceEvent<Material>| match e {
                 ResourceEvent::Created(m) => {
-                    self.render_context
-                        .global_buffers()
-                        .add_material(m.id(), &mut m.get_mut());
+                    self.render_context.global_buffers().add_material(
+                        &self.render_context,
+                        m.id(),
+                        &mut m.get_mut(),
+                    );
                 }
                 ResourceEvent::Changed(id) => {
                     if let Some(m) = self.shared_data.get_resource::<Material>(id) {
-                        self.render_context
-                            .global_buffers()
-                            .add_material(m.id(), &mut m.get_mut());
+                        self.render_context.global_buffers().add_material(
+                            &self.render_context,
+                            m.id(),
+                            &mut m.get_mut(),
+                        );
                     }
                 }
                 ResourceEvent::Destroyed(id) => {
@@ -137,24 +151,34 @@ impl UpdateSystem {
             })
             .process_messages(|e: &DataTypeResourceEvent<Material>| {
                 let DataTypeResourceEvent::Loaded(id, material_data) = e;
-                self.render_context
-                    .global_buffers()
-                    .update_material(id, material_data);
+                self.render_context.global_buffers().update_material(
+                    &self.render_context,
+                    id,
+                    material_data,
+                );
             })
             .process_messages(|e: &DataTypeResourceEvent<Mesh>| {
                 let DataTypeResourceEvent::Loaded(id, mesh_data) = e;
-                self.render_context.global_buffers().add_mesh(id, mesh_data);
+                self.render_context
+                    .global_buffers()
+                    .add_mesh(&self.render_context, id, mesh_data);
             })
             .process_messages(|e: &ResourceEvent<Mesh>| match e {
                 ResourceEvent::Changed(id) => {
                     if let Some(mesh) = self.shared_data.get_resource::<Mesh>(id) {
-                        self.render_context
-                            .global_buffers()
-                            .change_mesh(id, &mut mesh.get_mut());
+                        self.render_context.global_buffers().change_mesh(
+                            &self.render_context,
+                            id,
+                            &mut mesh.get_mut(),
+                        );
                     }
                 }
                 ResourceEvent::Destroyed(id) => {
-                    self.render_context.global_buffers().remove_mesh(id, true);
+                    self.render_context.global_buffers().remove_mesh(
+                        &self.render_context,
+                        id,
+                        true,
+                    );
                 }
                 _ => {}
             });
@@ -216,10 +240,13 @@ impl System for UpdateSystem {
             let screen_size = Vector2::new(self.width as _, self.height as _);
 
             self.render_context.global_buffers().update_constant_data(
-                self.view.get().view(),
-                self.view.get().proj(),
-                self.view.get().near(),
-                self.view.get().far(),
+                &self.render_context,
+                (
+                    self.view.get().view(),
+                    self.view.get().proj(),
+                    self.view.get().near(),
+                    self.view.get().far(),
+                ),
                 screen_size,
                 self.mouse_coords,
             );

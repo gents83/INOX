@@ -16,7 +16,8 @@ use crate::{
     AsBinding, ConstantDataRw, DispatchCommandSize, GPULight, GPUMaterial, GPUMesh, GPUMeshlet,
     GPURuntimeVertexData, GPUTexture, GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition,
     Light, LightId, Material, MaterialData, MaterialFlags, MaterialId, Mesh, MeshData, MeshFlags,
-    MeshId, RenderCommandsPerType, TextureId, TextureType, MAX_LOD_LEVELS, MESHLETS_GROUP_SIZE,
+    MeshId, RenderCommandsPerType, RenderContext, TextureId, TextureType, MAX_LOD_LEVELS,
+    MESHLETS_GROUP_SIZE,
 };
 
 pub const TLAS_UID: ResourceId = generate_static_uid_from_string("TLAS");
@@ -262,9 +263,9 @@ impl GlobalBuffers {
             attributes_offset as _,
         )
     }
-    pub fn add_mesh(&self, mesh_id: &MeshId, mesh_data: &MeshData) {
+    pub fn add_mesh(&self, render_context: &RenderContext, mesh_id: &MeshId, mesh_data: &MeshData) {
         inox_profiler::scoped_profile!("render_buffers::add_mesh");
-        self.remove_mesh(mesh_id, false);
+        self.remove_mesh(render_context, mesh_id, false);
         if mesh_data.vertex_count() == 0 {
             return;
         }
@@ -362,7 +363,7 @@ impl GlobalBuffers {
         }
         false
     }
-    pub fn change_mesh(&self, mesh_id: &MeshId, mesh: &mut Mesh) {
+    pub fn change_mesh(&self, render_context: &RenderContext, mesh_id: &MeshId, mesh: &mut Mesh) {
         inox_profiler::scoped_profile!("render_buffers::change_mesh");
         let mut is_matrix_changed = false;
         {
@@ -403,24 +404,30 @@ impl GlobalBuffers {
                 {
                     let mut commands = self.draw_commands.write().unwrap();
                     commands.iter_mut().for_each(|(_, v)| {
-                        v.remove_draw_commands(mesh_id);
+                        v.remove_draw_commands(render_context, mesh_id);
                     });
                     let entry = commands.entry(*mesh_flags).or_default();
                     entry.add_mesh_commands(
+                        render_context,
                         mesh_id,
                         m,
                         &self.buffer::<GPUMeshlet>().read().unwrap(),
                     );
                 }
 
-                meshes.set_dirty(true);
+                meshes.mark_as_dirty(render_context);
             }
         }
         if is_matrix_changed {
             self.recreate_tlas();
         }
     }
-    pub fn remove_mesh(&self, mesh_id: &MeshId, recreate_tlas: bool) {
+    pub fn remove_mesh(
+        &self,
+        render_context: &RenderContext,
+        mesh_id: &MeshId,
+        recreate_tlas: bool,
+    ) {
         inox_profiler::scoped_profile!("render_buffers::remove_mesh");
 
         if self.buffer::<GPUMesh>().write().unwrap().remove(mesh_id) {
@@ -429,7 +436,7 @@ impl GlobalBuffers {
                 .unwrap()
                 .iter_mut()
                 .for_each(|(_, entry)| {
-                    entry.remove_draw_commands(mesh_id);
+                    entry.remove_draw_commands(render_context, mesh_id);
                 });
             self.buffer::<GPUMeshlet>().write().unwrap().remove(mesh_id);
             self.buffer::<GPUBVHNode>().write().unwrap().remove(mesh_id);
@@ -454,7 +461,12 @@ impl GlobalBuffers {
             self.recreate_tlas();
         }
     }
-    pub fn add_material(&self, material_id: &MaterialId, material: &mut Material) {
+    pub fn add_material(
+        &self,
+        render_context: &RenderContext,
+        material_id: &MaterialId,
+        material: &mut Material,
+    ) {
         inox_profiler::scoped_profile!("render_buffers::add_material");
 
         let mut textures_index_and_coord_set = [0; TextureType::Count as _];
@@ -484,9 +496,14 @@ impl GlobalBuffers {
                 .start;
             material.set_material_index(index as _);
         }
-        materials.set_dirty(true);
+        materials.mark_as_dirty(render_context);
     }
-    pub fn update_material(&self, material_id: &MaterialId, material_data: &MaterialData) {
+    pub fn update_material(
+        &self,
+        render_context: &RenderContext,
+        material_id: &MaterialId,
+        material_data: &MaterialData,
+    ) {
         inox_profiler::scoped_profile!("render_buffers::update_material");
         let materials = self.buffer::<GPUMaterial>();
         let mut materials = materials.write().unwrap();
@@ -511,7 +528,7 @@ impl GlobalBuffers {
                 | (quantize_half(material_data.alpha_cutoff) as u32) << 16;
             material.emissive_strength = material_data.emissive_strength;
             material.flags = material_data.flags.into();
-            materials.set_dirty(true);
+            materials.mark_as_dirty(render_context);
         }
     }
     pub fn remove_material(&self, material_id: &MaterialId) {
@@ -523,7 +540,7 @@ impl GlobalBuffers {
             .remove(material_id);
     }
 
-    pub fn add_light(&self, light_id: &LightId, light: &mut Light) {
+    pub fn add_light(&self, render_context: &RenderContext, light_id: &LightId, light: &mut Light) {
         inox_profiler::scoped_profile!("render_buffers::add_light");
 
         let index = self
@@ -537,28 +554,34 @@ impl GlobalBuffers {
 
         let mut constant_data = self.constant_data.write().unwrap();
         let num_lights = constant_data.num_lights();
-        constant_data.set_num_lights(num_lights + 1);
+        constant_data.set_num_lights(render_context, num_lights + 1);
     }
-    pub fn update_light(&self, light_id: &LightId, light_data: &GPULight) {
+    pub fn update_light(
+        &self,
+        render_context: &RenderContext,
+        light_id: &LightId,
+        light_data: &GPULight,
+    ) {
         inox_profiler::scoped_profile!("render_buffers::update_light");
         let lights = self.buffer::<GPULight>();
         let mut lights = lights.write().unwrap();
         if let Some(light) = lights.get_first_mut(light_id) {
             *light = *light_data;
-            lights.set_dirty(true);
+            lights.mark_as_dirty(render_context);
         }
     }
-    pub fn remove_light(&self, light_id: &LightId) {
+    pub fn remove_light(&self, render_context: &RenderContext, light_id: &LightId) {
         inox_profiler::scoped_profile!("render_buffers::remove_light");
 
         self.buffer::<GPULight>().write().unwrap().remove(light_id);
         let mut constant_data = self.constant_data.write().unwrap();
         let num_lights = constant_data.num_lights();
-        constant_data.set_num_lights(num_lights - 1);
+        constant_data.set_num_lights(render_context, num_lights - 1);
     }
 
     pub fn add_texture(
         &self,
+        render_context: &RenderContext,
         texture_id: &TextureId,
         texture_data: &GPUTexture,
         lut_id: &Uid,
@@ -572,35 +595,44 @@ impl GlobalBuffers {
             .push(texture_id, *texture_data)
             .1
             .start;
+
+        self.buffer::<GPUTexture>()
+            .write()
+            .unwrap()
+            .mark_as_dirty(render_context);
         if !lut_id.is_nil() {
             self.constant_data
                 .write()
                 .unwrap()
-                .set_LUT(lut_id, uniform_index as _);
+                .set_LUT(render_context, lut_id, uniform_index as _);
         }
         uniform_index
     }
-    pub fn remove_texture(&self, texture_id: &TextureId) {
+    pub fn remove_texture(&self, render_context: &RenderContext, texture_id: &TextureId) {
         inox_profiler::scoped_profile!("render_buffers::remove_texture");
 
         self.buffer::<GPUTexture>()
             .write()
             .unwrap()
             .remove(texture_id);
+
+        self.buffer::<GPUTexture>()
+            .write()
+            .unwrap()
+            .mark_as_dirty(render_context);
     }
 
     pub fn update_constant_data(
         &self,
-        view: Matrix4,
-        proj: Matrix4,
-        near: f32,
-        far: f32,
+        render_context: &RenderContext,
+        view_proj_near_far: (Matrix4, Matrix4, f32, f32),
         screen_size: Vector2,
         debug_coords: Vector2,
     ) {
         inox_profiler::scoped_profile!("render_context::update_constant_data");
         self.constant_data.write().unwrap().update(
-            (view, proj, near, far),
+            render_context,
+            view_proj_near_far,
             (screen_size, debug_coords),
             self.tlas_start_index
                 .read()

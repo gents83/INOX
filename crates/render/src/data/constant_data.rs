@@ -81,19 +81,12 @@ impl Default for Data {
 
 #[derive(Default, Debug, Clone, Copy)]
 pub struct ConstantData {
-    is_dirty: bool,
     data: Data,
 }
 
 pub type ConstantDataRw = Arc<RwLock<ConstantData>>;
 
 impl AsBinding for ConstantData {
-    fn is_dirty(&self) -> bool {
-        self.is_dirty
-    }
-    fn set_dirty(&mut self, is_dirty: bool) {
-        self.is_dirty = is_dirty;
-    }
     fn size(&self) -> u64 {
         size_of::<Data>() as _
     }
@@ -103,64 +96,68 @@ impl AsBinding for ConstantData {
 }
 
 impl ConstantData {
-    pub fn add_flag(&mut self, flag: u32) -> &mut Self {
+    pub fn add_flag(&mut self, render_context: &RenderContext, flag: u32) -> &mut Self {
         if self.data.flags & flag == 0 {
             self.data.flags |= flag;
-            self.set_dirty(true);
+            self.mark_as_dirty(render_context);
         }
         self
     }
-    pub fn toggle_flag(&mut self, flag: u32) -> &mut Self {
+    pub fn toggle_flag(&mut self, render_context: &RenderContext, flag: u32) -> &mut Self {
         self.data.flags ^= flag;
-        self.set_dirty(true);
+        self.mark_as_dirty(render_context);
         self
     }
-    pub fn remove_flag(&mut self, flag: u32) -> &mut Self {
+    pub fn remove_flag(&mut self, render_context: &RenderContext, flag: u32) -> &mut Self {
         if self.data.flags & flag == flag {
             self.data.flags &= !flag;
-            self.set_dirty(true);
+            self.mark_as_dirty(render_context);
         }
         self
     }
-    pub fn set_flags(&mut self, flags: u32) -> &mut Self {
+    pub fn set_flags(&mut self, render_context: &RenderContext, flags: u32) -> &mut Self {
         self.data.flags = flags;
-        self.set_dirty(true);
+        self.mark_as_dirty(render_context);
         self
     }
-    pub fn set_frame_index(&mut self, frame_index: u32) -> &mut Self {
+    pub fn set_frame_index(
+        &mut self,
+        render_context: &RenderContext,
+        frame_index: u32,
+    ) -> &mut Self {
         if self.data.frame_index != frame_index {
             self.data.frame_index = frame_index;
-            self.set_dirty(true);
+            self.mark_as_dirty(render_context);
         }
         self
     }
     pub fn frame_index(&self) -> u32 {
         self.data.frame_index
     }
-    pub fn set_num_bounces(&mut self, n: u32) -> &mut Self {
+    pub fn set_num_bounces(&mut self, render_context: &RenderContext, n: u32) -> &mut Self {
         if self.data.num_bounces != n {
             self.data.num_bounces = n;
-            self.set_dirty(true);
+            self.mark_as_dirty(render_context);
         }
         self
     }
     pub fn num_bounces(&self) -> u32 {
         self.data.num_bounces
     }
-    pub fn set_num_lights(&mut self, n: u32) -> &mut Self {
+    pub fn set_num_lights(&mut self, render_context: &RenderContext, n: u32) -> &mut Self {
         if self.data.num_lights != n {
             self.data.num_lights = n;
-            self.set_dirty(true);
+            self.mark_as_dirty(render_context);
         }
         self
     }
     pub fn num_lights(&self) -> u32 {
         self.data.num_lights
     }
-    pub fn set_forced_lod_level(&mut self, n: i32) -> &mut Self {
+    pub fn set_forced_lod_level(&mut self, render_context: &RenderContext, n: i32) -> &mut Self {
         if self.data.forced_lod_level != n {
             self.data.forced_lod_level = n;
-            self.set_dirty(true);
+            self.mark_as_dirty(render_context);
         }
         self
     }
@@ -168,21 +165,27 @@ impl ConstantData {
         self.data.forced_lod_level
     }
     #[allow(non_snake_case)]
-    pub fn set_LUT(&mut self, lut_id: &Uid, texture_index: u32) -> &mut Self {
+    pub fn set_LUT(
+        &mut self,
+        render_context: &RenderContext,
+        lut_id: &Uid,
+        texture_index: u32,
+    ) -> &mut Self {
         if *lut_id == LUT_PBR_CHARLIE_UID {
             self.data.lut_pbr_charlie_texture_index = texture_index;
-            self.set_dirty(true);
+            self.mark_as_dirty(render_context);
         } else if *lut_id == LUT_PBR_GGX_UID {
             self.data.lut_pbr_ggx_texture_index = texture_index;
-            self.set_dirty(true);
+            self.mark_as_dirty(render_context);
         } else if *lut_id == ENV_MAP_UID {
             self.data.env_map_texture_index = texture_index;
-            self.set_dirty(true);
+            self.mark_as_dirty(render_context);
         }
         self
     }
     pub fn update(
         &mut self,
+        render_context: &RenderContext,
         view_proj_near_far: (Matrix4, Matrix4, f32, f32),
         screen_size_and_debug_coords: (Vector2, Vector2),
         tlas_starting_index: u32,
@@ -212,8 +215,8 @@ impl ConstantData {
         if self.data.flags & CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE == 0 {
             self.data.frame_index += 1;
         }
-        self.set_dirty(true);
-        self.is_dirty()
+        self.mark_as_dirty(render_context);
+        true
     }
     pub fn view(&self) -> [[f32; 4]; 4] {
         self.data.view

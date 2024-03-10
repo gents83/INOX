@@ -83,7 +83,7 @@ impl Pass for CommandsPass {
                 return;
             }
             commands.counter.count = 0;
-            commands.counter.set_dirty(true);
+            commands.counter.mark_as_dirty(render_context);
 
             self.binding_data
                 .add_storage_buffer(

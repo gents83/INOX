@@ -108,7 +108,7 @@ impl Pass for WireframePass {
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("wireframe_pass::init");
 
-        self.process_messages();
+        self.process_messages(render_context);
 
         if self.vertices.data().is_empty() || self.indices.data().is_empty() {
             return;
@@ -180,6 +180,7 @@ impl Pass for WireframePass {
 
 impl WireframePass {
     fn add_mesh(
+        render_context: &RenderContext,
         commands: &mut VecDrawIndexedCommand,
         vertices: &mut VecDebugVertex,
         indices: &mut VecDebugIndex,
@@ -200,11 +201,11 @@ impl WireframePass {
             });
         }
         indices.data_mut().extend_from_slice(&mesh_data.indices);
-        indices.set_dirty(true);
-        vertices.set_dirty(true);
-        commands.set_dirty(true);
+        indices.mark_as_dirty(render_context);
+        vertices.mark_as_dirty(render_context);
+        commands.mark_as_dirty(render_context);
     }
-    fn process_messages(&mut self) {
+    fn process_messages(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("WireframePass::process_messages");
 
         let mut camera_pos = None;
@@ -217,8 +218,8 @@ impl WireframePass {
         }
 
         if !self.vertices.data.is_empty() {
-            self.indices.set_dirty(true);
-            self.vertices.set_dirty(true);
+            self.indices.mark_as_dirty(render_context);
+            self.vertices.mark_as_dirty(render_context);
         }
         self.vertices.data_mut().clear();
         self.indices.data_mut().clear();
@@ -232,6 +233,7 @@ impl WireframePass {
 
                     let mesh_data = create_line(start, end, color);
                     Self::add_mesh(
+                        render_context,
                         &mut new_instances,
                         &mut self.vertices,
                         &mut self.indices,
@@ -243,6 +245,7 @@ impl WireframePass {
 
                     let mesh_data = create_cube_from_min_max(min, max, color);
                     Self::add_mesh(
+                        render_context,
                         &mut new_instances,
                         &mut self.vertices,
                         &mut self.indices,
@@ -255,6 +258,7 @@ impl WireframePass {
                     let mesh_data =
                         create_colored_quad([min.x, min.y, max.x, max.y].into(), z, color);
                     Self::add_mesh(
+                        render_context,
                         &mut new_instances,
                         &mut self.vertices,
                         &mut self.indices,
@@ -266,6 +270,7 @@ impl WireframePass {
 
                     let mesh_data = create_arrow(position, direction, color);
                     Self::add_mesh(
+                        render_context,
                         &mut new_instances,
                         &mut self.vertices,
                         &mut self.indices,
@@ -277,6 +282,7 @@ impl WireframePass {
 
                     let mesh_data = create_sphere(position, radius, 16, 8, color);
                     Self::add_mesh(
+                        render_context,
                         &mut new_instances,
                         &mut self.vertices,
                         &mut self.indices,
@@ -295,6 +301,7 @@ impl WireframePass {
                         mesh_data.aabb_max = matrix.rotate_point(mesh_data.aabb_max);
                     }
                     Self::add_mesh(
+                        render_context,
                         &mut new_instances,
                         &mut self.vertices,
                         &mut self.indices,
@@ -305,7 +312,11 @@ impl WireframePass {
 
         let mut command_buffers = self.commands_buffers.write().unwrap();
         let commands = command_buffers.entry(self.mesh_flags()).or_default();
-        commands.add_draw_commands(&WIREFRAME_CPU_SIDE_COMMANDS_UID, new_instances.data());
+        commands.add_draw_commands(
+            render_context,
+            &WIREFRAME_CPU_SIDE_COMMANDS_UID,
+            new_instances.data(),
+        );
         self.binding_data
             .bind_render_commands(commands, Some("Wireframe Commands"));
     }

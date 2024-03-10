@@ -49,7 +49,6 @@ impl CullingEvent {
 
 #[derive(Default)]
 struct CullingData {
-    is_dirty: bool,
     view: [[f32; 4]; 4],
     mesh_flags: u32,
     lod0_meshlets_count: u32,
@@ -58,12 +57,6 @@ struct CullingData {
 }
 
 impl AsBinding for CullingData {
-    fn is_dirty(&self) -> bool {
-        self.is_dirty
-    }
-    fn set_dirty(&mut self, is_dirty: bool) {
-        self.is_dirty = is_dirty;
-    }
     fn size(&self) -> u64 {
         std::mem::size_of_val(&self.view) as u64
             + std::mem::size_of_val(&self.mesh_flags) as u64
@@ -157,14 +150,14 @@ impl Pass for CullingPass {
         let flags: u32 = mesh_flags.into();
         if self.culling_data.mesh_flags != flags {
             self.culling_data.mesh_flags = flags;
-            self.culling_data.set_dirty(true);
+            self.culling_data.mark_as_dirty(render_context);
         }
 
         if self.update_camera {
             let view = self.constant_data.read().unwrap().view();
             if self.culling_data.view != view {
                 self.culling_data.view = view;
-                self.culling_data.set_dirty(true);
+                self.culling_data.mark_as_dirty(render_context);
             }
         }
 
@@ -188,7 +181,7 @@ impl Pass for CullingPass {
                 lod0_meshlets_count += meshlets_end - meshlets_start;
             });
             self.culling_data.lod0_meshlets_count = lod0_meshlets_count as _;
-            self.culling_data.set_dirty(true);
+            self.culling_data.mark_as_dirty(render_context);
         }
 
         self.binding_data

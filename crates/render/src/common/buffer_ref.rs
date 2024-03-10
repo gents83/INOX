@@ -160,7 +160,6 @@ impl BufferRef {
         let is_changed = self.init(render_context, data.size(), usage, name.as_str());
         if usage.intersects(wgpu::BufferUsages::COPY_DST) {
             data.fill_buffer(render_context, self);
-            data.set_dirty(false);
         }
         is_changed
     }

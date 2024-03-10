@@ -608,8 +608,11 @@ impl Info {
                                     .constant_data
                                     .write()
                                     .unwrap()
-                                    .set_num_bounces(indirect_light_num_bounces)
-                                    .set_frame_index(0);
+                                    .set_num_bounces(
+                                        &data.params.render_context,
+                                        indirect_light_num_bounces,
+                                    )
+                                    .set_frame_index(&data.params.render_context, 0);
                             }
                         });
                         ui.horizontal(|ui| {
@@ -638,8 +641,11 @@ impl Info {
                                     .constant_data
                                     .write()
                                     .unwrap()
-                                    .set_forced_lod_level(forced_lod_level)
-                                    .set_frame_index(0);
+                                    .set_forced_lod_level(
+                                        &data.params.render_context,
+                                        forced_lod_level,
+                                    )
+                                    .set_frame_index(&data.params.render_context, 0);
                             }
                         });
                         ui.horizontal(|ui| {
@@ -656,12 +662,18 @@ impl Info {
                                     .unwrap();
                                 if data.use_image_base_lighting_source {
                                     constant_data
-                                        .add_flag(CONSTANT_DATA_FLAGS_USE_IBL)
-                                        .set_frame_index(0);
+                                        .add_flag(
+                                            &data.params.render_context,
+                                            CONSTANT_DATA_FLAGS_USE_IBL,
+                                        )
+                                        .set_frame_index(&data.params.render_context, 0);
                                 } else {
                                     constant_data
-                                        .remove_flag(CONSTANT_DATA_FLAGS_USE_IBL)
-                                        .set_frame_index(0);
+                                        .remove_flag(
+                                            &data.params.render_context,
+                                            CONSTANT_DATA_FLAGS_USE_IBL,
+                                        )
+                                        .set_frame_index(&data.params.render_context, 0);
                                 }
                             }
                         });
@@ -793,6 +805,7 @@ impl Info {
                                         .write()
                                         .unwrap()
                                         .remove_flag(
+                                            &data.params.render_context,
                                             data.visualization_debug_choices
                                                 [previous_debug_selected]
                                                 .0,
@@ -808,7 +821,7 @@ impl Info {
                                                 .constant_data
                                                 .write()
                                                 .unwrap()
-                                                .set_frame_index(0);
+                                                .set_frame_index(&data.params.render_context, 0);
                                         }
                                         _ => {
                                             data.params
@@ -817,8 +830,9 @@ impl Info {
                                                 .constant_data
                                                 .write()
                                                 .unwrap()
-                                                .set_frame_index(0)
+                                                .set_frame_index(&data.params.render_context, 0)
                                                 .add_flag(
+                                                    &data.params.render_context,
                                                     data.visualization_debug_choices
                                                         [data.visualization_debug_selected]
                                                         .0,

@@ -21,16 +21,9 @@ pub const UI_PASS_NAME: &str = "UIPass";
 #[derive(Default, Clone, Copy, PartialEq)]
 pub struct UIPassData {
     pub ui_scale: f32,
-    is_dirty: bool,
 }
 
 impl AsBinding for UIPassData {
-    fn is_dirty(&self) -> bool {
-        self.is_dirty
-    }
-    fn set_dirty(&mut self, dirty: bool) {
-        self.is_dirty = dirty;
-    }
     fn size(&self) -> u64 {
         std::mem::size_of::<f32>() as _
     }
@@ -135,10 +128,7 @@ impl Pass for UIPass {
             constant_data: render_context.global_buffers().constant_data.clone(),
             textures: render_context.global_buffers().buffer::<GPUTexture>(),
             binding_data: BindingData::new(render_context, UI_PASS_NAME),
-            custom_data: UIPassData {
-                ui_scale: 1.,
-                is_dirty: true,
-            },
+            custom_data: UIPassData { ui_scale: 1. },
             vertices: VecUIVertex::default(),
             indices: VecUIIndex::default(),
             instances: VecUIInstance::default(),
@@ -148,7 +138,7 @@ impl Pass for UIPass {
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("ui_pass::init");
 
-        self.process_messages();
+        self.process_messages(render_context);
 
         if self.instances.data.is_empty()
             || self.vertices.data.is_empty()
@@ -274,19 +264,19 @@ impl Pass for UIPass {
 }
 
 impl UIPass {
-    fn process_messages(&mut self) {
+    fn process_messages(&mut self, render_context: &RenderContext) {
         self.listener
             .process_messages(|event: &UIEvent| match event {
                 UIEvent::Scale(ui_scale) => {
                     if self.custom_data.ui_scale != *ui_scale {
                         self.custom_data.ui_scale = *ui_scale;
-                        self.custom_data.set_dirty(true);
+                        self.custom_data.mark_as_dirty(render_context);
                     }
                 }
                 UIEvent::DrawData(vertices, indices, instances) => {
-                    self.vertices.set(vertices.clone());
-                    self.indices.set(indices.clone());
-                    self.instances.set(instances.clone());
+                    self.vertices.set(render_context, vertices.clone());
+                    self.indices.set(render_context, indices.clone());
+                    self.instances.set(render_context, instances.clone());
                 }
             });
     }
