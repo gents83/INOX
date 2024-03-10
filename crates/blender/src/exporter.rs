@@ -5,7 +5,6 @@ use std::{
 };
 
 use pyo3::{
-    prelude::PyAnyMethods,
     types::{PyDict, PyList},
     PyObject, PyResult, Python, ToPyObject,
 };
@@ -41,14 +40,11 @@ impl Exporter {
 
             if create_dir_all(self.export_dir.as_path()).is_ok() {
                 // Blender data import
-                let export_scene = py
-                    .import_bound("bpy")?
-                    .getattr("ops")?
-                    .getattr("export_scene")?;
+                let export_scene = py.import("bpy")?.getattr("ops")?.getattr("export_scene")?;
                 let scene_path = self.export_dir.join(format!("{}.{}", scene_name, "gltf"));
                 let scene_path = scene_path.to_str().unwrap_or_default().to_string();
 
-                let kwargs = PyDict::new_bound(py);
+                let kwargs = PyDict::new(py);
                 kwargs.set_item("filepath", scene_path.clone())?;
                 kwargs.set_item("check_existing", true)?;
                 kwargs.set_item("export_format", "GLTF_SEPARATE")?;
@@ -59,7 +55,7 @@ impl Exporter {
                 kwargs.set_item("export_lights", true)?;
                 kwargs.set_item("export_extras", true)?;
                 kwargs.set_item("export_texture_dir", "./textures/")?;
-                export_scene.call_method("gltf", (), Some(&kwargs))?;
+                export_scene.call_method("gltf", (), Some(kwargs))?;
 
                 self.export_custom_data(py, self.export_dir.as_path())?;
 
@@ -72,18 +68,24 @@ impl Exporter {
     }
 
     fn export_custom_data(&self, py: Python, export_dir: &Path) -> PyResult<bool> {
-        let data = py.import_bound("bpy")?.getattr("data")?;
+        let data = py.import("bpy")?.getattr("data")?;
 
         // For every Blender scene
         let scenes = data.getattr("scenes")?.call_method("values", (), None)?;
         let scenes = scenes.downcast::<PyList>()?;
-        if let Ok(scene) = scenes.iter() {
-            let objects = scene.getattr("objects")?.call_method("values", (), None)?;
-            let objects = objects.downcast::<PyList>()?;
-            if let Ok(object) = objects.iter() {
-                self.process_object_properties(py, &object.to_object(py), export_dir)?;
+        scenes.iter().for_each(|scene| {
+            let objects = scene
+                .getattr("objects")
+                .unwrap()
+                .call_method("values", (), None)
+                .unwrap();
+            if let Ok(objects) = objects.downcast::<PyList>() {
+                objects.iter().for_each(|object| {
+                    self.process_object_properties(py, &object.to_object(py), export_dir)
+                        .ok();
+                });
             }
-        }
+        });
         Ok(true)
     }
 

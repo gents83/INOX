@@ -169,7 +169,7 @@ impl Pass for CullingPass {
         }
 
         let num_meshlets = self.meshlets.read().unwrap().item_count();
-        let lods_array = vec![MeshletLodLevel(0); num_meshlets];
+        let lods_array = vec![MeshletLodLevel(1u32); num_meshlets];
         *self.meshlets_lod_level.write().unwrap() = lods_array;
 
         if self.update_meshes {

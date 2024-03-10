@@ -14,7 +14,6 @@ pub fn required_gpu_features() -> wgpu::Features {
         | wgpu::Features::SHADER_PRIMITIVE_INDEX
         | wgpu::Features::PIPELINE_STATISTICS_QUERY
         | wgpu::Features::TIMESTAMP_QUERY
-        | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS
         | wgpu::Features::TIMESTAMP_QUERY_INSIDE_PASSES
         | wgpu::Features::PUSH_CONSTANTS
         | wgpu::Features::DEPTH32FLOAT_STENCIL8
