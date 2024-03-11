@@ -1,10 +1,7 @@
 use inox_bitmask::bitmask;
 use inox_math::{quantize_half, Mat4Ops, Matrix4};
 
-use crate::{
-    declare_as_dirty_binding, MaterialFlags, TextureType, VertexBufferLayoutBuilder, VertexFormat,
-    INVALID_INDEX,
-};
+use crate::{MaterialFlags, TextureType, VertexBufferLayoutBuilder, VertexFormat, INVALID_INDEX};
 
 pub const MAX_LOD_LEVELS: usize = 8;
 pub const MESHLETS_GROUP_SIZE: usize = 4;
@@ -22,7 +19,6 @@ pub struct DispatchCommandSize {
     pub y: u32,
     pub z: u32,
 }
-declare_as_dirty_binding!(DispatchCommandSize);
 
 #[bitmask]
 pub enum DrawCommandType {
@@ -38,6 +34,19 @@ pub struct DrawIndexedCommand {
     pub base_index: u32,
     pub vertex_offset: i32,
     pub base_instance: u32,
+}
+
+impl DrawIndexedCommand {
+    pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
+        let mut layout_builder = VertexBufferLayoutBuilder::instance();
+        layout_builder.starting_location(starting_location);
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<i32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder
+    }
 }
 
 #[repr(C)]

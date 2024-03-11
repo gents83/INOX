@@ -3,6 +3,9 @@
 
 struct UIPassData {
     ui_scale: f32,
+    _padding1: f32,
+    _padding2: f32,
+    _padding3: f32,
 }
 
 struct UIVertex {

@@ -2,12 +2,7 @@ use std::collections::HashMap;
 
 use inox_resources::{Buffer, ResourceId};
 
-use crate::{
-    declare_as_binding_vector, AsBinding, BufferRef, DrawCommandType, DrawIndexedCommand, GPUMesh,
-    GPUMeshlet, RenderContext,
-};
-
-declare_as_binding_vector!(VecDrawIndexedCommand, DrawIndexedCommand);
+use crate::{AsBinding, DrawCommandType, DrawIndexedCommand, GPUMesh, GPUMeshlet, RenderContext};
 
 #[derive(Default)]
 pub struct RenderCommandsPerType {
@@ -15,23 +10,8 @@ pub struct RenderCommandsPerType {
 }
 
 #[derive(Default)]
-pub struct RenderCommandsCount {
-    pub count: u32,
-}
-
-impl AsBinding for RenderCommandsCount {
-    fn size(&self) -> u64 {
-        std::mem::size_of_val(&self.count) as u64
-    }
-
-    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut BufferRef) {
-        buffer.add_to_gpu_buffer(render_context, &[self.count]);
-    }
-}
-
-#[derive(Default)]
 pub struct RenderCommands {
-    pub counter: RenderCommandsCount,
+    pub counter: u32,
     pub commands: Buffer<DrawIndexedCommand>,
 }
 
@@ -39,8 +19,8 @@ impl RenderCommands {
     pub fn rebind(&mut self, render_context: &RenderContext) {
         self.commands.defrag();
         let count = self.commands.item_count() as _;
-        if self.counter.count != count {
-            self.counter.count = count;
+        if self.counter != count {
+            self.counter = count;
             self.counter.mark_as_dirty(render_context);
         }
     }
@@ -83,11 +63,15 @@ impl RenderCommands {
         commands: &[DrawIndexedCommand],
     ) -> &mut Self {
         if commands.is_empty() {
+            if self.counter != 0 {
+                self.counter = 0;
+                self.counter.mark_as_dirty(render_context);
+            }
             return self;
         }
         let is_changed = self.commands.allocate(id, commands).0;
-        if is_changed || self.counter.count != commands.len() as u32 {
-            self.counter.count = commands.len() as _;
+        if is_changed || self.counter != commands.len() as u32 {
+            self.counter = commands.len() as _;
             self.counter.mark_as_dirty(render_context);
         }
         self

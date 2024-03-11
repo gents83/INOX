@@ -82,7 +82,7 @@ impl Pass for CommandsPass {
             if commands.commands.is_empty() {
                 return;
             }
-            commands.counter.count = 0;
+            commands.counter = 0;
             commands.counter.mark_as_dirty(render_context);
 
             self.binding_data

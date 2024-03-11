@@ -3,11 +3,11 @@ use std::path::PathBuf;
 use inox_core::ContextRc;
 use inox_messenger::Listener;
 use inox_render::{
-    declare_as_binding_vector, AsBinding, BindingData, BindingInfo, BufferRef, CommandBuffer,
-    ConstantDataRw, DrawCommandType, GPUTexture, LoadOperation, MeshFlags, Pass, RenderContext,
-    RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType,
-    ShaderStage, StoreOperation, TextureView, TexturesBuffer, VertexBufferLayoutBuilder,
-    VertexFormat,
+    declare_as_binding, AsBinding, BindingData, BindingInfo, CommandBuffer, ConstantDataRw,
+    DrawCommandType, GPUTexture, LoadOperation, MeshFlags, Pass, RenderContext, RenderContextRc,
+    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType, ShaderStage,
+    StoreOperation, TextureView, TexturesBuffer, VertexBufferLayoutBuilder, VertexFormat,
+    VextexBindingType,
 };
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::generate_random_uid;
@@ -17,20 +17,13 @@ use crate::UIEvent;
 const UI_PIPELINE: &str = "pipelines/UI.render_pipeline";
 pub const UI_PASS_NAME: &str = "UIPass";
 
-#[repr(C, align(16))]
+#[repr(C)]
 #[derive(Default, Clone, Copy, PartialEq)]
 pub struct UIPassData {
     pub ui_scale: f32,
+    pub _padding: [f32; 3],
 }
-
-impl AsBinding for UIPassData {
-    fn size(&self) -> u64 {
-        std::mem::size_of::<f32>() as _
-    }
-    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut BufferRef) {
-        buffer.add_to_gpu_buffer(render_context, &[self.ui_scale]);
-    }
-}
+declare_as_binding!(UIPassData);
 
 #[derive(Default, Clone, Copy, PartialEq)]
 pub struct UIVertex {
@@ -69,19 +62,15 @@ impl UIInstance {
     }
 }
 
-declare_as_binding_vector!(VecUIVertex, UIVertex);
-declare_as_binding_vector!(VecUIIndex, u32);
-declare_as_binding_vector!(VecUIInstance, UIInstance);
-
 pub struct UIPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
     textures: TexturesBuffer,
     custom_data: UIPassData,
-    vertices: VecUIVertex,
-    indices: VecUIIndex,
-    instances: VecUIInstance,
+    vertices: Vec<UIVertex>,
+    indices: Vec<u32>,
+    instances: Vec<UIInstance>,
     listener: Listener,
 }
 unsafe impl Send for UIPass {}
@@ -128,10 +117,13 @@ impl Pass for UIPass {
             constant_data: render_context.global_buffers().constant_data.clone(),
             textures: render_context.global_buffers().buffer::<GPUTexture>(),
             binding_data: BindingData::new(render_context, UI_PASS_NAME),
-            custom_data: UIPassData { ui_scale: 1. },
-            vertices: VecUIVertex::default(),
-            indices: VecUIIndex::default(),
-            instances: VecUIInstance::default(),
+            custom_data: UIPassData {
+                ui_scale: 1.,
+                ..Default::default()
+            },
+            vertices: Vec::default(),
+            indices: Vec::default(),
+            instances: Vec::default(),
             listener,
         }
     }
@@ -140,9 +132,9 @@ impl Pass for UIPass {
 
         self.process_messages(render_context);
 
-        if self.instances.data.is_empty()
-            || self.vertices.data.is_empty()
-            || self.indices.data.is_empty()
+        if self.instances.is_empty()
+            || self.vertices.is_empty()
+            || self.indices.is_empty()
             || self.textures.read().unwrap().is_empty()
         {
             return;
@@ -197,8 +189,16 @@ impl Pass for UIPass {
                 stage: ShaderStage::Fragment,
                 ..Default::default()
             })
-            .set_vertex_buffer(0, &mut self.vertices, Some("UIVertices"))
-            .set_vertex_buffer(1, &mut self.instances, Some("UIInstances"))
+            .set_vertex_buffer(
+                VextexBindingType::Vertex,
+                &mut self.vertices,
+                Some("UIVertices"),
+            )
+            .set_vertex_buffer(
+                VextexBindingType::Instance,
+                &mut self.instances,
+                Some("UIInstances"),
+            )
             .set_index_buffer(&mut self.indices, Some("UIIndices"));
 
         let vertex_layout = UIVertex::descriptor(0);
@@ -226,9 +226,9 @@ impl Pass for UIPass {
         let buffers = render_context.buffers();
         let render_targets = render_context.texture_handler().render_targets();
 
-        if self.instances.data.is_empty()
-            || self.vertices.data.is_empty()
-            || self.indices.data.is_empty()
+        if self.instances.is_empty()
+            || self.vertices.is_empty()
+            || self.indices.is_empty()
             || self.textures.read().unwrap().is_empty()
         {
             return;
@@ -248,17 +248,13 @@ impl Pass for UIPass {
                 &render_context.webgpu.device,
                 "ui_pass",
             );
-            self.instances
-                .data
-                .iter()
-                .enumerate()
-                .for_each(|(i, instance)| {
-                    render_pass.draw_indexed(
-                        instance.index_start..instance.index_start + instance.index_count,
-                        instance.vertex_start as _,
-                        i as _..(i + 1) as _,
-                    );
-                });
+            self.instances.iter().enumerate().for_each(|(i, instance)| {
+                render_pass.draw_indexed(
+                    instance.index_start..instance.index_start + instance.index_count,
+                    instance.vertex_start as _,
+                    i as _..(i + 1) as _,
+                );
+            });
         }
     }
 }
@@ -274,9 +270,12 @@ impl UIPass {
                     }
                 }
                 UIEvent::DrawData(vertices, indices, instances) => {
-                    self.vertices.set(render_context, vertices.clone());
-                    self.indices.set(render_context, indices.clone());
-                    self.instances.set(render_context, instances.clone());
+                    self.vertices = vertices.clone();
+                    self.vertices.mark_as_dirty(render_context);
+                    self.indices = indices.clone();
+                    self.indices.mark_as_dirty(render_context);
+                    self.instances = instances.clone();
+                    self.instances.mark_as_dirty(render_context);
                 }
             });
     }

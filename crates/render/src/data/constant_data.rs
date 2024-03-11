@@ -1,13 +1,10 @@
-use std::{
-    mem::size_of,
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
 
 use inox_math::{matrix4_to_array, Mat4Ops, MatBase, Matrix4, VecBase, Vector2};
 use inox_uid::Uid;
 
 use crate::{
-    AsBinding, BufferRef, RenderContext, DEFAULT_HEIGHT, DEFAULT_WIDTH, ENV_MAP_UID,
+    declare_as_binding, AsBinding, RenderContext, DEFAULT_HEIGHT, DEFAULT_WIDTH, ENV_MAP_UID,
     LUT_PBR_CHARLIE_UID, LUT_PBR_GGX_UID,
 };
 
@@ -31,29 +28,29 @@ pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_3: u32 = 1 << 15;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
-struct Data {
-    pub view: [[f32; 4]; 4],
-    pub inv_view: [[f32; 4]; 4],
-    pub proj: [[f32; 4]; 4],
-    pub view_proj: [[f32; 4]; 4],
-    pub inverse_view_proj: [[f32; 4]; 4],
-    pub screen_size: [f32; 2],
-    pub frame_index: u32,
-    pub flags: u32,
-    pub debug_uv_coords: [f32; 2],
-    pub tlas_starting_index: u32,
-    pub num_bounces: u32,
-    pub lut_pbr_charlie_texture_index: u32,
-    pub lut_pbr_ggx_texture_index: u32,
-    pub env_map_texture_index: u32,
-    pub num_lights: u32,
-    pub forced_lod_level: i32,
-    pub camera_near: f32,
-    pub camera_far: f32,
-    pub _empty3: u32,
+pub struct ConstantData {
+    view: [[f32; 4]; 4],
+    inv_view: [[f32; 4]; 4],
+    proj: [[f32; 4]; 4],
+    view_proj: [[f32; 4]; 4],
+    inverse_view_proj: [[f32; 4]; 4],
+    screen_size: [f32; 2],
+    frame_index: u32,
+    flags: u32,
+    debug_uv_coords: [f32; 2],
+    tlas_starting_index: u32,
+    num_bounces: u32,
+    lut_pbr_charlie_texture_index: u32,
+    lut_pbr_ggx_texture_index: u32,
+    env_map_texture_index: u32,
+    num_lights: u32,
+    forced_lod_level: i32,
+    camera_near: f32,
+    camera_far: f32,
+    _empty3: u32,
 }
 
-impl Default for Data {
+impl Default for ConstantData {
     fn default() -> Self {
         Self {
             view: Matrix4::default_identity().into(),
@@ -78,45 +75,32 @@ impl Default for Data {
         }
     }
 }
-
-#[derive(Default, Debug, Clone, Copy)]
-pub struct ConstantData {
-    data: Data,
-}
+declare_as_binding!(ConstantData);
 
 pub type ConstantDataRw = Arc<RwLock<ConstantData>>;
 
-impl AsBinding for ConstantData {
-    fn size(&self) -> u64 {
-        size_of::<Data>() as _
-    }
-    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut BufferRef) {
-        buffer.add_to_gpu_buffer(render_context, &[self.data]);
-    }
-}
-
 impl ConstantData {
     pub fn add_flag(&mut self, render_context: &RenderContext, flag: u32) -> &mut Self {
-        if self.data.flags & flag == 0 {
-            self.data.flags |= flag;
+        if self.flags & flag == 0 {
+            self.flags |= flag;
             self.mark_as_dirty(render_context);
         }
         self
     }
     pub fn toggle_flag(&mut self, render_context: &RenderContext, flag: u32) -> &mut Self {
-        self.data.flags ^= flag;
+        self.flags ^= flag;
         self.mark_as_dirty(render_context);
         self
     }
     pub fn remove_flag(&mut self, render_context: &RenderContext, flag: u32) -> &mut Self {
-        if self.data.flags & flag == flag {
-            self.data.flags &= !flag;
+        if self.flags & flag == flag {
+            self.flags &= !flag;
             self.mark_as_dirty(render_context);
         }
         self
     }
     pub fn set_flags(&mut self, render_context: &RenderContext, flags: u32) -> &mut Self {
-        self.data.flags = flags;
+        self.flags = flags;
         self.mark_as_dirty(render_context);
         self
     }
@@ -125,44 +109,44 @@ impl ConstantData {
         render_context: &RenderContext,
         frame_index: u32,
     ) -> &mut Self {
-        if self.data.frame_index != frame_index {
-            self.data.frame_index = frame_index;
+        if self.frame_index != frame_index {
+            self.frame_index = frame_index;
             self.mark_as_dirty(render_context);
         }
         self
     }
     pub fn frame_index(&self) -> u32 {
-        self.data.frame_index
+        self.frame_index
     }
     pub fn set_num_bounces(&mut self, render_context: &RenderContext, n: u32) -> &mut Self {
-        if self.data.num_bounces != n {
-            self.data.num_bounces = n;
+        if self.num_bounces != n {
+            self.num_bounces = n;
             self.mark_as_dirty(render_context);
         }
         self
     }
     pub fn num_bounces(&self) -> u32 {
-        self.data.num_bounces
+        self.num_bounces
     }
     pub fn set_num_lights(&mut self, render_context: &RenderContext, n: u32) -> &mut Self {
-        if self.data.num_lights != n {
-            self.data.num_lights = n;
+        if self.num_lights != n {
+            self.num_lights = n;
             self.mark_as_dirty(render_context);
         }
         self
     }
     pub fn num_lights(&self) -> u32 {
-        self.data.num_lights
+        self.num_lights
     }
     pub fn set_forced_lod_level(&mut self, render_context: &RenderContext, n: i32) -> &mut Self {
-        if self.data.forced_lod_level != n {
-            self.data.forced_lod_level = n;
+        if self.forced_lod_level != n {
+            self.forced_lod_level = n;
             self.mark_as_dirty(render_context);
         }
         self
     }
     pub fn forced_lod_level(&self) -> i32 {
-        self.data.forced_lod_level
+        self.forced_lod_level
     }
     #[allow(non_snake_case)]
     pub fn set_LUT(
@@ -172,13 +156,13 @@ impl ConstantData {
         texture_index: u32,
     ) -> &mut Self {
         if *lut_id == LUT_PBR_CHARLIE_UID {
-            self.data.lut_pbr_charlie_texture_index = texture_index;
+            self.lut_pbr_charlie_texture_index = texture_index;
             self.mark_as_dirty(render_context);
         } else if *lut_id == LUT_PBR_GGX_UID {
-            self.data.lut_pbr_ggx_texture_index = texture_index;
+            self.lut_pbr_ggx_texture_index = texture_index;
             self.mark_as_dirty(render_context);
         } else if *lut_id == ENV_MAP_UID {
-            self.data.env_map_texture_index = texture_index;
+            self.env_map_texture_index = texture_index;
             self.mark_as_dirty(render_context);
         }
         self
@@ -192,39 +176,39 @@ impl ConstantData {
     ) -> bool {
         let v = matrix4_to_array(view_proj_near_far.0);
         let p = matrix4_to_array(view_proj_near_far.1);
-        if self.data.view != v
-            || self.data.proj != p
-            || self.data.screen_size[0] != screen_size_and_debug_coords.0.x
-            || self.data.screen_size[1] != screen_size_and_debug_coords.0.y
+        if self.view != v
+            || self.proj != p
+            || self.screen_size[0] != screen_size_and_debug_coords.0.x
+            || self.screen_size[1] != screen_size_and_debug_coords.0.y
         {
-            self.data.frame_index = 0;
+            self.frame_index = 0;
         }
-        self.data.view = v;
-        self.data.proj = p;
-        self.data.camera_near = view_proj_near_far.2;
-        self.data.camera_far = view_proj_near_far.3;
-        self.data.view_proj = matrix4_to_array(view_proj_near_far.1 * view_proj_near_far.0);
-        self.data.inverse_view_proj =
+        self.view = v;
+        self.proj = p;
+        self.camera_near = view_proj_near_far.2;
+        self.camera_far = view_proj_near_far.3;
+        self.view_proj = matrix4_to_array(view_proj_near_far.1 * view_proj_near_far.0);
+        self.inverse_view_proj =
             matrix4_to_array((view_proj_near_far.1 * view_proj_near_far.0).inverse());
-        self.data.screen_size = screen_size_and_debug_coords.0.into();
-        self.data.debug_uv_coords = (screen_size_and_debug_coords
+        self.screen_size = screen_size_and_debug_coords.0.into();
+        self.debug_uv_coords = (screen_size_and_debug_coords
             .1
             .div(screen_size_and_debug_coords.0))
         .into();
-        self.data.tlas_starting_index = tlas_starting_index;
-        if self.data.flags & CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE == 0 {
-            self.data.frame_index += 1;
+        self.tlas_starting_index = tlas_starting_index;
+        if self.flags & CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE == 0 {
+            self.frame_index += 1;
         }
         self.mark_as_dirty(render_context);
         true
     }
     pub fn view(&self) -> [[f32; 4]; 4] {
-        self.data.view
+        self.view
     }
     pub fn proj(&self) -> [[f32; 4]; 4] {
-        self.data.proj
+        self.proj
     }
     pub fn inverse_view_proj(&self) -> [[f32; 4]; 4] {
-        self.data.inverse_view_proj
+        self.inverse_view_proj
     }
 }

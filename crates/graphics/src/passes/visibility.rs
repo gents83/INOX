@@ -4,7 +4,7 @@ use inox_render::{
     BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, DrawCommandsBuffer,
     GPURuntimeVertexData, GPUVertexIndices, IndicesBuffer, MeshFlags, Pass, RenderContext,
     RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
-    RuntimeVerticesBuffer, ShaderStage, StoreOperation, Texture, TextureView,
+    RuntimeVerticesBuffer, ShaderStage, StoreOperation, Texture, TextureView, VextexBindingType,
 };
 
 use inox_core::ContextRc;
@@ -93,7 +93,7 @@ impl Pass for VisibilityBufferPass {
                 },
             )
             .set_vertex_buffer(
-                0,
+                VextexBindingType::Vertex,
                 &mut *self.runtime_vertices.write().unwrap(),
                 Some("Runtime Vertices"),
             )

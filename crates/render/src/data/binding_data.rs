@@ -3,9 +3,8 @@ use std::num::NonZeroU32;
 use inox_bitmask::bitmask;
 
 use crate::{
-    platform::required_gpu_features, AsBinding, BufferId, DispatchCommandSize,
-    RenderCommandsPerType, RenderContextRc, SamplerType, ShaderStage, TextureId,
-    MAX_TEXTURE_ATLAS_COUNT,
+    platform::required_gpu_features, AsBinding, BufferId, RenderCommandsPerType, RenderContextRc,
+    SamplerType, ShaderStage, TextureId, MAX_TEXTURE_ATLAS_COUNT,
 };
 
 const DEBUG_BINDINGS: bool = false;
@@ -75,6 +74,12 @@ impl Default for BindingInfo {
     }
 }
 
+#[derive(Clone, PartialEq, PartialOrd, Debug)]
+pub enum VextexBindingType {
+    Vertex = 0,
+    Instance = 1,
+}
+
 #[derive(Clone)]
 enum BindingType {
     Buffer(usize, BufferId),
@@ -137,12 +142,11 @@ impl BindingData {
 
         self
     }
-    pub fn bind_dispatch_commands(
-        &mut self,
-        data: &mut DispatchCommandSize,
-        label: Option<&str>,
-    ) -> &mut Self {
-        inox_profiler::scoped_profile!("binding_data::bind_dispatch_commands");
+    pub fn bind_buffer<T>(&mut self, data: &mut T, label: Option<&str>) -> &mut Self
+    where
+        T: AsBinding,
+    {
+        inox_profiler::scoped_profile!("binding_data::bind_buffer");
 
         let usage = wgpu::BufferUsages::STORAGE
             | wgpu::BufferUsages::COPY_SRC
@@ -159,7 +163,7 @@ impl BindingData {
     }
     pub fn set_vertex_buffer<T>(
         &mut self,
-        index: usize,
+        binding_type: VextexBindingType,
         data: &mut T,
         label: Option<&str>,
     ) -> &mut Self
@@ -168,8 +172,11 @@ impl BindingData {
     {
         inox_profiler::scoped_profile!("binding_data::set_vertex_buffer");
 
-        let usage =
+        let mut usage =
             wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::VERTEX;
+        if binding_type == VextexBindingType::Instance {
+            usage |= wgpu::BufferUsages::INDIRECT | wgpu::BufferUsages::COPY_SRC;
+        }
         let is_changed = self.render_context.binding_data_buffer().bind_buffer(
             label,
             data,
@@ -177,6 +184,7 @@ impl BindingData {
             &self.render_context,
         );
 
+        let index = binding_type as usize;
         if DEBUG_BINDINGS {
             inox_log::debug_log!("Set VertexBuffer[{}] - Changed {:?}", index, is_changed);
         }
@@ -184,7 +192,7 @@ impl BindingData {
         if index <= self.vertex_buffers.len() {
             self.vertex_buffers.resize(index + 1, BufferId::default());
         }
-        self.vertex_buffers[index] = data.id();
+        self.vertex_buffers[index] = data.buffer_id();
 
         self
     }
@@ -206,7 +214,7 @@ impl BindingData {
         if DEBUG_BINDINGS {
             inox_log::debug_log!("Set IndexBuffer - Changed {:?}", is_changed);
         }
-        self.index_buffer = Some(data.id());
+        self.index_buffer = Some(data.buffer_id());
 
         self
     }
@@ -270,11 +278,11 @@ impl BindingData {
                 "Add UniformBuffer[{}][{}] with {:?} - Changed {:?}",
                 info.group_index,
                 info.binding_index,
-                data.id(),
+                data.buffer_id(),
                 is_changed
             );
         }
-        self.bind_uniform_buffer(data.id(), info);
+        self.bind_uniform_buffer(data.buffer_id(), info);
         self
     }
 
@@ -363,11 +371,11 @@ impl BindingData {
                 "Add StorageBuffer[{}][{}] with {:?} - Changed {:?}",
                 info.group_index,
                 info.binding_index,
-                data.id(),
+                data.buffer_id(),
                 is_changed
             );
         }
-        self.bind_storage_buffer(data.id(), info);
+        self.bind_storage_buffer(data.buffer_id(), info);
 
         self
     }

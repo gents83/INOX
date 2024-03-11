@@ -9,10 +9,10 @@ use inox_resources::{
 use crate::{
     platform::{has_multisampling_support, is_indirect_mode_enabled},
     texture_ref::TextureRef,
-    AsBinding, BindingData, BufferId, BufferRef, CommandBuffer, DrawCommandType, GPUMesh,
-    GPUMeshlet, LoadOperation, MeshFlags, RenderContext, RenderMode, RenderPassData,
-    RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId, TextureUsage, TextureView,
-    VertexBufferLayoutBuilder, WebGpuContextRc,
+    AsBinding, BindingData, BufferId, BufferRef, CommandBuffer, DrawCommandType,
+    DrawIndexedCommand, GPUMesh, GPUMeshlet, LoadOperation, MeshFlags, RenderContext, RenderMode,
+    RenderPassData, RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId, TextureUsage,
+    TextureView, VertexBufferLayoutBuilder, WebGpuContextRc,
 };
 
 pub type RenderPassId = ResourceId;
@@ -423,6 +423,29 @@ impl RenderPass {
         render_pass
     }
 
+    pub fn draw_indexed(
+        &self,
+        render_context: &RenderContext,
+        mut render_pass: wgpu::RenderPass,
+        instances: &[DrawIndexedCommand],
+    ) {
+        inox_profiler::scoped_profile!("render_pass::draw");
+        instances.iter().enumerate().for_each(|(i, instance)| {
+            inox_profiler::scoped_profile!("render_pass::draw_indexed");
+            inox_profiler::gpu_scoped_profile!(
+                &mut render_pass,
+                &render_context.webgpu.device,
+                "render_pass::draw_indexed",
+            );
+            render_pass.draw_indexed(
+                instance.vertex_offset as u32
+                    ..(instance.vertex_offset as u32 + instance.vertex_count),
+                instance.base_index as _,
+                i as _..(i + 1) as _,
+            );
+        });
+    }
+
     pub fn draw_meshlets(&self, render_context: &RenderContext, mut render_pass: wgpu::RenderPass) {
         inox_profiler::scoped_profile!("render_pass::draw_meshlets");
 
@@ -480,9 +503,9 @@ impl RenderPass {
             {
                 if let Some(commands) = commands.map.get(&draw_commands_type) {
                     if !commands.commands.is_empty() {
-                        let commands_id = commands.commands.id();
+                        let commands_id = commands.commands.buffer_id();
                         if let Some(commands_buffer) = buffers.get(&commands_id) {
-                            let count_id = commands.counter.id();
+                            let count_id = commands.counter.buffer_id();
                             if let Some(count_buffer) = buffers.get(&count_id) {
                                 inox_profiler::gpu_scoped_profile!(
                                     &mut render_pass,

@@ -154,7 +154,7 @@ impl BufferRef {
         let name = if let Some(name) = label {
             name.to_string()
         } else {
-            let id = data.id();
+            let id = data.buffer_id();
             format!("{}[{}]", std::any::type_name::<T>(), id)
         };
         let is_changed = self.init(render_context, data.size(), usage, name.as_str());

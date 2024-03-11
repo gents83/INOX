@@ -1,5 +1,6 @@
-use crate::{BufferRef, RenderContext};
 use inox_resources::Buffer;
+
+use crate::{BufferRef, RenderContext};
 pub type BufferId = u64;
 
 #[inline]
@@ -8,7 +9,7 @@ pub fn generate_id_from_address<T>(v: &T) -> BufferId {
 }
 
 pub trait AsBinding {
-    fn id(&self) -> BufferId
+    fn buffer_id(&self) -> BufferId
     where
         Self: Sized,
     {
@@ -20,10 +21,29 @@ pub trait AsBinding {
     {
         render_context
             .binding_data_buffer()
-            .mark_buffer_as_changed(self.id());
+            .mark_buffer_as_changed(self.buffer_id());
     }
     fn size(&self) -> u64;
     fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut BufferRef);
+}
+
+#[macro_export]
+macro_rules! declare_as_binding {
+    ($Type:ident) => {
+        impl $crate::AsBinding for $Type {
+            fn size(&self) -> u64 {
+                std::mem::size_of::<$Type>() as u64
+            }
+
+            fn fill_buffer(
+                &self,
+                render_context: &$crate::RenderContext,
+                buffer: &mut $crate::BufferRef,
+            ) {
+                buffer.add_to_gpu_buffer(render_context, &[*self]);
+            }
+        }
+    };
 }
 
 impl<T> AsBinding for Buffer<T>
@@ -68,71 +88,23 @@ impl<T> AsBinding for Vec<T> {
     }
 }
 
-#[macro_export]
-macro_rules! declare_as_binding_vector {
-    ($VecType:ident, $Type:ident) => {
-        pub struct $VecType {
-            data: Vec<$Type>,
-        }
+impl<T> AsBinding for [T]
+where
+    T: Sized + Clone + 'static,
+{
+    fn size(&self) -> u64 {
+        self.len() as u64 * std::mem::size_of::<T>() as u64
+    }
 
-        impl Default for $VecType {
-            fn default() -> Self {
-                Self {
-                    data: Vec::default(),
-                }
-            }
-        }
-
-        impl $crate::AsBinding for $VecType {
-            fn size(&self) -> u64 {
-                self.data.len() as u64 * std::mem::size_of::<$Type>() as u64
-            }
-
-            fn fill_buffer(
-                &self,
-                render_context: &$crate::RenderContext,
-                buffer: &mut $crate::BufferRef,
-            ) {
-                buffer.add_to_gpu_buffer(render_context, self.data.as_slice());
-            }
-        }
-
-        #[allow(dead_code)]
-        impl $VecType {
-            pub fn data(&self) -> &[$Type] {
-                &self.data
-            }
-            pub fn data_mut(&mut self) -> &mut Vec<$Type> {
-                &mut self.data
-            }
-            pub fn set(
-                &mut self,
-                render_context: &$crate::RenderContext,
-                data: Vec<$Type>,
-            ) -> &mut Self {
-                self.data = data;
-                self.mark_as_dirty(render_context);
-                self
-            }
-        }
-    };
+    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut crate::BufferRef) {
+        buffer.add_to_gpu_buffer(render_context, self);
+    }
 }
 
-#[macro_export]
-macro_rules! declare_as_dirty_binding {
-    ($Type:ident) => {
-        impl $crate::AsBinding for $Type {
-            fn size(&self) -> u64 {
-                std::mem::size_of::<$Type>() as u64
-            }
-
-            fn fill_buffer(
-                &self,
-                render_context: &$crate::RenderContext,
-                buffer: &mut $crate::BufferRef,
-            ) {
-                buffer.add_to_gpu_buffer(render_context, &[*self]);
-            }
-        }
-    };
-}
+declare_as_binding!(i32);
+declare_as_binding!(u32);
+declare_as_binding!(usize);
+declare_as_binding!(u64);
+declare_as_binding!(u128);
+declare_as_binding!(f32);
+declare_as_binding!(f64);

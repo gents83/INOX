@@ -47,7 +47,7 @@ impl BindingDataBuffer {
     where
         T: AsBinding,
     {
-        let id = data.id();
+        let id = data.buffer_id();
         let mut is_changed = self.is_buffer_or_usage_changed(id, usage);
         if is_changed {
             let mut bind_data_buffer = self.buffers.write().unwrap();
