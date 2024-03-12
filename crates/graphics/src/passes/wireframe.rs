@@ -41,7 +41,7 @@ pub struct WireframePass {
     vertices: Vec<DebugVertex>,
     indices: Vec<u32>,
     instances: Vec<DrawIndexedCommand>,
-    instance_count: u32,
+    instance_count: usize,
     listener: Listener,
 }
 unsafe impl Send for WireframePass {}
@@ -123,7 +123,6 @@ impl Pass for WireframePass {
                     ..Default::default()
                 },
             )
-            .bind_buffer(&mut self.instance_count, Some("DebugInstance Count"))
             .set_vertex_buffer(
                 VextexBindingType::Vertex,
                 &mut self.vertices,
@@ -134,6 +133,7 @@ impl Pass for WireframePass {
                 &mut self.instances,
                 Some("DebugInstances"),
             )
+            .bind_buffer(&mut self.instance_count, Some("DebugInstance Count"))
             .set_index_buffer(&mut self.indices, Some("DebugIndices"));
 
         let vertex_layout = DebugVertex::descriptor(0);
@@ -179,14 +179,19 @@ impl Pass for WireframePass {
                 &render_context.webgpu.device,
                 "wireframe_pass",
             );
-            pass.draw_indexed(render_context, render_pass, &self.instances);
+
+            pass.indirect_draw(
+                render_context,
+                &self.instances,
+                &self.instance_count,
+                render_pass,
+            );
         }
     }
 }
 
 impl WireframePass {
     fn add_mesh(
-        render_context: &RenderContext,
         commands: &mut Vec<DrawIndexedCommand>,
         vertices: &mut Vec<DebugVertex>,
         indices: &mut Vec<u32>,
@@ -207,8 +212,6 @@ impl WireframePass {
             });
         }
         indices.extend_from_slice(&mesh_data.indices);
-        indices.mark_as_dirty(render_context);
-        vertices.mark_as_dirty(render_context);
     }
     fn process_messages(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("WireframePass::process_messages");
@@ -235,7 +238,6 @@ impl WireframePass {
 
                     let mesh_data = create_line(start, end, color);
                     Self::add_mesh(
-                        render_context,
                         &mut self.instances,
                         &mut self.vertices,
                         &mut self.indices,
@@ -247,7 +249,6 @@ impl WireframePass {
 
                     let mesh_data = create_cube_from_min_max(min, max, color);
                     Self::add_mesh(
-                        render_context,
                         &mut self.instances,
                         &mut self.vertices,
                         &mut self.indices,
@@ -260,7 +261,6 @@ impl WireframePass {
                     let mesh_data =
                         create_colored_quad([min.x, min.y, max.x, max.y].into(), z, color);
                     Self::add_mesh(
-                        render_context,
                         &mut self.instances,
                         &mut self.vertices,
                         &mut self.indices,
@@ -272,7 +272,6 @@ impl WireframePass {
 
                     let mesh_data = create_arrow(position, direction, color);
                     Self::add_mesh(
-                        render_context,
                         &mut self.instances,
                         &mut self.vertices,
                         &mut self.indices,
@@ -284,7 +283,6 @@ impl WireframePass {
 
                     let mesh_data = create_sphere(position, radius, 16, 8, color);
                     Self::add_mesh(
-                        render_context,
                         &mut self.instances,
                         &mut self.vertices,
                         &mut self.indices,
@@ -303,7 +301,6 @@ impl WireframePass {
                         mesh_data.aabb_max = matrix.rotate_point(mesh_data.aabb_max);
                     }
                     Self::add_mesh(
-                        render_context,
                         &mut self.instances,
                         &mut self.vertices,
                         &mut self.indices,
@@ -311,5 +308,11 @@ impl WireframePass {
                     );
                 }
             });
+        self.indices.mark_as_dirty(render_context);
+        self.vertices.mark_as_dirty(render_context);
+        self.instances.mark_as_dirty(render_context);
+
+        self.instance_count = self.instances.len();
+        self.instance_count.mark_as_dirty(render_context);
     }
 }

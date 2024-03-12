@@ -139,7 +139,7 @@ impl Pass for VisibilityBufferPass {
                 &render_context.webgpu.device,
                 "visibility_pass",
             );
-            pass.indirect_indexed_draw(render_context, &buffers, draw_commands_type, render_pass);
+            pass.indirect_indexed_draw(render_context, draw_commands_type, render_pass);
         }
     }
 }
