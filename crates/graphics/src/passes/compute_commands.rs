@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use inox_render::{
     AsBinding, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    DrawCommandType, DrawCommandsBuffer, GPUMesh, GPUMeshlet, GPUVector, MeshFlags, MeshesBuffer,
-    MeshletsBuffer, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView,
+    DrawCommandType, DrawCommandsBuffer, GPUBuffer, GPUMesh, GPUMeshlet, GPUVector, MeshFlags,
+    Pass, RenderContext, RenderContextRc, ShaderStage, TextureView,
 };
 
 use inox_core::ContextRc;
@@ -20,8 +20,8 @@ pub struct CommandsPass {
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     commands: DrawCommandsBuffer,
-    meshes: MeshesBuffer,
-    meshlets: MeshletsBuffer,
+    meshes: GPUBuffer<GPUMesh>,
+    meshlets: GPUBuffer<GPUMeshlet>,
     meshlets_lod_level: GPUVector<MeshletLodLevel>,
 }
 unsafe impl Send for CommandsPass {}
@@ -160,9 +160,7 @@ impl Pass for CommandsPass {
         }
 
         let workgroup_max_size = 256;
-        let workgroup_size = (workgroup_max_size
-            * ((num_meshlets + workgroup_max_size - 1) / workgroup_max_size))
-            / workgroup_max_size;
+        let workgroup_size = (num_meshlets + workgroup_max_size - 1) / workgroup_max_size;
 
         let pass = self.compute_pass.get();
         pass.dispatch(

@@ -1,26 +1,75 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
+use inox_bvh::GPUBVHNode;
+use inox_math::Mat4Ops;
+use inox_messenger::Listener;
 use inox_render::{
-    BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, DrawCommandsBuffer,
-    GPURuntimeVertexData, GPUVertexIndices, IndicesBuffer, MeshFlags, Pass, RenderContext,
-    RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
-    RuntimeVerticesBuffer, ShaderStage, StoreOperation, Texture, TextureView, VextexBindingType,
+    AsBinding, BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
+    DrawIndexedCommand, GPUBuffer, GPUMesh, GPUMeshlet, GPUVertexIndices, GPUVertexPosition, Mesh,
+    MeshFlags, MeshId, Pass, RenderContext, RenderContextRc, RenderPass, RenderPassBeginData,
+    RenderPassData, RenderTarget, ShaderStage, StoreOperation, Texture, TextureView,
+    VertexBufferLayoutBuilder, VertexFormat, VextexBindingType,
 };
 
 use inox_core::ContextRc;
-use inox_resources::{DataTypeResource, Resource, ResourceTrait};
+use inox_resources::{DataTypeResource, Resource, ResourceEvent, ResourceTrait, SharedDataRc};
+use inox_scene::{Object, ObjectId};
 use inox_uid::generate_random_uid;
 
 pub const VISIBILITY_BUFFER_PIPELINE: &str = "pipelines/VisibilityBuffer.render_pipeline";
 pub const VISIBILITY_BUFFER_PASS_NAME: &str = "VisibilityBufferPass";
 
+#[repr(C)]
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub struct Instance {
+    pub bb_min: [f32; 3],
+    pub mesh_index: u32,
+    pub bb_max: [f32; 3],
+    pub meshlet_index: u32,
+}
+
+impl Default for Instance {
+    fn default() -> Self {
+        Self {
+            meshlet_index: 0,
+            mesh_index: 0,
+            bb_min: [0.; 3],
+            bb_max: [0.; 3],
+        }
+    }
+}
+impl Instance {
+    pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
+        let mut layout_builder = VertexBufferLayoutBuilder::instance();
+        layout_builder.starting_location(starting_location);
+        layout_builder.add_attribute::<[f32; 3]>(VertexFormat::Float32x3.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<[f32; 3]>(VertexFormat::Float32x3.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder
+    }
+}
+
+struct InstanceMapData {
+    instance: Instance,
+    id: ObjectId,
+}
+
 pub struct VisibilityBufferPass {
     render_pass: Resource<RenderPass>,
+    listener: Listener,
+    shared_data: SharedDataRc,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    indices: IndicesBuffer,
-    commands_buffers: DrawCommandsBuffer,
-    runtime_vertices: RuntimeVerticesBuffer,
+    meshes: GPUBuffer<GPUMesh>,
+    indices: GPUBuffer<GPUVertexIndices>,
+    bhv: GPUBuffer<GPUBVHNode>,
+    instances: Vec<Instance>,
+    instance_map: HashMap<MeshId, Vec<InstanceMapData>>,
+    is_dirty: bool,
+    commands: Vec<DrawIndexedCommand>,
+    commands_count: usize,
+    vertices_position: GPUBuffer<GPUVertexPosition>,
 }
 unsafe impl Send for VisibilityBufferPass {}
 unsafe impl Sync for VisibilityBufferPass {}
@@ -56,6 +105,9 @@ impl Pass for VisibilityBufferPass {
             ..Default::default()
         };
 
+        let listener = Listener::new(context.message_hub());
+        listener.register::<ResourceEvent<Object>>();
+
         Self {
             render_pass: RenderPass::new_resource(
                 context.shared_data(),
@@ -64,22 +116,34 @@ impl Pass for VisibilityBufferPass {
                 &data,
                 None,
             ),
+            shared_data: context.shared_data().clone(),
+            listener,
             binding_data: BindingData::new(render_context, VISIBILITY_BUFFER_PASS_NAME),
             constant_data: render_context.global_buffers().constant_data.clone(),
+            meshes: render_context.global_buffers().buffer::<GPUMesh>(),
             indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
-            commands_buffers: render_context.global_buffers().draw_commands.clone(),
-            runtime_vertices: render_context
+            bhv: render_context.global_buffers().buffer::<GPUBVHNode>(),
+            instance_map: HashMap::new(),
+            instances: Vec::new(),
+            commands: Vec::new(),
+            commands_count: 0,
+            is_dirty: true,
+            vertices_position: render_context
                 .global_buffers()
-                .buffer::<GPURuntimeVertexData>(),
+                .buffer::<GPUVertexPosition>(),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("visibility_buffer_pass::init");
 
-        let mut pass = self.render_pass.get_mut();
+        self.process_messages();
+        self.update_instances(render_context);
 
-        let mut command_buffers = self.commands_buffers.write().unwrap();
-        let commands = command_buffers.entry(self.mesh_flags()).or_default();
+        if self.commands_count == 0 {
+            return;
+        }
+
+        let mut pass = self.render_pass.get_mut();
 
         self.binding_data
             .add_uniform_buffer(
@@ -94,18 +158,25 @@ impl Pass for VisibilityBufferPass {
             )
             .set_vertex_buffer(
                 VextexBindingType::Vertex,
-                &mut *self.runtime_vertices.write().unwrap(),
-                Some("Runtime Vertices"),
+                &mut *self.vertices_position.write().unwrap(),
+                Some("Vertices Position"),
+            )
+            .set_vertex_buffer(
+                VextexBindingType::Instance,
+                &mut self.instances,
+                Some("Instances"),
             )
             .set_index_buffer(&mut *self.indices.write().unwrap(), Some("Indices"))
-            .bind_render_commands(commands, Some("Commands"));
+            .bind_buffer(&mut self.commands, Some("Commands"))
+            .bind_buffer(&mut self.commands_count, Some("Commands Count"));
 
-        let vertex_layout = GPURuntimeVertexData::descriptor(0);
+        let vertex_layout = GPUVertexPosition::descriptor(0);
+        let instance_layout = Instance::descriptor(vertex_layout.location());
         pass.init(
             render_context,
             &mut self.binding_data,
             Some(vertex_layout),
-            None,
+            Some(instance_layout),
         );
     }
     fn update(
@@ -121,9 +192,13 @@ impl Pass for VisibilityBufferPass {
         if !pipeline.is_initialized() {
             return;
         }
+
+        if self.is_dirty || self.commands_count == 0 {
+            return;
+        }
+
         let buffers = render_context.buffers();
         let render_targets = render_context.texture_handler().render_targets();
-        let draw_commands_type = self.draw_commands_type();
 
         let render_pass_begin_data = RenderPassBeginData {
             render_core_context: &render_context.webgpu,
@@ -139,7 +214,12 @@ impl Pass for VisibilityBufferPass {
                 &render_context.webgpu.device,
                 "visibility_pass",
             );
-            pass.indirect_indexed_draw(render_context, draw_commands_type, render_pass);
+            pass.indirect_draw(
+                render_context,
+                &self.commands,
+                &self.commands_count,
+                render_pass,
+            );
         }
     }
 }
@@ -152,5 +232,105 @@ impl VisibilityBufferPass {
     pub fn add_depth_target(&self, texture: &Resource<Texture>) -> &Self {
         self.render_pass.get_mut().add_depth_target(texture);
         self
+    }
+    fn update_instances(&mut self, render_context: &RenderContext) {
+        if !self.is_dirty {
+            return;
+        }
+        self.commands.clear();
+        self.instances.clear();
+
+        let meshes = self.meshes.read().unwrap();
+        self.instance_map.iter().for_each(|(mesh_id, data)| {
+            let (mesh, _mesh_index) = meshes.get_first_with_index(mesh_id).unwrap();
+
+            let meshlets = render_context.global_buffers().buffer::<GPUMeshlet>();
+            let meshlets = meshlets.read().unwrap();
+            if let Some(meshlets) = meshlets.get(mesh_id) {
+                meshlets.iter().for_each(|meshlet| {
+                    let base_instance = self.instances.len() as u32;
+                    data.iter().for_each(|mesh_instance| {
+                        let mut instance = mesh_instance.instance;
+                        instance.meshlet_index = mesh.meshlets_offset;
+                        self.instances.push(instance);
+                    });
+                    let command = DrawIndexedCommand {
+                        instance_count: data.len() as u32,
+                        base_instance,
+                        base_index: meshlet.indices_offset as _,
+                        vertex_count: meshlet.indices_count,
+                        vertex_offset: mesh.vertices_position_offset as _,
+                    };
+                    self.commands.push(command);
+                });
+            }
+        });
+        //sort in descending order
+        self.commands
+            .sort_by(|a, b| b.instance_count.partial_cmp(&a.instance_count).unwrap());
+        self.commands_count = self.commands.len();
+        self.instances.mark_as_dirty(render_context);
+        self.commands.mark_as_dirty(render_context);
+        self.commands_count.mark_as_dirty(render_context);
+
+        self.is_dirty = false;
+    }
+
+    fn process_messages(&mut self) {
+        self.listener
+            .process_messages(|e: &ResourceEvent<Object>| match e {
+                ResourceEvent::Changed(id) => {
+                    if let Some(object) = self.shared_data.get_resource::<Object>(id) {
+                        object
+                            .get()
+                            .components_of_type::<Mesh>()
+                            .iter()
+                            .for_each(|mesh| {
+                                let instances = self.instance_map.entry(*mesh.id()).or_default();
+
+                                let meshes = self.meshes.read().unwrap();
+                                let (mesh, mesh_index) =
+                                    meshes.get_first_with_index(mesh.id()).unwrap();
+                                let bhv = self.bhv.read().unwrap();
+                                let bhv = bhv.data();
+                                let node = &bhv[mesh.blas_index as usize];
+                                let matrix = object.get().transform();
+
+                                let result = instances.iter_mut().find(|e| e.id == *object.id());
+                                if let Some(data) = result {
+                                    data.instance.bb_min =
+                                        matrix.rotate_point(node.min.into()).into();
+                                    data.instance.bb_max =
+                                        matrix.rotate_point(node.max.into()).into();
+                                } else {
+                                    let instance = Instance {
+                                        mesh_index,
+                                        bb_min: matrix.rotate_point(node.min.into()).into(),
+                                        bb_max: matrix.rotate_point(node.max.into()).into(),
+                                        meshlet_index: 0,
+                                    };
+                                    instances.push(InstanceMapData {
+                                        instance,
+                                        id: *object.id(),
+                                    });
+                                }
+                            });
+                        self.is_dirty = true;
+                    }
+                }
+                ResourceEvent::Destroyed(id) => {
+                    self.instance_map.iter_mut().for_each(|(_, instances)| {
+                        instances.retain(|e| {
+                            if e.id == *id {
+                                self.is_dirty = true;
+                                true
+                            } else {
+                                false
+                            }
+                        });
+                    });
+                }
+                _ => {}
+            });
     }
 }

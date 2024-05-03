@@ -133,19 +133,7 @@ impl DataTypeResource for Object {
         object_data.components.iter().for_each(|component_path| {
             let path = component_path.as_path();
             if <Mesh as SerializableResource>::is_matching_extension(path) {
-                let shared_data_rc = shared_data.clone();
-                let object_id = id;
-                let mesh = Mesh::request_load(
-                    shared_data,
-                    message_hub,
-                    path,
-                    OnCreateData::create(move |mesh: &mut Mesh| {
-                        if let Some(object) = shared_data_rc.get_resource::<Object>(&object_id) {
-                            let parent_matrix = object.get().transform();
-                            mesh.set_matrix(parent_matrix);
-                        }
-                    }),
-                );
+                let mesh = Mesh::request_load(shared_data, message_hub, path, None);
                 object.add_component::<Mesh>(mesh);
             } else if <Camera as SerializableResource>::is_matching_extension(path) {
                 let shared_data_rc = shared_data.clone();
@@ -397,18 +385,16 @@ impl Object {
         has_component
     }
 
-    pub fn update_transform(&mut self, parent_transform: Option<Matrix4>) {
+    pub fn update_transform(&mut self, parent_transform: Option<Matrix4>) -> Matrix4 {
         if self.is_dirty() {
             self.is_transform_dirty = false;
             if let Some(parent_transform) = parent_transform {
                 self.transform = parent_transform * self.transform;
             }
-            self.components_of_type::<Mesh>().iter().for_each(|mesh| {
-                mesh.get_mut().set_matrix(self.transform);
-            });
             self.components_of_type::<Light>().iter().for_each(|light| {
                 light.get_mut().set_position(self.position());
             });
         }
+        self.transform
     }
 }

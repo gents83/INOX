@@ -2,12 +2,10 @@ use std::path::PathBuf;
 
 use inox_render::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
-    GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPURuntimeVertexData, GPUTexture, GPUVector,
-    GPUVertexAttributes, GPUVertexIndices, IndicesBuffer, LightsBuffer, LoadOperation,
-    MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderContextRc,
-    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, RuntimeVerticesBuffer,
-    SamplerType, ShaderStage, StoreOperation, TextureId, TextureView, TexturesBuffer,
-    VertexAttributesBuffer,
+    GPUBuffer, GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture, GPUVector,
+    GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, LoadOperation, MeshFlags, Pass,
+    RenderContext, RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
+    SamplerType, ShaderStage, StoreOperation, TextureId, TextureView,
 };
 
 use inox_core::ContextRc;
@@ -23,14 +21,14 @@ pub struct DebugPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    meshes: MeshesBuffer,
-    meshlets: MeshletsBuffer,
-    indices: IndicesBuffer,
-    runtime_vertices: RuntimeVerticesBuffer,
-    vertices_attributes: VertexAttributesBuffer,
-    textures: TexturesBuffer,
-    materials: MaterialsBuffer,
-    lights: LightsBuffer,
+    meshes: GPUBuffer<GPUMesh>,
+    meshlets: GPUBuffer<GPUMeshlet>,
+    indices: GPUBuffer<GPUVertexIndices>,
+    vertices_position: GPUBuffer<GPUVertexPosition>,
+    vertices_attributes: GPUBuffer<GPUVertexAttributes>,
+    textures: GPUBuffer<GPUTexture>,
+    materials: GPUBuffer<GPUMaterial>,
+    lights: GPUBuffer<GPULight>,
     finalize_texture: TextureId,
     visibility_texture: TextureId,
     depth_texture: TextureId,
@@ -91,9 +89,9 @@ impl Pass for DebugPass {
             materials: render_context.global_buffers().buffer::<GPUMaterial>(),
             lights: render_context.global_buffers().buffer::<GPULight>(),
             indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
-            runtime_vertices: render_context
+            vertices_position: render_context
                 .global_buffers()
-                .buffer::<GPURuntimeVertexData>(),
+                .buffer::<GPUVertexPosition>(),
             vertices_attributes: render_context
                 .global_buffers()
                 .buffer::<GPUVertexAttributes>(),
@@ -144,8 +142,8 @@ impl Pass for DebugPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.runtime_vertices.write().unwrap(),
-                Some("Runtime Vertices"),
+                &mut *self.vertices_position.write().unwrap(),
+                Some("Vertices Position"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,

@@ -2,10 +2,9 @@ use std::path::PathBuf;
 
 use inox_bvh::GPUBVHNode;
 use inox_render::{
-    AsBinding, BVHBuffer, BindingData, BindingFlags, BindingInfo, BufferRef, CommandBuffer,
-    ComputePass, ComputePassData, ConstantDataRw, DrawCommandType, GPUMesh, GPUMeshlet, GPUVector,
-    Mesh, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderContextRc,
-    ShaderStage, TextureView,
+    AsBinding, BindingData, BindingFlags, BindingInfo, BufferRef, CommandBuffer, ComputePass,
+    ComputePassData, ConstantDataRw, DrawCommandType, GPUBuffer, GPUMesh, GPUMeshlet, GPUVector,
+    Mesh, MeshFlags, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView,
 };
 
 use inox_commands::CommandParser;
@@ -77,10 +76,10 @@ pub struct CullingPass {
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    meshes: MeshesBuffer,
-    meshlets: MeshletsBuffer,
+    meshes: GPUBuffer<GPUMesh>,
+    meshlets: GPUBuffer<GPUMeshlet>,
     meshlets_lod_level: GPUVector<MeshletLodLevel>,
-    bvh: BVHBuffer,
+    bvh: GPUBuffer<GPUBVHNode>,
     culling_data: CullingData,
     listener: Listener,
     update_camera: bool,
@@ -264,9 +263,7 @@ impl Pass for CullingPass {
         }
 
         let workgroup_max_size = 32;
-        let workgroup_size = (workgroup_max_size
-            * ((num_meshlets + workgroup_max_size - 1) / workgroup_max_size))
-            / workgroup_max_size;
+        let workgroup_size = (num_meshlets + workgroup_max_size - 1) / workgroup_max_size;
 
         let pass = self.compute_pass.get();
         pass.dispatch(

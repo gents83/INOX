@@ -4,9 +4,9 @@ use inox_core::ContextRc;
 use inox_messenger::Listener;
 use inox_render::{
     declare_as_binding, AsBinding, BindingData, BindingInfo, CommandBuffer, ConstantDataRw,
-    DrawCommandType, GPUTexture, LoadOperation, MeshFlags, Pass, RenderContext, RenderContextRc,
-    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType, ShaderStage,
-    StoreOperation, TextureView, TexturesBuffer, VertexBufferLayoutBuilder, VertexFormat,
+    DrawCommandType, GPUBuffer, GPUTexture, LoadOperation, MeshFlags, Pass, RenderContext,
+    RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType,
+    ShaderStage, StoreOperation, TextureView, VertexBufferLayoutBuilder, VertexFormat,
     VextexBindingType,
 };
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
@@ -66,7 +66,7 @@ pub struct UIPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    textures: TexturesBuffer,
+    textures: GPUBuffer<GPUTexture>,
     custom_data: UIPassData,
     vertices: Vec<UIVertex>,
     indices: Vec<u32>,

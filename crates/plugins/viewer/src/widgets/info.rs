@@ -1,4 +1,4 @@
-use std::sync::atomic::Ordering;
+use std::{collections::HashMap, sync::atomic::Ordering};
 
 use inox_bvh::GPUBVHNode;
 use inox_core::ContextRc;
@@ -10,7 +10,7 @@ use inox_math::{
 use inox_messenger::Listener;
 use inox_platform::{MouseEvent, MouseState, WindowEvent};
 use inox_render::{
-    DrawEvent, GPULight, GPUMesh, Light, LightType, Mesh, MeshFlags, RenderContextRc,
+    DrawEvent, GPULight, Light, LightType, Mesh, MeshFlags, MeshId, RenderContextRc,
     CONSTANT_DATA_FLAGS_DISPLAY_BASE_COLOR, CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT,
     CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX, CONSTANT_DATA_FLAGS_DISPLAY_METALLIC,
@@ -21,7 +21,7 @@ use inox_render::{
     CONSTANT_DATA_FLAGS_DISPLAY_UV_3, CONSTANT_DATA_FLAGS_NONE, CONSTANT_DATA_FLAGS_USE_IBL,
     MAX_LOD_LEVELS,
 };
-use inox_resources::{Buffer, DataTypeResourceEvent, Resource, ResourceEvent};
+use inox_resources::{DataTypeResourceEvent, Resource, ResourceEvent};
 use inox_scene::{Camera, Object, ObjectId, Scene};
 use inox_ui::{implement_widget_data, ComboBox, DragValue, UIWidget, Window};
 use inox_uid::INVALID_UID;
@@ -31,7 +31,6 @@ use crate::events::{WidgetEvent, WidgetType};
 #[derive(Clone)]
 struct MeshInfo {
     meshlets: Vec<MeshletInfo>,
-    matrix: Matrix4,
     flags: MeshFlags,
 }
 
@@ -39,7 +38,6 @@ impl Default for MeshInfo {
     fn default() -> Self {
         Self {
             meshlets: Vec::new(),
-            matrix: Matrix4::default_identity(),
             flags: MeshFlags::None,
         }
     }
@@ -94,13 +92,13 @@ struct Data {
     fov: Degrees,
     aspect_ratio: f32,
     selected_object_id: ObjectId,
+    meshes: HashMap<MeshId, MeshInfo>,
 }
 implement_widget_data!(Data);
 
 pub struct Info {
     ui_page: Resource<UIWidget>,
     listener: Listener,
-    meshes: Buffer<MeshInfo>,
 }
 
 impl Info {
@@ -160,11 +158,11 @@ impl Info {
             fov: Degrees::new(0.),
             aspect_ratio: 1.,
             selected_object_id: INVALID_UID,
+            meshes: HashMap::new(),
         };
         Self {
             ui_page: Self::create(data),
             listener,
-            meshes: Buffer::default(),
         }
     }
 
@@ -212,27 +210,30 @@ impl Info {
                         max: meshlet.aabb_max,
                     });
                 });
-                self.meshes.push(
-                    id,
-                    MeshInfo {
-                        meshlets,
-                        ..Default::default()
-                    },
-                );
+                if let Some(data) = self.ui_page.get_mut().data_mut::<Data>() {
+                    data.meshes.insert(
+                        *id,
+                        MeshInfo {
+                            meshlets,
+                            ..Default::default()
+                        },
+                    );
+                }
             })
             .process_messages(|e: &ResourceEvent<Mesh>| match e {
                 ResourceEvent::Changed(id) => {
-                    if let Some(data) = self.ui_page.get().data::<Data>() {
+                    if let Some(data) = self.ui_page.get_mut().data_mut::<Data>() {
                         if let Some(mesh) = data.context.shared_data().get_resource::<Mesh>(id) {
-                            if let Some(m) = self.meshes.get_first_mut(id) {
-                                m.matrix = mesh.get().matrix();
+                            if let Some(m) = data.meshes.get_mut(id) {
                                 m.flags = *mesh.get().flags();
                             }
                         }
                     }
                 }
                 ResourceEvent::Destroyed(id) => {
-                    self.meshes.remove(id);
+                    if let Some(data) = self.ui_page.get_mut().data_mut::<Data>() {
+                        data.meshes.remove(id);
+                    }
                 }
                 _ => {}
             })
@@ -337,36 +338,23 @@ impl Info {
                 });
             }
             if data.show_blas {
-                let bhv = data
-                    .params
-                    .render_context
-                    .global_buffers()
-                    .buffer::<GPUBVHNode>();
-                let bhv = bhv.read().unwrap();
-                let bhv_data = bhv.data();
-                let meshes = data
-                    .params
-                    .render_context
-                    .global_buffers()
-                    .buffer::<GPUMesh>();
-                let meshes = meshes.read().unwrap();
-                meshes.for_each_data(|_, _, mesh| {
-                    let node = &bhv_data[mesh.blas_index as usize];
-                    let matrix = Matrix4::from_translation_orientation_scale(
-                        mesh.position.into(),
-                        mesh.orientation.into(),
-                        mesh.scale.into(),
-                    );
-                    let min = matrix.rotate_point(node.min.into());
-                    let max = matrix.rotate_point(node.max.into());
-                    data.context
-                        .message_hub()
-                        .send_event(DrawEvent::BoundingBox(
-                            min,
-                            max,
-                            [1.0, 0.8, 0.2, 1.0].into(),
-                        ));
-                });
+                data.context
+                    .shared_data()
+                    .for_each_resource(|_h, object: &Object| {
+                        let meshes = object.components_of_type::<Mesh>();
+                        let matrix = object.transform();
+                        meshes.iter().for_each(|mesh| {
+                            let min = matrix.rotate_point(*mesh.get().min());
+                            let max = matrix.rotate_point(*mesh.get().max());
+                            data.context
+                                .message_hub()
+                                .send_event(DrawEvent::BoundingBox(
+                                    min,
+                                    max,
+                                    [1.0, 0.8, 0.2, 1.0].into(),
+                                ));
+                        });
+                    });
             }
             if !data.selected_object_id.is_nil() {
                 Self::show_object_in_scene(data, &data.selected_object_id);
@@ -374,7 +362,7 @@ impl Info {
             if data.visualization_debug_choices[data.visualization_debug_selected].0
                 == CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX
             {
-                Self::show_meshlets_bounding_box(data, &self.meshes);
+                Self::show_meshlets_bounding_box(data);
             }
         }
     }
@@ -389,25 +377,13 @@ impl Info {
                     Self::show_object_in_scene(data, o.id());
                 });
             } else {
-                let bhv = data
-                    .params
-                    .render_context
-                    .global_buffers()
-                    .buffer::<GPUBVHNode>();
-                let bhv = bhv.read().unwrap();
+                let matrix = object.transform();
                 meshes.iter().for_each(|mesh| {
-                    if let Some(nodes) = bhv.get(mesh.id()) {
-                        nodes.iter().for_each(|n| {
-                            let matrix = mesh.get().matrix();
-                            data.context
-                                .message_hub()
-                                .send_event(DrawEvent::BoundingBox(
-                                    matrix.rotate_point(n.min.into()),
-                                    matrix.rotate_point(n.max.into()),
-                                    [1.0, 1.0, 0.0, 1.0].into(),
-                                ));
-                        });
-                    }
+                    let min = matrix.rotate_point(*mesh.get().min());
+                    let max = matrix.rotate_point(*mesh.get().max());
+                    data.context
+                        .message_hub()
+                        .send_event(DrawEvent::BoundingBox(min, max, [1.0, 1.0, 0., 1.0].into()));
                 });
             }
             let lights = object.components_of_type::<Light>();
@@ -439,20 +415,26 @@ impl Info {
             });
     }
 
-    fn show_meshlets_bounding_box(data: &mut Data, meshes: &Buffer<MeshInfo>) {
-        meshes.for_each_data(|_, _id, mesh_info| {
-            if mesh_info.flags.contains(MeshFlags::Visible) {
-                mesh_info.meshlets.iter().for_each(|meshlet_info| {
-                    data.context
-                        .message_hub()
-                        .send_event(DrawEvent::BoundingBox(
-                            mesh_info.matrix.rotate_point(meshlet_info.min),
-                            mesh_info.matrix.rotate_point(meshlet_info.max),
-                            [1.0, 1.0, 0.0, 1.0].into(),
-                        ));
+    fn show_meshlets_bounding_box(data: &mut Data) {
+        data.context
+            .shared_data()
+            .for_each_resource(|_h, object: &Object| {
+                let meshes = object.components_of_type::<Mesh>();
+                let matrix = object.transform();
+                meshes.iter().for_each(|mesh| {
+                    if let Some(info) = data.meshes.get(mesh.id()) {
+                        info.meshlets.iter().for_each(|meshlet_info| {
+                            data.context
+                                .message_hub()
+                                .send_event(DrawEvent::BoundingBox(
+                                    matrix.rotate_point(meshlet_info.min),
+                                    matrix.rotate_point(meshlet_info.max),
+                                    [1.0, 1.0, 0.0, 1.0].into(),
+                                ));
+                        });
+                    }
                 });
-            }
-        });
+            });
     }
 
     fn show_frustum(data: &Data, frustum: &Frustum) {

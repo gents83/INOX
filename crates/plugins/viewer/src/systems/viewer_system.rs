@@ -159,17 +159,7 @@ impl ViewerSystem {
     }
 
     fn create_default_scene(&mut self) {
-        let default_object = {
-            let object_id = generate_random_uid();
-            let object = self.context.shared_data().add_resource(
-                self.context.message_hub(),
-                object_id,
-                Object::new(
-                    object_id,
-                    self.context.shared_data(),
-                    self.context.message_hub(),
-                ),
-            );
+        let quad_mesh = {
             let mesh_id = generate_random_uid();
 
             let mesh = self.context.shared_data().add_resource(
@@ -212,11 +202,9 @@ impl ViewerSystem {
             //println!("Quad Mesh {:?}", mesh.id());
 
             mesh.get_mut().set_mesh_data(mesh_data);
-            object.get_mut().add_component(mesh);
-            object.get_mut().set_position([-20., 0., 0.].into());
-            object
+            mesh
         };
-        let flat_object = {
+        let left_quad = {
             let object_id = generate_random_uid();
             let object = self.context.shared_data().add_resource(
                 self.context.message_hub(),
@@ -227,46 +215,27 @@ impl ViewerSystem {
                     self.context.message_hub(),
                 ),
             );
-            let mesh_id = generate_random_uid();
-
-            let flat_mesh = self.context.shared_data().add_resource(
+            object.get_mut().add_component(quad_mesh.clone());
+            object.get_mut().set_position([-20., 0., 0.].into());
+            object
+        };
+        let right_quad = {
+            let object_id = generate_random_uid();
+            let object = self.context.shared_data().add_resource(
                 self.context.message_hub(),
-                mesh_id,
-                Mesh::new(
-                    mesh_id,
+                object_id,
+                Object::new(
+                    object_id,
                     self.context.shared_data(),
                     self.context.message_hub(),
                 ),
             );
-            let flat_material = Material::new_resource(
-                self.context.shared_data(),
-                self.context.message_hub(),
-                generate_random_uid(),
-                &MaterialData::default(),
-                None,
-            );
-            flat_mesh
-                .get_mut()
-                .set_material(flat_material)
-                .set_flags(MeshFlags::Visible | MeshFlags::Opaque);
-
-            let mut mesh_data = MeshData {
-                vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
-                ..Default::default()
-            };
-            let quad = create_quad([-10., -10., 10., 10.].into(), 0.);
-            mesh_data.append_mesh_data(quad, 0, false);
-            mesh_data.set_vertex_color([1.0, 1.0, 0.0, 1.0].into());
-
-            //println!("Flat Mesh {:?}", mesh.id());
-
-            flat_mesh.get_mut().set_mesh_data(mesh_data);
-            object.get_mut().add_component(flat_mesh);
+            object.get_mut().add_component(quad_mesh);
             object.get_mut().set_position([20., 0., 0.].into());
             object
         };
-        self.scene.get_mut().add_object(default_object);
-        self.scene.get_mut().add_object(flat_object);
+        self.scene.get_mut().add_object(left_quad);
+        self.scene.get_mut().add_object(right_quad);
 
         let camera_id = generate_random_uid();
         let camera_object = self.context.shared_data().add_resource::<Object>(

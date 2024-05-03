@@ -8,15 +8,15 @@ use std::{
 };
 
 use inox_bvh::{create_linearized_bvh, BVHTree, GPUBVHNode, AABB};
-use inox_math::{quantize_half, Mat4Ops, Matrix4, VecBase, Vector2};
+use inox_math::{quantize_half, Mat4Ops, MatBase, Matrix4, VecBase, Vector2};
 use inox_resources::{to_slice, Buffer, ResourceId};
 use inox_uid::{generate_static_uid_from_string, Uid};
 
 use crate::{
-    AsBinding, ConstantDataRw, DispatchCommandSize, GPULight, GPUMaterial, GPUMesh, GPUMeshlet,
-    GPURuntimeVertexData, GPUTexture, GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition,
-    Light, LightId, Material, MaterialData, MaterialFlags, MaterialId, Mesh, MeshData, MeshFlags,
-    MeshId, RenderCommandsPerType, RenderContext, TextureId, TextureType, MAX_LOD_LEVELS,
+    AsBinding, ConstantDataRw, GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture,
+    GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, Light, LightId, Material,
+    MaterialData, MaterialFlags, MaterialId, Mesh, MeshData, MeshFlags, MeshId,
+    RenderCommandsPerType, RenderContext, TextureId, TextureType, MAX_LOD_LEVELS,
     MESHLETS_GROUP_SIZE,
 };
 
@@ -32,18 +32,6 @@ pub const MAX_NUM_MATERIALS: usize = 65536;
 pub const NUM_FRAMES_OF_HISTORY: usize = 2;
 
 pub type DrawCommandsBuffer = Arc<RwLock<HashMap<MeshFlags, RenderCommandsPerType>>>;
-pub type DispatchCommandBuffer = Arc<RwLock<HashMap<ResourceId, DispatchCommandSize>>>;
-
-pub type TexturesBuffer = Arc<RwLock<Buffer<GPUTexture>>>;
-pub type MaterialsBuffer = Arc<RwLock<Buffer<GPUMaterial>>>;
-pub type LightsBuffer = Arc<RwLock<Buffer<GPULight>>>;
-pub type MeshesBuffer = Arc<RwLock<Buffer<GPUMesh>>>;
-pub type MeshletsBuffer = Arc<RwLock<Buffer<GPUMeshlet>>>; //MeshId <-> [GPUMeshlet]
-pub type BVHBuffer = Arc<RwLock<Buffer<GPUBVHNode>>>;
-pub type IndicesBuffer = Arc<RwLock<Buffer<GPUVertexIndices>>>; //MeshId <-> [u32]
-pub type VertexPositionsBuffer = Arc<RwLock<Buffer<GPUVertexPosition>>>; //MeshId <-> [u32] (10 x, 10 y, 10 z, 2 null)
-pub type VertexAttributesBuffer = Arc<RwLock<Buffer<GPUVertexAttributes>>>; //MeshId <-> [u32]
-pub type RuntimeVerticesBuffer = Arc<RwLock<Buffer<GPURuntimeVertexData>>>;
 
 pub type AtomicCounter = Arc<RwLock<AtomicU32>>;
 
@@ -70,7 +58,6 @@ pub struct GlobalBuffers {
     pub vectors: Arc<RwLock<DynGPUVectorMap>>,
 
     pub draw_commands: DrawCommandsBuffer,
-    pub dispatch_commands: DispatchCommandBuffer,
 }
 unsafe impl Send for GlobalBuffers {}
 unsafe impl Sync for GlobalBuffers {}
@@ -198,12 +185,7 @@ impl GlobalBuffers {
             lod_meshlets_ending_offset,
         )
     }
-    fn add_vertex_data(
-        &self,
-        mesh_id: &MeshId,
-        mesh_index: u32,
-        mesh_data: &MeshData,
-    ) -> (u32, u32, u32) {
+    fn add_vertex_data(&self, mesh_id: &MeshId, mesh_data: &MeshData) -> (u32, u32, u32) {
         inox_profiler::scoped_profile!("render_buffers::add_vertex_data");
 
         debug_assert!(
@@ -231,17 +213,6 @@ impl GlobalBuffers {
             .allocate(mesh_id, to_slice(mesh_data.vertex_attributes.as_slice()))
             .1
             .start;
-        let runtime_vertices = vec![
-            GPURuntimeVertexData {
-                mesh_index,
-                ..Default::default()
-            };
-            mesh_data.vertex_count()
-        ];
-        self.buffer::<GPURuntimeVertexData>()
-            .write()
-            .unwrap()
-            .allocate(mesh_id, runtime_vertices.as_slice());
         let indices_offset = self
             .buffer::<GPUVertexIndices>()
             .write()
@@ -278,7 +249,7 @@ impl GlobalBuffers {
             .start;
 
         let (vertex_offset, indices_offset, attributes_offset) =
-            self.add_vertex_data(mesh_id, mesh_index as _, mesh_data);
+            self.add_vertex_data(mesh_id, mesh_data);
         let (blas_index, meshlet_offset, lod_meshlets_starting_offset, lod_meshlets_ending_offsets) =
             self.extract_meshlets(mesh_data, mesh_id, mesh_index as _, indices_offset);
 
@@ -290,6 +261,8 @@ impl GlobalBuffers {
             mesh.vertices_attribute_offset = attributes_offset;
             mesh.flags_and_vertices_attribute_layout = mesh_data.vertex_layout.into();
             mesh.blas_index = blas_index as _;
+            mesh.indices_offset = indices_offset as _;
+            mesh.indices_count = mesh_data.indices.len() as _;
             mesh.meshlets_offset = meshlet_offset as _;
             mesh.lods_meshlets_offset
                 .iter_mut()
@@ -305,7 +278,7 @@ impl GlobalBuffers {
         }
         self.recreate_tlas();
     }
-    fn recreate_tlas(&self) {
+    pub fn recreate_tlas(&self) {
         inox_profiler::scoped_profile!("render_buffers::recreate_tlas");
         let mut meshes_aabbs = Vec::new();
         {
@@ -316,11 +289,12 @@ impl GlobalBuffers {
             let bhv = bhv.data();
             meshes.for_each_data(|i, _id, mesh| {
                 let node = &bhv[mesh.blas_index as usize];
-                let matrix = Matrix4::from_translation_orientation_scale(
-                    mesh.position.into(),
-                    mesh.orientation.into(),
-                    mesh.scale.into(),
-                );
+                //let matrix = Matrix4::from_translation_orientation_scale(
+                //    mesh.position.into(),
+                //    mesh.orientation.into(),
+                //    mesh.scale.into(),
+                //);
+                let matrix = Matrix4::default_identity();
                 let min = matrix.rotate_point(node.min.into());
                 let max = matrix.rotate_point(node.max.into());
                 let aabb = AABB::create(min.min(max), max.max(min), i as _);
@@ -345,81 +319,54 @@ impl GlobalBuffers {
         //println!("\n\nTLAS: {}", tlas_starting_index);
         //print_bvh(bvh.data());
     }
-    fn update_transform(&self, mesh: &mut Mesh, m: &mut GPUMesh) -> bool {
-        inox_profiler::scoped_profile!("render_buffers::update_transform");
-
-        let matrix = mesh.matrix();
-        let new_pos = matrix.translation();
-        let new_orientation = matrix.orientation();
-        let new_scale = matrix.scale();
-        let old_pos = m.position.into();
-        let old_orientation = m.orientation.into();
-        let old_scale = m.scale.into();
-        if new_pos != old_pos || new_orientation != old_orientation || new_scale != old_scale {
-            m.position = new_pos.into();
-            m.orientation = new_orientation.into();
-            m.scale = new_scale.into();
-            return true;
-        }
-        false
-    }
     pub fn change_mesh(&self, render_context: &RenderContext, mesh_id: &MeshId, mesh: &mut Mesh) {
         inox_profiler::scoped_profile!("render_buffers::change_mesh");
-        let mut is_matrix_changed = false;
-        {
-            let meshes = self.buffer::<GPUMesh>();
-            let mut meshes = meshes.write().unwrap();
-            if let Some(m) = meshes.get_first_mut(mesh_id) {
-                if let Some(material) = mesh.material() {
-                    if let Some(data) = self
-                        .buffer::<GPUMaterial>()
-                        .read()
-                        .unwrap()
-                        .indices(material.id())
-                    {
-                        m.material_index = data.range().start as _;
-                    }
-                    if let Some(material) = self
-                        .buffer::<GPUMaterial>()
-                        .write()
-                        .unwrap()
-                        .get_first_mut(material.id())
-                    {
-                        let flags: MaterialFlags = material.flags.into();
-                        if flags.contains(MaterialFlags::AlphaModeBlend)
-                            || material.base_color[3] < 1.
-                        {
-                            mesh.remove_flag(MeshFlags::Opaque);
-                            mesh.add_flag(MeshFlags::Tranparent);
-                        }
-                    }
-                }
-
-                is_matrix_changed = self.update_transform(mesh, m);
-
-                let mesh_flags = mesh.flags();
-                let vertex_attribute_layout = m.flags_and_vertices_attribute_layout & 0x0000FFFF;
-                let flags: u32 = (*mesh_flags).into();
-                m.flags_and_vertices_attribute_layout = vertex_attribute_layout | (flags << 16);
+        let meshes = self.buffer::<GPUMesh>();
+        let mut meshes = meshes.write().unwrap();
+        if let Some(m) = meshes.get_first_mut(mesh_id) {
+            if let Some(material) = mesh.material() {
+                if let Some(data) = self
+                    .buffer::<GPUMaterial>()
+                    .read()
+                    .unwrap()
+                    .indices(material.id())
                 {
-                    let mut commands = self.draw_commands.write().unwrap();
-                    commands.iter_mut().for_each(|(_, v)| {
-                        v.remove_draw_commands(render_context, mesh_id);
-                    });
-                    let entry = commands.entry(*mesh_flags).or_default();
-                    entry.add_mesh_commands(
-                        render_context,
-                        mesh_id,
-                        m,
-                        &self.buffer::<GPUMeshlet>().read().unwrap(),
-                    );
+                    m.material_index = data.range().start as _;
                 }
-
-                meshes.mark_as_dirty(render_context);
+                if let Some(material) = self
+                    .buffer::<GPUMaterial>()
+                    .write()
+                    .unwrap()
+                    .get_first_mut(material.id())
+                {
+                    let flags: MaterialFlags = material.flags.into();
+                    if flags.contains(MaterialFlags::AlphaModeBlend) || material.base_color[3] < 1.
+                    {
+                        mesh.remove_flag(MeshFlags::Opaque);
+                        mesh.add_flag(MeshFlags::Tranparent);
+                    }
+                }
             }
-        }
-        if is_matrix_changed {
-            self.recreate_tlas();
+
+            let mesh_flags = mesh.flags();
+            let vertex_attribute_layout = m.flags_and_vertices_attribute_layout & 0x0000FFFF;
+            let flags: u32 = (*mesh_flags).into();
+            m.flags_and_vertices_attribute_layout = vertex_attribute_layout | (flags << 16);
+            {
+                let mut commands = self.draw_commands.write().unwrap();
+                commands.iter_mut().for_each(|(_, v)| {
+                    v.remove_draw_commands(render_context, mesh_id);
+                });
+                let entry = commands.entry(*mesh_flags).or_default();
+                entry.add_mesh_commands(
+                    render_context,
+                    mesh_id,
+                    m,
+                    &self.buffer::<GPUMeshlet>().read().unwrap(),
+                );
+            }
+
+            meshes.mark_as_dirty(render_context);
         }
     }
     pub fn remove_mesh(
@@ -445,10 +392,6 @@ impl GlobalBuffers {
                 .unwrap()
                 .remove(mesh_id);
             self.buffer::<GPUVertexPosition>()
-                .write()
-                .unwrap()
-                .remove(mesh_id);
-            self.buffer::<GPURuntimeVertexData>()
                 .write()
                 .unwrap()
                 .remove(mesh_id);

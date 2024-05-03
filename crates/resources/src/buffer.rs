@@ -266,6 +266,27 @@ where
         }
         None
     }
+    pub fn get_first_with_index(&self, id: &ResourceId) -> Option<(&T, u32)> {
+        if let Some(buffer) = self.occupied.iter().find(|d| d.id == *id) {
+            return Some((&self.data[buffer.range.start], buffer.range.start as u32));
+        }
+        None
+    }
+    pub fn get_first_with_index_mut(&mut self, id: &ResourceId) -> Option<(&mut T, u32)> {
+        if let Some(buffer) = self.occupied.iter().find(|d| d.id == *id) {
+            return Some((
+                &mut self.data[buffer.range.start],
+                buffer.range.start as u32,
+            ));
+        }
+        None
+    }
+    pub fn get_first(&self, id: &ResourceId) -> Option<&T> {
+        if let Some(buffer) = self.occupied.iter().find(|d| d.id == *id) {
+            return Some(&self.data[buffer.range.start]);
+        }
+        None
+    }
     pub fn get_first_mut(&mut self, id: &ResourceId) -> Option<&mut T> {
         if let Some(buffer) = self.occupied.iter().find(|d| d.id == *id) {
             return Some(&mut self.data[buffer.range.start]);

@@ -1,5 +1,5 @@
 use inox_bitmask::bitmask;
-use inox_math::{quantize_half, Mat4Ops, Matrix4};
+use inox_math::quantize_half;
 
 use crate::{MaterialFlags, TextureType, VertexBufferLayoutBuilder, VertexFormat, INVALID_INDEX};
 
@@ -36,19 +36,6 @@ pub struct DrawIndexedCommand {
     pub base_instance: u32,
 }
 
-impl DrawIndexedCommand {
-    pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
-        let mut layout_builder = VertexBufferLayoutBuilder::instance();
-        layout_builder.starting_location(starting_location);
-        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
-        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
-        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
-        layout_builder.add_attribute::<i32>(VertexFormat::Uint32.into());
-        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
-        layout_builder
-    }
-}
-
 #[repr(C)]
 #[derive(Default, PartialEq, Eq, Clone, Copy, Debug)]
 pub struct DrawCommand {
@@ -65,11 +52,10 @@ pub struct GPUMesh {
     pub vertices_attribute_offset: u32,
     pub flags_and_vertices_attribute_layout: u32, // 16 bits | 16 bits
     pub material_index: i32,
-    pub orientation: [f32; 4],
-    pub position: [f32; 3],
     pub meshlets_offset: u32,
-    pub scale: [f32; 3],
     pub blas_index: u32,
+    pub indices_offset: u32,
+    pub indices_count: u32,
     pub lods_meshlets_offset: [u32; MAX_LOD_LEVELS], // 16 bits start | 16 bits end
 }
 
@@ -78,25 +64,14 @@ impl Default for GPUMesh {
         Self {
             vertices_position_offset: 0,
             vertices_attribute_offset: 0,
-            material_index: INVALID_INDEX,
-            blas_index: 0,
-            position: [0.; 3],
             meshlets_offset: 0,
-            scale: [1.; 3],
+            material_index: INVALID_INDEX,
             flags_and_vertices_attribute_layout: 0,
-            orientation: [0., 0., 0., 1.],
+            blas_index: 0,
+            indices_offset: 0,
+            indices_count: 0,
             lods_meshlets_offset: [0; MAX_LOD_LEVELS],
         }
-    }
-}
-
-impl GPUMesh {
-    pub fn transform(&self) -> Matrix4 {
-        Matrix4::from_translation_orientation_scale(
-            self.position.into(),
-            self.orientation.into(),
-            self.scale.into(),
-        )
     }
 }
 
@@ -178,18 +153,18 @@ pub struct GPUVertexPosition(pub u32);
 #[derive(Default, PartialEq, Clone, Copy, Debug)]
 pub struct GPUVertexAttributes(pub u32);
 
-#[repr(C)]
-#[derive(Default, PartialEq, Clone, Copy, Debug)]
-pub struct GPURuntimeVertexData {
-    pub world_pos: [f32; 3],
-    pub mesh_index: u32,
-}
-
-impl GPURuntimeVertexData {
+impl GPUVertexPosition {
     pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
         let mut layout_builder = VertexBufferLayoutBuilder::vertex();
         layout_builder.starting_location(starting_location);
-        layout_builder.add_attribute::<[f32; 3]>(VertexFormat::Float32x3.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder
+    }
+}
+impl GPUVertexAttributes {
+    pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
+        let mut layout_builder = VertexBufferLayoutBuilder::vertex();
+        layout_builder.starting_location(starting_location);
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
         layout_builder
     }

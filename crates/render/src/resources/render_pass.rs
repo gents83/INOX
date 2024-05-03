@@ -9,10 +9,10 @@ use inox_resources::{
 use crate::{
     platform::{has_multisampling_support, is_indirect_mode_enabled},
     texture_ref::TextureRef,
-    AsBinding, BindingData, BufferId, BufferRef, CommandBuffer, DrawCommandType,
-    DrawIndexedCommand, GPUMesh, GPUMeshlet, LoadOperation, MeshFlags, RenderContext, RenderMode,
-    RenderPassData, RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId, TextureUsage,
-    TextureView, VertexBufferLayoutBuilder, WebGpuContextRc,
+    AsBinding, BindingData, BufferId, BufferRef, CommandBuffer, DrawIndexedCommand, GPUMesh,
+    GPUMeshlet, LoadOperation, MeshFlags, RenderContext, RenderMode, RenderPassData,
+    RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId, TextureUsage, TextureView,
+    VertexBufferLayoutBuilder, WebGpuContextRc,
 };
 
 pub type RenderPassId = ResourceId;
@@ -448,8 +448,8 @@ impl RenderPass {
     pub fn indirect_draw(
         &self,
         render_context: &RenderContext,
-        instances: &Vec<DrawIndexedCommand>,
-        instance_count: &usize,
+        commands: &Vec<DrawIndexedCommand>,
+        commands_count: &usize,
         mut render_pass: wgpu::RenderPass,
     ) {
         inox_profiler::scoped_profile!("render_pass::indirect_draw");
@@ -461,21 +461,21 @@ impl RenderPass {
                 "render_pass::multi_draw_indexed_indirect_count",
             );
             let buffers = render_context.buffers();
-            let indirect_buffer = buffers.get(&(instances.buffer_id())).unwrap();
-            let count_buffer = buffers.get(&instance_count.buffer_id()).unwrap();
+            let indirect_buffer = buffers.get(&(commands.buffer_id())).unwrap();
+            let count_buffer = buffers.get(&commands_count.buffer_id()).unwrap();
             let mut render_pass = render_pass;
             render_pass.multi_draw_indexed_indirect_count(
                 indirect_buffer.gpu_buffer().unwrap(),
                 0,
                 count_buffer.gpu_buffer().unwrap(),
                 0,
-                instances.len() as _,
+                commands.len() as _,
             );
             return;
         }
         //TODO: use debug_log_once
         //inox_log::debug_log!("Unable to use indirect_draw - using normal draw_indexed");
-        self.draw_indexed(render_context, render_pass, instances);
+        self.draw_indexed(render_context, render_pass, commands);
     }
 
     pub fn draw_meshlets(&self, render_context: &RenderContext, mut render_pass: wgpu::RenderPass) {
@@ -513,55 +513,6 @@ impl RenderPass {
                     }
                 }
             });
-    }
-
-    pub fn indirect_indexed_draw(
-        &self,
-        render_context: &RenderContext,
-        draw_commands_type: DrawCommandType,
-        mut render_pass: wgpu::RenderPass,
-    ) {
-        inox_profiler::scoped_profile!("render_pass::indirect_draw");
-
-        if is_indirect_mode_enabled() && self.render_mode == RenderMode::Indirect {
-            let mesh_flags = self.pipeline().get().data().mesh_flags;
-            if let Some(commands) = render_context
-                .global_buffers()
-                .draw_commands
-                .read()
-                .unwrap()
-                .get(&mesh_flags)
-            {
-                if let Some(commands) = commands.map.get(&draw_commands_type) {
-                    if !commands.commands.is_empty() {
-                        let commands_id = commands.commands.buffer_id();
-                        let buffers = render_context.buffers();
-                        if let Some(commands_buffer) = buffers.get(&commands_id) {
-                            let count_id = commands.counter.buffer_id();
-                            if let Some(count_buffer) = buffers.get(&count_id) {
-                                inox_profiler::gpu_scoped_profile!(
-                                    &mut render_pass,
-                                    &render_context.webgpu.device,
-                                    "render_pass::multi_draw_indexed_indirect_count",
-                                );
-                                let mut render_pass = render_pass;
-                                render_pass.multi_draw_indexed_indirect_count(
-                                    commands_buffer.gpu_buffer().unwrap(),
-                                    0,
-                                    count_buffer.gpu_buffer().unwrap(),
-                                    0,
-                                    commands.commands.item_count() as _,
-                                );
-                                return;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        //TODO: use debug_log_once
-        //inox_log::debug_log!("Unable to use indirect_draw - using normal draw_indexed");
-        self.draw_meshlets(render_context, render_pass);
     }
 
     pub fn draw(

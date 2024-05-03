@@ -2,12 +2,11 @@ use std::path::PathBuf;
 
 use inox_bvh::GPUBVHNode;
 use inox_render::{
-    BVHBuffer, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DrawCommandType, GPULight, GPUMaterial, GPUMesh, GPUMeshlet,
-    GPURuntimeVertexData, GPUTexture, GPUVector, GPUVertexAttributes, GPUVertexIndices,
-    IndicesBuffer, LightsBuffer, MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass,
-    RenderContext, RenderContextRc, RuntimeVerticesBuffer, SamplerType, ShaderStage, TextureView,
-    TexturesBuffer, VertexAttributesBuffer, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
+    ConstantDataRw, DrawCommandType, GPUBuffer, GPULight, GPUMaterial, GPUMesh, GPUMeshlet,
+    GPUTexture, GPUVector, GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, MeshFlags,
+    Pass, RenderContext, RenderContextRc, SamplerType, ShaderStage, TextureView, DEFAULT_HEIGHT,
+    DEFAULT_WIDTH,
 };
 
 use inox_core::ContextRc;
@@ -28,15 +27,15 @@ pub struct ComputePathTracingIndirectPass {
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    meshes: MeshesBuffer,
-    meshlets: MeshletsBuffer,
-    bhv: BVHBuffer,
-    indices: IndicesBuffer,
-    runtime_vertices: RuntimeVerticesBuffer,
-    vertices_attributes: VertexAttributesBuffer,
-    textures: TexturesBuffer,
-    materials: MaterialsBuffer,
-    lights: LightsBuffer,
+    meshes: GPUBuffer<GPUMesh>,
+    meshlets: GPUBuffer<GPUMeshlet>,
+    bhv: GPUBuffer<GPUBVHNode>,
+    indices: GPUBuffer<GPUVertexIndices>,
+    vertices_position: GPUBuffer<GPUVertexPosition>,
+    vertices_attributes: GPUBuffer<GPUVertexAttributes>,
+    textures: GPUBuffer<GPUTexture>,
+    materials: GPUBuffer<GPUMaterial>,
+    lights: GPUBuffer<GPULight>,
     data_buffer_0: GPUVector<RayPackedData>,
     data_buffer_1: GPUVector<RadiancePackedData>,
     data_buffer_2: GPUVector<ThroughputPackedData>,
@@ -90,9 +89,9 @@ impl Pass for ComputePathTracingIndirectPass {
             meshlets: render_context.global_buffers().buffer::<GPUMeshlet>(),
             bhv: render_context.global_buffers().buffer::<GPUBVHNode>(),
             indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
-            runtime_vertices: render_context
+            vertices_position: render_context
                 .global_buffers()
-                .buffer::<GPURuntimeVertexData>(),
+                .buffer::<GPUVertexPosition>(),
             vertices_attributes: render_context
                 .global_buffers()
                 .buffer::<GPUVertexAttributes>(),
@@ -200,8 +199,8 @@ impl Pass for ComputePathTracingIndirectPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.runtime_vertices.write().unwrap(),
-                Some("Runtime Vertices"),
+                &mut *self.vertices_position.write().unwrap(),
+                Some("Vertices Position"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 0,
@@ -297,12 +296,8 @@ impl Pass for ComputePathTracingIndirectPass {
 
         let x_pixels_managed_in_shader = 8;
         let y_pixels_managed_in_shader = 8;
-        let x = (x_pixels_managed_in_shader
-            * ((self.dimensions.0 + x_pixels_managed_in_shader - 1) / x_pixels_managed_in_shader))
-            / x_pixels_managed_in_shader;
-        let y = (y_pixels_managed_in_shader
-            * ((self.dimensions.1 + y_pixels_managed_in_shader - 1) / y_pixels_managed_in_shader))
-            / y_pixels_managed_in_shader;
+        let x = (self.dimensions.0 + x_pixels_managed_in_shader - 1) / x_pixels_managed_in_shader;
+        let y = (self.dimensions.1 + y_pixels_managed_in_shader - 1) / y_pixels_managed_in_shader;
 
         pass.dispatch(
             render_context,

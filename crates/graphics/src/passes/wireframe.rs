@@ -128,21 +128,16 @@ impl Pass for WireframePass {
                 &mut self.vertices,
                 Some("DebugVertices"),
             )
-            .set_vertex_buffer(
-                VextexBindingType::Instance,
-                &mut self.instances,
-                Some("DebugInstances"),
-            )
-            .bind_buffer(&mut self.instance_count, Some("DebugInstance Count"))
-            .set_index_buffer(&mut self.indices, Some("DebugIndices"));
+            .set_index_buffer(&mut self.indices, Some("DebugIndices"))
+            .bind_buffer(&mut self.instances, Some("DebugInstances"))
+            .bind_buffer(&mut self.instance_count, Some("DebugInstance Count"));
 
         let vertex_layout = DebugVertex::descriptor(0);
-        let instance_layout = DrawIndexedCommand::descriptor(vertex_layout.location());
         pass.init(
             render_context,
             &mut self.binding_data,
             Some(vertex_layout),
-            Some(instance_layout),
+            None,
         );
     }
     fn update(

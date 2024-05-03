@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use crate::{Material, MeshData};
 
 use inox_bitmask::bitmask;
-use inox_math::{MatBase, Matrix4, VecBase, Vector3};
+use inox_math::{VecBase, Vector3};
 use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, DataTypeResourceEvent, Handle, Resource, ResourceEvent, ResourceId,
@@ -41,7 +41,6 @@ pub struct Mesh {
     message_hub: MessageHubRc,
     shared_data: SharedDataRc,
     path: PathBuf,
-    matrix: Matrix4,
     material: Handle<Material>,
     flags: MeshFlags,
     min: Vector3,
@@ -90,7 +89,6 @@ impl DataTypeResource for Mesh {
             shared_data: shared_data.clone(),
             message_hub: message_hub.clone(),
             path: PathBuf::new(),
-            matrix: Matrix4::default_identity(),
             material: None,
             flags: MeshFlags::Visible | MeshFlags::Opaque,
             min: Vector3::default_zero(),
@@ -130,13 +128,6 @@ impl Mesh {
     }
     pub fn find_from_path(shared_data: &SharedDataRc, path: &Path) -> Handle<Self> {
         SharedData::match_resource(shared_data, |m: &Mesh| m.path() == path)
-    }
-    pub fn set_matrix(&mut self, transform: Matrix4) -> &mut Self {
-        if self.matrix != transform {
-            self.matrix = transform;
-            self.mark_as_dirty();
-        }
-        self
     }
     pub fn set_material(&mut self, material: Resource<Material>) -> &mut Self {
         if self.material.is_none() || self.material.as_ref().unwrap().id() != material.id() {
@@ -191,8 +182,5 @@ impl Mesh {
             self.mark_as_dirty();
         }
         self
-    }
-    pub fn matrix(&self) -> Matrix4 {
-        self.matrix
     }
 }
