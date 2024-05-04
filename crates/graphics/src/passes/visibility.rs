@@ -5,7 +5,7 @@ use inox_math::Mat4Ops;
 use inox_messenger::Listener;
 use inox_render::{
     AsBinding, BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
-    DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet, GPUVertexIndices,
+    DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet, GPUVector, GPUVertexIndices,
     GPUVertexPosition, Mesh, MeshFlags, MeshId, Pass, RenderContext, RenderContextRc, RenderPass,
     RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation, Texture,
     TextureView, VextexBindingType,
@@ -33,7 +33,7 @@ pub struct VisibilityBufferPass {
     meshes: GPUBuffer<GPUMesh>,
     indices: GPUBuffer<GPUVertexIndices>,
     bhv: GPUBuffer<GPUBVHNode>,
-    instances: Vec<GPUInstance>,
+    instances: GPUVector<GPUInstance>,
     instance_map: HashMap<MeshId, Vec<InstanceMapData>>,
     is_dirty: bool,
     commands: Vec<DrawIndexedCommand>,
@@ -91,9 +91,9 @@ impl Pass for VisibilityBufferPass {
             constant_data: render_context.global_buffers().constant_data.clone(),
             meshes: render_context.global_buffers().buffer::<GPUMesh>(),
             indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
+            instances: render_context.global_buffers().vector::<GPUInstance>(),
             bhv: render_context.global_buffers().buffer::<GPUBVHNode>(),
             instance_map: HashMap::new(),
-            instances: Vec::new(),
             commands: Vec::new(),
             commands_count: 0,
             is_dirty: true,
@@ -132,7 +132,7 @@ impl Pass for VisibilityBufferPass {
             )
             .set_vertex_buffer(
                 VextexBindingType::Instance,
-                &mut self.instances,
+                &mut *self.instances.write().unwrap(),
                 Some("Instances"),
             )
             .set_index_buffer(&mut *self.indices.write().unwrap(), Some("Indices"))
@@ -207,7 +207,8 @@ impl VisibilityBufferPass {
             return;
         }
         self.commands.clear();
-        self.instances.clear();
+        let mut instances = self.instances.write().unwrap();
+        instances.clear();
 
         let meshes = self.meshes.read().unwrap();
         self.instance_map.iter().for_each(|(mesh_id, data)| {
@@ -217,11 +218,11 @@ impl VisibilityBufferPass {
             let meshlets = meshlets.read().unwrap();
             if let Some(meshlets) = meshlets.get(mesh_id) {
                 meshlets.iter().for_each(|meshlet| {
-                    let base_instance = self.instances.len() as u32;
+                    let base_instance = instances.len() as u32;
                     data.iter().for_each(|mesh_instance| {
                         let mut instance = mesh_instance.instance;
                         instance.meshlet_index = mesh.meshlets_offset;
-                        self.instances.push(instance);
+                        instances.push(instance);
                     });
                     let command = DrawIndexedCommand {
                         instance_count: data.len() as u32,
@@ -238,7 +239,7 @@ impl VisibilityBufferPass {
         self.commands
             .sort_by(|a, b| b.instance_count.partial_cmp(&a.instance_count).unwrap());
         self.commands_count = self.commands.len();
-        self.instances.mark_as_dirty(render_context);
+        instances.mark_as_dirty(render_context);
         self.commands.mark_as_dirty(render_context);
         self.commands_count.mark_as_dirty(render_context);
 

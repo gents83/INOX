@@ -245,7 +245,7 @@ impl Viewer {
         Self::create_visibility_pass(context, render_context);
         Self::create_compute_pathtracing_direct_pass(context, render_context);
         //Self::create_compute_pathtracing_indirect_pass(context, render_context);
-        //Self::create_finalize_pass(context, render_context);
+        Self::create_finalize_pass(context, render_context);
         Self::create_blit_pass(context, render_context);
 
         //Self::create_debug_pass(context, render_context);
@@ -281,13 +281,14 @@ impl Viewer {
             ComputePathTracingDirectPass::create(context, render_context);
         let visibility_texture =
             render_context.render_target(RenderTargetType::Visibility as usize);
-        let instance_texture = render_context.render_target(RenderTargetType::Instance as usize);
         compute_pathtracing_direct_pass
             .set_visibility_texture(
                 visibility_texture.id(),
                 visibility_texture.get().dimensions(),
             )
-            .set_instance_texture(instance_texture.id(), instance_texture.get().dimensions())
+            .set_instance_texture(
+                &render_context.render_target_id(RenderTargetType::Instance as usize),
+            )
             .set_depth_texture(&render_context.render_target_id(RenderTargetType::Depth as usize));
         render_context.add_pass(compute_pathtracing_direct_pass, true);
     }

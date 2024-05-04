@@ -9,7 +9,7 @@ var<storage, read> indices: Indices;
 var<storage, read> vertices_positions: VerticesPositions;
 @group(0) @binding(3)
 var<storage, read> vertices_attributes: VerticesAttributes;
-@group(1) @binding(4)
+@group(0) @binding(4)
 var<storage, read> instances: Instances;
 @group(0) @binding(5)
 var<storage, read> meshes: Meshes;
@@ -86,38 +86,36 @@ fn main(
         let depth = textureLoad(depth_texture, depth_pixel, 0);
         let hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth); 
  
-        var pixel_data = visibility_to_gbuffer(visibility_id, instance_id, hit_point);
-        //let radiance_data = compute_radiance_from_visibility(visibility_id, instance_id, hit_point, get_random_numbers(&seed), vec3<f32>(0.), vec3<f32>(1.)); 
-        //
-        //origin += hit_point + radiance_data.direction * HIT_EPSILON;
-        //direction += radiance_data.direction;
-        //if (constant_data.indirect_light_num_bounces == 0) {
-        //    //radiance += material_info.f_color.rgb;
-        //    radiance += radiance_data.throughput_weight;
-        //}
-        //radiance += radiance_data.radiance;
-        //throughput_weight += radiance_data.throughput_weight;
-        //    
-        //if first_visibility_id == 0u {
-        //    first_visibility_id = visibility_id;
-        //}
+        let radiance_data = compute_radiance_from_visibility(visibility_id, instance_id - 1u, hit_point, get_random_numbers(&seed), vec3<f32>(0.), vec3<f32>(1.)); 
+        
+        origin += hit_point + radiance_data.direction * HIT_EPSILON;
+        direction += radiance_data.direction;
+        if (constant_data.indirect_light_num_bounces == 0) {
+            radiance += radiance_data.diffuse_color;
+        } else {
+            radiance += radiance_data.radiance;
+        }
+        throughput_weight += radiance_data.throughput_weight;
+            
+        if first_visibility_id == 0u {
+            first_visibility_id = visibility_id;
+        }
     }
-    
 
-    //let data_index = (global_invocation_id.y * dimensions.x + global_invocation_id.x) * SIZE_OF_DATA_BUFFER_ELEMENT;
-    //
-    //data_buffer_0[data_index] = origin.x;
-    //data_buffer_0[data_index + 1u] = origin.y;
-    //data_buffer_0[data_index + 2u] = origin.z;
-    //let packed_direction = f32(pack2x16float(octahedral_mapping(direction)));
-    //data_buffer_0[data_index + 3u] = packed_direction;
-    //
-    //data_buffer_1[data_index] = radiance.x;
-    //data_buffer_1[data_index + 1u] = radiance.y;
-    //data_buffer_1[data_index + 2u] = radiance.z;
-    //data_buffer_1[data_index + 3u] = f32(first_visibility_id);
-//
-    //data_buffer_2[data_index] = throughput_weight.x;
-    //data_buffer_2[data_index + 1u] = throughput_weight.y;
-    //data_buffer_2[data_index + 2u] = throughput_weight.z;
+    let data_index = (global_invocation_id.y * dimensions.x + global_invocation_id.x) * SIZE_OF_DATA_BUFFER_ELEMENT;
+    
+    data_buffer_0[data_index] = origin.x;
+    data_buffer_0[data_index + 1u] = origin.y;
+    data_buffer_0[data_index + 2u] = origin.z;
+    let packed_direction = f32(pack2x16float(octahedral_mapping(direction)));
+    data_buffer_0[data_index + 3u] = packed_direction;
+    
+    data_buffer_1[data_index] = radiance.x;
+    data_buffer_1[data_index + 1u] = radiance.y;
+    data_buffer_1[data_index + 2u] = radiance.z;
+    data_buffer_1[data_index + 3u] = f32(first_visibility_id);
+
+    data_buffer_2[data_index] = throughput_weight.x;
+    data_buffer_2[data_index + 1u] = throughput_weight.y;
+    data_buffer_2[data_index + 2u] = throughput_weight.z;
 }

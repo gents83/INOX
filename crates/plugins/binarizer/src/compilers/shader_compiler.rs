@@ -253,15 +253,17 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
                             );
                             send_reloaded_event(&self.message_hub, new_path.as_path());
                         }
-                        Err(error) => {
-                            println!("Unable to compile shader {path:?} - with error: \n{error}");
+                        Err(e) => {
+                            println!(
+                                "Unable to compile shader {path:?} with error: \n{}",
+                                e.emit_to_string(&preprocessed_code),
+                            );
                         }
                     };
                 }
                 Err(ref e) => {
                     println!(
-                        "Unable to compile shader {:?} - with error: \n{}\n{}",
-                        path,
+                        "Unable to compile shader {path:?} with error: \n{}\n{}",
                         e.message(),
                         e.emit_to_string(&preprocessed_code),
                     );

@@ -34,7 +34,7 @@ pub struct ComputePathTracingDirectPass {
     indices: GPUBuffer<GPUVertexIndices>,
     vertices_positions: GPUBuffer<GPUVertexPosition>,
     vertices_attributes: GPUBuffer<GPUVertexAttributes>,
-    instances: GPUBuffer<GPUInstance>,
+    instances: GPUVector<GPUInstance>,
     meshes: GPUBuffer<GPUMesh>,
     meshlets: GPUBuffer<GPUMeshlet>,
     materials: GPUBuffer<GPUMaterial>,
@@ -113,7 +113,7 @@ impl Pass for ComputePathTracingDirectPass {
             vertices_attributes: render_context
                 .global_buffers()
                 .buffer::<GPUVertexAttributes>(),
-            instances: render_context.global_buffers().buffer::<GPUInstance>(),
+            instances: render_context.global_buffers().vector::<GPUInstance>(),
             meshes: render_context.global_buffers().buffer::<GPUMesh>(),
             meshlets: render_context.global_buffers().buffer::<GPUMeshlet>(),
             materials: render_context.global_buffers().buffer::<GPUMaterial>(),
@@ -236,7 +236,7 @@ impl Pass for ComputePathTracingDirectPass {
                 Some("Lights"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 2,
+                    binding_index: 1,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -363,12 +363,7 @@ impl ComputePathTracingDirectPass {
         self.visibility_texture = *texture_id;
         self
     }
-    pub fn set_instance_texture(
-        &mut self,
-        texture_id: &TextureId,
-        dimensions: (u32, u32),
-    ) -> &mut Self {
-        self.dimensions = dimensions;
+    pub fn set_instance_texture(&mut self, texture_id: &TextureId) -> &mut Self {
         self.instance_texture = *texture_id;
         self
     }

@@ -1,5 +1,6 @@
 struct RadianceResult {
     direction: vec3<f32>,
+    diffuse_color: vec3<f32>, 
     radiance: vec3<f32>, 
     throughput_weight: vec3<f32>, 
 }
@@ -68,5 +69,5 @@ fn compute_radiance_from_visibility(visibility_id: u32, instance_id: u32, hit_po
     let d = dot(pixel_data.normal, direction);
     let throughput_weight = (material_info.f_color.rgb * 2. * d);
 
-    return RadianceResult(direction, radiance, throughput_weight);
+    return RadianceResult(direction, material_info.f_color.rgb, radiance, throughput_weight);
 }

@@ -46,11 +46,8 @@ fn visibility_to_gbuffer(visibility_id: u32, instance_id: u32, hit_point: vec3<f
     let v1 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.x + position_offset]) * size;
     let v2 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.y + position_offset]) * size;
     let v3 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.z + position_offset]) * size;
-    let p1 = transform_vector(v1, position, orientation, scale);
-    let p2 = transform_vector(v2, position, orientation, scale);
-    let p3 = transform_vector(v3, position, orientation, scale);
     
-    let barycentrics = compute_barycentrics_3d(p1,p2,p3,hit_point); 
+    let barycentrics = compute_barycentrics_3d(v1,v2,v3,hit_point); 
 
     if (offset_color >= 0) {
         let a1 = vertices_attributes.data[attr_indices.x + u32(offset_color)];
