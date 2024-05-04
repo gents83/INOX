@@ -75,7 +75,7 @@ fn draw_triangle_from_visibility(visibility_id: u32, instance_id: u32, pixel: ve
     let position = (*instance).position;
     let scale = (*instance).scale;
     
-    let size = (*instance).mesh_local_bb_max - (*instance).mesh_local_bb_min;
+    let size = abs((*instance).mesh_local_bb_max - (*instance).mesh_local_bb_min);
     let p1 = (*instance).mesh_local_bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.x + position_offset]) * size;
     let p2 = (*instance).mesh_local_bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.y + position_offset]) * size;
     let p3 = (*instance).mesh_local_bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.z + position_offset]) * size;

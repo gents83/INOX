@@ -23,7 +23,7 @@ fn vs_main(
     instance: Instance,
 ) -> VertexOutput {
     
-    let size = instance.mesh_local_bb_max - instance.mesh_local_bb_min;
+    let size = abs(instance.mesh_local_bb_max - instance.mesh_local_bb_min);
     let p = instance.mesh_local_bb_min + unpack_unorm_to_3_f32(vertex_position) * size;
     let v = transform_vector(p, instance.position, instance.orientation, instance.scale);
 

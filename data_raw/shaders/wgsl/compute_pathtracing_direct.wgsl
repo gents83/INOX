@@ -90,12 +90,11 @@ fn main(
         
         origin += hit_point + radiance_data.direction * HIT_EPSILON;
         direction += radiance_data.direction;
-        if (constant_data.indirect_light_num_bounces == 0) {
-            radiance += radiance_data.diffuse_color;
-        } else {
-            radiance += radiance_data.radiance;
-        }
+        radiance += radiance_data.radiance;
         throughput_weight += radiance_data.throughput_weight;
+        if (constant_data.indirect_light_num_bounces == 0) {
+            radiance = radiance_data.diffuse_color;
+        }
             
         if first_visibility_id == 0u {
             first_visibility_id = visibility_id;

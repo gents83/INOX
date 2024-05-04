@@ -217,11 +217,11 @@ impl VisibilityBufferPass {
             let meshlets = render_context.global_buffers().buffer::<GPUMeshlet>();
             let meshlets = meshlets.read().unwrap();
             if let Some(meshlets) = meshlets.get(mesh_id) {
-                meshlets.iter().for_each(|meshlet| {
+                meshlets.iter().enumerate().for_each(|(i, meshlet)| {
                     let base_instance = instances.len() as u32;
                     data.iter().for_each(|mesh_instance| {
                         let mut instance = mesh_instance.instance;
-                        instance.meshlet_index = mesh.meshlets_offset;
+                        instance.meshlet_index = mesh.meshlets_offset + i as u32;
                         instances.push(instance);
                     });
                     let command = DrawIndexedCommand {

@@ -2,7 +2,7 @@
     "vertex_shader": "shaders/wgsl/visibility.shader",
     "fragment_shader": "shaders/wgsl/visibility.shader",
     "front_face": "CounterClockwise",
-    "culling": "None",
+    "culling": "Back",
     "mode": "Fill",
     "depth_write_enabled": true,
     "depth_compare": "Less",
