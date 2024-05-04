@@ -16,13 +16,15 @@ var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
 var<storage, read> indices: Indices;
 @group(0) @binding(2)
-var<storage, read> runtime_vertices: RuntimeVertices;
+var<storage, read> vertices_positions: VerticesPositions;
 @group(0) @binding(3)
 var<storage, read> vertices_attributes: VerticesAttributes;
 @group(0) @binding(4)
 var<storage, read> meshes: Meshes;
 @group(0) @binding(5)
 var<storage, read> meshlets: Meshlets;
+@group(0) @binding(6)
+var<storage, read> instances: Instances;
 
 @group(1) @binding(0)
 var<storage, read> materials: Materials;
@@ -31,9 +33,11 @@ var<storage, read> textures: Textures;
 @group(1) @binding(2)
 var<uniform> lights: Lights;
 @group(1) @binding(3)
-var visibility_texture: texture_multisampled_2d<u32>;
+var visibility_texture: texture_2d<u32>;
 @group(1) @binding(4)
-var depth_texture: texture_depth_multisampled_2d;
+var instance_texture: texture_2d<u32>;
+@group(1) @binding(5)
+var depth_texture: texture_depth_2d;
 
 @group(3) @binding(0)
 var<storage, read> data_buffer_0: array<f32>;
@@ -54,7 +58,7 @@ var<storage, read> data_buffer_debug: array<f32>;
 #import "color_utils.inc"
 
 
-fn draw_triangle_from_visibility(visibility_id: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec3<f32>{
+fn draw_triangle_from_visibility(visibility_id: u32, instance_id: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec3<f32>{
     let meshlet_id = (visibility_id >> 8u) - 1u;
     let primitive_id = visibility_id & 255u;
     let meshlet = &meshlets.data[meshlet_id];
@@ -66,16 +70,24 @@ fn draw_triangle_from_visibility(visibility_id: u32, pixel: vec2<u32>, dimension
     
     let vert_indices = vec3<u32>(indices.data[index_offset], indices.data[index_offset + 1u], indices.data[index_offset + 2u]);
     
-    let p1 = runtime_vertices.data[vert_indices.x + position_offset].world_pos;
-    let p2 = runtime_vertices.data[vert_indices.y + position_offset].world_pos;
-    let p3 = runtime_vertices.data[vert_indices.z + position_offset].world_pos;
+    let instance = &instances.data[instance_id];
+    let orientation = (*instance).orientation;
+    let position = (*instance).position;
+    let scale = (*instance).scale;
+    
+    let bb_min = transform_vector((*instance).mesh_local_bb_min, position, orientation, scale);
+    let bb_max = transform_vector((*instance).mesh_local_bb_max, position, orientation, scale);
+    let size = bb_max - bb_min;
+    let v1 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.x + position_offset]) * size;
+    let v2 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.y + position_offset]) * size;
+    let v3 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.z + position_offset]) * size;
     
     let line_color = vec3<f32>(0., 1., 1.);
     let line_size = 0.001;
     var color = vec3<f32>(0.);
-    color += draw_line_3d(pixel, dimensions, p1, p2, line_color, line_size);
-    color += draw_line_3d(pixel, dimensions, p2, p3, line_color, line_size);
-    color += draw_line_3d(pixel, dimensions, p3, p1, line_color, line_size);
+    color += draw_line_3d(pixel, dimensions, v1, v2, line_color, line_size);
+    color += draw_line_3d(pixel, dimensions, v2, v3, line_color, line_size);
+    color += draw_line_3d(pixel, dimensions, v3, v1, line_color, line_size);
     return color;
 }
 
@@ -149,8 +161,15 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
-        if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
-            var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
+    
+        let instance_dimensions = textureDimensions(instance_texture);
+        let instance_scale = vec2<f32>(instance_dimensions) / vec2<f32>(dimensions);
+        let instance_pixel = vec2<u32>(vec2<f32>(pixel) * instance_scale);
+        let instance_value = textureLoad(instance_texture, instance_pixel, 0);
+        let instance_id = instance_value.r;
+        
+        if (instance_id != 0u && visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
+            var pixel_data = visibility_to_gbuffer(visibility_id, instance_id- 1u, hit_point);
             out_color = vec4<f32>(vec3<f32>(pixel_data.uv_set[0].xy, 0.), 1.);
         }
     } 
@@ -166,8 +185,15 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
-        if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
-            var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
+    
+        let instance_dimensions = textureDimensions(instance_texture);
+        let instance_scale = vec2<f32>(instance_dimensions) / vec2<f32>(dimensions);
+        let instance_pixel = vec2<u32>(vec2<f32>(pixel) * instance_scale);
+        let instance_value = textureLoad(instance_texture, instance_pixel, 0);
+        let instance_id = instance_value.r;
+        
+        if (instance_id != 0u && visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
+            var pixel_data = visibility_to_gbuffer(visibility_id, instance_id- 1u, hit_point);
             out_color = vec4<f32>(vec3<f32>(pixel_data.uv_set[1].xy, 0.), 1.);
         }
     } 
@@ -183,8 +209,15 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
-        if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
-            var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
+    
+        let instance_dimensions = textureDimensions(instance_texture);
+        let instance_scale = vec2<f32>(instance_dimensions) / vec2<f32>(dimensions);
+        let instance_pixel = vec2<u32>(vec2<f32>(pixel) * instance_scale);
+        let instance_value = textureLoad(instance_texture, instance_pixel, 0);
+        let instance_id = instance_value.r;
+        
+        if (instance_id != 0u && visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
+            var pixel_data = visibility_to_gbuffer(visibility_id, instance_id- 1u, hit_point);
             out_color = vec4<f32>(vec3<f32>(pixel_data.uv_set[2].xy, 0.), 1.);
         }
     } 
@@ -200,8 +233,15 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
-        if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
-            var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
+    
+        let instance_dimensions = textureDimensions(instance_texture);
+        let instance_scale = vec2<f32>(instance_dimensions) / vec2<f32>(dimensions);
+        let instance_pixel = vec2<u32>(vec2<f32>(pixel) * instance_scale);
+        let instance_value = textureLoad(instance_texture, instance_pixel, 0);
+        let instance_id = instance_value.r;
+        
+        if (instance_id != 0u && visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
+            var pixel_data = visibility_to_gbuffer(visibility_id, instance_id- 1u, hit_point);
             out_color = vec4<f32>(vec3<f32>(pixel_data.uv_set[3].xy, 0.), 1.);
         }
     } 
@@ -217,8 +257,15 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
-        if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
-            var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
+    
+        let instance_dimensions = textureDimensions(instance_texture);
+        let instance_scale = vec2<f32>(instance_dimensions) / vec2<f32>(dimensions);
+        let instance_pixel = vec2<u32>(vec2<f32>(pixel) * instance_scale);
+        let instance_value = textureLoad(instance_texture, instance_pixel, 0);
+        let instance_id = instance_value.r;
+        
+        if (instance_id != 0u && visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
+            var pixel_data = visibility_to_gbuffer(visibility_id, instance_id- 1u, hit_point);
             var material = materials.data[pixel_data.material_id];
             let tbn = compute_tbn(&material, &pixel_data);
             out_color = vec4<f32>((vec3<f32>(1.) + tbn.normal) / vec3<f32>(2.), 1.);
@@ -236,8 +283,15 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
-        if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
-            var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
+    
+        let instance_dimensions = textureDimensions(instance_texture);
+        let instance_scale = vec2<f32>(instance_dimensions) / vec2<f32>(dimensions);
+        let instance_pixel = vec2<u32>(vec2<f32>(pixel) * instance_scale);
+        let instance_value = textureLoad(instance_texture, instance_pixel, 0);
+        let instance_id = instance_value.r;
+        
+        if (instance_id != 0u && visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
+            var pixel_data = visibility_to_gbuffer(visibility_id, instance_id- 1u, hit_point);
             var material = materials.data[pixel_data.material_id];
             let tbn = compute_tbn(&material, &pixel_data);
             out_color = vec4<f32>((vec3<f32>(1.) + tbn.tangent) / vec3<f32>(2.), 1.);
@@ -255,8 +309,15 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
-        if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
-            var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
+    
+        let instance_dimensions = textureDimensions(instance_texture);
+        let instance_scale = vec2<f32>(instance_dimensions) / vec2<f32>(dimensions);
+        let instance_pixel = vec2<u32>(vec2<f32>(pixel) * instance_scale);
+        let instance_value = textureLoad(instance_texture, instance_pixel, 0);
+        let instance_id = instance_value.r;
+        
+        if (instance_id != 0u && visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
+            var pixel_data = visibility_to_gbuffer(visibility_id, instance_id- 1u, hit_point);
             var material = materials.data[pixel_data.material_id];
             let tbn = compute_tbn(&material, &pixel_data);
             out_color = vec4<f32>((vec3<f32>(1.) + tbn.binormal) / vec3<f32>(2.), 1.);
@@ -274,8 +335,15 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
-        if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
-            var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
+    
+        let instance_dimensions = textureDimensions(instance_texture);
+        let instance_scale = vec2<f32>(instance_dimensions) / vec2<f32>(dimensions);
+        let instance_pixel = vec2<u32>(vec2<f32>(pixel) * instance_scale);
+        let instance_value = textureLoad(instance_texture, instance_pixel, 0);
+        let instance_id = instance_value.r;
+        
+        if (instance_id != 0u && visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
+            var pixel_data = visibility_to_gbuffer(visibility_id, instance_id- 1u, hit_point);
             let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data);
             out_color = vec4<f32>(vec3<f32>(material_info.base_color.rgb), 1.);
         }
@@ -292,8 +360,15 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
-        if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
-            var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
+    
+        let instance_dimensions = textureDimensions(instance_texture);
+        let instance_scale = vec2<f32>(instance_dimensions) / vec2<f32>(dimensions);
+        let instance_pixel = vec2<u32>(vec2<f32>(pixel) * instance_scale);
+        let instance_value = textureLoad(instance_texture, instance_pixel, 0);
+        let instance_id = instance_value.r;
+        
+        if (instance_id != 0u && visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
+            var pixel_data = visibility_to_gbuffer(visibility_id, instance_id- 1u, hit_point);
             let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data);
             out_color = vec4<f32>(vec3<f32>(material_info.metallic), 1.);
         }
@@ -310,8 +385,15 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
-        if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
-            var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
+    
+        let instance_dimensions = textureDimensions(instance_texture);
+        let instance_scale = vec2<f32>(instance_dimensions) / vec2<f32>(dimensions);
+        let instance_pixel = vec2<u32>(vec2<f32>(pixel) * instance_scale);
+        let instance_value = textureLoad(instance_texture, instance_pixel, 0);
+        let instance_id = instance_value.r;
+        
+        if (instance_id != 0u && visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
+            var pixel_data = visibility_to_gbuffer(visibility_id, instance_id- 1u, hit_point);
             let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data);
             out_color = vec4<f32>(vec3<f32>(material_info.perceptual_roughness), 1.);
         }
@@ -332,6 +414,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let v = vec3<f32>(1. - depth) * 10.;
         out_color = vec4<f32>(v, 1.);
     } 
+    /*
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE) != 0) {
         var origin = vec3<f32>(0.);
         var direction = vec3<f32>(0.);
@@ -363,7 +446,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         if(max_index > 8u) {
             while(debug_index < max_index) {
                 let visibility_id = u32(data_buffer_debug[debug_index]);
-                color += draw_triangle_from_visibility(visibility_id, screen_pixel, dimensions);
+                color += draw_triangle_from_visibility(visibility_id, instance_id, screen_pixel, dimensions);
                 
                 var previous = origin;
                 origin = vec3<f32>(data_buffer_debug[debug_index + 1u], data_buffer_debug[debug_index + 2u], data_buffer_debug[debug_index + 3u]);
@@ -378,7 +461,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
             color += draw_line_3d(screen_pixel, dimensions, origin, origin + direction * 5., line_color, line_size);
             out_color = vec4<f32>(color, 1.);
         }
-    }
+    }*/
     
     return select(vec4<f32>(0.), out_color, out_color.a > 0.);
 }

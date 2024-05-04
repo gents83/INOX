@@ -20,15 +20,6 @@ fn visibility_to_gbuffer(visibility_id: u32, instance_id: u32, hit_point: vec3<f
     let attributes_offset = (*mesh).vertices_attribute_offset;
     let vertex_layout = (*mesh).flags_and_vertices_attribute_layout & 0x0000FFFFu;
 
-    let instance = &instances.data[instance_id];
-    let orientation = (*instance).orientation;
-    let position = (*instance).position;
-    let scale = (*instance).scale;
-    
-    let bb_min = transform_vector((*instance).mesh_local_bb_min, position, orientation, scale);
-    let bb_max = transform_vector((*instance).mesh_local_bb_max, position, orientation, scale);
-    let size = bb_max - bb_min;
-
     let vertex_attribute_stride = vertex_layout_stride(vertex_layout);   
     let offset_color = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_COLOR);
     let offset_normal = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_NORMAL);
@@ -42,7 +33,15 @@ fn visibility_to_gbuffer(visibility_id: u32, instance_id: u32, hit_point: vec3<f
     let attr_indices = vec3<u32>(attributes_offset + vert_indices.x * vertex_attribute_stride, 
                                  attributes_offset + vert_indices.y * vertex_attribute_stride,
                                  attributes_offset + vert_indices.z * vertex_attribute_stride);
+
+    let instance = &instances.data[instance_id];
+    let orientation = (*instance).orientation;
+    let position = (*instance).position;
+    let scale = (*instance).scale;
     
+    let bb_min = transform_vector((*instance).mesh_local_bb_min, position, orientation, scale);
+    let bb_max = transform_vector((*instance).mesh_local_bb_max, position, orientation, scale);
+    let size = bb_max - bb_min;
     let v1 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.x + position_offset]) * size;
     let v2 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.y + position_offset]) * size;
     let v3 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.z + position_offset]) * size;

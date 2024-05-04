@@ -248,7 +248,7 @@ impl Viewer {
         Self::create_finalize_pass(context, render_context);
         Self::create_blit_pass(context, render_context);
 
-        //Self::create_debug_pass(context, render_context);
+        Self::create_debug_pass(context, render_context);
         Self::create_wireframe_pass(context, render_context, has_wireframe_support());
         Self::create_ui_pass(context, render_context, ADD_UI_PASS);
     }
@@ -324,6 +324,9 @@ impl Viewer {
         debug_pass
             .set_visibility_texture(
                 &render_context.render_target_id(RenderTargetType::Visibility as usize),
+            )
+            .set_instance_texture(
+                &render_context.render_target_id(RenderTargetType::Instance as usize),
             )
             .set_depth_texture(&render_context.render_target_id(RenderTargetType::Depth as usize));
         render_context.add_pass(debug_pass, true);
