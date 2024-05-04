@@ -1,6 +1,6 @@
-// Need constant_data, meshlets, meshes, indices, runtime_vertices, vertices_attributes
+// Need constant_data, instances, meshlets, meshes, indices, vertices_positions, vertices_attributes
 
-fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData 
+fn visibility_to_gbuffer(visibility_id: u32, instance_id: u32, hit_point: vec3<f32>) -> PixelData 
 {     
     var uv_set: array<vec4<f32>, 4>;
     var normal = vec3<f32>(0.);
@@ -19,7 +19,16 @@ fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData
     let position_offset = (*mesh).vertices_position_offset;
     let attributes_offset = (*mesh).vertices_attribute_offset;
     let vertex_layout = (*mesh).flags_and_vertices_attribute_layout & 0x0000FFFFu;
-    let orientation = (*mesh).orientation;
+
+    let instance = &instances.data[instance_id];
+    let orientation = (*instance).orientation;
+    let position = (*instance).position;
+    let scale = (*instance).scale;
+    
+    let bb_min = transform_vector((*instance).mesh_local_bb_min, position, orientation, scale);
+    let bb_max = transform_vector((*instance).mesh_local_bb_max, position, orientation, scale);
+    let size = bb_max - bb_min;
+
     let vertex_attribute_stride = vertex_layout_stride(vertex_layout);   
     let offset_color = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_COLOR);
     let offset_normal = vertex_attribute_offset(vertex_layout, VERTEX_ATTRIBUTE_HAS_NORMAL);
@@ -34,9 +43,12 @@ fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData
                                  attributes_offset + vert_indices.y * vertex_attribute_stride,
                                  attributes_offset + vert_indices.z * vertex_attribute_stride);
     
-    let p1 = runtime_vertices.data[vert_indices.x + position_offset].world_pos;
-    let p2 = runtime_vertices.data[vert_indices.y + position_offset].world_pos;
-    let p3 = runtime_vertices.data[vert_indices.z + position_offset].world_pos;
+    let v1 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.x + position_offset]) * size;
+    let v2 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.y + position_offset]) * size;
+    let v3 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.z + position_offset]) * size;
+    let p1 = transform_vector(v1, position, orientation, scale);
+    let p2 = transform_vector(v2, position, orientation, scale);
+    let p3 = transform_vector(v3, position, orientation, scale);
     
     let barycentrics = compute_barycentrics_3d(p1,p2,p3,hit_point); 
 
@@ -131,7 +143,6 @@ fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData
         uv_dx = select(uv_dx, vec2<f32>(1., 0.), length(uv_dx) <= 0.01);
         uv_dy = select(uv_dy, vec2<f32>(0., 1.), length(uv_dy) <= 0.01);
         uv_set[3] = vec4<f32>(uv, f32(pack2x16float(uv_dx)), f32(pack2x16float(uv_dy)));
-    }    
-
-    return PixelData(hit_point, material_id, color, normal, mesh_id, tangent, uv_set);
+    }  
+    return PixelData(hit_point, material_id, color, normal, instance_id, tangent, uv_set);
 }

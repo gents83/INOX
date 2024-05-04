@@ -119,10 +119,17 @@ struct ConstantData {
     _empty3: u32,
 };
 
-struct RuntimeVertexData {
-    @location(0) world_pos: vec3<f32>,
-    @location(1) @interpolate(flat) mesh_index: u32,
-};
+struct Instance {
+    @location(1) mesh_local_bb_min: vec3<f32>,
+    @location(2) mesh_index: u32,
+    @location(3) mesh_local_bb_max: vec3<f32>,
+    @location(4) meshlet_index: u32,
+    @location(5) orientation: vec4<f32>,
+    @location(6) position: vec3<f32>,
+    @location(7) padding1: u32,
+    @location(8) scale: vec3<f32>,
+    @location(9) padding2: u32,
+}
 
 struct DrawCommand {
     vertex_count: u32,
@@ -150,11 +157,10 @@ struct Mesh {
     vertices_attribute_offset: u32,
     flags_and_vertices_attribute_layout: u32,
     material_index: i32,
-    orientation: vec4<f32>,
-    position: vec3<f32>,
     meshlets_offset: u32,
-    scale: vec3<f32>,
     blas_index: u32,
+    indices_offset: u32,
+    indices_count: u32,
     lods_meshlets_offset: array<u32, MAX_LOD_LEVELS>,
 };
 
@@ -234,6 +240,10 @@ struct DrawIndexedCommands {
     data: array<DrawIndexedCommand>,
 };
 
+struct Instances {
+    data: array<Instance>,
+};
+
 struct Meshes {
     data: array<Mesh>,
 };
@@ -244,10 +254,6 @@ struct Meshlets {
 
 struct Indices {
     data: array<u32>,
-};
-
-struct RuntimeVertices {
-    data: array<RuntimeVertexData>,
 };
 
 struct VerticesPositions {
@@ -275,7 +281,7 @@ struct PixelData {
     material_id: u32,
     color: vec4<f32>,
     normal: vec3<f32>,
-    mesh_id: u32, 
+    instance_id: u32, 
     tangent: vec4<f32>,
     uv_set: array<vec4<f32>, 4>,
 };

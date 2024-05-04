@@ -5,10 +5,10 @@ use inox_math::Mat4Ops;
 use inox_messenger::Listener;
 use inox_render::{
     AsBinding, BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
-    DrawIndexedCommand, GPUBuffer, GPUMesh, GPUMeshlet, GPUVertexIndices, GPUVertexPosition, Mesh,
-    MeshFlags, MeshId, Pass, RenderContext, RenderContextRc, RenderPass, RenderPassBeginData,
-    RenderPassData, RenderTarget, ShaderStage, StoreOperation, Texture, TextureView,
-    VertexBufferLayoutBuilder, VertexFormat, VextexBindingType,
+    DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet, GPUVertexIndices,
+    GPUVertexPosition, Mesh, MeshFlags, MeshId, Pass, RenderContext, RenderContextRc, RenderPass,
+    RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation, Texture,
+    TextureView, VextexBindingType,
 };
 
 use inox_core::ContextRc;
@@ -19,39 +19,8 @@ use inox_uid::generate_random_uid;
 pub const VISIBILITY_BUFFER_PIPELINE: &str = "pipelines/VisibilityBuffer.render_pipeline";
 pub const VISIBILITY_BUFFER_PASS_NAME: &str = "VisibilityBufferPass";
 
-#[repr(C)]
-#[derive(PartialEq, Clone, Copy, Debug)]
-pub struct Instance {
-    pub bb_min: [f32; 3],
-    pub mesh_index: u32,
-    pub bb_max: [f32; 3],
-    pub meshlet_index: u32,
-}
-
-impl Default for Instance {
-    fn default() -> Self {
-        Self {
-            meshlet_index: 0,
-            mesh_index: 0,
-            bb_min: [0.; 3],
-            bb_max: [0.; 3],
-        }
-    }
-}
-impl Instance {
-    pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
-        let mut layout_builder = VertexBufferLayoutBuilder::instance();
-        layout_builder.starting_location(starting_location);
-        layout_builder.add_attribute::<[f32; 3]>(VertexFormat::Float32x3.into());
-        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
-        layout_builder.add_attribute::<[f32; 3]>(VertexFormat::Float32x3.into());
-        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
-        layout_builder
-    }
-}
-
 struct InstanceMapData {
-    instance: Instance,
+    instance: GPUInstance,
     id: ObjectId,
 }
 
@@ -64,7 +33,7 @@ pub struct VisibilityBufferPass {
     meshes: GPUBuffer<GPUMesh>,
     indices: GPUBuffer<GPUVertexIndices>,
     bhv: GPUBuffer<GPUBVHNode>,
-    instances: Vec<Instance>,
+    instances: Vec<GPUInstance>,
     instance_map: HashMap<MeshId, Vec<InstanceMapData>>,
     is_dirty: bool,
     commands: Vec<DrawIndexedCommand>,
@@ -171,7 +140,7 @@ impl Pass for VisibilityBufferPass {
             .bind_buffer(&mut self.commands_count, Some("Commands Count"));
 
         let vertex_layout = GPUVertexPosition::descriptor(0);
-        let instance_layout = Instance::descriptor(vertex_layout.location());
+        let instance_layout = GPUInstance::descriptor(vertex_layout.location());
         pass.init(
             render_context,
             &mut self.binding_data,
@@ -298,16 +267,19 @@ impl VisibilityBufferPass {
 
                                 let result = instances.iter_mut().find(|e| e.id == *object.id());
                                 if let Some(data) = result {
-                                    data.instance.bb_min =
-                                        matrix.rotate_point(node.min.into()).into();
-                                    data.instance.bb_max =
-                                        matrix.rotate_point(node.max.into()).into();
+                                    data.instance.orientation = matrix.orientation().into();
+                                    data.instance.position = matrix.translation().into();
+                                    data.instance.scale = matrix.scale().into();
                                 } else {
-                                    let instance = Instance {
+                                    let instance = GPUInstance {
                                         mesh_index,
-                                        bb_min: matrix.rotate_point(node.min.into()).into(),
-                                        bb_max: matrix.rotate_point(node.max.into()).into(),
+                                        bb_min: node.min,
+                                        bb_max: node.max,
+                                        orientation: matrix.orientation().into(),
+                                        position: matrix.translation().into(),
+                                        scale: matrix.scale().into(),
                                         meshlet_index: 0,
+                                        ..Default::default()
                                     };
                                     instances.push(InstanceMapData {
                                         instance,

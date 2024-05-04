@@ -1,12 +1,11 @@
 use std::path::PathBuf;
 
-use inox_bvh::GPUBVHNode;
 use inox_render::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DrawCommandType, GPUBuffer, GPULight, GPUMaterial, GPUMesh, GPUMeshlet,
-    GPUTexture, GPUVector, GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, MeshFlags,
-    Pass, RenderContext, RenderContextRc, SamplerType, ShaderStage, TextureId, TextureView,
-    DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    ConstantDataRw, DrawCommandType, GPUBuffer, GPUInstance, GPULight, GPUMaterial, GPUMesh,
+    GPUMeshlet, GPUTexture, GPUVector, GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition,
+    MeshFlags, Pass, RenderContext, RenderContextRc, SamplerType, ShaderStage, TextureId,
+    TextureView, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 use inox_core::ContextRc;
@@ -32,16 +31,17 @@ pub struct ComputePathTracingDirectPass {
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    meshes: GPUBuffer<GPUMesh>,
-    meshlets: GPUBuffer<GPUMeshlet>,
-    bhv: GPUBuffer<GPUBVHNode>,
     indices: GPUBuffer<GPUVertexIndices>,
     vertices_positions: GPUBuffer<GPUVertexPosition>,
     vertices_attributes: GPUBuffer<GPUVertexAttributes>,
-    textures: GPUBuffer<GPUTexture>,
+    instances: GPUBuffer<GPUInstance>,
+    meshes: GPUBuffer<GPUMesh>,
+    meshlets: GPUBuffer<GPUMeshlet>,
     materials: GPUBuffer<GPUMaterial>,
+    textures: GPUBuffer<GPUTexture>,
     lights: GPUBuffer<GPULight>,
     visibility_texture: TextureId,
+    instance_texture: TextureId,
     depth_texture: TextureId,
     data_buffer_0: GPUVector<RayPackedData>,
     data_buffer_1: GPUVector<RadiancePackedData>,
@@ -106,9 +106,6 @@ impl Pass for ComputePathTracingDirectPass {
                 None,
             ),
             constant_data: render_context.global_buffers().constant_data.clone(),
-            meshes: render_context.global_buffers().buffer::<GPUMesh>(),
-            meshlets: render_context.global_buffers().buffer::<GPUMeshlet>(),
-            bhv: render_context.global_buffers().buffer::<GPUBVHNode>(),
             indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
             vertices_positions: render_context
                 .global_buffers()
@@ -116,14 +113,18 @@ impl Pass for ComputePathTracingDirectPass {
             vertices_attributes: render_context
                 .global_buffers()
                 .buffer::<GPUVertexAttributes>(),
-            textures: render_context.global_buffers().buffer::<GPUTexture>(),
+            instances: render_context.global_buffers().buffer::<GPUInstance>(),
+            meshes: render_context.global_buffers().buffer::<GPUMesh>(),
+            meshlets: render_context.global_buffers().buffer::<GPUMeshlet>(),
             materials: render_context.global_buffers().buffer::<GPUMaterial>(),
+            textures: render_context.global_buffers().buffer::<GPUTexture>(),
             lights: render_context.global_buffers().buffer::<GPULight>(),
             data_buffer_0,
             data_buffer_1,
             data_buffer_2,
             binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_DIRECT_NAME),
             visibility_texture: INVALID_UID,
+            instance_texture: INVALID_UID,
             depth_texture: INVALID_UID,
             dimensions: (0, 0),
         }
@@ -131,7 +132,11 @@ impl Pass for ComputePathTracingDirectPass {
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("pathtracing_direct_pass::init");
 
-        if self.visibility_texture.is_nil() || self.meshlets.read().unwrap().is_empty() {
+        if self.visibility_texture.is_nil()
+            || self.instance_texture.is_nil()
+            || self.meshlets.read().unwrap().is_empty()
+            || self.instances.read().unwrap().is_empty()
+        {
             return;
         }
 
@@ -157,13 +162,33 @@ impl Pass for ComputePathTracingDirectPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.vertices_attributes.write().unwrap(),
-                Some("Vertices Attributes"),
+                &mut *self.vertices_positions.write().unwrap(),
+                Some("Vertices Positions"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,
                     stage: ShaderStage::Compute,
+                    flags: BindingFlags::Read | BindingFlags::Vertex,
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.vertices_attributes.write().unwrap(),
+                Some("Vertices Attributes"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 3,
+                    stage: ShaderStage::Compute,
                     ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.instances.write().unwrap(),
+                Some("Instances"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 4,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Read | BindingFlags::Vertex,
                 },
             )
             .add_storage_buffer(
@@ -171,7 +196,7 @@ impl Pass for ComputePathTracingDirectPass {
                 Some("Meshes"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 3,
+                    binding_index: 5,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -181,7 +206,7 @@ impl Pass for ComputePathTracingDirectPass {
                 Some("Meshlets"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 4,
+                    binding_index: 6,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -191,7 +216,7 @@ impl Pass for ComputePathTracingDirectPass {
                 Some("Materials"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 5,
+                    binding_index: 7,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -200,8 +225,8 @@ impl Pass for ComputePathTracingDirectPass {
                 &mut *self.textures.write().unwrap(),
                 Some("Textures"),
                 BindingInfo {
-                    group_index: 0,
-                    binding_index: 6,
+                    group_index: 1,
+                    binding_index: 0,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -210,28 +235,8 @@ impl Pass for ComputePathTracingDirectPass {
                 &mut *self.lights.write().unwrap(),
                 Some("Lights"),
                 BindingInfo {
-                    group_index: 0,
-                    binding_index: 7,
-                    stage: ShaderStage::Compute,
-                    ..Default::default()
-                },
-            )
-            .add_storage_buffer(
-                &mut *self.vertices_positions.write().unwrap(),
-                Some("Vertices Positions"),
-                BindingInfo {
                     group_index: 1,
-                    binding_index: 0,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Read | BindingFlags::Vertex,
-                },
-            )
-            .add_storage_buffer(
-                &mut *self.bhv.write().unwrap(),
-                Some("BHV"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 1,
+                    binding_index: 2,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -246,10 +251,19 @@ impl Pass for ComputePathTracingDirectPass {
                 },
             )
             .add_texture(
-                &self.depth_texture,
+                &self.instance_texture,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 3,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_texture(
+                &self.depth_texture,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 4,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -259,7 +273,7 @@ impl Pass for ComputePathTracingDirectPass {
                 Some("DataBuffer_0"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 4,
+                    binding_index: 5,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
@@ -269,7 +283,7 @@ impl Pass for ComputePathTracingDirectPass {
                 Some("DataBuffer_1"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 5,
+                    binding_index: 6,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
@@ -279,7 +293,7 @@ impl Pass for ComputePathTracingDirectPass {
                 Some("DataBuffer_2"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 6,
+                    binding_index: 7,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 },
@@ -312,7 +326,10 @@ impl Pass for ComputePathTracingDirectPass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        if self.visibility_texture.is_nil() || self.meshlets.read().unwrap().is_empty() {
+        if self.visibility_texture.is_nil()
+            || self.meshlets.read().unwrap().is_empty()
+            || self.instances.read().unwrap().is_empty()
+        {
             return;
         }
 
@@ -344,6 +361,15 @@ impl ComputePathTracingDirectPass {
     ) -> &mut Self {
         self.dimensions = dimensions;
         self.visibility_texture = *texture_id;
+        self
+    }
+    pub fn set_instance_texture(
+        &mut self,
+        texture_id: &TextureId,
+        dimensions: (u32, u32),
+    ) -> &mut Self {
+        self.dimensions = dimensions;
+        self.instance_texture = *texture_id;
         self
     }
     pub fn set_depth_texture(&mut self, texture_id: &TextureId) -> &mut Self {

@@ -1,18 +1,12 @@
 #import "common.inc"
 #import "utils.inc"
+#import "matrix_utils.inc"
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) @interpolate(flat) instance_id: u32,
     @location(1) @interpolate(flat) meshlet_id: u32,
 };
-
-struct Instance {
-    @location(1) mesh_bb_min: vec3<f32>,
-    @location(2) mesh_index: u32,
-    @location(3) mesh_bb_max: vec3<f32>,
-    @location(4) meshlet_index: u32,
-}
 
 struct FragmentOutput {
     @location(0) visibility_id: u32,
@@ -29,8 +23,10 @@ fn vs_main(
     instance: Instance,
 ) -> VertexOutput {
     
-    let size =  instance.mesh_bb_max - instance.mesh_bb_min;
-    let p = instance.mesh_bb_min + unpack_unorm_to_3_f32(vertex_position) * size;
+    let bb_min = transform_vector(instance.mesh_local_bb_min, instance.position, instance.orientation, instance.scale);
+    let bb_max = transform_vector(instance.mesh_local_bb_max, instance.position, instance.orientation, instance.scale);
+    let size = bb_max - bb_min;
+    let p = bb_min + unpack_unorm_to_3_f32(vertex_position) * size;
 
     var vertex_out: VertexOutput;
     vertex_out.clip_position = constant_data.view_proj * vec4<f32>(p, 1.);

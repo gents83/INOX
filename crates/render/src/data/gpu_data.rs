@@ -169,3 +169,49 @@ impl GPUVertexAttributes {
         layout_builder
     }
 }
+
+#[repr(C)]
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub struct GPUInstance {
+    pub bb_min: [f32; 3],
+    pub mesh_index: u32,
+    pub bb_max: [f32; 3],
+    pub meshlet_index: u32,
+    pub orientation: [f32; 4],
+    pub position: [f32; 3],
+    pub _padding1: u32,
+    pub scale: [f32; 3],
+    pub _padding2: u32,
+}
+
+impl Default for GPUInstance {
+    fn default() -> Self {
+        Self {
+            bb_min: [0.; 3],
+            mesh_index: 0,
+            bb_max: [0.; 3],
+            meshlet_index: 0,
+            orientation: [0.; 4],
+            position: [0.; 3],
+            _padding1: 0,
+            scale: [0.; 3],
+            _padding2: 0,
+        }
+    }
+}
+impl GPUInstance {
+    pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
+        let mut layout_builder = VertexBufferLayoutBuilder::instance();
+        layout_builder.starting_location(starting_location);
+        layout_builder.add_attribute::<[f32; 3]>(VertexFormat::Float32x3.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<[f32; 3]>(VertexFormat::Float32x3.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<[f32; 4]>(VertexFormat::Float32x4.into());
+        layout_builder.add_attribute::<[f32; 3]>(VertexFormat::Float32x3.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<[f32; 3]>(VertexFormat::Float32x3.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder
+    }
+}
