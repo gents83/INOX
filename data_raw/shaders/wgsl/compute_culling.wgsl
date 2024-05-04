@@ -20,6 +20,8 @@ var<storage, read> meshes: Meshes;
 @group(0) @binding(4)
 var<storage, read> bhv: BHV;
 @group(0) @binding(5)
+var<storage, read> instances: Instances;
+@group(0) @binding(6)
 var<storage, read_write> meshlets_lod_level: array<atomic<u32>>;
 
 #import "matrix_utils.inc"
@@ -70,9 +72,14 @@ fn main(
     }
 
     let bb_id = mesh.blas_index + meshlet.bvh_offset;
-    let bb = &bhv.data[bb_id];
-    let bb_max = transform_vector((*bb).max, mesh.position, mesh.orientation, mesh.scale);
-    let bb_min = transform_vector((*bb).min, mesh.position, mesh.orientation, mesh.scale);
+    
+    //TODO: use instances and convert to real positions like:
+    //let size = instance.mesh_local_bb_max - instance.mesh_local_bb_min;
+    //let p = instance.mesh_local_bb_min + unpack_unorm_to_3_f32(vertex_position) * size;
+    //let v = transform_vector(p, instance.position, instance.orientation, instance.scale);
+    let instance = &instances.data[bb_id];
+    let bb_max = transform_vector((*instance).mesh_local_bb_max, (*instance).position, (*instance).orientation, (*instance).scale);
+    let bb_min = transform_vector((*instance).mesh_local_bb_min, (*instance).position, (*instance).orientation, (*instance).scale);
     let min = min(bb_min, bb_max);
     let max = max(bb_min, bb_max);
 

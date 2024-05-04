@@ -6,6 +6,7 @@ const HIT_DATA_MISS = 4u;
 struct Result {
     distance: f32,
     visibility_id: u32,
+    instance_id: u32,
 }
 
 fn intersect_aabb(origin: vec3<f32>, direction: vec3<f32>, max_distance: f32, aabb_min: vec3<f32>, aabb_max: vec3<f32>) -> f32 {
@@ -57,6 +58,7 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
     var max_distance = MAX_TRACING_DISTANCE;
     var node_index = i32(tlas_starting_index) + 1;
     var visibility_id = 0u;
+    var instance_id = 0u;
     var hit_type = HIT_DATA_TLAS;
     var meshlets_offset = 0u;
     var vertices_position_offset = 0u;
@@ -81,9 +83,14 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
                 for(var i = 0u; i < triangle_count; i++)
                 {
                     let index_offset = meshlet.indices_offset + (i * 3u);
-                    let v1 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset]].world_pos;
-                    let v2 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset + 1u]].world_pos;
-                    let v3 = runtime_vertices.data[vertices_position_offset + indices.data[index_offset + 2u]].world_pos;
+                    //TODO: use instances and convert to real positions like:
+                    //let size = instance.mesh_local_bb_max - instance.mesh_local_bb_min;
+                    //let p = instance.mesh_local_bb_min + unpack_unorm_to_3_f32(vertex_position) * size;
+                    //let v = transform_vector(p, instance.position, instance.orientation, instance.scale);
+
+                    let v1 = unpack_unorm_to_3_f32(vertices_positions.data[vertices_position_offset + indices.data[index_offset]]);
+                    let v2 = unpack_unorm_to_3_f32(vertices_positions.data[vertices_position_offset + indices.data[index_offset + 1u]]);
+                    let v3 = unpack_unorm_to_3_f32(vertices_positions.data[vertices_position_offset + indices.data[index_offset + 2u]]);
                     let distance = intersect_triangle(world_ray_origin, world_ray_direction, max_distance, v1, v2, v3);
                     if(distance < max_distance) {
                         visibility_id = ((meshlet_id + 1u) << 8u)  | reference;
@@ -105,12 +112,13 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
                 vertices_position_offset = (*mesh).vertices_position_offset;
                 node_index = i32((*mesh).blas_index) + 1;  //We add 1 here to avoid checking same aabb 
 
-                let matrix = transform_matrix((*mesh).position, (*mesh).orientation, (*mesh).scale);    
-                let inverse_matrix = matrix_inverse(matrix);
-                let local_ray_origin = inverse_matrix * vec4<f32>(world_ray_origin, 1.);
-                let local_ray_direction = inverse_matrix * vec4<f32>(world_ray_direction, 0.);
-                origin = local_ray_origin.xyz;
-                direction = local_ray_direction.xyz;
+                //TODO: use instances to retrieve matrix
+                //let matrix = transform_matrix((*mesh).position, (*mesh).orientation, (*mesh).scale);    
+                //let inverse_matrix = matrix_inverse(matrix);
+                //let local_ray_origin = inverse_matrix * vec4<f32>(world_ray_origin, 1.);
+                //let local_ray_direction = inverse_matrix * vec4<f32>(world_ray_direction, 0.);
+                //origin = local_ray_origin.xyz;
+                //direction = local_ray_direction.xyz;
             }
         }
         else {
@@ -122,5 +130,5 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
             direction = select(direction, world_ray_direction, hit_type == HIT_DATA_TLAS);
         }         
     }
-    return Result(max_distance, visibility_id);
+    return Result(max_distance, visibility_id, instance_id);
 }
