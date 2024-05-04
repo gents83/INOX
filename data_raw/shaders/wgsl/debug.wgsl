@@ -75,12 +75,13 @@ fn draw_triangle_from_visibility(visibility_id: u32, instance_id: u32, pixel: ve
     let position = (*instance).position;
     let scale = (*instance).scale;
     
-    let bb_min = transform_vector((*instance).mesh_local_bb_min, position, orientation, scale);
-    let bb_max = transform_vector((*instance).mesh_local_bb_max, position, orientation, scale);
-    let size = bb_max - bb_min;
-    let v1 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.x + position_offset]) * size;
-    let v2 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.y + position_offset]) * size;
-    let v3 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.z + position_offset]) * size;
+    let size = (*instance).mesh_local_bb_max - (*instance).mesh_local_bb_min;
+    let p1 = (*instance).mesh_local_bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.x + position_offset]) * size;
+    let p2 = (*instance).mesh_local_bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.y + position_offset]) * size;
+    let p3 = (*instance).mesh_local_bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.z + position_offset]) * size;
+    let v1 = transform_vector(p1, position, orientation, scale);
+    let v2 = transform_vector(p2, position, orientation, scale);
+    let v3 = transform_vector(p3, position, orientation, scale);
     
     let line_color = vec3<f32>(0., 1., 1.);
     let line_size = 0.001;

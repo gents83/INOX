@@ -23,13 +23,12 @@ fn vs_main(
     instance: Instance,
 ) -> VertexOutput {
     
-    let bb_min = transform_vector(instance.mesh_local_bb_min, instance.position, instance.orientation, instance.scale);
-    let bb_max = transform_vector(instance.mesh_local_bb_max, instance.position, instance.orientation, instance.scale);
-    let size = bb_max - bb_min;
-    let p = bb_min + unpack_unorm_to_3_f32(vertex_position) * size;
+    let size = instance.mesh_local_bb_max - instance.mesh_local_bb_min;
+    let p = instance.mesh_local_bb_min + unpack_unorm_to_3_f32(vertex_position) * size;
+    let v = transform_vector(p, instance.position, instance.orientation, instance.scale);
 
     var vertex_out: VertexOutput;
-    vertex_out.clip_position = constant_data.view_proj * vec4<f32>(p, 1.);
+    vertex_out.clip_position = constant_data.view_proj * vec4<f32>(v, 1.);
     vertex_out.instance_id = instance_id + 1u;    
     vertex_out.meshlet_id = instance.meshlet_index + 1u;    
 
