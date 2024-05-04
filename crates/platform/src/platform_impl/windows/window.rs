@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::ptr::addr_of_mut;
 
 use inox_messenger::MessageHubRc;
 
@@ -117,7 +118,7 @@ impl Window {
     pub fn change_visibility(handle: &Handle, is_visible: bool) {
         unsafe {
             let cmd = if is_visible { SW_SHOW } else { SW_HIDE };
-            if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
+            if let Some(events_dispatcher) = &mut *addr_of_mut!(EVENTS_DISPATCHER) {
                 if is_visible {
                     events_dispatcher.send_event(WindowEvent::Show);
                 } else {
@@ -219,7 +220,7 @@ impl Window {
                     GetClientRect(handle.handle_impl.hwnd, &mut rc);
                     let width = (rc.right - rc.left) as f32;
                     let height = (rc.bottom - rc.top) as f32;
-                    if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
+                    if let Some(events_dispatcher) = &mut *addr_of_mut!(EVENTS_DISPATCHER) {
                         events_dispatcher.send_event(MouseEvent {
                             x: mouse_pos.0,
                             y: mouse_pos.1,
@@ -252,7 +253,7 @@ impl Window {
                     }
                 } else if message.message == WM_CHAR {
                     let char = message.wParam as INT;
-                    if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
+                    if let Some(events_dispatcher) = &mut *addr_of_mut!(EVENTS_DISPATCHER) {
                         events_dispatcher.send_event(KeyTextEvent {
                             char: char as u8 as _,
                         });
@@ -271,7 +272,7 @@ impl Window {
                         key = convert_command(char);
                     }
                     let is_repeat = (message.lParam >> 30) & 1 == 1;
-                    if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
+                    if let Some(events_dispatcher) = &mut *addr_of_mut!(EVENTS_DISPATCHER) {
                         events_dispatcher.send_event(KeyEvent {
                             code: key,
                             state: match message.message {
@@ -334,7 +335,7 @@ impl Window {
                     rect.bottom - rect.top,
                     SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_NOZORDER,
                 );
-                if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
+                if let Some(events_dispatcher) = &mut *addr_of_mut!(EVENTS_DISPATCHER) {
                     events_dispatcher
                         .send_event(WindowEvent::ScaleFactorChanged(dpi_x as f32 / DEFAULT_DPI));
                 }
@@ -342,31 +343,31 @@ impl Window {
             WM_SIZE => {
                 let width = LOWORD(lparam as _);
                 let height = HIWORD(lparam as _);
-                if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
+                if let Some(events_dispatcher) = &mut *addr_of_mut!(EVENTS_DISPATCHER) {
                     events_dispatcher.send_event(WindowEvent::SizeChanged(width as _, height as _));
                 }
             }
             WM_MOVE => {
                 let x = LOWORD(lparam as _);
                 let y = HIWORD(lparam as _);
-                if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
+                if let Some(events_dispatcher) = &mut *addr_of_mut!(EVENTS_DISPATCHER) {
                     events_dispatcher.send_event(WindowEvent::PosChanged(x as _, y as _));
                 }
             }
             WM_DESTROY | WM_CLOSE | WM_QUIT | WM_NCDESTROY => {
-                if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
+                if let Some(events_dispatcher) = &mut *addr_of_mut!(EVENTS_DISPATCHER) {
                     events_dispatcher.send_event(WindowEvent::Close);
                 }
                 PostQuitMessage(0);
                 return 0;
             }
             WM_SETFOCUS => {
-                if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
+                if let Some(events_dispatcher) = &mut *addr_of_mut!(EVENTS_DISPATCHER) {
                     events_dispatcher.send_event(WindowEvent::Show);
                 }
             }
             WM_KILLFOCUS => {
-                if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
+                if let Some(events_dispatcher) = &mut *addr_of_mut!(EVENTS_DISPATCHER) {
                     events_dispatcher.send_event(WindowEvent::Hide);
                 }
             }

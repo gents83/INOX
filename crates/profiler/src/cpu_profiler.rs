@@ -9,13 +9,13 @@ use std::{
     fs::File,
     io::BufWriter,
     process,
+    ptr::addr_of,
     sync::{
         atomic::{AtomicBool, AtomicU64},
         mpsc::{channel, Receiver, Sender},
         Arc, Mutex,
     },
-    thread::{self},
-    u64,
+    thread, u64,
 };
 
 use crate::current_time_in_micros;
@@ -31,7 +31,7 @@ pub const CREATE_CPU_PROFILER_FUNCTION_NAME: &str = "create_cpu_profiler";
 pub type PfnCreateCpuProfiler = ::std::option::Option<unsafe extern "C" fn()>;
 
 pub static mut GLOBAL_CPU_PROFILER: Option<GlobalCpuProfiler> = None;
-thread_local!(pub static THREAD_PROFILER: RefCell<Option<Arc<ThreadProfiler>>> = RefCell::new(None));
+thread_local!(pub static THREAD_PROFILER: RefCell<Option<Arc<ThreadProfiler>>> = const { RefCell::new(None) });
 
 #[no_mangle]
 pub extern "C" fn get_cpu_profiler() -> GlobalCpuProfiler {
@@ -42,7 +42,7 @@ pub extern "C" fn get_cpu_profiler() -> GlobalCpuProfiler {
 pub extern "C" fn create_cpu_profiler() {
     unsafe {
         GLOBAL_CPU_PROFILER.replace(Arc::new(CpuProfiler::new()));
-        if let Some(profiler) = &GLOBAL_CPU_PROFILER {
+        if let Some(profiler) = &*addr_of!(GLOBAL_CPU_PROFILER) {
             profiler.current_thread_profiler();
         }
     }

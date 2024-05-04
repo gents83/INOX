@@ -156,6 +156,7 @@ impl ComputePipeline {
                     layout: Some(&compute_pipeline_layout),
 
                     module: self.shader.as_ref().unwrap().get().module(),
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
                     entry_point: SHADER_ENTRY_POINT,
                 })
         };

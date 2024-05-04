@@ -244,6 +244,7 @@ impl RenderPipeline {
                     layout: Some(&render_pipeline_layout),
                     vertex: wgpu::VertexState {
                         module: self.vertex_shader.as_ref().unwrap().get().module(),
+                        compilation_options: wgpu::PipelineCompilationOptions::default(),
                         entry_point: if self.data.vertex_shader == self.data.fragment_shader {
                             VERTEX_SHADER_ENTRY_POINT
                         } else {
@@ -253,6 +254,7 @@ impl RenderPipeline {
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: self.fragment_shader.as_ref().unwrap().get().module(),
+                        compilation_options: wgpu::PipelineCompilationOptions::default(),
                         entry_point: if self.data.vertex_shader == self.data.fragment_shader {
                             FRAGMENT_SHADER_ENTRY_POINT
                         } else {

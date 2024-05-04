@@ -270,11 +270,11 @@ impl UIPass {
                     }
                 }
                 UIEvent::DrawData(vertices, indices, instances) => {
-                    self.vertices = vertices.clone();
+                    self.vertices.clone_from(vertices);
                     self.vertices.mark_as_dirty(render_context);
-                    self.indices = indices.clone();
+                    self.indices.clone_from(indices);
                     self.indices.mark_as_dirty(render_context);
-                    self.instances = instances.clone();
+                    self.instances.clone_from(instances);
                     self.instances.mark_as_dirty(render_context);
                 }
             });

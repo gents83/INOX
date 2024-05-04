@@ -148,7 +148,7 @@ impl PluginManager {
                 in_use_fullpath.to_str().unwrap(),
                 fullpath.to_str().unwrap(),
             );
-            in_use_fullpath = fullpath.clone();
+            in_use_fullpath.clone_from(&fullpath);
         }
 
         let (lib, plugin_holder) =

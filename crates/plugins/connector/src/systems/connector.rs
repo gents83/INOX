@@ -155,7 +155,7 @@ fn client_thread_execution(
 
     let mut buffer = [0u8; 1024];
     while is_running.load(Ordering::SeqCst) {
-        match client_stream.read(&mut buffer) {
+        match client_stream.read_exact(&mut buffer) {
             Ok(_) => {
                 let last = buffer
                     .iter()

@@ -369,7 +369,7 @@ impl Object {
     where
         C: ResourceTrait + 'static,
     {
-        self.components.get(&TypeId::of::<C>()).is_some()
+        self.components.contains_key(&TypeId::of::<C>())
     }
 
     pub fn has_component_recursive<C>(&self) -> bool

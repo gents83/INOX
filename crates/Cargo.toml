@@ -69,11 +69,11 @@ erased-serde = { version = "0.3" }
 rspirv = { version = "0.11" }
 
 # wasm32
-js-sys = "0.3.67"
+js-sys = "0.3.69"
 wasm-bindgen = "0.2.87"
-wasm-bindgen-futures = "0.4.40"
+wasm-bindgen-futures = "0.4.42"
 wasm-bindgen-test = "0.3"
-web-sys = { version = "=0.3.67", features = [
+web-sys = { version = "0.3.69", features = [
     "Request", 
     "Response", 
     "Document",
