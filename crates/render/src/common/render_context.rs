@@ -353,7 +353,6 @@ impl RenderContext {
     pub fn submit_command_buffer(&self) {
         inox_profiler::scoped_profile!("renderer::submit_command_buffer");
         if let Some(mut command_buffer) = self.command_buffer.write().unwrap().take() {
-            self.binding_data_buffer.reset_buffers_changed();
             {
                 inox_profiler::gpu_profiler_pre_submit!(&mut command_buffer.encoder);
                 self.webgpu.submit(command_buffer);

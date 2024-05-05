@@ -93,7 +93,6 @@ pub struct Buffer<T> {
     occupied: Vec<BufferData>,
     free: Vec<BufferData>,
     data: Vec<T>,
-    is_changed: bool,
     max_size: usize,
 }
 
@@ -121,12 +120,6 @@ where
     }
     pub fn as_any_mut(&mut self) -> &mut dyn Any {
         self
-    }
-    pub fn is_changed(&self) -> bool {
-        self.is_changed
-    }
-    pub fn mark_as_changed(&mut self, is_changed: bool) {
-        self.is_changed = is_changed;
     }
     pub fn push(&mut self, id: &ResourceId, data: T) -> (bool, Range<usize>) {
         self.remove(id);
@@ -193,7 +186,6 @@ where
         let end = start + size;
         //inox_log::debug_log!("[{:?}] added, [start {} : end {}]", id, start, end);
 
-        self.is_changed = true;
         self.data.extend_from_slice(data);
         self.occupied.push(BufferData::new(id, start, end));
         start..end
@@ -202,7 +194,7 @@ where
         debug_assert!(start <= self.data.len());
         let size = data.len();
         let end = start + size;
-        self.is_changed = true;
+
         //inox_log::debug_log!("[{:?}] inserting at {}", id, start);
         self.update(start, data);
         if let Some(i) = self.occupied.iter().position(|d| d.range.end == start) {
@@ -216,7 +208,6 @@ where
     }
     pub fn update(&mut self, start: usize, data: &[T]) {
         debug_assert!(start <= self.data.len());
-        self.is_changed = true;
         /*
         inox_log::debug_log!(
             "owerwriting, [start {} : end {}]",
@@ -231,7 +222,6 @@ where
         self.occupied.last()
     }
     pub fn clear(&mut self) {
-        self.is_changed = true;
         self.occupied.clear();
         self.data.clear();
         self.free.clear();
@@ -295,7 +285,6 @@ where
     }
     pub fn remove(&mut self, id: &ResourceId) -> bool {
         if let Some(index) = self.occupied.iter().position(|d| d.id == *id) {
-            self.is_changed = true;
             let data = self.occupied.remove(index);
             /*
             inox_log::debug_log!(
@@ -311,7 +300,6 @@ where
         false
     }
     pub fn pop(&mut self, index: usize) -> BufferData {
-        self.is_changed = true;
         self.occupied.remove(index)
     }
     pub fn is_empty(&self) -> bool {
@@ -354,17 +342,15 @@ where
     where
         F: FnMut(usize, &ResourceId, &mut T) -> bool,
     {
-        let mut is_changed = false;
         self.occupied.iter().for_each(|b| {
             let func = &mut f;
             self.data[b.range.start..b.range.end]
                 .iter_mut()
                 .enumerate()
                 .for_each(|(i, d)| {
-                    is_changed |= func(b.range.start + i, &b.id, d);
+                    func(b.range.start + i, &b.id, d);
                 });
         });
-        self.is_changed |= is_changed;
     }
     pub fn data(&self) -> &[T] {
         &self.data
@@ -417,7 +403,6 @@ where
                 break;
             }
         }
-        self.is_changed = true;
     }
     pub fn defrag(&mut self) {
         if !self.free.is_empty() {
@@ -431,7 +416,6 @@ where
                 d.range.end = last_index;
             });
             self.data = new_data;
-            self.is_changed = true;
         }
     }
 }

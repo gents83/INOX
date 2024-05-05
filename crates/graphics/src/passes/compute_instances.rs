@@ -5,6 +5,7 @@ use inox_messenger::Listener;
 use inox_render::{
     AsBinding, BindingData, CommandBuffer, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh,
     GPUMeshlet, GPUVector, Mesh, MeshId, Pass, RenderContext, RenderContextRc, TextureView,
+    MAX_LOD_LEVELS,
 };
 
 use inox_core::ContextRc;
@@ -110,6 +111,12 @@ impl ComputeInstancesPass {
                 let meshlets = self.meshlets.read().unwrap();
                 if let Some(meshlets) = meshlets.get(mesh_id) {
                     meshlets.iter().enumerate().for_each(|(i, meshlet)| {
+                        let max_lod_level = MAX_LOD_LEVELS as u32 - 1;
+                        let meshlet_lod_level =
+                            max_lod_level - (meshlet.mesh_index_and_lod_level & max_lod_level);
+                        if meshlet_lod_level != 0 {
+                            return;
+                        }
                         let base_instance = instances.len() as u32;
                         data.iter().for_each(|mesh_instance| {
                             let mut instance = mesh_instance.instance;

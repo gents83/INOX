@@ -34,9 +34,6 @@ impl BindingDataBuffer {
     pub fn mark_buffer_as_changed(&self, id: BufferId) {
         self.changed_this_frame.write().unwrap().insert(id, true);
     }
-    pub fn reset_buffers_changed(&self) {
-        self.changed_this_frame.write().unwrap().clear();
-    }
     pub fn bind_buffer<T>(
         &self,
         label: Option<&str>,

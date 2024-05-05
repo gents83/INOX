@@ -100,6 +100,7 @@ impl GlobalBuffers {
 impl GlobalBuffers {
     fn extract_meshlets(
         &self,
+        render_context: &RenderContext,
         mesh_data: &MeshData,
         mesh_id: &MeshId,
         mesh_index: u32,
@@ -160,6 +161,11 @@ impl GlobalBuffers {
                     n.miss += blas_index as i32;
                 }
             });
+        self.buffer::<GPUBVHNode>()
+            .write()
+            .unwrap()
+            .mark_as_dirty(render_context);
+
         let meshlet_range = self
             .buffer::<GPUMeshlet>()
             .write()
@@ -182,6 +188,11 @@ impl GlobalBuffers {
                     }
                 });
             });
+        self.buffer::<GPUMeshlet>()
+            .write()
+            .unwrap()
+            .mark_as_dirty(render_context);
+
         lod_meshlets_starting_offset.reverse();
         lod_meshlets_ending_offset.reverse();
         (
@@ -191,7 +202,12 @@ impl GlobalBuffers {
             lod_meshlets_ending_offset,
         )
     }
-    fn add_vertex_data(&self, mesh_id: &MeshId, mesh_data: &MeshData) -> (u32, u32, u32) {
+    fn add_vertex_data(
+        &self,
+        render_context: &RenderContext,
+        mesh_id: &MeshId,
+        mesh_data: &MeshData,
+    ) -> (u32, u32, u32) {
         inox_profiler::scoped_profile!("render_buffers::add_vertex_data");
 
         debug_assert!(
@@ -212,6 +228,10 @@ impl GlobalBuffers {
             .allocate(mesh_id, to_slice(mesh_data.vertex_positions.as_slice()))
             .1
             .start;
+        self.buffer::<GPUVertexPosition>()
+            .write()
+            .unwrap()
+            .mark_as_dirty(render_context);
         let attributes_offset = self
             .buffer::<GPUVertexAttributes>()
             .write()
@@ -219,6 +239,10 @@ impl GlobalBuffers {
             .allocate(mesh_id, to_slice(mesh_data.vertex_attributes.as_slice()))
             .1
             .start;
+        self.buffer::<GPUVertexAttributes>()
+            .write()
+            .unwrap()
+            .mark_as_dirty(render_context);
         let indices_offset = self
             .buffer::<GPUVertexIndices>()
             .write()
@@ -234,15 +258,24 @@ impl GlobalBuffers {
             )
             .1
             .start;
+        self.buffer::<GPUVertexIndices>()
+            .write()
+            .unwrap()
+            .mark_as_dirty(render_context);
         (
             vertex_offset as _,
             indices_offset as _,
             attributes_offset as _,
         )
     }
-    pub fn add_mesh(&self, mesh_id: &MeshId, mesh_data: &MeshData) -> usize {
+    pub fn add_mesh(
+        &self,
+        render_context: &RenderContext,
+        mesh_id: &MeshId,
+        mesh_data: &MeshData,
+    ) -> usize {
         inox_profiler::scoped_profile!("render_buffers::add_mesh");
-        self.remove_mesh(mesh_id, false);
+        self.remove_mesh(render_context, mesh_id, false);
         if mesh_data.vertex_count() == 0 {
             return INVALID_INDEX as _;
         }
@@ -255,9 +288,15 @@ impl GlobalBuffers {
             .start;
 
         let (vertex_offset, indices_offset, attributes_offset) =
-            self.add_vertex_data(mesh_id, mesh_data);
+            self.add_vertex_data(render_context, mesh_id, mesh_data);
         let (blas_index, meshlet_offset, lod_meshlets_starting_offset, lod_meshlets_ending_offsets) =
-            self.extract_meshlets(mesh_data, mesh_id, mesh_index as _, indices_offset);
+            self.extract_meshlets(
+                render_context,
+                mesh_data,
+                mesh_id,
+                mesh_index as _,
+                indices_offset,
+            );
 
         {
             let meshes = self.buffer::<GPUMesh>();
@@ -282,10 +321,14 @@ impl GlobalBuffers {
                     }
                 });
         }
-        self.recreate_tlas();
+        self.buffer::<GPUMesh>()
+            .write()
+            .unwrap()
+            .mark_as_dirty(render_context);
+        self.recreate_tlas(render_context);
         mesh_index
     }
-    pub fn recreate_tlas(&self) {
+    pub fn recreate_tlas(&self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("render_buffers::recreate_tlas");
         let mut meshes_aabbs = Vec::new();
         {
@@ -323,6 +366,7 @@ impl GlobalBuffers {
                 n.miss += tlas_starting_index as i32;
             }
         });
+        bvh.mark_as_dirty(render_context);
         //println!("\n\nTLAS: {}", tlas_starting_index);
         //print_bvh(bvh.data());
     }
@@ -362,27 +406,56 @@ impl GlobalBuffers {
             meshes.mark_as_dirty(render_context);
         }
     }
-    pub fn remove_mesh(&self, mesh_id: &MeshId, recreate_tlas: bool) {
+    pub fn remove_mesh(
+        &self,
+        render_context: &RenderContext,
+        mesh_id: &MeshId,
+        recreate_tlas: bool,
+    ) {
         inox_profiler::scoped_profile!("render_buffers::remove_mesh");
 
         if self.buffer::<GPUMesh>().write().unwrap().remove(mesh_id) {
+            self.buffer::<GPUMesh>()
+                .write()
+                .unwrap()
+                .mark_as_dirty(render_context);
             self.buffer::<GPUMeshlet>().write().unwrap().remove(mesh_id);
+            self.buffer::<GPUMeshlet>()
+                .write()
+                .unwrap()
+                .mark_as_dirty(render_context);
             self.buffer::<GPUBVHNode>().write().unwrap().remove(mesh_id);
+            self.buffer::<GPUBVHNode>()
+                .write()
+                .unwrap()
+                .mark_as_dirty(render_context);
             self.buffer::<GPUVertexIndices>()
+                .write()
+                .unwrap()
+                .remove(mesh_id);
+            self.buffer::<GPUVertexIndices>()
+                .write()
+                .unwrap()
+                .mark_as_dirty(render_context);
+            self.buffer::<GPUVertexPosition>()
                 .write()
                 .unwrap()
                 .remove(mesh_id);
             self.buffer::<GPUVertexPosition>()
                 .write()
                 .unwrap()
-                .remove(mesh_id);
+                .mark_as_dirty(render_context);
             self.buffer::<GPUVertexAttributes>()
                 .write()
                 .unwrap()
                 .remove(mesh_id);
+            self.buffer::<GPUVertexAttributes>()
+                .write()
+                .unwrap()
+                .mark_as_dirty(render_context);
         }
         if recreate_tlas {
-            self.recreate_tlas();
+            self.recreate_tlas(render_context);
         }
     }
     pub fn add_material(
@@ -455,13 +528,17 @@ impl GlobalBuffers {
             materials.mark_as_dirty(render_context);
         }
     }
-    pub fn remove_material(&self, material_id: &MaterialId) {
+    pub fn remove_material(&self, render_context: &RenderContext, material_id: &MaterialId) {
         inox_profiler::scoped_profile!("render_buffers::remove_material");
 
         self.buffer::<GPUMaterial>()
             .write()
             .unwrap()
             .remove(material_id);
+        self.buffer::<GPUMaterial>()
+            .write()
+            .unwrap()
+            .mark_as_dirty(render_context);
     }
 
     pub fn add_light(&self, render_context: &RenderContext, light_id: &LightId, light: &mut Light) {
@@ -479,6 +556,10 @@ impl GlobalBuffers {
         let mut constant_data = self.constant_data.write().unwrap();
         let num_lights = constant_data.num_lights();
         constant_data.set_num_lights(render_context, num_lights + 1);
+        self.buffer::<GPULight>()
+            .write()
+            .unwrap()
+            .mark_as_dirty(render_context);
     }
     pub fn update_light(
         &self,
@@ -501,6 +582,11 @@ impl GlobalBuffers {
         let mut constant_data = self.constant_data.write().unwrap();
         let num_lights = constant_data.num_lights();
         constant_data.set_num_lights(render_context, num_lights - 1);
+
+        self.buffer::<GPULight>()
+            .write()
+            .unwrap()
+            .mark_as_dirty(render_context);
     }
 
     pub fn add_texture(
@@ -519,17 +605,17 @@ impl GlobalBuffers {
             .push(texture_id, *texture_data)
             .1
             .start;
-
-        self.buffer::<GPUTexture>()
-            .write()
-            .unwrap()
-            .mark_as_dirty(render_context);
         if !lut_id.is_nil() {
             self.constant_data
                 .write()
                 .unwrap()
                 .set_LUT(render_context, lut_id, uniform_index as _);
         }
+
+        self.buffer::<GPUTexture>()
+            .write()
+            .unwrap()
+            .mark_as_dirty(render_context);
         uniform_index
     }
     pub fn remove_texture(&self, render_context: &RenderContext, texture_id: &TextureId) {
