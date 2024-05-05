@@ -3,10 +3,9 @@ use std::path::PathBuf;
 use inox_bvh::GPUBVHNode;
 use inox_render::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, DrawCommandType, GPUBuffer, GPULight, GPUMaterial, GPUMesh, GPUMeshlet,
-    GPUTexture, GPUVector, GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, MeshFlags,
-    Pass, RenderContext, RenderContextRc, SamplerType, ShaderStage, TextureView, DEFAULT_HEIGHT,
-    DEFAULT_WIDTH,
+    ConstantDataRw, GPUBuffer, GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture, GPUVector,
+    GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, Pass, RenderContext, RenderContextRc,
+    SamplerType, ShaderStage, TextureView, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 use inox_core::ContextRc;
@@ -52,14 +51,8 @@ impl Pass for ComputePathTracingIndirectPass {
     fn static_name() -> &'static str {
         COMPUTE_PATHTRACING_INDIRECT_NAME
     }
-    fn is_active(&self, render_context: &RenderContext) -> bool {
-        render_context.has_commands(&self.draw_commands_type(), &self.mesh_flags())
-    }
-    fn mesh_flags(&self) -> MeshFlags {
-        MeshFlags::Visible | MeshFlags::Opaque
-    }
-    fn draw_commands_type(&self) -> DrawCommandType {
-        DrawCommandType::PerMeshlet
+    fn is_active(&self, _render_context: &RenderContext) -> bool {
+        true
     }
     fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where

@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use inox_bvh::GPUBVHNode;
 use inox_render::{
     AsBinding, BindingData, BindingFlags, BindingInfo, BufferRef, CommandBuffer, ComputePass,
-    ComputePassData, ConstantDataRw, DrawCommandType, GPUBuffer, GPUMesh, GPUMeshlet, GPUVector,
-    Mesh, MeshFlags, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView,
+    ComputePassData, ConstantDataRw, GPUBuffer, GPUMesh, GPUMeshlet, GPUVector, Mesh, MeshFlags,
+    Pass, RenderContext, RenderContextRc, ShaderStage, TextureView,
 };
 
 use inox_commands::CommandParser;
@@ -56,6 +56,9 @@ struct CullingData {
 }
 
 impl AsBinding for CullingData {
+    fn count(&self) -> usize {
+        1
+    }
     fn size(&self) -> u64 {
         std::mem::size_of_val(&self.view) as u64
             + std::mem::size_of_val(&self.mesh_flags) as u64
@@ -95,14 +98,8 @@ impl Pass for CullingPass {
     fn static_name() -> &'static str {
         CULLING_PASS_NAME
     }
-    fn is_active(&self, render_context: &RenderContext) -> bool {
-        render_context.has_commands(&self.draw_commands_type(), &self.mesh_flags())
-    }
-    fn mesh_flags(&self) -> MeshFlags {
-        MeshFlags::Visible | MeshFlags::Opaque
-    }
-    fn draw_commands_type(&self) -> DrawCommandType {
-        DrawCommandType::PerMeshlet
+    fn is_active(&self, _render_context: &RenderContext) -> bool {
+        true
     }
     fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where
@@ -144,7 +141,7 @@ impl Pass for CullingPass {
         if self.meshlets.read().unwrap().is_empty() {
             return;
         }
-        let mesh_flags = self.mesh_flags();
+        let mesh_flags = MeshFlags::Visible | MeshFlags::Opaque;
 
         let flags: u32 = mesh_flags.into();
         if self.culling_data.mesh_flags != flags {

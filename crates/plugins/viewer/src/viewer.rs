@@ -3,8 +3,9 @@ use std::path::PathBuf;
 use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
-    BlitPass, CommandsPass, ComputePathTracingDirectPass, ComputePathTracingIndirectPass,
-    CullingPass, DebugPass, FinalizePass, VisibilityBufferPass, WireframePass, WIREFRAME_PASS_NAME,
+    BlitPass, CommandsPass, ComputeInstancesPass, ComputePathTracingDirectPass,
+    ComputePathTracingIndirectPass, CullingPass, DebugPass, FinalizePass, VisibilityBufferPass,
+    WireframePass, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_render::{
@@ -22,7 +23,7 @@ use crate::{config::Config, systems::viewer_system::ViewerSystem};
 const ADD_CULLING_PASS: bool = true;
 const ADD_UI_PASS: bool = true;
 
-const MAX_NUM_LIGHTS: usize = 1024;
+const MAX_NUM_LIGHTS: usize = 512;
 const MAX_NUM_TEXTURES: usize = 65536;
 const MAX_NUM_MATERIALS: usize = 65536;
 
@@ -240,6 +241,7 @@ impl Viewer {
             .prealloc::<MAX_NUM_MATERIALS>();
     }
     fn create_render_passes(context: &ContextRc, render_context: &RenderContextRc) {
+        Self::create_instances_pass(context, render_context);
         //Self::create_culling_pass(context, render_context, ADD_CULLING_PASS);
 
         Self::create_visibility_pass(context, render_context);
@@ -251,6 +253,10 @@ impl Viewer {
         Self::create_debug_pass(context, render_context);
         Self::create_wireframe_pass(context, render_context, has_wireframe_support());
         Self::create_ui_pass(context, render_context, ADD_UI_PASS);
+    }
+    fn create_instances_pass(context: &ContextRc, render_context: &RenderContextRc) {
+        let instances_pass = ComputeInstancesPass::create(context, render_context);
+        render_context.add_pass(instances_pass, true);
     }
     fn create_culling_pass(
         context: &ContextRc,

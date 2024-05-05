@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 use inox_render::{
-    BindingData, BindingInfo, CommandBuffer, DrawCommandType, MeshFlags, Pass, RenderContext,
-    RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage,
-    StoreOperation, TextureId, TextureView, NUM_FRAMES_OF_HISTORY,
+    BindingData, BindingInfo, CommandBuffer, Pass, RenderContext, RenderContextRc, RenderPass,
+    RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation, TextureId,
+    TextureView, NUM_FRAMES_OF_HISTORY,
 };
 
 use inox_core::ContextRc;
@@ -31,12 +31,6 @@ impl Pass for BlitPass {
     }
     fn is_active(&self, _render_context: &RenderContext) -> bool {
         true
-    }
-    fn mesh_flags(&self) -> MeshFlags {
-        MeshFlags::None
-    }
-    fn draw_commands_type(&self) -> DrawCommandType {
-        DrawCommandType::PerMeshlet
     }
     fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where

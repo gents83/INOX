@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::{Material, MeshData};
+use crate::{Material, MeshData, INVALID_INDEX};
 
 use inox_bitmask::bitmask;
 use inox_math::{VecBase, Vector3};
@@ -45,6 +45,7 @@ pub struct Mesh {
     flags: MeshFlags,
     min: Vector3,
     max: Vector3,
+    mesh_index: i32,
 }
 
 impl ResourceTrait for Mesh {
@@ -53,6 +54,7 @@ impl ResourceTrait for Mesh {
     }
 
     fn invalidate(&mut self) -> &mut Self {
+        self.mesh_index = INVALID_INDEX;
         self.mark_as_dirty();
         self
     }
@@ -90,6 +92,7 @@ impl DataTypeResource for Mesh {
             message_hub: message_hub.clone(),
             path: PathBuf::new(),
             material: None,
+            mesh_index: INVALID_INDEX,
             flags: MeshFlags::Visible | MeshFlags::Opaque,
             min: Vector3::default_zero(),
             max: Vector3::default_zero(),
@@ -105,17 +108,8 @@ impl DataTypeResource for Mesh {
     where
         Self: Sized,
     {
-        let material = if !data.material.to_str().unwrap_or_default().is_empty() {
-            let material =
-                Material::request_load(shared_data, message_hub, data.material.as_path(), None);
-            Some(material)
-        } else {
-            None
-        };
         let mut mesh = Mesh::new(id, shared_data, message_hub);
-        mesh.material = material;
-        mesh.min = data.aabb_min;
-        mesh.max = data.aabb_max;
+        mesh.set_mesh_data(data.clone());
         mesh
     }
 }
@@ -136,6 +130,13 @@ impl Mesh {
         }
         self
     }
+    pub fn mesh_index(&self) -> i32 {
+        self.mesh_index
+    }
+    pub fn set_mesh_index(&mut self, mesh_index: usize) -> &mut Self {
+        self.mesh_index = mesh_index as _;
+        self
+    }
     pub fn min(&self) -> &Vector3 {
         &self.min
     }
@@ -146,6 +147,17 @@ impl Mesh {
         &self.material
     }
     pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
+        if !mesh_data.material.to_str().unwrap_or_default().is_empty() {
+            let material = Material::request_load(
+                &self.shared_data,
+                &self.message_hub,
+                mesh_data.material.as_path(),
+                None,
+            );
+            self.material = Some(material);
+        }
+        self.min = mesh_data.aabb_min;
+        self.max = mesh_data.aabb_max;
         self.message_hub
             .send_event(DataTypeResourceEvent::<Self>::Loaded(self.id, mesh_data));
         self.mark_as_dirty();

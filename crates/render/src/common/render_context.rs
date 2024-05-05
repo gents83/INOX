@@ -10,9 +10,9 @@ use inox_resources::{Resource, ResourceTrait, SharedDataRc};
 
 use crate::{
     platform::{platform_limits, required_gpu_features, setup_env},
-    BindingDataBuffer, BindingDataBufferRc, BufferId, BufferRef, ComputePipeline, DrawCommandType,
-    GlobalBuffers, Material, MeshFlags, Pass, RenderPass, RenderPipeline, Texture, TextureFormat,
-    TextureHandler, TextureHandlerRc, TextureId, TextureUsage, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    BindingDataBuffer, BindingDataBufferRc, BufferId, BufferRef, ComputePipeline, GlobalBuffers,
+    Material, Pass, RenderPass, RenderPipeline, Texture, TextureFormat, TextureHandler,
+    TextureHandlerRc, TextureId, TextureUsage, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 const USE_FORCED_VULKAN: bool = false;
@@ -235,25 +235,6 @@ impl RenderContext {
             render_targets: RwLock::new(Vec::new()),
             passes: RwLock::new(Vec::new()),
         }
-    }
-
-    pub fn has_commands(
-        &self,
-        draw_command_type: &DrawCommandType,
-        mesh_flags: &MeshFlags,
-    ) -> bool {
-        if let Some(commands) = self
-            .global_buffers
-            .draw_commands
-            .read()
-            .unwrap()
-            .get(mesh_flags)
-        {
-            if let Some(entry) = commands.map.get(draw_command_type) {
-                return !entry.commands.is_empty();
-            }
-        }
-        false
     }
 
     pub fn resolution(&self) -> (u32, u32) {

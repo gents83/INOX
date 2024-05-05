@@ -23,6 +23,7 @@ pub trait AsBinding {
             .binding_data_buffer()
             .mark_buffer_as_changed(self.buffer_id());
     }
+    fn count(&self) -> usize;
     fn size(&self) -> u64;
     fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut BufferRef);
 }
@@ -33,6 +34,9 @@ macro_rules! declare_as_binding {
         impl $crate::AsBinding for $Type {
             fn size(&self) -> u64 {
                 std::mem::size_of::<$Type>() as u64
+            }
+            fn count(&self) -> usize {
+                1
             }
 
             fn fill_buffer(
@@ -50,6 +54,9 @@ impl<T> AsBinding for Buffer<T>
 where
     T: Sized + Clone + 'static,
 {
+    fn count(&self) -> usize {
+        self.total_len()
+    }
     fn size(&self) -> u64 {
         self.total_len() as u64 * std::mem::size_of::<T>() as u64
     }
@@ -63,6 +70,9 @@ impl<T, const ARRAY_SIZE: usize> AsBinding for [Buffer<T>; ARRAY_SIZE]
 where
     T: Sized + Clone + 'static,
 {
+    fn count(&self) -> usize {
+        ARRAY_SIZE
+    }
     fn size(&self) -> u64 {
         let mut len = 0;
         self.iter().for_each(|b| {
@@ -78,7 +88,11 @@ where
     }
 }
 
+//Please note that first usize is the length of the vector - then vector is offsetted
 impl<T> AsBinding for Vec<T> {
+    fn count(&self) -> usize {
+        self.len()
+    }
     fn size(&self) -> u64 {
         self.len() as u64 * std::mem::size_of::<T>() as u64
     }
@@ -88,10 +102,14 @@ impl<T> AsBinding for Vec<T> {
     }
 }
 
+//Please note that first usize is the length of the vector - then vector is offsetted
 impl<T> AsBinding for [T]
 where
     T: Sized + Clone + 'static,
 {
+    fn count(&self) -> usize {
+        self.len()
+    }
     fn size(&self) -> u64 {
         self.len() as u64 * std::mem::size_of::<T>() as u64
     }

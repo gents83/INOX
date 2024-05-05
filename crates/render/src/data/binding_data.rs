@@ -3,8 +3,8 @@ use std::num::NonZeroU32;
 use inox_bitmask::bitmask;
 
 use crate::{
-    platform::required_gpu_features, AsBinding, BufferId, RenderCommandsPerType, RenderContextRc,
-    SamplerType, ShaderStage, TextureId, MAX_TEXTURE_ATLAS_COUNT,
+    platform::required_gpu_features, AsBinding, BufferId, RenderContextRc, SamplerType,
+    ShaderStage, TextureId, MAX_TEXTURE_ATLAS_COUNT,
 };
 
 const DEBUG_BINDINGS: bool = false;
@@ -131,18 +131,12 @@ impl BindingData {
                 .resize(group_index + 1, Default::default());
         }
     }
-    pub fn bind_render_commands(
+    pub fn bind_buffer<T>(
         &mut self,
-        data: &mut RenderCommandsPerType,
+        data: &mut T,
+        with_count: bool,
         label: Option<&str>,
-    ) -> &mut Self {
-        inox_profiler::scoped_profile!("binding_data::bind_render_commands");
-
-        data.bind(&self.render_context, label);
-
-        self
-    }
-    pub fn bind_buffer<T>(&mut self, data: &mut T, label: Option<&str>) -> &mut Self
+    ) -> &mut Self
     where
         T: AsBinding,
     {
@@ -155,6 +149,7 @@ impl BindingData {
         self.render_context.binding_data_buffer().bind_buffer(
             label,
             data,
+            with_count,
             usage,
             &self.render_context,
         );
@@ -180,6 +175,7 @@ impl BindingData {
         let is_changed = self.render_context.binding_data_buffer().bind_buffer(
             label,
             data,
+            false,
             usage,
             &self.render_context,
         );
@@ -207,6 +203,7 @@ impl BindingData {
         let is_changed = self.render_context.binding_data_buffer().bind_buffer(
             label,
             data,
+            false,
             usage,
             &self.render_context,
         );
@@ -268,6 +265,7 @@ impl BindingData {
         let is_changed = self.render_context.binding_data_buffer().bind_buffer(
             label,
             data,
+            false,
             usage,
             &self.render_context,
         );
@@ -361,6 +359,7 @@ impl BindingData {
         let is_changed = self.render_context.binding_data_buffer().bind_buffer(
             label,
             data,
+            false,
             usage,
             &self.render_context,
         );

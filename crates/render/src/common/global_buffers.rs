@@ -1,5 +1,4 @@
 use std::{
-    any::TypeId,
     collections::HashMap,
     sync::{
         atomic::{AtomicU32, Ordering},
@@ -10,14 +9,13 @@ use std::{
 use inox_bvh::{create_linearized_bvh, BVHTree, GPUBVHNode, AABB};
 use inox_math::{quantize_half, Mat4Ops, MatBase, Matrix4, VecBase, Vector2};
 use inox_resources::{to_slice, Buffer, ResourceId};
-use inox_uid::{generate_static_uid_from_string, Uid};
+use inox_uid::{generate_static_uid_from_string, generate_uid_from_type, Uid};
 
 use crate::{
     AsBinding, ConstantDataRw, GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture,
     GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, Light, LightId, Material,
-    MaterialData, MaterialFlags, MaterialId, Mesh, MeshData, MeshFlags, MeshId,
-    RenderCommandsPerType, RenderContext, TextureId, TextureType, MAX_LOD_LEVELS,
-    MESHLETS_GROUP_SIZE,
+    MaterialData, MaterialFlags, MaterialId, Mesh, MeshData, MeshFlags, MeshId, RenderContext,
+    TextureId, TextureType, INVALID_INDEX, MAX_LOD_LEVELS, MESHLETS_GROUP_SIZE,
 };
 
 pub const TLAS_UID: ResourceId = generate_static_uid_from_string("TLAS");
@@ -30,8 +28,6 @@ pub const MAX_NUM_LIGHTS: usize = 1024;
 pub const MAX_NUM_TEXTURES: usize = 65536;
 pub const MAX_NUM_MATERIALS: usize = 65536;
 pub const NUM_FRAMES_OF_HISTORY: usize = 2;
-
-pub type DrawCommandsBuffer = Arc<RwLock<HashMap<MeshFlags, RenderCommandsPerType>>>;
 
 pub type AtomicCounter = Arc<RwLock<AtomicU32>>;
 
@@ -46,8 +42,8 @@ pub type GPUBuffer<T> = Arc<RwLock<Buffer<T>>>;
 pub type GPUVector<T> = Arc<RwLock<Vec<T>>>;
 pub type DynGPUBuffer = Arc<RwLock<dyn GPUDataBuffer>>;
 pub type DynGPUVector = Arc<RwLock<dyn GPUDataVector>>;
-pub type DynGPUBufferMap = HashMap<TypeId, DynGPUBuffer>;
-pub type DynGPUVectorMap = HashMap<TypeId, DynGPUVector>;
+pub type DynGPUBufferMap = HashMap<Uid, DynGPUBuffer>;
+pub type DynGPUVectorMap = HashMap<Uid, DynGPUVector>;
 
 //Alignment should be 4, 8, 16 or 32 bytes
 #[derive(Default)]
@@ -56,18 +52,15 @@ pub struct GlobalBuffers {
     pub tlas_start_index: AtomicCounter,
     pub buffers: Arc<RwLock<DynGPUBufferMap>>,
     pub vectors: Arc<RwLock<DynGPUVectorMap>>,
-
-    pub draw_commands: DrawCommandsBuffer,
 }
 unsafe impl Send for GlobalBuffers {}
 unsafe impl Sync for GlobalBuffers {}
 
 impl GlobalBuffers {
-    pub fn buffer<T>(&self) -> Arc<RwLock<Buffer<T>>>
+    pub fn buffer_with_id<T>(&self, id: Uid) -> Arc<RwLock<Buffer<T>>>
     where
         T: Clone + Default + 'static,
     {
-        let id = std::any::TypeId::of::<T>();
         if let Some(buffer) = self.buffers.read().unwrap().get(&id) {
             let any = Arc::into_raw(buffer.clone());
             return unsafe { Arc::from_raw(any as *const RwLock<Buffer<T>>) };
@@ -76,11 +69,10 @@ impl GlobalBuffers {
         self.buffers.write().unwrap().insert(id, buffer.clone());
         buffer
     }
-    pub fn vector<T>(&self) -> Arc<RwLock<Vec<T>>>
+    pub fn vector_with_id<T>(&self, id: Uid) -> Arc<RwLock<Vec<T>>>
     where
         T: Clone + 'static,
     {
-        let id = std::any::TypeId::of::<T>();
         if let Some(vector) = self.vectors.read().unwrap().get(&id) {
             let any = Arc::into_raw(vector.clone());
             return unsafe { Arc::from_raw(any as *const RwLock<Vec<T>>) };
@@ -88,6 +80,20 @@ impl GlobalBuffers {
         let vector = Arc::new(RwLock::new(Vec::<T>::default()));
         self.vectors.write().unwrap().insert(id, vector.clone());
         vector
+    }
+    pub fn buffer<T>(&self) -> Arc<RwLock<Buffer<T>>>
+    where
+        T: Clone + Default + 'static,
+    {
+        let id = generate_uid_from_type::<T>();
+        self.buffer_with_id(id)
+    }
+    pub fn vector<T>(&self) -> Arc<RwLock<Vec<T>>>
+    where
+        T: Clone + 'static,
+    {
+        let id = generate_uid_from_type::<T>();
+        self.vector_with_id(id)
     }
 }
 
@@ -234,11 +240,11 @@ impl GlobalBuffers {
             attributes_offset as _,
         )
     }
-    pub fn add_mesh(&self, render_context: &RenderContext, mesh_id: &MeshId, mesh_data: &MeshData) {
+    pub fn add_mesh(&self, mesh_id: &MeshId, mesh_data: &MeshData) -> usize {
         inox_profiler::scoped_profile!("render_buffers::add_mesh");
-        self.remove_mesh(render_context, mesh_id, false);
+        self.remove_mesh(mesh_id, false);
         if mesh_data.vertex_count() == 0 {
-            return;
+            return INVALID_INDEX as _;
         }
         let mesh_index = self
             .buffer::<GPUMesh>()
@@ -277,6 +283,7 @@ impl GlobalBuffers {
                 });
         }
         self.recreate_tlas();
+        mesh_index
     }
     pub fn recreate_tlas(&self) {
         inox_profiler::scoped_profile!("render_buffers::recreate_tlas");
@@ -352,39 +359,13 @@ impl GlobalBuffers {
             let vertex_attribute_layout = m.flags_and_vertices_attribute_layout & 0x0000FFFF;
             let flags: u32 = (*mesh_flags).into();
             m.flags_and_vertices_attribute_layout = vertex_attribute_layout | (flags << 16);
-            {
-                let mut commands = self.draw_commands.write().unwrap();
-                commands.iter_mut().for_each(|(_, v)| {
-                    v.remove_draw_commands(render_context, mesh_id);
-                });
-                let entry = commands.entry(*mesh_flags).or_default();
-                entry.add_mesh_commands(
-                    render_context,
-                    mesh_id,
-                    m,
-                    &self.buffer::<GPUMeshlet>().read().unwrap(),
-                );
-            }
-
             meshes.mark_as_dirty(render_context);
         }
     }
-    pub fn remove_mesh(
-        &self,
-        render_context: &RenderContext,
-        mesh_id: &MeshId,
-        recreate_tlas: bool,
-    ) {
+    pub fn remove_mesh(&self, mesh_id: &MeshId, recreate_tlas: bool) {
         inox_profiler::scoped_profile!("render_buffers::remove_mesh");
 
         if self.buffer::<GPUMesh>().write().unwrap().remove(mesh_id) {
-            self.draw_commands
-                .write()
-                .unwrap()
-                .iter_mut()
-                .for_each(|(_, entry)| {
-                    entry.remove_draw_commands(render_context, mesh_id);
-                });
             self.buffer::<GPUMeshlet>().write().unwrap().remove(mesh_id);
             self.buffer::<GPUBVHNode>().write().unwrap().remove(mesh_id);
             self.buffer::<GPUVertexIndices>()

@@ -2,21 +2,23 @@ use std::path::PathBuf;
 
 use inox_render::{
     create_arrow, create_circumference, create_colored_quad, create_cube_from_min_max, create_line,
-    create_sphere, AsBinding, BindingData, BindingInfo, CommandBuffer, ConstantDataRw,
-    DrawCommandType, DrawEvent, DrawIndexedCommand, LoadOperation, MeshData, MeshFlags, Pass,
-    RenderContext, RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
-    ShaderStage, StoreOperation, TextureView, VertexBufferLayoutBuilder, VertexFormat,
-    VextexBindingType, View,
+    create_sphere, AsBinding, BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawEvent,
+    DrawIndexedCommand, GPUVector, LoadOperation, MeshData, Pass, RenderContext, RenderContextRc,
+    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
+    TextureView, VertexBufferLayoutBuilder, VertexFormat, VextexBindingType, View,
 };
 
 use inox_core::ContextRc;
 use inox_math::{Mat4Ops, Matrix4};
 use inox_messenger::Listener;
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
-use inox_uid::generate_random_uid;
+use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
 pub const WIREFRAME_PIPELINE: &str = "pipelines/Wireframe.render_pipeline";
 pub const WIREFRAME_PASS_NAME: &str = "WireframePass";
+
+const WIREFRAME_DEBUG_INSTANCES_ID: Uid =
+    generate_static_uid_from_string("WIREFRAME_DEBUG_INSTANCES_ID");
 
 #[derive(Default, Clone, Copy, PartialEq)]
 pub struct DebugVertex {
@@ -40,8 +42,7 @@ pub struct WireframePass {
     constant_data: ConstantDataRw,
     vertices: Vec<DebugVertex>,
     indices: Vec<u32>,
-    instances: Vec<DrawIndexedCommand>,
-    instance_count: usize,
+    debug_commands: GPUVector<DrawIndexedCommand>,
     listener: Listener,
 }
 unsafe impl Send for WireframePass {}
@@ -56,12 +57,6 @@ impl Pass for WireframePass {
     }
     fn is_active(&self, _render_context: &RenderContext) -> bool {
         true
-    }
-    fn mesh_flags(&self) -> MeshFlags {
-        MeshFlags::Visible | MeshFlags::Wireframe
-    }
-    fn draw_commands_type(&self) -> DrawCommandType {
-        DrawCommandType::PerMeshlet
     }
     fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where
@@ -95,8 +90,9 @@ impl Pass for WireframePass {
             constant_data: render_context.global_buffers().constant_data.clone(),
             vertices: Vec::<DebugVertex>::default(),
             indices: Vec::<u32>::default(),
-            instances: Vec::<DrawIndexedCommand>::default(),
-            instance_count: 0,
+            debug_commands: render_context
+                .global_buffers()
+                .vector_with_id::<DrawIndexedCommand>(WIREFRAME_DEBUG_INSTANCES_ID),
             listener,
             binding_data: BindingData::new(render_context, WIREFRAME_PASS_NAME),
         }
@@ -129,8 +125,11 @@ impl Pass for WireframePass {
                 Some("DebugVertices"),
             )
             .set_index_buffer(&mut self.indices, Some("DebugIndices"))
-            .bind_buffer(&mut self.instances, Some("DebugInstances"))
-            .bind_buffer(&mut self.instance_count, Some("DebugInstance Count"));
+            .bind_buffer(
+                &mut *self.debug_commands.write().unwrap(),
+                true,
+                Some("DebugInstances"),
+            );
 
         let vertex_layout = DebugVertex::descriptor(0);
         pass.init(
@@ -175,12 +174,7 @@ impl Pass for WireframePass {
                 "wireframe_pass",
             );
 
-            pass.indirect_draw(
-                render_context,
-                &self.instances,
-                &self.instance_count,
-                render_pass,
-            );
+            pass.indirect_draw(render_context, &self.debug_commands, render_pass);
         }
     }
 }
@@ -221,10 +215,12 @@ impl WireframePass {
         }
 
         self.vertices.clear();
-        self.instances.clear();
         self.indices.clear();
         self.indices.mark_as_dirty(render_context);
         self.vertices.mark_as_dirty(render_context);
+
+        let mut debug_instances = self.debug_commands.write().unwrap();
+        debug_instances.clear();
 
         self.listener
             .process_messages(|event: &DrawEvent| match *event {
@@ -233,7 +229,7 @@ impl WireframePass {
 
                     let mesh_data = create_line(start, end, color);
                     Self::add_mesh(
-                        &mut self.instances,
+                        &mut debug_instances,
                         &mut self.vertices,
                         &mut self.indices,
                         mesh_data,
@@ -244,7 +240,7 @@ impl WireframePass {
 
                     let mesh_data = create_cube_from_min_max(min, max, color);
                     Self::add_mesh(
-                        &mut self.instances,
+                        &mut debug_instances,
                         &mut self.vertices,
                         &mut self.indices,
                         mesh_data,
@@ -256,7 +252,7 @@ impl WireframePass {
                     let mesh_data =
                         create_colored_quad([min.x, min.y, max.x, max.y].into(), z, color);
                     Self::add_mesh(
-                        &mut self.instances,
+                        &mut debug_instances,
                         &mut self.vertices,
                         &mut self.indices,
                         mesh_data,
@@ -267,7 +263,7 @@ impl WireframePass {
 
                     let mesh_data = create_arrow(position, direction, color);
                     Self::add_mesh(
-                        &mut self.instances,
+                        &mut debug_instances,
                         &mut self.vertices,
                         &mut self.indices,
                         mesh_data,
@@ -278,7 +274,7 @@ impl WireframePass {
 
                     let mesh_data = create_sphere(position, radius, 16, 8, color);
                     Self::add_mesh(
-                        &mut self.instances,
+                        &mut debug_instances,
                         &mut self.vertices,
                         &mut self.indices,
                         mesh_data,
@@ -296,7 +292,7 @@ impl WireframePass {
                         mesh_data.aabb_max = matrix.rotate_point(mesh_data.aabb_max);
                     }
                     Self::add_mesh(
-                        &mut self.instances,
+                        &mut debug_instances,
                         &mut self.vertices,
                         &mut self.indices,
                         mesh_data,
@@ -305,9 +301,6 @@ impl WireframePass {
             });
         self.indices.mark_as_dirty(render_context);
         self.vertices.mark_as_dirty(render_context);
-        self.instances.mark_as_dirty(render_context);
-
-        self.instance_count = self.instances.len();
-        self.instance_count.mark_as_dirty(render_context);
+        debug_instances.mark_as_dirty(render_context);
     }
 }

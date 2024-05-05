@@ -1,43 +1,26 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
-use inox_bvh::GPUBVHNode;
-use inox_math::Mat4Ops;
-use inox_messenger::Listener;
 use inox_render::{
-    AsBinding, BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
-    DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet, GPUVector, GPUVertexIndices,
-    GPUVertexPosition, Mesh, MeshFlags, MeshId, Pass, RenderContext, RenderContextRc, RenderPass,
-    RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation, Texture,
-    TextureView, VextexBindingType,
+    BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawIndexedCommand, GPUBuffer,
+    GPUInstance, GPUVector, GPUVertexIndices, GPUVertexPosition, Pass, RenderContext,
+    RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage,
+    StoreOperation, Texture, TextureView, VextexBindingType,
 };
 
 use inox_core::ContextRc;
-use inox_resources::{DataTypeResource, Resource, ResourceEvent, ResourceTrait, SharedDataRc};
-use inox_scene::{Object, ObjectId};
+use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::generate_random_uid;
 
 pub const VISIBILITY_BUFFER_PIPELINE: &str = "pipelines/VisibilityBuffer.render_pipeline";
 pub const VISIBILITY_BUFFER_PASS_NAME: &str = "VisibilityBufferPass";
 
-struct InstanceMapData {
-    instance: GPUInstance,
-    id: ObjectId,
-}
-
 pub struct VisibilityBufferPass {
     render_pass: Resource<RenderPass>,
-    listener: Listener,
-    shared_data: SharedDataRc,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    meshes: GPUBuffer<GPUMesh>,
     indices: GPUBuffer<GPUVertexIndices>,
-    bhv: GPUBuffer<GPUBVHNode>,
     instances: GPUVector<GPUInstance>,
-    instance_map: HashMap<MeshId, Vec<InstanceMapData>>,
-    is_dirty: bool,
-    commands: Vec<DrawIndexedCommand>,
-    commands_count: usize,
+    commands: GPUVector<DrawIndexedCommand>,
     vertices_position: GPUBuffer<GPUVertexPosition>,
 }
 unsafe impl Send for VisibilityBufferPass {}
@@ -50,14 +33,8 @@ impl Pass for VisibilityBufferPass {
     fn static_name() -> &'static str {
         VISIBILITY_BUFFER_PASS_NAME
     }
-    fn is_active(&self, render_context: &RenderContext) -> bool {
-        render_context.has_commands(&self.draw_commands_type(), &self.mesh_flags())
-    }
-    fn mesh_flags(&self) -> MeshFlags {
-        MeshFlags::Visible | MeshFlags::Opaque
-    }
-    fn draw_commands_type(&self) -> DrawCommandType {
-        DrawCommandType::PerMeshlet
+    fn is_active(&self, _render_context: &RenderContext) -> bool {
+        true
     }
     fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where
@@ -74,9 +51,6 @@ impl Pass for VisibilityBufferPass {
             ..Default::default()
         };
 
-        let listener = Listener::new(context.message_hub());
-        listener.register::<ResourceEvent<Object>>();
-
         Self {
             render_pass: RenderPass::new_resource(
                 context.shared_data(),
@@ -85,32 +59,20 @@ impl Pass for VisibilityBufferPass {
                 &data,
                 None,
             ),
-            shared_data: context.shared_data().clone(),
-            listener,
             binding_data: BindingData::new(render_context, VISIBILITY_BUFFER_PASS_NAME),
             constant_data: render_context.global_buffers().constant_data.clone(),
-            meshes: render_context.global_buffers().buffer::<GPUMesh>(),
-            indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
-            instances: render_context.global_buffers().vector::<GPUInstance>(),
-            bhv: render_context.global_buffers().buffer::<GPUBVHNode>(),
-            instance_map: HashMap::new(),
-            commands: Vec::new(),
-            commands_count: 0,
-            is_dirty: true,
             vertices_position: render_context
                 .global_buffers()
                 .buffer::<GPUVertexPosition>(),
+            indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
+            instances: render_context.global_buffers().vector::<GPUInstance>(),
+            commands: render_context
+                .global_buffers()
+                .vector::<DrawIndexedCommand>(),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("visibility_buffer_pass::init");
-
-        self.process_messages();
-        self.update_instances(render_context);
-
-        if self.commands_count == 0 {
-            return;
-        }
 
         let mut pass = self.render_pass.get_mut();
 
@@ -136,8 +98,7 @@ impl Pass for VisibilityBufferPass {
                 Some("Instances"),
             )
             .set_index_buffer(&mut *self.indices.write().unwrap(), Some("Indices"))
-            .bind_buffer(&mut self.commands, Some("Commands"))
-            .bind_buffer(&mut self.commands_count, Some("Commands Count"));
+            .bind_buffer(&mut *self.commands.write().unwrap(), true, Some("Commands"));
 
         let vertex_layout = GPUVertexPosition::descriptor(0);
         let instance_layout = GPUInstance::descriptor(vertex_layout.location());
@@ -162,7 +123,7 @@ impl Pass for VisibilityBufferPass {
             return;
         }
 
-        if self.is_dirty || self.commands_count == 0 {
+        if self.commands.read().unwrap().is_empty() {
             return;
         }
 
@@ -183,12 +144,7 @@ impl Pass for VisibilityBufferPass {
                 &render_context.webgpu.device,
                 "visibility_pass",
             );
-            pass.indirect_draw(
-                render_context,
-                &self.commands,
-                &self.commands_count,
-                render_pass,
-            );
+            pass.indirect_draw(render_context, &self.commands, render_pass);
         }
     }
 }
@@ -201,109 +157,5 @@ impl VisibilityBufferPass {
     pub fn add_depth_target(&self, texture: &Resource<Texture>) -> &Self {
         self.render_pass.get_mut().add_depth_target(texture);
         self
-    }
-    fn update_instances(&mut self, render_context: &RenderContext) {
-        if !self.is_dirty {
-            return;
-        }
-        self.commands.clear();
-        let mut instances = self.instances.write().unwrap();
-        instances.clear();
-
-        let meshes = self.meshes.read().unwrap();
-        self.instance_map.iter().for_each(|(mesh_id, data)| {
-            let (mesh, _mesh_index) = meshes.get_first_with_index(mesh_id).unwrap();
-
-            let meshlets = render_context.global_buffers().buffer::<GPUMeshlet>();
-            let meshlets = meshlets.read().unwrap();
-            if let Some(meshlets) = meshlets.get(mesh_id) {
-                meshlets.iter().enumerate().for_each(|(i, meshlet)| {
-                    let base_instance = instances.len() as u32;
-                    data.iter().for_each(|mesh_instance| {
-                        let mut instance = mesh_instance.instance;
-                        instance.meshlet_index = mesh.meshlets_offset + i as u32;
-                        instances.push(instance);
-                    });
-                    let command = DrawIndexedCommand {
-                        instance_count: data.len() as u32,
-                        base_instance,
-                        base_index: meshlet.indices_offset as _,
-                        vertex_count: meshlet.indices_count,
-                        vertex_offset: mesh.vertices_position_offset as _,
-                    };
-                    self.commands.push(command);
-                });
-            }
-        });
-        //sort in descending order
-        self.commands
-            .sort_by(|a, b| b.instance_count.partial_cmp(&a.instance_count).unwrap());
-        self.commands_count = self.commands.len();
-        instances.mark_as_dirty(render_context);
-        self.commands.mark_as_dirty(render_context);
-        self.commands_count.mark_as_dirty(render_context);
-
-        self.is_dirty = false;
-    }
-
-    fn process_messages(&mut self) {
-        self.listener
-            .process_messages(|e: &ResourceEvent<Object>| match e {
-                ResourceEvent::Changed(id) => {
-                    if let Some(object) = self.shared_data.get_resource::<Object>(id) {
-                        object
-                            .get()
-                            .components_of_type::<Mesh>()
-                            .iter()
-                            .for_each(|mesh| {
-                                let instances = self.instance_map.entry(*mesh.id()).or_default();
-
-                                let meshes = self.meshes.read().unwrap();
-                                let (mesh, mesh_index) =
-                                    meshes.get_first_with_index(mesh.id()).unwrap();
-                                let bhv = self.bhv.read().unwrap();
-                                let bhv = bhv.data();
-                                let node = &bhv[mesh.blas_index as usize];
-                                let matrix = object.get().transform();
-
-                                let result = instances.iter_mut().find(|e| e.id == *object.id());
-                                if let Some(data) = result {
-                                    data.instance.orientation = matrix.orientation().into();
-                                    data.instance.position = matrix.translation().into();
-                                    data.instance.scale = matrix.scale().into();
-                                } else {
-                                    let instance = GPUInstance {
-                                        mesh_index,
-                                        bb_min: node.min,
-                                        bb_max: node.max,
-                                        orientation: matrix.orientation().into(),
-                                        position: matrix.translation().into(),
-                                        scale: matrix.scale().into(),
-                                        meshlet_index: 0,
-                                        ..Default::default()
-                                    };
-                                    instances.push(InstanceMapData {
-                                        instance,
-                                        id: *object.id(),
-                                    });
-                                }
-                            });
-                        self.is_dirty = true;
-                    }
-                }
-                ResourceEvent::Destroyed(id) => {
-                    self.instance_map.iter_mut().for_each(|(_, instances)| {
-                        instances.retain(|e| {
-                            if e.id == *id {
-                                self.is_dirty = true;
-                                true
-                            } else {
-                                false
-                            }
-                        });
-                    });
-                }
-                _ => {}
-            });
     }
 }

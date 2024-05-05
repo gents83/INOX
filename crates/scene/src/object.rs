@@ -204,7 +204,7 @@ impl Object {
     #[inline]
     pub fn set_transform(&mut self, transform: Matrix4) -> &mut Self {
         self.transform = transform;
-        self.set_dirty();
+        self.mark_as_dirty();
         self
     }
     #[inline]
@@ -214,37 +214,37 @@ impl Object {
     #[inline]
     pub fn set_position(&mut self, position: Vector3) -> &mut Self {
         self.transform.set_translation(position);
-        self.set_dirty();
+        self.mark_as_dirty();
         self
     }
     #[inline]
     pub fn translate(&mut self, translation: Vector3) -> &mut Self {
         self.transform.add_translation(translation);
-        self.set_dirty();
+        self.mark_as_dirty();
         self
     }
     #[inline]
     pub fn rotate(&mut self, roll_yaw_pitch: Vector3) -> &mut Self {
         self.transform.add_rotation(roll_yaw_pitch);
-        self.set_dirty();
+        self.mark_as_dirty();
         self
     }
     #[inline]
     pub fn scale(&mut self, scale: Vector3) -> &mut Self {
         self.transform.add_scale(scale);
-        self.set_dirty();
+        self.mark_as_dirty();
         self
     }
     #[inline]
     pub fn look_at(&mut self, position: Vector3) -> &mut Self {
         self.transform.look_at(position);
-        self.set_dirty();
+        self.mark_as_dirty();
         self
     }
     #[inline]
     pub fn look_towards(&mut self, direction: Vector3) -> &mut Self {
         self.transform.look_towards(direction);
-        self.set_dirty();
+        self.mark_as_dirty();
         self
     }
 
@@ -252,12 +252,12 @@ impl Object {
         self.is_transform_dirty
     }
 
-    fn set_dirty(&mut self) {
+    fn mark_as_dirty(&mut self) {
         self.message_hub
             .send_event(ResourceEvent::<Self>::Changed(self.id));
         self.is_transform_dirty = true;
         self.children.iter().for_each(|c| {
-            c.get_mut().set_dirty();
+            c.get_mut().mark_as_dirty();
         });
     }
 
@@ -282,18 +282,20 @@ impl Object {
     #[inline]
     fn set_parent(&mut self, parent: Handle<Object>) {
         self.parent = parent;
-        self.set_dirty();
+        self.mark_as_dirty();
     }
 
     #[inline]
     pub fn add_child(&mut self, child: Resource<Object>) {
         self.children.push(child);
+        self.mark_as_dirty();
     }
 
     #[inline]
     pub fn remove_child(&mut self, child: &Resource<Object>) {
         if let Some(index) = self.children.iter().position(|c| c.id() == child.id()) {
             self.children.remove(index);
+            self.mark_as_dirty();
         }
     }
 
@@ -341,6 +343,7 @@ impl Object {
             shared_data.add_resource(message_hub, id, C::new(id, shared_data, message_hub));
         let components = self.components.entry(TypeId::of::<C>()).or_default();
         components.push(resource.clone());
+        self.mark_as_dirty();
         resource
     }
     pub fn add_component<C>(&mut self, component: Resource<C>) -> &mut Self
@@ -349,6 +352,7 @@ impl Object {
     {
         let components = self.components.entry(TypeId::of::<C>()).or_default();
         components.push(component as GenericResource);
+        self.mark_as_dirty();
         self
     }
 

@@ -1,10 +1,9 @@
 use std::path::PathBuf;
 
 use inox_render::{
-    BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
-    GPUVector, MeshFlags, Pass, RenderContext, RenderContextRc, RenderPass, RenderPassBeginData,
-    RenderPassData, RenderTarget, ShaderStage, StoreOperation, Texture, TextureView,
-    NUM_FRAMES_OF_HISTORY,
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, GPUVector, Pass,
+    RenderContext, RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
+    ShaderStage, StoreOperation, Texture, TextureView, NUM_FRAMES_OF_HISTORY,
 };
 
 use inox_core::ContextRc;
@@ -36,14 +35,8 @@ impl Pass for FinalizePass {
     fn static_name() -> &'static str {
         FINALIZE_NAME
     }
-    fn is_active(&self, render_context: &RenderContext) -> bool {
-        render_context.has_commands(&self.draw_commands_type(), &self.mesh_flags())
-    }
-    fn mesh_flags(&self) -> MeshFlags {
-        MeshFlags::Visible | MeshFlags::Opaque
-    }
-    fn draw_commands_type(&self) -> DrawCommandType {
-        DrawCommandType::PerMeshlet
+    fn is_active(&self, _render_context: &RenderContext) -> bool {
+        true
     }
     fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where

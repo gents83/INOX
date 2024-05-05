@@ -1,8 +1,8 @@
 use std::sync::atomic::AtomicBool;
 
-use inox_resources::to_slice;
+use inox_resources::{as_slice, to_slice};
 
-use crate::{AsBinding, RenderContext, WebGpuContext};
+use crate::{platform::WGPU_FIXED_ALIGNMENT, AsBinding, RenderContext, WebGpuContext};
 
 pub struct BufferRef {
     gpu_buffer: Option<wgpu::Buffer>,
@@ -127,6 +127,20 @@ impl BufferRef {
             gpu_buffer.unmap();
         }
     }
+    pub fn add_to_gpu_buffer_with_offset<T>(
+        &mut self,
+        render_context: &RenderContext,
+        data: &T,
+        offset: u64,
+    ) {
+        inox_profiler::scoped_profile!("GpuBuffer::add_to_gpu_buffer_with_offset({})", &self.name);
+        render_context.webgpu.queue.write_buffer(
+            self.gpu_buffer.as_ref().unwrap(),
+            self.offset,
+            as_slice(data),
+        );
+        self.offset += offset;
+    }
     pub fn add_to_gpu_buffer<T>(&mut self, render_context: &RenderContext, data: &[T]) {
         if data.is_empty() {
             return;
@@ -144,6 +158,7 @@ impl BufferRef {
         &mut self,
         label: Option<&str>,
         data: &mut T,
+        with_count: bool,
         usage: wgpu::BufferUsages,
         render_context: &RenderContext,
     ) -> bool
@@ -157,8 +172,16 @@ impl BufferRef {
             let id = data.buffer_id();
             format!("{}[{}]", std::any::type_name::<T>(), id)
         };
-        let is_changed = self.init(render_context, data.size(), usage, name.as_str());
+        let mut size = data.size();
+        if with_count {
+            size += WGPU_FIXED_ALIGNMENT;
+        }
+        let is_changed = self.init(render_context, size, usage, name.as_str());
         if usage.intersects(wgpu::BufferUsages::COPY_DST) {
+            if with_count {
+                let len = data.count() as u64;
+                self.add_to_gpu_buffer_with_offset(render_context, &len, WGPU_FIXED_ALIGNMENT);
+            }
             data.fill_buffer(render_context, self);
         }
         is_changed

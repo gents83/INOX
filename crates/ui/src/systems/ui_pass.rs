@@ -4,10 +4,9 @@ use inox_core::ContextRc;
 use inox_messenger::Listener;
 use inox_render::{
     declare_as_binding, AsBinding, BindingData, BindingInfo, CommandBuffer, ConstantDataRw,
-    DrawCommandType, GPUBuffer, GPUTexture, LoadOperation, MeshFlags, Pass, RenderContext,
-    RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType,
-    ShaderStage, StoreOperation, TextureView, VertexBufferLayoutBuilder, VertexFormat,
-    VextexBindingType,
+    GPUBuffer, GPUTexture, LoadOperation, Pass, RenderContext, RenderContextRc, RenderPass,
+    RenderPassBeginData, RenderPassData, RenderTarget, SamplerType, ShaderStage, StoreOperation,
+    TextureView, VertexBufferLayoutBuilder, VertexFormat, VextexBindingType,
 };
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::generate_random_uid;
@@ -85,12 +84,6 @@ impl Pass for UIPass {
     }
     fn is_active(&self, _render_context: &RenderContext) -> bool {
         true
-    }
-    fn mesh_flags(&self) -> MeshFlags {
-        MeshFlags::Visible | MeshFlags::Custom
-    }
-    fn draw_commands_type(&self) -> DrawCommandType {
-        DrawCommandType::PerMeshlet
     }
     fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where

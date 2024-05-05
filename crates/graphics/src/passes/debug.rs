@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
 use inox_render::{
-    BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
-    GPUBuffer, GPUInstance, GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture, GPUVector,
-    GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, LoadOperation, MeshFlags, Pass,
-    RenderContext, RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
-    SamplerType, ShaderStage, StoreOperation, TextureId, TextureView,
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, GPUBuffer, GPUInstance,
+    GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture, GPUVector, GPUVertexAttributes,
+    GPUVertexIndices, GPUVertexPosition, LoadOperation, Pass, RenderContext, RenderContextRc,
+    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType, ShaderStage,
+    StoreOperation, TextureId, TextureView,
 };
 
 use inox_core::ContextRc;
@@ -51,12 +51,6 @@ impl Pass for DebugPass {
     }
     fn is_active(&self, _render_context: &RenderContext) -> bool {
         true
-    }
-    fn mesh_flags(&self) -> MeshFlags {
-        MeshFlags::None
-    }
-    fn draw_commands_type(&self) -> DrawCommandType {
-        DrawCommandType::PerMeshlet
     }
     fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where
@@ -195,7 +189,7 @@ impl Pass for DebugPass {
                     group_index: 0,
                     binding_index: 6,
                     stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Read | BindingFlags::Vertex,
+                    ..Default::default()
                 },
             )
             .add_storage_buffer(

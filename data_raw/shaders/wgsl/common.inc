@@ -2,7 +2,7 @@ const DEFAULT_WIDTH: u32 = 1920u;
 const DEFAULT_HEIGHT: u32 = 1080u;
 const SIZE_OF_DATA_BUFFER_ELEMENT: u32 = 4u;
 const MAX_LOD_LEVELS: u32 = 8u;
-const MAX_NUM_LIGHTS: u32 = 1024u;
+const MAX_NUM_LIGHTS: u32 = 512u;
 const MAX_NUM_TEXTURES: u32 = 65536u;
 const MAX_NUM_MATERIALS: u32 = 65536u;
 
@@ -237,6 +237,8 @@ struct DrawCommands {
 };
 
 struct DrawIndexedCommands {
+    count: u32,
+    _padding: vec3<u32>,
     data: array<DrawIndexedCommand>,
 };
 

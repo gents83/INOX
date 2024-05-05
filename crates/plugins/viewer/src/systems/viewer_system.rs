@@ -171,6 +171,16 @@ impl ViewerSystem {
                     self.context.message_hub(),
                 ),
             );
+
+            let mut mesh_data = MeshData {
+                vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
+                ..Default::default()
+            };
+            let quad = create_quad([-10., -10., 10., 10.].into(), 0.);
+            mesh_data.append_mesh_data(quad, 0, false);
+            mesh_data.set_vertex_color([0.0, 0.0, 1.0, 1.0].into());
+            mesh.get_mut().set_mesh_data(mesh_data);
+
             let material = Material::new_resource(
                 self.context.shared_data(),
                 self.context.message_hub(),
@@ -190,18 +200,6 @@ impl ViewerSystem {
             mesh.get_mut()
                 .set_material(material)
                 .set_flags(MeshFlags::Visible | MeshFlags::Opaque);
-
-            let mut mesh_data = MeshData {
-                vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
-                ..Default::default()
-            };
-            let quad = create_quad([-10., -10., 10., 10.].into(), 0.);
-            mesh_data.append_mesh_data(quad, 0, false);
-            mesh_data.set_vertex_color([0.0, 0.0, 1.0, 1.0].into());
-
-            //println!("Quad Mesh {:?}", mesh.id());
-
-            mesh.get_mut().set_mesh_data(mesh_data);
             mesh
         };
         let left_quad = {

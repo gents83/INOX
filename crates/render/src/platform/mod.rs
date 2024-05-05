@@ -9,6 +9,8 @@ pub use pc::*;
 #[cfg(target_os = "windows")]
 pub mod pc;
 
+pub const WGPU_FIXED_ALIGNMENT: u64 = 16; // 4 bytes is min alignment for wgpu
+
 pub fn shader_preprocessor_defs<const PLATFORM_TYPE: PlatformType>() -> Vec<String> {
     if PLATFORM_TYPE == PLATFORM_TYPE_PC {
         vec![
