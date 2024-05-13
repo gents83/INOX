@@ -129,6 +129,7 @@ impl Pass for ComputePathTracingIndirectPass {
                     binding_index: 1,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Read | BindingFlags::Index,
+                    ..Default::default()
                 },
             )
             .add_storage_buffer(
@@ -199,6 +200,7 @@ impl Pass for ComputePathTracingIndirectPass {
                     binding_index: 0,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Read | BindingFlags::Vertex,
+                    ..Default::default()
                 },
             )
             .add_storage_buffer(
@@ -219,6 +221,7 @@ impl Pass for ComputePathTracingIndirectPass {
                     binding_index: 2,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                    ..Default::default()
                 },
             )
             .add_storage_buffer(
@@ -229,6 +232,7 @@ impl Pass for ComputePathTracingIndirectPass {
                     binding_index: 3,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                    ..Default::default()
                 },
             )
             .add_storage_buffer(
@@ -239,6 +243,7 @@ impl Pass for ComputePathTracingIndirectPass {
                     binding_index: 4,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                    ..Default::default()
                 },
             )
             .add_storage_buffer(
@@ -249,6 +254,7 @@ impl Pass for ComputePathTracingIndirectPass {
                     binding_index: 5,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                    ..Default::default()
                 },
             );
 

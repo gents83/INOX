@@ -20,7 +20,6 @@ use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
 
 use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
-const ADD_CULLING_PASS: bool = true;
 const ADD_UI_PASS: bool = true;
 
 const MAX_NUM_LIGHTS: usize = 512;
@@ -29,10 +28,9 @@ const MAX_NUM_MATERIALS: usize = 65536;
 
 enum RenderTargetType {
     Visibility = 0,
-    Instance = 1,
-    Depth = 2,
-    Frame0 = 3,
-    Frame1 = 4,
+    Depth = 1,
+    Frame0 = 2,
+    Frame1 = 3,
 }
 
 pub struct Viewer {
@@ -183,15 +181,6 @@ impl Viewer {
             single_sample,
         );
         debug_assert!(_visibility == RenderTargetType::Visibility as usize);
-        //Instance,
-        let _instance = render_context.create_render_target(
-            width,
-            height,
-            TextureFormat::R32Uint,
-            usage,
-            single_sample,
-        );
-        debug_assert!(_instance == RenderTargetType::Instance as usize);
         //Depth,
         let _depth = render_context.create_render_target(
             width,
@@ -242,7 +231,7 @@ impl Viewer {
     }
     fn create_render_passes(context: &ContextRc, render_context: &RenderContextRc) {
         Self::create_instances_pass(context, render_context);
-        //Self::create_culling_pass(context, render_context, ADD_CULLING_PASS);
+        Self::create_culling_pass(context, render_context);
 
         Self::create_visibility_pass(context, render_context);
         Self::create_compute_pathtracing_direct_pass(context, render_context);
@@ -258,24 +247,16 @@ impl Viewer {
         let instances_pass = ComputeInstancesPass::create(context, render_context);
         render_context.add_pass(instances_pass, true);
     }
-    fn create_culling_pass(
-        context: &ContextRc,
-        render_context: &RenderContextRc,
-        is_enabled: bool,
-    ) {
-        if !is_enabled {
-            return;
-        }
+    fn create_culling_pass(context: &ContextRc, render_context: &RenderContextRc) {
         let culling_pass = CullingPass::create(context, render_context);
-        render_context.add_pass(culling_pass, is_enabled);
+        render_context.add_pass(culling_pass, true);
         let commands_pass = CommandsPass::create(context, render_context);
-        render_context.add_pass(commands_pass, is_enabled);
+        render_context.add_pass(commands_pass, true);
     }
     fn create_visibility_pass(context: &ContextRc, render_context: &RenderContextRc) {
         let visibility_pass = VisibilityBufferPass::create(context, render_context);
         visibility_pass
             .add_render_target(&render_context.render_target(RenderTargetType::Visibility as usize))
-            .add_render_target(&render_context.render_target(RenderTargetType::Instance as usize))
             .add_depth_target(&render_context.render_target(RenderTargetType::Depth as usize));
         render_context.add_pass(visibility_pass, true);
     }
@@ -291,9 +272,6 @@ impl Viewer {
             .set_visibility_texture(
                 visibility_texture.id(),
                 visibility_texture.get().dimensions(),
-            )
-            .set_instance_texture(
-                &render_context.render_target_id(RenderTargetType::Instance as usize),
             )
             .set_depth_texture(&render_context.render_target_id(RenderTargetType::Depth as usize));
         render_context.add_pass(compute_pathtracing_direct_pass, true);
@@ -330,9 +308,6 @@ impl Viewer {
         debug_pass
             .set_visibility_texture(
                 &render_context.render_target_id(RenderTargetType::Visibility as usize),
-            )
-            .set_instance_texture(
-                &render_context.render_target_id(RenderTargetType::Instance as usize),
             )
             .set_depth_texture(&render_context.render_target_id(RenderTargetType::Depth as usize));
         render_context.add_pass(debug_pass, true);

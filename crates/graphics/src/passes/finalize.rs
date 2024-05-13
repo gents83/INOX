@@ -104,6 +104,7 @@ impl Pass for FinalizePass {
                     binding_index: 1,
                     stage: ShaderStage::Fragment,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                    ..Default::default()
                 },
             )
             .add_texture(

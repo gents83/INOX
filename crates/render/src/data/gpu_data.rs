@@ -1,7 +1,10 @@
 use inox_bitmask::bitmask;
 use inox_math::quantize_half;
 
-use crate::{MaterialFlags, TextureType, VertexBufferLayoutBuilder, VertexFormat, INVALID_INDEX};
+use crate::{
+    AsBinding, BufferRef, MaterialFlags, RenderContext, TextureType, VertexBufferLayoutBuilder,
+    VertexFormat, INVALID_INDEX,
+};
 
 pub const MAX_LOD_LEVELS: usize = 8;
 pub const MESHLETS_GROUP_SIZE: usize = 4;
@@ -172,46 +175,62 @@ impl GPUVertexAttributes {
 
 #[repr(C)]
 #[derive(PartialEq, Clone, Copy, Debug)]
-pub struct GPUInstance {
-    pub bb_min: [f32; 3],
-    pub mesh_index: u32,
-    pub bb_max: [f32; 3],
-    pub meshlet_index: u32,
+pub struct GPUTransform {
     pub orientation: [f32; 4],
-    pub position: [f32; 3],
-    pub _padding1: u32,
-    pub scale: [f32; 3],
-    pub _padding2: u32,
+    pub position_scale_x: [f32; 4],
+    pub bb_min_scale_y: [f32; 4],
+    pub bb_max_scale_z: [f32; 4],
 }
 
-impl Default for GPUInstance {
+impl Default for GPUTransform {
     fn default() -> Self {
         Self {
-            bb_min: [0.; 3],
-            mesh_index: 0,
-            bb_max: [0.; 3],
-            meshlet_index: 0,
             orientation: [0.; 4],
-            position: [0.; 3],
-            _padding1: 0,
-            scale: [0.; 3],
-            _padding2: 0,
+            position_scale_x: [0.; 4],
+            bb_min_scale_y: [0.; 4],
+            bb_max_scale_z: [0.; 4],
         }
     }
 }
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct GPUInstance {
+    pub transform_id: u32,
+    pub mesh_id: u32,
+    pub meshlet_id: u32,
+    pub command_id: i32,
+}
+
 impl GPUInstance {
     pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
         let mut layout_builder = VertexBufferLayoutBuilder::instance();
         layout_builder.starting_location(starting_location);
-        layout_builder.add_attribute::<[f32; 3]>(VertexFormat::Float32x3.into());
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
-        layout_builder.add_attribute::<[f32; 3]>(VertexFormat::Float32x3.into());
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
-        layout_builder.add_attribute::<[f32; 4]>(VertexFormat::Float32x4.into());
-        layout_builder.add_attribute::<[f32; 3]>(VertexFormat::Float32x3.into());
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
-        layout_builder.add_attribute::<[f32; 3]>(VertexFormat::Float32x3.into());
-        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<i32>(VertexFormat::Sint32.into());
         layout_builder
+    }
+}
+
+impl AsBinding for GPUInstance {
+    fn count(&self) -> usize {
+        1
+    }
+
+    fn size(&self) -> u64 {
+        std::mem::size_of::<Self>() as u64
+    }
+
+    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut BufferRef) {
+        buffer.add_to_gpu_buffer(
+            render_context,
+            &[
+                self.transform_id,
+                self.mesh_id,
+                self.meshlet_id,
+                self.command_id as _,
+            ],
+        );
     }
 }

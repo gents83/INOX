@@ -650,7 +650,8 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
         }
         if((material.flags & MATERIAL_FLAGS_TRANSMISSION) != 0u) {
             let instance = &instances.data[(*pixel_data).instance_id];
-            let instance_scale = (*instance).scale.x;
+            let transform = transforms.data[(*instance).transform_id];
+            let instance_scale = max(max(transform.position_scale_x.w, transform.bb_min_scale_y.w), transform.bb_max_scale_z.w);
             f_transmission += get_IBL_volume_refraction(
                 tbn.normal, v,
                 material_info.perceptual_roughness,
@@ -723,7 +724,8 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
             // If the light ray travels through the geometry, use the point it exits the geometry again.
             // That will change the angle to the light source, if the material refracts the light ray.
             let instance = &instances.data[(*pixel_data).instance_id];
-            let instance_scale = (*instance).scale.x;
+            let transform = transforms.data[(*instance).transform_id];
+            let instance_scale = max(max(transform.position_scale_x.w, transform.bb_min_scale_y.w), transform.bb_max_scale_z.w);
             let transmission_ray = get_volume_transmission_ray(tbn.normal, v, material_info.thickness_factor, material_info.ior, instance_scale);
             pointToLight -= transmission_ray;
             l = normalize(pointToLight);

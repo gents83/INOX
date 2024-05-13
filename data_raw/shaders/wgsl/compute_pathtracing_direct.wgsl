@@ -12,20 +12,20 @@ var<storage, read> vertices_attributes: VerticesAttributes;
 @group(0) @binding(4)
 var<storage, read> instances: Instances;
 @group(0) @binding(5)
-var<storage, read> meshes: Meshes;
+var<storage, read> transforms: Transforms;
 @group(0) @binding(6)
-var<storage, read> meshlets: Meshlets;
+var<storage, read> meshes: Meshes;
 @group(0) @binding(7)
-var<storage, read> materials: Materials;
+var<storage, read> meshlets: Meshlets;
 
 @group(1) @binding(0)
-var<storage, read> textures: Textures;
+var<storage, read> materials: Materials;
 @group(1) @binding(1)
-var<uniform> lights: Lights;
+var<storage, read> textures: Textures;
 @group(1) @binding(2)
-var visibility_texture: texture_2d<u32>;
+var<uniform> lights: Lights;
 @group(1) @binding(3)
-var instance_texture: texture_2d<u32>;
+var visibility_texture: texture_2d<u32>;
 @group(1) @binding(4)
 var depth_texture: texture_depth_2d;
 @group(1) @binding(5)
@@ -72,21 +72,15 @@ fn main(
     let visibility_pixel = vec2<u32>(vec2<f32>(pixel) * visibility_scale);
     let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
     let visibility_id = visibility_value.r;
-    
-    let instance_dimensions = textureDimensions(instance_texture);
-    let instance_scale = vec2<f32>(instance_dimensions) / vec2<f32>(dimensions);
-    let instance_pixel = vec2<u32>(vec2<f32>(pixel) * instance_scale);
-    let instance_value = textureLoad(instance_texture, instance_pixel, 0);
-    let instance_id = instance_value.r;
 
-    if (instance_id != 0u && visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
+    if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
         let depth_dimensions = textureDimensions(depth_texture);
         let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
         let depth_pixel = vec2<u32>(vec2<f32>(pixel) * depth_scale);
         let depth = textureLoad(depth_texture, depth_pixel, 0);
         let hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth); 
  
-        let radiance_data = compute_radiance_from_visibility(visibility_id, instance_id - 1u, hit_point, get_random_numbers(&seed), vec3<f32>(0.), vec3<f32>(1.)); 
+        let radiance_data = compute_radiance_from_visibility(visibility_id, hit_point, get_random_numbers(&seed), vec3<f32>(0.), vec3<f32>(1.)); 
         
         origin += hit_point + radiance_data.direction * HIT_EPSILON;
         direction += radiance_data.direction;

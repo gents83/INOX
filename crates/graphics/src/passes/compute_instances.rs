@@ -1,24 +1,42 @@
 use std::collections::HashMap;
 
-use inox_math::Mat4Ops;
+use inox_math::{Mat4Ops, Vector4};
 use inox_messenger::Listener;
 use inox_render::{
     AsBinding, BindingData, CommandBuffer, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh,
-    GPUMeshlet, GPUVector, Mesh, MeshId, Pass, RenderContext, RenderContextRc, TextureView,
-    MAX_LOD_LEVELS,
+    GPUMeshlet, GPUTransform, GPUVector, Mesh, MeshId, Pass, RenderContext, RenderContextRc,
+    TextureView,
 };
 
 use inox_core::ContextRc;
 use inox_resources::{ResourceEvent, SharedDataRc};
 use inox_scene::{Object, ObjectId};
+use inox_uid::{generate_static_uid_from_string, Uid};
 
 pub const COMPUTE_INSTANCES_NAME: &str = "ComputeInstancesPass";
 
-const DRAW_MESHLET_COMMANDS: bool = true;
+pub const INSTANCE_DATA_ID: Uid = generate_static_uid_from_string("INSTANCE_DATA_ID");
+pub const COMMANDS_DATA_ID: Uid = generate_static_uid_from_string("COMMANDS_DATA_ID");
 
-struct InstanceMapData {
-    instance: GPUInstance,
+struct TransformMapData {
+    transform: GPUTransform,
     id: ObjectId,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct CommandsData(pub i32);
+impl AsBinding for CommandsData {
+    fn count(&self) -> usize {
+        1
+    }
+
+    fn size(&self) -> u64 {
+        std::mem::size_of::<i32>() as u64
+    }
+
+    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut inox_render::BufferRef) {
+        buffer.add_to_gpu_buffer(render_context, &[self.0]);
+    }
 }
 
 pub struct ComputeInstancesPass {
@@ -27,9 +45,11 @@ pub struct ComputeInstancesPass {
     binding_data: BindingData,
     meshes: GPUBuffer<GPUMesh>,
     meshlets: GPUBuffer<GPUMeshlet>,
-    instances: GPUVector<GPUInstance>,
+    transforms: GPUVector<GPUTransform>,
     commands: GPUVector<DrawIndexedCommand>,
-    instance_map: HashMap<MeshId, Vec<InstanceMapData>>,
+    commands_data: GPUVector<CommandsData>,
+    instances: GPUVector<GPUInstance>,
+    transform_map: HashMap<MeshId, Vec<TransformMapData>>,
     is_dirty: bool,
 }
 unsafe impl Send for ComputeInstancesPass {}
@@ -57,14 +77,20 @@ impl Pass for ComputeInstancesPass {
         Self {
             listener,
             shared_data: context.shared_data().clone(),
-            instances: render_context.global_buffers().vector::<GPUInstance>(),
-            commands: render_context
-                .global_buffers()
-                .vector::<DrawIndexedCommand>(),
-            instance_map: HashMap::new(),
+            transforms: render_context.global_buffers().vector::<GPUTransform>(),
+            transform_map: HashMap::new(),
             is_dirty: true,
             meshes: render_context.global_buffers().buffer::<GPUMesh>(),
             meshlets: render_context.global_buffers().buffer::<GPUMeshlet>(),
+            commands: render_context
+                .global_buffers()
+                .vector::<DrawIndexedCommand>(),
+            instances: render_context
+                .global_buffers()
+                .vector_with_id::<GPUInstance>(INSTANCE_DATA_ID),
+            commands_data: render_context
+                .global_buffers()
+                .vector_with_id::<CommandsData>(COMMANDS_DATA_ID),
             binding_data: BindingData::new(render_context, COMPUTE_INSTANCES_NAME),
         }
     }
@@ -74,16 +100,28 @@ impl Pass for ComputeInstancesPass {
         self.process_messages();
         self.update_instances(render_context);
 
-        if self.commands.read().unwrap().is_empty() || self.instances.read().unwrap().is_empty() {
+        if self.commands_data.read().unwrap().is_empty()
+            || self.transforms.read().unwrap().is_empty()
+        {
             return;
         }
         self.binding_data
             .bind_buffer(
-                &mut *self.instances.write().unwrap(),
+                &mut *self.transforms.write().unwrap(),
                 false,
                 Some("Instances"),
             )
-            .bind_buffer(&mut *self.commands.write().unwrap(), true, Some("Commands"));
+            .bind_buffer(&mut *self.commands.write().unwrap(), true, Some("Commands"))
+            .bind_buffer(
+                &mut *self.commands_data.write().unwrap(),
+                false,
+                Some("CommandsData"),
+            )
+            .bind_buffer(
+                &mut *self.instances.write().unwrap(),
+                false,
+                Some("InstanceData"),
+            );
     }
 
     fn update(
@@ -101,65 +139,49 @@ impl ComputeInstancesPass {
             return;
         }
         self.is_dirty = false;
-        let mut instances = self.instances.write().unwrap();
+        let mut transforms = self.transforms.write().unwrap();
         let mut commands = self.commands.write().unwrap();
+        let mut commands_data = self.commands_data.write().unwrap();
+        let mut instances = self.instances.write().unwrap();
 
-        commands.clear();
+        commands_data.clear();
+        transforms.clear();
         instances.clear();
+        commands.clear();
 
         let meshes = self.meshes.read().unwrap();
-        if DRAW_MESHLET_COMMANDS {
-            self.instance_map.iter().for_each(|(mesh_id, data)| {
-                if let Some((mesh, _mesh_index)) = meshes.get_first_with_index(mesh_id) {
-                    let meshlets = self.meshlets.read().unwrap();
-                    if let Some(meshlets) = meshlets.get(mesh_id) {
+        self.transform_map.iter().for_each(|(mesh_id, data)| {
+            if let Some((mesh, _mesh_index)) = meshes.get_first_with_index(mesh_id) {
+                let base_instance = transforms.len() as u32;
+                let meshlets = self.meshlets.read().unwrap();
+                if let Some(meshlets) = meshlets.get(mesh_id) {
+                    let current_len = instances.len();
+                    instances.reserve(current_len + meshlets.len() * data.len());
+                    let current_len = commands_data.len();
+                    commands_data
+                        .resize(current_len + meshlets.len() * data.len(), CommandsData(-1));
+                    data.iter().enumerate().for_each(|(j, mesh_instance)| {
+                        transforms.push(mesh_instance.transform);
                         meshlets.iter().enumerate().for_each(|(i, meshlet)| {
-                            let max_lod_level = MAX_LOD_LEVELS as u32 - 1;
-                            let meshlet_lod_level =
-                                max_lod_level - (meshlet.mesh_index_and_lod_level & max_lod_level);
-                            if meshlet_lod_level != 0 {
-                                return;
-                            }
-                            let base_instance = instances.len() as u32;
-                            data.iter().for_each(|mesh_instance| {
-                                let mut instance = mesh_instance.instance;
-                                instance.meshlet_index = mesh.meshlets_offset + i as u32;
-                                instances.push(instance);
+                            instances.push(GPUInstance {
+                                transform_id: base_instance + j as u32,
+                                mesh_id: meshlet.mesh_index_and_lod_level >> 3,
+                                meshlet_id: mesh.meshlets_offset + i as u32,
+                                command_id: -1,
                             });
-                            let command = DrawIndexedCommand {
-                                instance_count: data.len() as u32,
-                                base_instance,
-                                base_index: meshlet.indices_offset as _,
-                                vertex_count: meshlet.indices_count,
-                                vertex_offset: mesh.vertices_position_offset as _,
-                            };
-                            commands.push(command);
                         });
-                    }
+                    });
                 }
-            });
-        } else {
-            self.instance_map.iter().for_each(|(mesh_id, data)| {
-                let base_instance = instances.len() as u32;
-                instances.extend(data.iter().map(|e| e.instance));
-                if let Some((mesh, _mesh_index)) = meshes.get_first_with_index(mesh_id) {
-                    let command = DrawIndexedCommand {
-                        instance_count: data.len() as u32,
-                        base_instance,
-                        base_index: mesh.indices_offset as _,
-                        vertex_count: mesh.indices_count,
-                        vertex_offset: mesh.vertices_position_offset as _,
-                    };
-                    commands.push(command);
-                }
-            });
-        }
+            }
+        });
 
-        if commands.is_empty() {
+        if commands_data.is_empty() {
             return;
         }
         //sort in descending order
-        commands.sort_by(|a, b| b.instance_count.partial_cmp(&a.instance_count).unwrap());
+        commands.resize(commands_data.len(), DrawIndexedCommand::default());
+        transforms.mark_as_dirty(render_context);
+        commands_data.mark_as_dirty(render_context);
         instances.mark_as_dirty(render_context);
         commands.mark_as_dirty(render_context);
     }
@@ -174,30 +196,41 @@ impl ComputeInstancesPass {
                             .components_of_type::<Mesh>()
                             .iter()
                             .for_each(|mesh| {
-                                let instances = self.instance_map.entry(*mesh.id()).or_default();
+                                let instances = self.transform_map.entry(*mesh.id()).or_default();
                                 let matrix = object.get().transform();
+                                let position = matrix.translation();
+                                let scale = matrix.scale();
+                                let bb_min = *mesh.get().min();
+                                let bb_max = *mesh.get().max();
 
                                 let result = instances.iter_mut().find(|e| e.id == *object.id());
                                 if let Some(data) = result {
-                                    data.instance.orientation = matrix.orientation().into();
-                                    data.instance.position = matrix.translation().into();
-                                    data.instance.scale = matrix.scale().into();
-                                    data.instance.mesh_index = mesh.get().mesh_index() as _;
-                                    data.instance.bb_min = (*mesh.get().min()).into();
-                                    data.instance.bb_max = (*mesh.get().max()).into();
+                                    data.transform.orientation = matrix.orientation().into();
+                                    data.transform.position_scale_x =
+                                        Vector4::new(position.x, position.y, position.z, scale.x)
+                                            .into();
+                                    data.transform.bb_min_scale_y =
+                                        Vector4::new(bb_min.x, bb_min.y, bb_min.z, scale.y).into();
+                                    data.transform.bb_max_scale_z =
+                                        Vector4::new(bb_max.x, bb_max.y, bb_max.z, scale.z).into();
                                 } else {
-                                    let instance = GPUInstance {
-                                        mesh_index: mesh.get().mesh_index() as _,
-                                        bb_min: (*mesh.get().min()).into(),
-                                        bb_max: (*mesh.get().max()).into(),
+                                    let transform = GPUTransform {
                                         orientation: matrix.orientation().into(),
-                                        position: matrix.translation().into(),
-                                        scale: matrix.scale().into(),
-                                        meshlet_index: 0,
-                                        ..Default::default()
+                                        position_scale_x: Vector4::new(
+                                            position.x, position.y, position.z, scale.x,
+                                        )
+                                        .into(),
+                                        bb_min_scale_y: Vector4::new(
+                                            bb_min.x, bb_min.y, bb_min.z, scale.y,
+                                        )
+                                        .into(),
+                                        bb_max_scale_z: Vector4::new(
+                                            bb_max.x, bb_max.y, bb_max.z, scale.z,
+                                        )
+                                        .into(),
                                     };
-                                    instances.push(InstanceMapData {
-                                        instance,
+                                    instances.push(TransformMapData {
+                                        transform,
                                         id: *object.id(),
                                     });
                                 }
@@ -206,7 +239,7 @@ impl ComputeInstancesPass {
                     }
                 }
                 ResourceEvent::Destroyed(id) => {
-                    self.instance_map.iter_mut().for_each(|(_, instances)| {
+                    self.transform_map.iter_mut().for_each(|(_, instances)| {
                         instances.retain(|e| {
                             if e.id == *id {
                                 self.is_dirty = true;
@@ -221,22 +254,48 @@ impl ComputeInstancesPass {
             })
             .process_messages(|e: &ResourceEvent<Mesh>| match e {
                 ResourceEvent::Created(mesh) => {
-                    if let Some(instances) = self.instance_map.get_mut(mesh.id()) {
+                    if let Some(instances) = self.transform_map.get_mut(mesh.id()) {
                         instances.iter_mut().for_each(|e| {
-                            e.instance.mesh_index = mesh.get().mesh_index() as _;
-                            e.instance.bb_min = (*mesh.get().min()).into();
-                            e.instance.bb_max = (*mesh.get().max()).into();
+                            let bb_min = *mesh.get().min();
+                            let bb_max = *mesh.get().max();
+                            e.transform.bb_min_scale_y = Vector4::new(
+                                bb_min.x,
+                                bb_min.y,
+                                bb_min.z,
+                                e.transform.bb_min_scale_y[3],
+                            )
+                            .into();
+                            e.transform.bb_max_scale_z = Vector4::new(
+                                bb_max.x,
+                                bb_max.y,
+                                bb_max.z,
+                                e.transform.bb_max_scale_z[3],
+                            )
+                            .into();
                         });
                         self.is_dirty = true;
                     }
                 }
                 ResourceEvent::Changed(id) => {
                     if let Some(mesh) = self.shared_data.get_resource::<Mesh>(id) {
-                        if let Some(instances) = self.instance_map.get_mut(id) {
+                        if let Some(instances) = self.transform_map.get_mut(id) {
                             instances.iter_mut().for_each(|e| {
-                                e.instance.mesh_index = mesh.get().mesh_index() as _;
-                                e.instance.bb_min = (*mesh.get().min()).into();
-                                e.instance.bb_max = (*mesh.get().max()).into();
+                                let bb_min = *mesh.get().min();
+                                let bb_max = *mesh.get().max();
+                                e.transform.bb_min_scale_y = Vector4::new(
+                                    bb_min.x,
+                                    bb_min.y,
+                                    bb_min.z,
+                                    e.transform.bb_min_scale_y[3],
+                                )
+                                .into();
+                                e.transform.bb_max_scale_z = Vector4::new(
+                                    bb_max.x,
+                                    bb_max.y,
+                                    bb_max.z,
+                                    e.transform.bb_max_scale_z[3],
+                                )
+                                .into();
                             });
                             self.is_dirty = true;
                         }

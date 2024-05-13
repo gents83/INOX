@@ -1,16 +1,17 @@
-// Need constant_data, instances, meshlets, meshes, indices, vertices_positions, vertices_attributes
+// Need constant_data, transforms, meshlets, meshes, indices, vertices_positions, vertices_attributes
 
-fn visibility_to_gbuffer(visibility_id: u32, instance_id: u32, hit_point: vec3<f32>) -> PixelData 
+fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData 
 {     
     var uv_set: array<vec4<f32>, 4>;
     var normal = vec3<f32>(0.);
     var tangent = vec4<f32>(0.);
     var color = vec4<f32>(1.);
 
-    let meshlet_id = (visibility_id >> 8u) - 1u; 
+    let instance_id = (visibility_id >> 8u) - 1u; 
     let primitive_id = visibility_id & 255u;
     
-    let meshlet = meshlets.data[meshlet_id];
+    let instance = instances.data[instance_id];
+    let meshlet = meshlets.data[instance.meshlet_id];
     let index_offset = meshlet.indices_offset + (primitive_id * 3u);
 
     let mesh_id = meshlet.mesh_index_and_lod_level >> 3u;
@@ -34,15 +35,16 @@ fn visibility_to_gbuffer(visibility_id: u32, instance_id: u32, hit_point: vec3<f
                                  attributes_offset + vert_indices.y * vertex_attribute_stride,
                                  attributes_offset + vert_indices.z * vertex_attribute_stride);
 
-    let instance = instances.data[instance_id];
-    let orientation = instance.orientation;
-    let position = instance.position;
-    let scale = instance.scale;
+    let transform = transforms.data[instance.transform_id];
+    let orientation = transform.orientation;
+    let position = transform.position_scale_x.xyz;
+    let scale = vec3<f32>(transform.position_scale_x.w, transform.bb_min_scale_y.w, transform.bb_min_scale_y.w);
     
-    let size = abs(instance.mesh_local_bb_max - instance.mesh_local_bb_min);
-    let p1 = instance.mesh_local_bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.x + position_offset]) * size;
-    let p2 = instance.mesh_local_bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.y + position_offset]) * size;
-    let p3 = instance.mesh_local_bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.z + position_offset]) * size;
+    let min = transform.bb_min_scale_y.xyz;
+    let size = abs(transform.bb_max_scale_z.xyz - min);
+    let p1 = min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.x + position_offset]) * size;
+    let p2 = min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.y + position_offset]) * size;
+    let p3 = min + unpack_unorm_to_3_f32(vertices_positions.data[vert_indices.z + position_offset]) * size;
     let v1 = transform_vector(p1, position, orientation, scale);
     let v2 = transform_vector(p2, position, orientation, scale);
     let v3 = transform_vector(p3, position, orientation, scale);

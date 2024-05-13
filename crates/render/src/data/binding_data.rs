@@ -61,6 +61,7 @@ pub struct BindingInfo {
     pub binding_index: usize,
     pub stage: ShaderStage,
     pub flags: BindingFlags,
+    pub with_count: bool,
 }
 
 impl Default for BindingInfo {
@@ -70,6 +71,7 @@ impl Default for BindingInfo {
             binding_index: 0,
             stage: ShaderStage::VertexAndFragment,
             flags: BindingFlags::Read,
+            with_count: false,
         }
     }
 }
@@ -265,7 +267,7 @@ impl BindingData {
         let is_changed = self.render_context.binding_data_buffer().bind_buffer(
             label,
             data,
-            false,
+            info.with_count,
             usage,
             &self.render_context,
         );
@@ -359,7 +361,7 @@ impl BindingData {
         let is_changed = self.render_context.binding_data_buffer().bind_buffer(
             label,
             data,
-            false,
+            info.with_count,
             usage,
             &self.render_context,
         );

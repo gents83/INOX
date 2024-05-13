@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use inox_render::{
     BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawIndexedCommand, GPUBuffer,
-    GPUInstance, GPUVector, GPUVertexIndices, GPUVertexPosition, Pass, RenderContext,
+    GPUInstance, GPUTransform, GPUVector, GPUVertexIndices, GPUVertexPosition, Pass, RenderContext,
     RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage,
     StoreOperation, Texture, TextureView, VextexBindingType,
 };
@@ -10,6 +10,8 @@ use inox_render::{
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::generate_random_uid;
+
+use crate::INSTANCE_DATA_ID;
 
 pub const VISIBILITY_BUFFER_PIPELINE: &str = "pipelines/VisibilityBuffer.render_pipeline";
 pub const VISIBILITY_BUFFER_PASS_NAME: &str = "VisibilityBufferPass";
@@ -19,6 +21,7 @@ pub struct VisibilityBufferPass {
     binding_data: BindingData,
     constant_data: ConstantDataRw,
     indices: GPUBuffer<GPUVertexIndices>,
+    transforms: GPUVector<GPUTransform>,
     instances: GPUVector<GPUInstance>,
     commands: GPUVector<DrawIndexedCommand>,
     vertices_position: GPUBuffer<GPUVertexPosition>,
@@ -65,7 +68,10 @@ impl Pass for VisibilityBufferPass {
                 .global_buffers()
                 .buffer::<GPUVertexPosition>(),
             indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
-            instances: render_context.global_buffers().vector::<GPUInstance>(),
+            transforms: render_context.global_buffers().vector::<GPUTransform>(),
+            instances: render_context
+                .global_buffers()
+                .vector_with_id::<GPUInstance>(INSTANCE_DATA_ID),
             commands: render_context
                 .global_buffers()
                 .vector::<DrawIndexedCommand>(),
@@ -73,6 +79,10 @@ impl Pass for VisibilityBufferPass {
     }
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("visibility_buffer_pass::init");
+
+        if self.transforms.read().unwrap().is_empty() {
+            return;
+        }
 
         let mut pass = self.render_pass.get_mut();
 
@@ -83,6 +93,16 @@ impl Pass for VisibilityBufferPass {
                 BindingInfo {
                     group_index: 0,
                     binding_index: 0,
+                    stage: ShaderStage::Vertex,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.transforms.write().unwrap(),
+                Some("Transforms"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 1,
                     stage: ShaderStage::Vertex,
                     ..Default::default()
                 },
@@ -123,7 +143,7 @@ impl Pass for VisibilityBufferPass {
             return;
         }
 
-        if self.commands.read().unwrap().is_empty() {
+        if self.transforms.read().unwrap().is_empty() || self.commands.read().unwrap().is_empty() {
             return;
         }
 

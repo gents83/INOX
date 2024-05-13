@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use inox_render::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    DrawIndexedCommand, GPUBuffer, GPUMesh, GPUMeshlet, GPUVector, Pass, RenderContext,
-    RenderContextRc, ShaderStage, TextureView,
+    DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet, GPUVector, Pass,
+    RenderContext, RenderContextRc, ShaderStage, TextureView,
 };
 
 use inox_core::ContextRc;
@@ -11,7 +11,7 @@ use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
 
-use crate::MeshletLodLevel;
+use crate::{CommandsData, COMMANDS_DATA_ID, INSTANCE_DATA_ID};
 
 pub const COMMANDS_PIPELINE: &str = "pipelines/ComputeCommands.compute_pipeline";
 pub const COMMANDS_PASS_NAME: &str = "CommandsPass";
@@ -19,10 +19,11 @@ pub const COMMANDS_PASS_NAME: &str = "CommandsPass";
 pub struct CommandsPass {
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
-    commands: GPUVector<DrawIndexedCommand>,
     meshes: GPUBuffer<GPUMesh>,
     meshlets: GPUBuffer<GPUMeshlet>,
-    meshlets_lod_level: GPUVector<MeshletLodLevel>,
+    instances: GPUVector<GPUInstance>,
+    commands_data: GPUVector<CommandsData>,
+    commands: GPUVector<DrawIndexedCommand>,
 }
 unsafe impl Send for CommandsPass {}
 unsafe impl Sync for CommandsPass {}
@@ -59,16 +60,19 @@ impl Pass for CommandsPass {
                 .vector::<DrawIndexedCommand>(),
             meshes: render_context.global_buffers().buffer::<GPUMesh>(),
             meshlets: render_context.global_buffers().buffer::<GPUMeshlet>(),
-            meshlets_lod_level: render_context.global_buffers().vector::<MeshletLodLevel>(),
+            instances: render_context
+                .global_buffers()
+                .vector_with_id::<GPUInstance>(INSTANCE_DATA_ID),
+            commands_data: render_context
+                .global_buffers()
+                .vector_with_id::<CommandsData>(COMMANDS_DATA_ID),
             binding_data: BindingData::new(render_context, COMMANDS_PASS_NAME),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("compute_commands_pass::init");
 
-        if self.meshlets_lod_level.read().unwrap().is_empty()
-            || self.commands.read().unwrap().is_empty()
-        {
+        if self.instances.read().unwrap().is_empty() || self.commands.read().unwrap().is_empty() {
             return;
         }
 
@@ -94,23 +98,34 @@ impl Pass for CommandsPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.commands.write().unwrap(),
-                Some("Commands"),
+                &mut *self.instances.write().unwrap(),
+                Some("Instances"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 2,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.commands_data.write().unwrap(),
+                Some("CommandsData"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 3,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite | BindingFlags::Indirect,
+                    ..Default::default()
                 },
             )
             .add_storage_buffer(
-                &mut *self.meshlets_lod_level.write().unwrap(),
-                Some("Meshlets Lod level"),
+                &mut *self.commands.write().unwrap(),
+                Some("Commands"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 4,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::Read,
+                    flags: BindingFlags::ReadWrite,
+                    with_count: true,
                 },
             );
 
@@ -126,17 +141,17 @@ impl Pass for CommandsPass {
     ) {
         inox_profiler::scoped_profile!("compute_commands_pass::update");
 
-        if self.meshlets_lod_level.read().unwrap().is_empty() {
+        if self.instances.read().unwrap().is_empty() {
             return;
         }
 
-        let num_meshlets = self.meshlets.read().unwrap().item_count();
-        if num_meshlets == 0 {
+        let num = self.instances.read().unwrap().len();
+        if num == 0 {
             return;
         }
 
-        let workgroup_max_size = 256;
-        let workgroup_size = (num_meshlets + workgroup_max_size - 1) / workgroup_max_size;
+        let workgroup_max_size = 32;
+        let workgroup_size = (num + workgroup_max_size - 1) / workgroup_max_size;
 
         let pass = self.compute_pass.get();
         pass.dispatch(

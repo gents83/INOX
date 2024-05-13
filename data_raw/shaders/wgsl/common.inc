@@ -120,15 +120,17 @@ struct ConstantData {
 };
 
 struct Instance {
-    @location(1) mesh_local_bb_min: vec3<f32>,
-    @location(2) mesh_index: u32,
-    @location(3) mesh_local_bb_max: vec3<f32>,
-    @location(4) meshlet_index: u32,
-    @location(5) orientation: vec4<f32>,
-    @location(6) position: vec3<f32>,
-    @location(7) padding1: u32,
-    @location(8) scale: vec3<f32>,
-    @location(9) padding2: u32,
+    @location(1) transform_id: u32,
+    @location(2) mesh_id: u32,
+    @location(3) meshlet_id: u32,
+    @location(4) command_id: i32,
+}
+
+struct Transform {
+    orientation: vec4<f32>,
+    position_scale_x: vec4<f32>,
+    bb_min_scale_y: vec4<f32>,
+    bb_max_scale_z: vec4<f32>,
 }
 
 struct DrawCommand {
@@ -165,11 +167,11 @@ struct Mesh {
 };
 
 struct Meshlet {
-    @location(5) mesh_index_and_lod_level: u32, // 29 mesh + 3 lod bits
-    @location(6) indices_offset: u32,
-    @location(7) indices_count: u32,
-    @location(8) bvh_offset: u32,
-    @location(9) child_meshlets: vec4<i32>,
+    mesh_index_and_lod_level: u32, // 29 mesh + 3 lod bits
+    indices_offset: u32,
+    indices_count: u32,
+    bvh_offset: u32,
+    child_meshlets: vec4<i32>,
 };
 
 struct BHVNode {
@@ -237,9 +239,15 @@ struct DrawCommands {
 };
 
 struct DrawIndexedCommands {
-    count: u32,
-    _padding: vec3<u32>,
+    count: atomic<u32>,
+    _padding0: u32,
+    _padding1: u32,
+    _padding2: u32,
     data: array<DrawIndexedCommand>,
+};
+
+struct Transforms {
+    data: array<Transform>,
 };
 
 struct Instances {

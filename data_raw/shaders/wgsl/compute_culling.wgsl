@@ -18,11 +18,13 @@ var<storage, read> meshlets: Meshlets;
 @group(0) @binding(3)
 var<storage, read> meshes: Meshes;
 @group(0) @binding(4)
-var<storage, read> bhv: BHV;
+var<storage, read> transforms: Transforms;
 @group(0) @binding(5)
 var<storage, read> instances: Instances;
 @group(0) @binding(6)
-var<storage, read_write> meshlets_lod_level: array<atomic<u32>>;
+var<storage, read_write> commands_data: array<i32>;
+@group(0) @binding(7)
+var<storage, read_write> commands: DrawIndexedCommands;
 
 #import "matrix_utils.inc"
 #import "geom_utils.inc"
@@ -49,6 +51,31 @@ fn is_box_inside_frustum(min: vec3<f32>, max: vec3<f32>, frustum: array<vec4<f32
     return visible;
 }
 
+fn is_max_lod_level(lod_level: u32, mesh: Mesh) -> bool {
+    if (lod_level == 0u && mesh.lods_meshlets_offset[1u] != 0u) {
+        return false;
+    }
+    if (lod_level == 1u && mesh.lods_meshlets_offset[2u] != 0u) {
+        return false;
+    }
+    if (lod_level == 2u && mesh.lods_meshlets_offset[3u] != 0u) {
+        return false;
+    }
+    if (lod_level == 3u && mesh.lods_meshlets_offset[4u] != 0u) {
+        return false;
+    }
+    if (lod_level == 4u && mesh.lods_meshlets_offset[5u] != 0u) {
+        return false;
+    }
+    if (lod_level == 5u && mesh.lods_meshlets_offset[6u] != 0u) {
+        return false;
+    }
+    if (lod_level == 6u && mesh.lods_meshlets_offset[7u] != 0u) {
+        return false;
+    }
+    return true;
+}
+
 @compute
 @workgroup_size(32, 1, 1)
 fn main(
@@ -57,33 +84,32 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>, 
     @builtin(workgroup_id) workgroup_id: vec3<u32>
 ) {
-    let meshlet_id = global_invocation_id.x;
-    if (meshlet_id >= arrayLength(&meshlets.data)) {
+    let instance_id = global_invocation_id.x;
+    if (instance_id >= arrayLength(&instances.data)) {
         return;
     }
-
-    let meshlet = meshlets.data[meshlet_id];
-    let mesh_id = meshlet.mesh_index_and_lod_level >> 3u;
-    let meshlet_lod_level = meshlet.mesh_index_and_lod_level & 7u;
-    var mesh = meshes.data[mesh_id];
-    let flags = (mesh.flags_and_vertices_attribute_layout & 0xFFFF0000u) >> 16u;
-    if (flags != culling_data.mesh_flags) {   
-        return;
-    }
-
-    let bb_id = mesh.blas_index + meshlet.bvh_offset;
     
-    //TODO: use instances and convert to real positions like:
-    //let size = instance.mesh_local_bb_max - instance.mesh_local_bb_min;
-    //let p = instance.mesh_local_bb_min + unpack_unorm_to_3_f32(vertex_position) * size;
-    //let v = transform_vector(p, instance.position, instance.orientation, instance.scale);
-    let instance = &instances.data[bb_id];
-    let bb_max = transform_vector((*instance).mesh_local_bb_max, (*instance).position, (*instance).orientation, (*instance).scale);
-    let bb_min = transform_vector((*instance).mesh_local_bb_min, (*instance).position, (*instance).orientation, (*instance).scale);
+    atomicStore(&commands.count, 0u);
+     
+    let clip_mvp = constant_data.proj * culling_data.view;
+    let instance = instances.data[instance_id];
+    let transform = transforms.data[instance.transform_id];
+    let mesh = meshes.data[instance.mesh_id];
+    let meshlet = meshlets.data[instance.meshlet_id];
+    let meshlet_lod_level = meshlet.mesh_index_and_lod_level & 7u;
+    
+    let flags = (mesh.flags_and_vertices_attribute_layout & 0xFFFF0000u) >> 16u;
+    if (flags != culling_data.mesh_flags) {    
+        return;
+    }
+    
+    //TODO: culling should be done on meshlet min-max not on mesh min-max
+    let scale = vec3<f32>(transform.position_scale_x.w, transform.bb_min_scale_y.w, transform.bb_min_scale_y.w);
+    let bb_max = transform_vector(transform.bb_min_scale_y.xyz, transform.position_scale_x.xyz, transform.orientation, scale);
+    let bb_min = transform_vector(transform.bb_min_scale_y.xyz, transform.position_scale_x.xyz, transform.orientation, scale);
     let min = min(bb_min, bb_max);
     let max = max(bb_min, bb_max);
-
-    let clip_mvp = constant_data.proj * culling_data.view;
+    //
     let row0 = matrix_row(clip_mvp, 0u);
     let row1 = matrix_row(clip_mvp, 1u);
     let row3 = matrix_row(clip_mvp, 3u);
@@ -94,12 +120,11 @@ fn main(
     frustum[3] = normalize_plane(row3 - row1);
     if !is_box_inside_frustum(min, max, frustum) {
         return;
-    }
-
+    }        
     //Evaluate screen occupancy to decide if lod is ok to use for this meshlet or to use childrens
     var screen_lod_level = 0u;   
     let f_max = f32(MAX_LOD_LEVELS);   
-
+    //
     let ncd_min = clip_mvp * vec4<f32>(min, 1.);
     let clip_min = ncd_min.xyz / ncd_min.w;
     let screen_min = clip_to_normalized(clip_min.xy);
@@ -109,32 +134,25 @@ fn main(
     let screen_diff = max(screen_max, screen_min) - min(screen_max, screen_min);
     let screen_occupancy = clamp(max(screen_diff.x, screen_diff.y), 0., 1.);  
     screen_lod_level =  clamp(u32(screen_occupancy * f_max), 0u, MAX_LOD_LEVELS - 1u);
-
+    //
     let center = min + (max-min) * 0.5;
     let distance = length(view_pos() - center);
     let distance_lod_level = MAX_LOD_LEVELS - 1u - clamp(u32(((distance * distance) / (constant_data.camera_far - constant_data.camera_near)) * f_max), 0u, MAX_LOD_LEVELS - 1u);
-
+    //
     var desired_lod_level = max(distance_lod_level, screen_lod_level);
-
+    //
     if (constant_data.forced_lod_level >= 0) {
         desired_lod_level = MAX_LOD_LEVELS - 1u - u32(constant_data.forced_lod_level);
     }
-
-    if(meshlet_lod_level == desired_lod_level) {
-        atomicAnd(&meshlets_lod_level[meshlet_id], 0u);
+    //
+    if(meshlet_lod_level == desired_lod_level || is_max_lod_level(meshlet_lod_level, mesh)) {
+        commands_data[instance_id] = i32(instance_id);
+    } else {
+        commands_data[instance_id] = -1;
     }
-    else if(desired_lod_level == (meshlet_lod_level + 1u)) {
-        if(meshlet.child_meshlets.x >= 0) {
-            atomicAnd(&meshlets_lod_level[meshlet.child_meshlets.x], 0u);
-        }
-        if(meshlet.child_meshlets.y >= 0) {
-            atomicAnd(&meshlets_lod_level[meshlet.child_meshlets.y], 0u);
-        }
-        if(meshlet.child_meshlets.z >= 0) {
-            atomicAnd(&meshlets_lod_level[meshlet.child_meshlets.z], 0u);
-        }
-        if(meshlet.child_meshlets.w >= 0) {
-            atomicAnd(&meshlets_lod_level[meshlet.child_meshlets.w], 0u);
-        }
-    }
+    //if(meshlet_lod_level != desired_lod_level) {
+    //    atomicAnd(&instances[instance_id].flags, 0u);
+    //} else {
+    //    atomicOr(&instances[instance_id].flags, 1u);
+    //}
 }
