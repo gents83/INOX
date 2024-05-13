@@ -38,7 +38,7 @@ impl BindingDataBuffer {
         &self,
         label: Option<&str>,
         data: &mut T,
-        with_count: bool,
+        count: Option<usize>,
         usage: wgpu::BufferUsages,
         render_context: &RenderContext,
     ) -> bool
@@ -50,7 +50,7 @@ impl BindingDataBuffer {
         if is_changed {
             let mut bind_data_buffer = self.buffers.write().unwrap();
             let buffer = bind_data_buffer.entry(id).or_default();
-            is_changed |= buffer.bind(label, data, with_count, usage, render_context);
+            is_changed |= buffer.bind(label, data, count, usage, render_context);
             self.changed_this_frame.write().unwrap().remove(&id);
         }
         is_changed

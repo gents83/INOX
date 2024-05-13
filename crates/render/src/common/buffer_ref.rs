@@ -158,7 +158,7 @@ impl BufferRef {
         &mut self,
         label: Option<&str>,
         data: &mut T,
-        with_count: bool,
+        count: Option<usize>,
         usage: wgpu::BufferUsages,
         render_context: &RenderContext,
     ) -> bool
@@ -173,13 +173,13 @@ impl BufferRef {
             format!("{}[{}]", std::any::type_name::<T>(), id)
         };
         let mut size = data.size();
-        if with_count {
+        if count.is_some() {
             size += WGPU_FIXED_ALIGNMENT;
         }
         let is_changed = self.init(render_context, size, usage, name.as_str());
         if usage.intersects(wgpu::BufferUsages::COPY_DST) {
-            if with_count {
-                let len = data.count() as u64;
+            if let Some(count) = count {
+                let len = count as u64;
                 self.add_to_gpu_buffer_with_offset(render_context, &len, WGPU_FIXED_ALIGNMENT);
             }
             data.fill_buffer(render_context, self);

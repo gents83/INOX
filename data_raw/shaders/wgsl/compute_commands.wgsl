@@ -19,23 +19,22 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>, 
 ) {  
 
-    let work_id = global_invocation_id.x;
-    if (work_id >= arrayLength(&commands_data)) {
-        return;
-    }
-
-    let instance_id = commands_data[work_id];
-    if(instance_id < 0) {
+    let instance_id = global_invocation_id.x;
+    if (instance_id >= arrayLength(&instances.data)) {
         return;
     }
 
     let instance = instances.data[instance_id];
+    if(instance.command_id < 0) {
+        return;
+    }
+
     let mesh = meshes.data[instance.mesh_id];
     let meshlet = meshlets.data[instance.meshlet_id];
 
-    let command_index = atomicAdd(&commands.count, 1u);    
+    let command_index = u32(instance.command_id);   
     commands.data[command_index].vertex_count = meshlet.indices_count;
-    commands.data[command_index].instance_count = 1u;
+    atomicAdd(&commands.data[command_index].instance_count, 1u);
     commands.data[command_index].base_index = meshlet.indices_offset;
     commands.data[command_index].vertex_offset = i32(mesh.vertices_position_offset);
     commands.data[command_index].base_instance = u32(instance_id);

@@ -72,7 +72,8 @@ impl Pass for CommandsPass {
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("compute_commands_pass::init");
 
-        if self.instances.read().unwrap().is_empty() || self.commands.read().unwrap().is_empty() {
+        let commands_count = self.commands_data.read().unwrap().len();
+        if self.instances.read().unwrap().is_empty() || commands_count == 0 {
             return;
         }
 
@@ -125,7 +126,7 @@ impl Pass for CommandsPass {
                     binding_index: 4,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite,
-                    with_count: true,
+                    count: Some(commands_count),
                 },
             );
 

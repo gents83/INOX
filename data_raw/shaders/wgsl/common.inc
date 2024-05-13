@@ -142,7 +142,7 @@ struct DrawCommand {
 
 struct DrawIndexedCommand {
     vertex_count: u32,
-    instance_count: u32,
+    instance_count: atomic<u32>,
     base_index: u32,
     vertex_offset: i32,
     base_instance: u32,

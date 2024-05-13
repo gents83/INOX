@@ -1,18 +1,19 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 use inox_math::{Mat4Ops, Vector4};
 use inox_messenger::Listener;
 use inox_render::{
-    AsBinding, BindingData, CommandBuffer, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh,
-    GPUMeshlet, GPUTransform, GPUVector, Mesh, MeshId, Pass, RenderContext, RenderContextRc,
-    TextureView,
+    AsBinding, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
+    DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet, GPUTransform, GPUVector, Mesh,
+    MeshId, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView,
 };
 
 use inox_core::ContextRc;
-use inox_resources::{ResourceEvent, SharedDataRc};
+use inox_resources::{DataTypeResource, Resource, ResourceEvent, SharedDataRc};
 use inox_scene::{Object, ObjectId};
-use inox_uid::{generate_static_uid_from_string, Uid};
+use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
+pub const COMPUTE_INSTANCES_PIPELINE: &str = "pipelines/ComputeInstances.compute_pipeline";
 pub const COMPUTE_INSTANCES_NAME: &str = "ComputeInstancesPass";
 
 pub const INSTANCE_DATA_ID: Uid = generate_static_uid_from_string("INSTANCE_DATA_ID");
@@ -41,6 +42,7 @@ impl AsBinding for CommandsData {
 
 pub struct ComputeInstancesPass {
     listener: Listener,
+    compute_pass: Resource<ComputePass>,
     shared_data: SharedDataRc,
     binding_data: BindingData,
     meshes: GPUBuffer<GPUMesh>,
@@ -74,8 +76,20 @@ impl Pass for ComputeInstancesPass {
             .register::<ResourceEvent<Object>>()
             .register::<ResourceEvent<Mesh>>();
 
+        let compute_data = ComputePassData {
+            name: COMPUTE_INSTANCES_NAME.to_string(),
+            pipelines: vec![PathBuf::from(COMPUTE_INSTANCES_PIPELINE)],
+        };
+
         Self {
             listener,
+            compute_pass: ComputePass::new_resource(
+                context.shared_data(),
+                context.message_hub(),
+                generate_random_uid(),
+                &compute_data,
+                None,
+            ),
             shared_data: context.shared_data().clone(),
             transforms: render_context.global_buffers().vector::<GPUTransform>(),
             transform_map: HashMap::new(),
@@ -100,36 +114,79 @@ impl Pass for ComputeInstancesPass {
         self.process_messages();
         self.update_instances(render_context);
 
-        if self.commands_data.read().unwrap().is_empty()
-            || self.transforms.read().unwrap().is_empty()
-        {
+        let commands_count = self.commands_data.read().unwrap().len();
+        if commands_count == 0 || self.transforms.read().unwrap().is_empty() {
             return;
         }
         self.binding_data
+            .add_storage_buffer(
+                &mut *self.instances.write().unwrap(),
+                Some("Instances"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 0,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::ReadWrite,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.commands_data.write().unwrap(),
+                Some("CommandsData"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 1,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::ReadWrite,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.commands.write().unwrap(),
+                Some("Commands"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 2,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::ReadWrite,
+                    count: Some(commands_count),
+                },
+            )
             .bind_buffer(
                 &mut *self.transforms.write().unwrap(),
-                false,
-                Some("Instances"),
-            )
-            .bind_buffer(&mut *self.commands.write().unwrap(), true, Some("Commands"))
-            .bind_buffer(
-                &mut *self.commands_data.write().unwrap(),
-                false,
-                Some("CommandsData"),
-            )
-            .bind_buffer(
-                &mut *self.instances.write().unwrap(),
-                false,
-                Some("InstanceData"),
+                None,
+                Some("Transforms"),
             );
+
+        let mut pass = self.compute_pass.get_mut();
+        pass.init(render_context, &mut self.binding_data);
     }
 
     fn update(
         &mut self,
-        _render_context: &RenderContext,
+        render_context: &RenderContext,
         _surface_view: &TextureView,
-        _command_buffer: &mut CommandBuffer,
+        command_buffer: &mut CommandBuffer,
     ) {
+        inox_profiler::scoped_profile!("compute_instances_pass::update");
+
+        let num = self.instances.read().unwrap().len();
+        if num == 0 {
+            return;
+        }
+
+        let workgroup_max_size = 32;
+        let workgroup_size = (num + workgroup_max_size - 1) / workgroup_max_size;
+
+        let pass = self.compute_pass.get();
+        pass.dispatch(
+            render_context,
+            &mut self.binding_data,
+            command_buffer,
+            workgroup_size as u32,
+            1,
+            1,
+        );
     }
 }
 
@@ -158,8 +215,7 @@ impl ComputeInstancesPass {
                     let current_len = instances.len();
                     instances.reserve(current_len + meshlets.len() * data.len());
                     let current_len = commands_data.len();
-                    commands_data
-                        .resize(current_len + meshlets.len() * data.len(), CommandsData(-1));
+                    commands_data.resize(current_len + meshlets.len(), CommandsData(-1));
                     data.iter().enumerate().for_each(|(j, mesh_instance)| {
                         transforms.push(mesh_instance.transform);
                         meshlets.iter().enumerate().for_each(|(i, meshlet)| {
@@ -175,11 +231,11 @@ impl ComputeInstancesPass {
             }
         });
 
-        if commands_data.is_empty() {
+        if instances.is_empty() {
             return;
         }
         //sort in descending order
-        commands.resize(commands_data.len(), DrawIndexedCommand::default());
+        commands.resize(instances.len(), DrawIndexedCommand::default());
         transforms.mark_as_dirty(render_context);
         commands_data.mark_as_dirty(render_context);
         instances.mark_as_dirty(render_context);

@@ -20,9 +20,9 @@ var<storage, read> meshes: Meshes;
 @group(0) @binding(4)
 var<storage, read> transforms: Transforms;
 @group(0) @binding(5)
-var<storage, read> instances: Instances;
+var<storage, read_write> instances: Instances;
 @group(0) @binding(6)
-var<storage, read_write> commands_data: array<i32>;
+var<storage, read_write> commands_data: array<atomic<i32>>;
 @group(0) @binding(7)
 var<storage, read_write> commands: DrawIndexedCommands;
 
@@ -88,14 +88,13 @@ fn main(
     if (instance_id >= arrayLength(&instances.data)) {
         return;
     }
-    
-    atomicStore(&commands.count, 0u);
      
     let clip_mvp = constant_data.proj * culling_data.view;
     let instance = instances.data[instance_id];
     let transform = transforms.data[instance.transform_id];
     let mesh = meshes.data[instance.mesh_id];
-    let meshlet = meshlets.data[instance.meshlet_id];
+    let meshlet_id = instance.meshlet_id;
+    let meshlet = meshlets.data[meshlet_id];
     let meshlet_lod_level = meshlet.mesh_index_and_lod_level & 7u;
     
     let flags = (mesh.flags_and_vertices_attribute_layout & 0xFFFF0000u) >> 16u;
@@ -103,10 +102,10 @@ fn main(
         return;
     }
     
-    //TODO: culling should be done on meshlet min-max not on mesh min-max
+    //TODO: culling should be done on meshlet min-max NOT on mesh min-max
     let scale = vec3<f32>(transform.position_scale_x.w, transform.bb_min_scale_y.w, transform.bb_min_scale_y.w);
-    let bb_max = transform_vector(transform.bb_min_scale_y.xyz, transform.position_scale_x.xyz, transform.orientation, scale);
     let bb_min = transform_vector(transform.bb_min_scale_y.xyz, transform.position_scale_x.xyz, transform.orientation, scale);
+    let bb_max = transform_vector(transform.bb_max_scale_z.xyz, transform.position_scale_x.xyz, transform.orientation, scale);
     let min = min(bb_min, bb_max);
     let max = max(bb_min, bb_max);
     //
@@ -146,9 +145,16 @@ fn main(
     }
     //
     if(meshlet_lod_level == desired_lod_level || is_max_lod_level(meshlet_lod_level, mesh)) {
-        commands_data[instance_id] = i32(instance_id);
+        let result = atomicCompareExchangeWeak(&commands_data[meshlet_id], -1, 0);
+        if(result.exchanged) {
+            let command_id = i32(atomicAdd(&commands.count, 1u));
+            atomicStore(&commands_data[meshlet_id], command_id);
+            instances.data[instance_id].command_id = command_id;
+        } else {
+            instances.data[instance_id].command_id = result.old_value;
+        }
     } else {
-        commands_data[instance_id] = -1;
+        instances.data[instance_id].command_id = -1;
     }
     //if(meshlet_lod_level != desired_lod_level) {
     //    atomicAnd(&instances[instance_id].flags, 0u);

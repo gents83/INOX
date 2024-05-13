@@ -24,8 +24,9 @@ fn vs_main(
 ) -> VertexOutput {
     
     let transform = transforms.data[instance.transform_id];
-    let size = abs(transform.bb_max_scale_z.xyz - transform.bb_min_scale_y.xyz);
-    let p = transform.bb_min_scale_y.xyz + unpack_unorm_to_3_f32(vertex_position) * size;
+    let min = transform.bb_min_scale_y.xyz;
+    let size = abs(transform.bb_max_scale_z.xyz - min);
+    let p = min + unpack_unorm_to_3_f32(vertex_position) * size;
     let scale = vec3<f32>(transform.position_scale_x.w, transform.bb_min_scale_y.w, transform.bb_min_scale_y.w);
     let v = transform_vector(p, transform.position_scale_x.xyz, transform.orientation, scale);
 

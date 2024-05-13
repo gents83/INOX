@@ -80,7 +80,8 @@ impl Pass for VisibilityBufferPass {
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("visibility_buffer_pass::init");
 
-        if self.transforms.read().unwrap().is_empty() {
+        let commands_count = self.commands.read().unwrap().len();
+        if self.transforms.read().unwrap().is_empty() || commands_count == 0 {
             return;
         }
 
@@ -118,7 +119,11 @@ impl Pass for VisibilityBufferPass {
                 Some("Instances"),
             )
             .set_index_buffer(&mut *self.indices.write().unwrap(), Some("Indices"))
-            .bind_buffer(&mut *self.commands.write().unwrap(), true, Some("Commands"));
+            .bind_buffer(
+                &mut *self.commands.write().unwrap(),
+                Some(commands_count),
+                Some("Commands"),
+            );
 
         let vertex_layout = GPUVertexPosition::descriptor(0);
         let instance_layout = GPUInstance::descriptor(vertex_layout.location());

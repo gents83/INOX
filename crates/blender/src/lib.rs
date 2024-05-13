@@ -11,7 +11,7 @@ use engine::INOXEngine;
 // N.B: names: "inox_blender" must be the name of the `.so` or `.pyd` file
 #[pymodule]
 #[pyo3(name = "inox_blender")]
-fn inox_blender(_py: Python, m: &PyModule) -> PyResult<()> {
+fn inox_blender(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<INOXEngine>()?;
 
     #[pyfn(m)]

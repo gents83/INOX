@@ -150,7 +150,8 @@ impl Pass for CullingPass {
 
         self.process_messages();
 
-        if self.instances.read().unwrap().is_empty() || self.commands.read().unwrap().is_empty() {
+        let commands_count = self.commands.read().unwrap().len();
+        if self.instances.read().unwrap().is_empty() || commands_count == 0 {
             return;
         }
         let mesh_flags = MeshFlags::Visible | MeshFlags::Opaque;
@@ -246,7 +247,7 @@ impl Pass for CullingPass {
                     group_index: 0,
                     binding_index: 5,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::Read,
+                    flags: BindingFlags::ReadWrite,
                     ..Default::default()
                 },
             )
@@ -269,7 +270,7 @@ impl Pass for CullingPass {
                     binding_index: 7,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite,
-                    with_count: true,
+                    count: Some(commands_count),
                 },
             );
 

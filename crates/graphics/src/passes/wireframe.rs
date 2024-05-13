@@ -102,6 +102,7 @@ impl Pass for WireframePass {
 
         self.process_messages(render_context);
 
+        let commands_count = self.debug_commands.read().unwrap().len();
         if self.vertices.is_empty() || self.indices.is_empty() {
             return;
         }
@@ -127,7 +128,7 @@ impl Pass for WireframePass {
             .set_index_buffer(&mut self.indices, Some("DebugIndices"))
             .bind_buffer(
                 &mut *self.debug_commands.write().unwrap(),
-                true,
+                Some(commands_count),
                 Some("DebugInstances"),
             );
 
