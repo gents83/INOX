@@ -130,7 +130,7 @@ impl GlobalBuffers {
                             | ((MAX_LOD_LEVELS - 1 - lod_level) as u32),
                         indices_offset: (indices_offset + meshlet_data.indices_offset) as _,
                         indices_count: meshlet_data.indices_count,
-                        bvh_offset: meshlet_data.bhv_offset,
+                        bvh_offset: meshlet_data.bvh_offset,
                         child_meshlets,
                     };
                     meshlets.push(meshlet);
@@ -147,14 +147,14 @@ impl GlobalBuffers {
         if meshlets.is_empty() {
             inox_log::debug_log!("No meshlet data for mesh {:?}", mesh_id);
         }
-        let mesh_bhv_range = self
+        let mesh_bvh_range = self
             .buffer::<GPUBVHNode>()
             .write()
             .unwrap()
             .allocate(mesh_id, mesh_data.meshlets_bvh.last().unwrap())
             .1;
-        let blas_index = mesh_bhv_range.start as _;
-        self.buffer::<GPUBVHNode>().write().unwrap().data_mut()[mesh_bhv_range]
+        let blas_index = mesh_bvh_range.start as _;
+        self.buffer::<GPUBVHNode>().write().unwrap().data_mut()[mesh_bvh_range]
             .iter_mut()
             .for_each(|n| {
                 if n.miss >= 0 {
@@ -334,11 +334,11 @@ impl GlobalBuffers {
         {
             let meshes = self.buffer::<GPUMesh>();
             let meshes = meshes.read().unwrap();
-            let bhv = self.buffer::<GPUBVHNode>();
-            let bhv = bhv.read().unwrap();
-            let bhv = bhv.data();
+            let bvh = self.buffer::<GPUBVHNode>();
+            let bvh = bvh.read().unwrap();
+            let bvh = bvh.data();
             meshes.for_each_data(|i, _id, mesh| {
-                let node = &bhv[mesh.blas_index as usize];
+                let node = &bvh[mesh.blas_index as usize];
                 //let matrix = Matrix4::from_translation_orientation_scale(
                 //    mesh.position.into(),
                 //    mesh.orientation.into(),
@@ -352,10 +352,10 @@ impl GlobalBuffers {
             });
         }
         let bvh = BVHTree::new(&meshes_aabbs);
-        let linearized_bhv = create_linearized_bvh(&bvh);
+        let linearized_bvh = create_linearized_bvh(&bvh);
         let bvh = self.buffer::<GPUBVHNode>();
         let mut bvh = bvh.write().unwrap();
-        let tlas_range = bvh.allocate(&TLAS_UID, &linearized_bhv).1;
+        let tlas_range = bvh.allocate(&TLAS_UID, &linearized_bvh).1;
         let tlas_starting_index = tlas_range.start as _;
         self.tlas_start_index
             .write()

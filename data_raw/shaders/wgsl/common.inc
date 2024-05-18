@@ -123,7 +123,7 @@ struct Instance {
     @location(1) transform_id: u32,
     @location(2) mesh_id: u32,
     @location(3) meshlet_id: u32,
-    @location(4) command_id: i32,
+    @location(4) command_id: atomic<i32>,
 }
 
 struct Transform {
@@ -174,7 +174,7 @@ struct Meshlet {
     child_meshlets: vec4<i32>,
 };
 
-struct BHVNode {
+struct BVHNode {
     min: vec3<f32>,
     miss: i32,
     max: vec3<f32>,
@@ -254,6 +254,14 @@ struct Instances {
     data: array<Instance>,
 };
 
+struct ActiveInstances {
+    count: atomic<u32>,
+    _padding0: u32,
+    _padding1: u32,
+    _padding2: u32,
+    data: array<Instance>,
+};
+
 struct Meshes {
     data: array<Mesh>,
 };
@@ -274,8 +282,8 @@ struct VerticesAttributes {
     data: array<u32>,
 };
 
-struct BHV {
-    data: array<BHVNode>,
+struct BVH {
+    data: array<BVHNode>,
 };
 
 

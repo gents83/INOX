@@ -1,23 +1,26 @@
 use std::path::PathBuf;
 
+use inox_bvh::GPUBVHNode;
 use inox_render::{
     AsBinding, BindingData, BindingFlags, BindingInfo, BufferRef, CommandBuffer, ComputePass,
-    ComputePassData, ConstantDataRw, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh,
-    GPUMeshlet, GPUTransform, GPUVector, Mesh, MeshFlags, Pass, RenderContext, RenderContextRc,
-    ShaderStage, TextureView,
+    ComputePassData, ConstantDataRw, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMeshlet,
+    GPUTransform, GPUVector, MeshFlags, Pass, RenderContext, RenderContextRc, ShaderStage,
+    TextureView,
 };
 
 use inox_commands::CommandParser;
 use inox_core::ContextRc;
 
 use inox_messenger::{implement_message, Listener};
-use inox_resources::{DataTypeResource, DataTypeResourceEvent, Resource, ResourceEvent};
-use inox_uid::generate_random_uid;
+use inox_resources::{DataTypeResource, Resource};
+use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
-use crate::{CommandsData, COMMANDS_DATA_ID, INSTANCE_DATA_ID};
+use crate::{CommandsData, ACTIVE_INSTANCE_DATA_ID, COMMANDS_DATA_ID, INSTANCE_DATA_ID};
 
 pub const CULLING_PIPELINE: &str = "pipelines/ComputeCulling.compute_pipeline";
 pub const CULLING_PASS_NAME: &str = "CullingPass";
+
+pub const MESHLETS_COUNT_ID: Uid = generate_static_uid_from_string("MESHLETS_COUNT_ID");
 
 #[repr(C)]
 #[derive(Default, PartialEq, Clone, Copy, Debug)]
@@ -81,16 +84,17 @@ pub struct CullingPass {
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    meshes: GPUBuffer<GPUMesh>,
+    bvh: GPUBuffer<GPUBVHNode>,
     meshlets: GPUBuffer<GPUMeshlet>,
     transforms: GPUVector<GPUTransform>,
     commands: GPUVector<DrawIndexedCommand>,
     instances: GPUVector<GPUInstance>,
+    active_instances: GPUVector<GPUInstance>,
     commands_data: GPUVector<CommandsData>,
+    meshlets_count: GPUVector<u32>,
     culling_data: CullingData,
     listener: Listener,
     update_camera: bool,
-    update_meshes: bool,
 }
 unsafe impl Send for CullingPass {}
 unsafe impl Sync for CullingPass {}
@@ -126,7 +130,7 @@ impl Pass for CullingPass {
                 None,
             ),
             constant_data: render_context.global_buffers().constant_data.clone(),
-            meshes: render_context.global_buffers().buffer::<GPUMesh>(),
+            bvh: render_context.global_buffers().buffer::<GPUBVHNode>(),
             meshlets: render_context.global_buffers().buffer::<GPUMeshlet>(),
             transforms: render_context.global_buffers().vector::<GPUTransform>(),
             commands: render_context
@@ -135,14 +139,19 @@ impl Pass for CullingPass {
             instances: render_context
                 .global_buffers()
                 .vector_with_id::<GPUInstance>(INSTANCE_DATA_ID),
+            active_instances: render_context
+                .global_buffers()
+                .vector_with_id(ACTIVE_INSTANCE_DATA_ID),
             commands_data: render_context
                 .global_buffers()
                 .vector_with_id::<CommandsData>(COMMANDS_DATA_ID),
+            meshlets_count: render_context
+                .global_buffers()
+                .vector_with_id::<u32>(MESHLETS_COUNT_ID),
             binding_data: BindingData::new(render_context, CULLING_PASS_NAME),
             culling_data: CullingData::default(),
             listener,
             update_camera: true,
-            update_meshes: true,
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -152,6 +161,10 @@ impl Pass for CullingPass {
 
         let commands_count = self.commands.read().unwrap().len();
         if self.instances.read().unwrap().is_empty() || commands_count == 0 {
+            return;
+        }
+        let active_instances_count = self.active_instances.read().unwrap().len();
+        if active_instances_count == 0 {
             return;
         }
         let mesh_flags = MeshFlags::Visible | MeshFlags::Opaque;
@@ -170,25 +183,16 @@ impl Pass for CullingPass {
             }
         }
 
-        if self.update_meshes {
-            let mut lod0_meshlets_count = 0;
-            self.meshes.read().unwrap().for_each_data(|_, _, mesh| {
-                //for i in 0..MAX_LOD_LEVELS {
-                //    println!(
-                //        "LOD[{i}] range {} - {}",
-                //        (mesh.lods_meshlets_offset[i] >> 16),
-                //        (mesh.lods_meshlets_offset[i] & 0x0000FFFF)
-                //    );
-                //}
-                let meshlets_start = mesh.meshlets_offset + (mesh.lods_meshlets_offset[0] >> 16);
-                let meshlets_end =
-                    mesh.meshlets_offset + (mesh.lods_meshlets_offset[0] & 0x0000FFFF);
-                lod0_meshlets_count += meshlets_end - meshlets_start;
-            });
-            self.culling_data.lod0_meshlets_count = lod0_meshlets_count as _;
-            self.culling_data.mark_as_dirty(render_context);
-        }
+        {
+            let meshlets_count = {
+                let count = self.meshlets.read().unwrap().item_count();
+                count
+            };
 
+            let mut meshlet_counts = self.meshlets_count.write().unwrap();
+            meshlet_counts.resize(meshlets_count, 0);
+            meshlet_counts.mark_as_dirty(render_context);
+        }
         self.binding_data
             .add_uniform_buffer(
                 &mut *self.constant_data.write().unwrap(),
@@ -221,8 +225,8 @@ impl Pass for CullingPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.meshes.write().unwrap(),
-                Some("Meshes"),
+                &mut *self.bvh.write().unwrap(),
+                Some("BVH"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 3,
@@ -272,6 +276,28 @@ impl Pass for CullingPass {
                     flags: BindingFlags::ReadWrite,
                     count: Some(commands_count),
                 },
+            )
+            .add_storage_buffer(
+                &mut *self.active_instances.write().unwrap(),
+                Some("ActiveInstances"),
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 0,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::ReadWrite,
+                    count: Some(active_instances_count),
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.meshlets_count.write().unwrap(),
+                Some("MeshletsCount"),
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 1,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::ReadWrite,
+                    ..Default::default()
+                },
             );
 
         let mut pass = self.compute_pass.get_mut();
@@ -316,12 +342,6 @@ impl CullingPass {
                 CullingEvent::UnfreezeCamera => {
                     self.update_camera = true;
                 }
-            })
-            .process_messages(|_e: &DataTypeResourceEvent<Mesh>| {
-                self.update_meshes = true;
-            })
-            .process_messages(|_e: &ResourceEvent<Mesh>| {
-                self.update_meshes = true;
             });
     }
 }

@@ -64,10 +64,10 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
     var vertices_position_offset = 0u;
     var tlas_sibling = 0;
     
-    var node = bhv.data[u32(node_index)]; 
+    var node = bvh.data[u32(node_index)]; 
     while(node_index >= 0)
     {
-        node = bhv.data[u32(node_index)]; 
+        node = bvh.data[u32(node_index)]; 
         if(node.reference < 0) {
             node_index = node_index + 1;
             continue;

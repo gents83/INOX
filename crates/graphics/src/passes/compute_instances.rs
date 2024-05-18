@@ -17,6 +17,7 @@ pub const COMPUTE_INSTANCES_PIPELINE: &str = "pipelines/ComputeInstances.compute
 pub const COMPUTE_INSTANCES_NAME: &str = "ComputeInstancesPass";
 
 pub const INSTANCE_DATA_ID: Uid = generate_static_uid_from_string("INSTANCE_DATA_ID");
+pub const ACTIVE_INSTANCE_DATA_ID: Uid = generate_static_uid_from_string("ACTIVE_INSTANCE_DATA_ID");
 pub const COMMANDS_DATA_ID: Uid = generate_static_uid_from_string("COMMANDS_DATA_ID");
 
 struct TransformMapData {
@@ -51,6 +52,7 @@ pub struct ComputeInstancesPass {
     commands: GPUVector<DrawIndexedCommand>,
     commands_data: GPUVector<CommandsData>,
     instances: GPUVector<GPUInstance>,
+    active_instances: GPUVector<GPUInstance>,
     transform_map: HashMap<MeshId, Vec<TransformMapData>>,
     is_dirty: bool,
 }
@@ -102,6 +104,9 @@ impl Pass for ComputeInstancesPass {
             instances: render_context
                 .global_buffers()
                 .vector_with_id::<GPUInstance>(INSTANCE_DATA_ID),
+            active_instances: render_context
+                .global_buffers()
+                .vector_with_id::<GPUInstance>(ACTIVE_INSTANCE_DATA_ID),
             commands_data: render_context
                 .global_buffers()
                 .vector_with_id::<CommandsData>(COMMANDS_DATA_ID),
@@ -118,6 +123,10 @@ impl Pass for ComputeInstancesPass {
         if commands_count == 0 || self.transforms.read().unwrap().is_empty() {
             return;
         }
+        let active_instances_count = self.active_instances.read().unwrap().len();
+        if active_instances_count == 0 {
+            return;
+        }
         self.binding_data
             .add_storage_buffer(
                 &mut *self.instances.write().unwrap(),
@@ -131,11 +140,22 @@ impl Pass for ComputeInstancesPass {
                 },
             )
             .add_storage_buffer(
+                &mut *self.active_instances.write().unwrap(),
+                Some("ActiveInstances"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 1,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::ReadWrite,
+                    count: Some(active_instances_count),
+                },
+            )
+            .add_storage_buffer(
                 &mut *self.commands_data.write().unwrap(),
                 Some("CommandsData"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 1,
+                    binding_index: 2,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite,
                     ..Default::default()
@@ -146,7 +166,7 @@ impl Pass for ComputeInstancesPass {
                 Some("Commands"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 2,
+                    binding_index: 3,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite,
                     count: Some(commands_count),
@@ -200,10 +220,12 @@ impl ComputeInstancesPass {
         let mut commands = self.commands.write().unwrap();
         let mut commands_data = self.commands_data.write().unwrap();
         let mut instances = self.instances.write().unwrap();
+        let mut active_instances = self.active_instances.write().unwrap();
 
         commands_data.clear();
         transforms.clear();
         instances.clear();
+        active_instances.clear();
         commands.clear();
 
         let meshes = self.meshes.read().unwrap();
@@ -216,6 +238,7 @@ impl ComputeInstancesPass {
                     instances.reserve(current_len + meshlets.len() * data.len());
                     let current_len = commands_data.len();
                     commands_data.resize(current_len + meshlets.len(), CommandsData(-1));
+                    commands.resize(current_len + meshlets.len(), DrawIndexedCommand::default());
                     data.iter().enumerate().for_each(|(j, mesh_instance)| {
                         transforms.push(mesh_instance.transform);
                         meshlets.iter().enumerate().for_each(|(i, meshlet)| {
@@ -234,11 +257,12 @@ impl ComputeInstancesPass {
         if instances.is_empty() {
             return;
         }
+        active_instances.clone_from(&instances);
         //sort in descending order
-        commands.resize(instances.len(), DrawIndexedCommand::default());
         transforms.mark_as_dirty(render_context);
         commands_data.mark_as_dirty(render_context);
         instances.mark_as_dirty(render_context);
+        active_instances.mark_as_dirty(render_context);
         commands.mark_as_dirty(render_context);
     }
 

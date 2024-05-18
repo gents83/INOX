@@ -11,7 +11,9 @@ use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
 
-use crate::{CommandsData, COMMANDS_DATA_ID, INSTANCE_DATA_ID};
+use crate::{
+    CommandsData, ACTIVE_INSTANCE_DATA_ID, COMMANDS_DATA_ID, INSTANCE_DATA_ID, MESHLETS_COUNT_ID,
+};
 
 pub const COMMANDS_PIPELINE: &str = "pipelines/ComputeCommands.compute_pipeline";
 pub const COMMANDS_PASS_NAME: &str = "CommandsPass";
@@ -22,7 +24,9 @@ pub struct CommandsPass {
     meshes: GPUBuffer<GPUMesh>,
     meshlets: GPUBuffer<GPUMeshlet>,
     instances: GPUVector<GPUInstance>,
+    active_instances: GPUVector<GPUInstance>,
     commands_data: GPUVector<CommandsData>,
+    meshlets_count: GPUVector<u32>,
     commands: GPUVector<DrawIndexedCommand>,
 }
 unsafe impl Send for CommandsPass {}
@@ -63,6 +67,12 @@ impl Pass for CommandsPass {
             instances: render_context
                 .global_buffers()
                 .vector_with_id::<GPUInstance>(INSTANCE_DATA_ID),
+            active_instances: render_context
+                .global_buffers()
+                .vector_with_id(ACTIVE_INSTANCE_DATA_ID),
+            meshlets_count: render_context
+                .global_buffers()
+                .vector_with_id::<u32>(MESHLETS_COUNT_ID),
             commands_data: render_context
                 .global_buffers()
                 .vector_with_id::<CommandsData>(COMMANDS_DATA_ID),
@@ -74,6 +84,10 @@ impl Pass for CommandsPass {
 
         let commands_count = self.commands_data.read().unwrap().len();
         if self.instances.read().unwrap().is_empty() || commands_count == 0 {
+            return;
+        }
+        let active_instances_count = self.active_instances.read().unwrap().len();
+        if active_instances_count == 0 {
             return;
         }
 
@@ -109,11 +123,33 @@ impl Pass for CommandsPass {
                 },
             )
             .add_storage_buffer(
+                &mut *self.active_instances.write().unwrap(),
+                Some("ActiveInstances"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 3,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::ReadWrite,
+                    count: Some(active_instances_count),
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.meshlets_count.write().unwrap(),
+                Some("MeshletsCount"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 4,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Read,
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
                 &mut *self.commands_data.write().unwrap(),
                 Some("CommandsData"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 3,
+                    binding_index: 5,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
@@ -123,7 +159,7 @@ impl Pass for CommandsPass {
                 Some("Commands"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 4,
+                    binding_index: 6,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite,
                     count: Some(commands_count),

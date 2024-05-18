@@ -319,13 +319,13 @@ impl Info {
                     .read()
                     .unwrap()
                     .load(Ordering::Relaxed);
-                let bhv = data
+                let bvh = data
                     .params
                     .render_context
                     .global_buffers()
                     .buffer::<GPUBVHNode>();
-                let bhv = bhv.read().unwrap();
-                bhv.for_each_data(|i, _id, n| {
+                let bvh = bvh.read().unwrap();
+                bvh.for_each_data(|i, _id, n| {
                     if i >= tlas_index as _ {
                         data.context
                             .message_hub()
@@ -547,8 +547,8 @@ impl Info {
                         ui.checkbox(&mut data.show_hierarchy, "Hierarchy");
                         ui.checkbox(&mut data.show_graphics, "Graphics");
                         ui.checkbox(&mut data.show_lights, "Show Lights");
-                        ui.checkbox(&mut data.show_tlas, "Show TLAS BHV");
-                        ui.checkbox(&mut data.show_blas, "Show BLAS BHVs");
+                        ui.checkbox(&mut data.show_tlas, "Show TLAS BVH");
+                        ui.checkbox(&mut data.show_blas, "Show BLAS BVHs");
                         ui.checkbox(&mut data.show_frustum, "Show Frustum");
                         let is_freezed = data.freeze_culling_camera;
                         ui.checkbox(&mut data.use_orbit_camera, "Use orbit camera");

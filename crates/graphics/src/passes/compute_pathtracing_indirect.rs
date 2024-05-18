@@ -28,7 +28,7 @@ pub struct ComputePathTracingIndirectPass {
     constant_data: ConstantDataRw,
     meshes: GPUBuffer<GPUMesh>,
     meshlets: GPUBuffer<GPUMeshlet>,
-    bhv: GPUBuffer<GPUBVHNode>,
+    bvh: GPUBuffer<GPUBVHNode>,
     indices: GPUBuffer<GPUVertexIndices>,
     vertices_position: GPUBuffer<GPUVertexPosition>,
     vertices_attributes: GPUBuffer<GPUVertexAttributes>,
@@ -80,7 +80,7 @@ impl Pass for ComputePathTracingIndirectPass {
             constant_data: render_context.global_buffers().constant_data.clone(),
             meshes: render_context.global_buffers().buffer::<GPUMesh>(),
             meshlets: render_context.global_buffers().buffer::<GPUMeshlet>(),
-            bhv: render_context.global_buffers().buffer::<GPUBVHNode>(),
+            bvh: render_context.global_buffers().buffer::<GPUBVHNode>(),
             indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
             vertices_position: render_context
                 .global_buffers()
@@ -204,8 +204,8 @@ impl Pass for ComputePathTracingIndirectPass {
                 },
             )
             .add_storage_buffer(
-                &mut *self.bhv.write().unwrap(),
-                Some("BHV"),
+                &mut *self.bvh.write().unwrap(),
+                Some("BVH"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 1,

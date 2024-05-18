@@ -23,7 +23,7 @@ var<storage, read> vertices_positions: VerticesPositions;
 @group(1) @binding(1)
 var<storage, read> instances: Instances;
 @group(1) @binding(2)
-var<storage, read> bhv: BHV;
+var<storage, read> bvh: BVH;
 @group(1) @binding(3)
 var<storage, read_write> data_buffer_0: array<f32>;
 @group(1) @binding(4)
@@ -32,6 +32,8 @@ var<storage, read_write> data_buffer_1: array<f32>;
 var<storage, read_write> data_buffer_2: array<f32>;
 @group(1) @binding(6)
 var<storage, read_write> data_buffer_debug: array<f32>;
+@group(1) @binding(7)
+var<storage, read_write> transforms: Transforms;
 
 #import "texture_utils.inc"
 #import "matrix_utils.inc"
@@ -101,7 +103,7 @@ fn main(
         }  
         let hit_point = origin + (direction * result.distance);
             
-        let radiance_data = compute_radiance_from_visibility(result.visibility_id, result.instance_id, hit_point, get_random_numbers(&seed), radiance, throughput_weight); 
+        let radiance_data = compute_radiance_from_visibility(result.instance_id, hit_point, get_random_numbers(&seed), radiance, throughput_weight); 
         origin = hit_point + radiance_data.direction * HIT_EPSILON;
         direction = radiance_data.direction;
         radiance += radiance_data.radiance;

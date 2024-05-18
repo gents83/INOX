@@ -372,12 +372,12 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let radiance = vec3<f32>(data_buffer_1[data_index], data_buffer_1[data_index + 1u], data_buffer_1[data_index + 2u]);
         var color = radiance.rgb;        
         /*
-        var debug_bhv_index = 100u;
-        let max_bhv_index = u32(read_value_from_data_buffer(&data_buffer_debug, &debug_bhv_index));
-        while(debug_bhv_index < max_bhv_index) 
+        var debug_bvh_index = 100u;
+        let max_bvh_index = u32(read_value_from_data_buffer(&data_buffer_debug, &debug_bvh_index));
+        while(debug_bvh_index < max_bvh_index) 
         {
-            var min = read_vec3_from_data_buffer(&data_buffer_debug, &debug_bhv_index);
-            var max = read_vec3_from_data_buffer(&data_buffer_debug, &debug_bhv_index);
+            var min = read_vec3_from_data_buffer(&data_buffer_debug, &debug_bvh_index);
+            var max = read_vec3_from_data_buffer(&data_buffer_debug, &debug_bvh_index);
             color += draw_cube_from_min_max(min, max, screen_pixel, dimensions);
             //color += draw_line_3d(screen_pixel, dimensions, min, max, vec3<f32>(0.,0.,1.), line_size);
         }

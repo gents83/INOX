@@ -18,7 +18,7 @@ pub struct MeshletData {
     pub aabb_max: Vector3,
     pub indices_count: u32,
     pub child_meshlets: Vec<u32>,
-    pub bhv_offset: u32,
+    pub bvh_offset: u32,
 }
 
 impl Default for MeshletData {
@@ -29,7 +29,7 @@ impl Default for MeshletData {
             indices_offset: 0,
             indices_count: 0,
             child_meshlets: Vec::default(),
-            bhv_offset: 0,
+            bvh_offset: 0,
         }
     }
 }

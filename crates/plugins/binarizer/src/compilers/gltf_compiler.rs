@@ -428,7 +428,7 @@ impl GltfCompiler {
                     meshlets_aabbs.resize_with(meshlets.len(), AABB::empty);
                     meshlets.iter_mut().enumerate().for_each(|(i, m)| {
                         meshlets_aabbs[i] = AABB::create(m.aabb_min, m.aabb_max, i as _);
-                        m.bhv_offset = i as _;
+                        m.bvh_offset = i as _;
                     });
                     let bvh = BVHTree::new(&meshlets_aabbs);
                     mesh_data.meshlets_bvh.push(create_linearized_bvh(&bvh));
