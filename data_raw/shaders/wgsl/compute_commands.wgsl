@@ -7,9 +7,9 @@ var<storage, read> meshlets: Meshlets;
 @group(0) @binding(1)
 var<storage, read> meshes: Meshes;
 @group(0) @binding(2)
-var<storage, read> instances: Instances;
+var<storage, read_write> instances: Instances;
 @group(0) @binding(3)
-var<storage, read_write> active_instances: ActiveInstances;
+var<storage, read> active_instances: ActiveInstances;
 @group(0) @binding(4)
 var<storage, read> meshlet_counts: array<u32>;
 @group(0) @binding(5)
@@ -24,16 +24,16 @@ fn main(
 ) {  
 
     let instance_id = global_invocation_id.x;
-    if (instance_id >= arrayLength(&instances.data)) {
+    if (instance_id >= arrayLength(&active_instances.data)) {
         return;
     }
 
-    var command_index = atomicLoad(&instances.data[instance_id].command_id);
+    var command_index = atomicLoad(&active_instances.data[instance_id].command_id);
     if(command_index < 0) {
         return;
     }
 
-    let instance = instances.data[instance_id];
+    let instance = active_instances.data[instance_id];
     let mesh = meshes.data[instance.mesh_id];
     let meshlet_id = instance.meshlet_id;
     let meshlet = meshlets.data[meshlet_id];
@@ -52,5 +52,5 @@ fn main(
     //we need to find first instance
     commands.data[index].base_instance = first_instance;
     //we need to pack instances of same meshlet
-    active_instances.data[first_instance + instance_count] = instance;
+    instances.data[first_instance + instance_count] = instance;
 }

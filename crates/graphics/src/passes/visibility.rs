@@ -11,7 +11,7 @@ use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::generate_random_uid;
 
-use crate::ACTIVE_INSTANCE_DATA_ID;
+use crate::INSTANCE_DATA_ID;
 
 pub const VISIBILITY_BUFFER_PIPELINE: &str = "pipelines/VisibilityBuffer.render_pipeline";
 pub const VISIBILITY_BUFFER_PASS_NAME: &str = "VisibilityBufferPass";
@@ -22,7 +22,7 @@ pub struct VisibilityBufferPass {
     constant_data: ConstantDataRw,
     indices: GPUBuffer<GPUVertexIndices>,
     transforms: GPUVector<GPUTransform>,
-    active_instances: GPUVector<GPUInstance>,
+    instances: GPUVector<GPUInstance>,
     commands: GPUVector<DrawIndexedCommand>,
     vertices_position: GPUBuffer<GPUVertexPosition>,
 }
@@ -69,9 +69,9 @@ impl Pass for VisibilityBufferPass {
                 .buffer::<GPUVertexPosition>(),
             indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
             transforms: render_context.global_buffers().vector::<GPUTransform>(),
-            active_instances: render_context
+            instances: render_context
                 .global_buffers()
-                .vector_with_id::<GPUInstance>(ACTIVE_INSTANCE_DATA_ID),
+                .vector_with_id::<GPUInstance>(INSTANCE_DATA_ID),
             commands: render_context
                 .global_buffers()
                 .vector::<DrawIndexedCommand>(),
@@ -115,8 +115,8 @@ impl Pass for VisibilityBufferPass {
             )
             .set_vertex_buffer(
                 VextexBindingType::Instance,
-                &mut *self.active_instances.write().unwrap(),
-                Some("ActiveInstances"),
+                &mut *self.instances.write().unwrap(),
+                Some("Instances"),
             )
             .set_index_buffer(&mut *self.indices.write().unwrap(), Some("Indices"))
             .bind_buffer(

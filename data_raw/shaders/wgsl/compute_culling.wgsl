@@ -34,27 +34,6 @@ var<storage, read_write> meshlet_counts: array<atomic<u32>>;
 #import "matrix_utils.inc"
 #import "geom_utils.inc"
 
-//ScreenSpace Frustum Culling
-fn is_box_inside_frustum(min: vec3<f32>, max: vec3<f32>, frustum: array<vec4<f32>, 4>) -> bool {
-    var visible: bool = false;    
-    var points: array<vec3<f32>, 8>;
-    points[0] = min;
-    points[1] = max;
-    points[2] = vec3<f32>(min.x, min.y, max.z);
-    points[3] = vec3<f32>(min.x, max.y, max.z);
-    points[4] = vec3<f32>(min.x, max.y, min.z);
-    points[5] = vec3<f32>(max.x, min.y, min.z);
-    points[6] = vec3<f32>(max.x, max.y, min.z);
-    points[7] = vec3<f32>(max.x, min.y, max.z);
-      
-    var f = frustum;
-    for(var i = 0; !visible && i < 4; i = i + 1) {  
-        for(var p = 0; !visible && p < 8; p = p + 1) {        
-            visible = visible || !(dot(f[i].xyz, points[p]) + f[i].w <= 0.);
-        }
-    }   
-    return visible;
-}
 
 fn is_sphere_inside_frustum(min: vec3<f32>, max: vec3<f32>, position: vec3<f32>, orientation: vec4<f32>, scale: vec3<f32>, frustum: vec4<f32>, znear: f32, zfar: f32) -> bool {
     var center = min + (max - min) * 0.5;
@@ -65,16 +44,15 @@ fn is_sphere_inside_frustum(min: vec3<f32>, max: vec3<f32>, position: vec3<f32>,
     let m1 = (culling_data.view * vec4<f32>(transform_vector(min, position, orientation, scale), 1.)).xyz;
     let m2 = (culling_data.view * vec4<f32>(transform_vector(max, position, orientation, scale), 1.)).xyz;
 
-    var visible = true;
-	// the left/top/right/bottom plane culling utilizes frustum symmetry to cull against two planes at the same time
-	//visible = visible && center.z * frustum.y - abs(center.x) * frustum.x > -radius;
-	//visible = visible && center.z * frustum.w - abs(center.y) * frustum.z > -radius;
-	// the near/far plane culling uses camera space Z directly
-	//visible = visible && center.z + radius > znear && center.z - radius < zfar;
-    if(dot(m1, vec3<f32>(0., 0., 1.)) < 0. && dot(m2, vec3<f32>(0., 0., 1.)) < 0.)
+    let view_dir = vec3<f32>(0., 0., -1.);
+    if(dot(m1, view_dir) < 0. && dot(m2, view_dir) < 0.)
     {
         return false;
     }
+    var visible = true;
+	// the left/top/right/bottom plane culling utilizes frustum symmetry to cull against two planes at the same time
+	visible = visible && center.z * frustum.y - abs(center.x) * frustum.x > -radius;
+	visible = visible && center.z * frustum.w - abs(center.y) * frustum.z > -radius;
     return visible;
 }
 
@@ -107,26 +85,15 @@ fn main(
     let min = min(bb_min, bb_max);
     let max = max(bb_min, bb_max);
     
-    //let perspective_t = constant_data.proj;//matrix_transpose(constant_data.proj);
-    //// x + w < 0
-    //let frustum_x = normalize(perspective_t[3] + perspective_t[0]);
-    //// y + w < 0
-    //let frustum_y = normalize(perspective_t[3] + perspective_t[1]);
-    //let frustum = vec4<f32>(frustum_x.x, frustum_x.z, frustum_y.y, frustum_y.z);
-    //if(!is_sphere_inside_frustum(bvh_node.min, bvh_node.max, position, transform.orientation, scale, frustum, constant_data.camera_near, constant_data.camera_far)) {
-    //    return;
-    //}
-    let row0 = matrix_row(view_proj, 0u);
-    let row1 = matrix_row(view_proj, 1u);
-    let row3 = matrix_row(view_proj, 3u);
-    var frustum: array<vec4<f32>, 4>;
-    frustum[0] = normalize_plane(row3 + row0);
-    frustum[1] = normalize_plane(row3 - row0);
-    frustum[2] = normalize_plane(row3 + row1);
-    frustum[3] = normalize_plane(row3 - row1);
-    if !is_box_inside_frustum(min, max, frustum) {
+    let perspective_t = matrix_transpose(constant_data.proj);
+    // x + w < 0
+    let frustum_x = normalize(perspective_t[3] + perspective_t[0]);
+    // y + w < 0
+    let frustum_y = normalize(perspective_t[3] + perspective_t[1]);
+    let frustum = vec4<f32>(frustum_x.x, frustum_x.z, frustum_y.y, frustum_y.z);
+    if(!is_sphere_inside_frustum(bvh_node.min, bvh_node.max, position, transform.orientation, scale, frustum, constant_data.camera_near, constant_data.camera_far)) {
         return;
-    }    
+    } 
     
     //Evaluate screen occupancy to decide if lod is ok to use for this meshlet or to use childrens
     var screen_lod_level = 0u;   

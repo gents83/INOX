@@ -119,6 +119,7 @@ impl Pass for CommandsPass {
                     group_index: 0,
                     binding_index: 2,
                     stage: ShaderStage::Compute,
+                    flags: BindingFlags::ReadWrite,
                     ..Default::default()
                 },
             )
@@ -129,7 +130,7 @@ impl Pass for CommandsPass {
                     group_index: 0,
                     binding_index: 3,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite,
+                    flags: BindingFlags::Read,
                     count: Some(active_instances_count),
                 },
             )
