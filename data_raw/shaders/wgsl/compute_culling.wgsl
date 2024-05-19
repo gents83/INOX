@@ -1,6 +1,8 @@
 #import "common.inc"
 #import "utils.inc"
 
+const MIN_CULLING_DISTANCE = 20.;
+
 struct CullingData {
     view: mat4x4<f32>,
     mesh_flags: u32,
@@ -34,30 +36,23 @@ var<storage, read_write> meshlet_counts: array<atomic<u32>>;
 #import "matrix_utils.inc"
 #import "geom_utils.inc"
 
-
 fn is_sphere_inside_frustum(min: vec3<f32>, max: vec3<f32>, position: vec3<f32>, orientation: vec4<f32>, scale: vec3<f32>, frustum: vec4<f32>, znear: f32, zfar: f32) -> bool {
-    var center = min + (max - min) * 0.5;
-    center = (culling_data.view * vec4<f32>(transform_vector(center, position, orientation, scale), 1.)).xyz;
-    let max_scale = max(max(scale.x, scale.y), scale.z);
-    let radius = length((max - min) * 0.5) * max_scale;
-    
-    let m1 = (culling_data.view * vec4<f32>(transform_vector(min, position, orientation, scale), 1.)).xyz;
-    let m2 = (culling_data.view * vec4<f32>(transform_vector(max, position, orientation, scale), 1.)).xyz;
+    var center = (min + max) * 0.5;
+    center = (culling_data.view * vec4<f32>(center, 1.0)).xyz;
+    let radius = length(max - min) * 0.5;
+    let v = -(center.z + radius);
 
-    let view_dir = vec3<f32>(0., 0., -1.);
-    if(dot(m1, view_dir) < 0. && dot(m2, view_dir) < 0.)
-    {
-        return false;
+    if(length(center) <= MIN_CULLING_DISTANCE) {
+        return true;
     }
-    var visible = false;
-	// the left/top/right/bottom plane culling utilizes frustum symmetry to cull against two planes at the same time
-	visible = visible || center.z * frustum.y - abs(center.x) * frustum.x > -radius;
-	visible = visible || center.z * frustum.w - abs(center.y) * frustum.z > -radius;
-	// the near/far plane culling uses camera space Z directly
-	visible = visible || center.z - radius > znear && center.z + radius < zfar;
+    // Frustum plane checks
+    var visible = true;
+    visible &= v * frustum.y < -abs(center.x) * frustum.x;
+    visible &= v * frustum.w < -abs(center.y) * frustum.z;
+    visible &= v > znear && v < zfar;
+    
     return visible;
 }
-
 
 @compute
 @workgroup_size(32, 1, 1)
@@ -84,8 +79,8 @@ fn main(
     let scale = vec3<f32>(transform.position_scale_x.w, transform.bb_min_scale_y.w, transform.bb_min_scale_y.w);
     let bb_min = transform_vector(bvh_node.min, position, transform.orientation, scale);
     let bb_max = transform_vector(bvh_node.max, position, transform.orientation, scale);
-    let min = min(bb_min, bb_max);
-    let max = max(bb_min, bb_max);
+    let real_min = min(bb_min, bb_max);
+    let real_max = max(bb_min, bb_max);
     
     let perspective_t = matrix_transpose(constant_data.proj);
     // x + w < 0
@@ -93,7 +88,7 @@ fn main(
     // y + w < 0
     let frustum_y = normalize(perspective_t[3] + perspective_t[1]);
     let frustum = vec4<f32>(frustum_x.x, frustum_x.z, frustum_y.y, frustum_y.z);
-    if(!is_sphere_inside_frustum(bvh_node.min, bvh_node.max, position, transform.orientation, scale, frustum, constant_data.camera_near, constant_data.camera_far)) {
+    if(!is_sphere_inside_frustum(real_min, real_max, position, transform.orientation, scale, frustum, constant_data.camera_near, constant_data.camera_far)) {
         return;
     } 
     
@@ -101,17 +96,17 @@ fn main(
     var screen_lod_level = 0u;   
     let f_max = f32(MAX_LOD_LEVELS);   
     //
-    let ncd_min = view_proj * vec4<f32>(min, 1.);
+    let ncd_min = view_proj * vec4<f32>(real_min, 1.);
     let clip_min = ncd_min.xyz / ncd_min.w;
     let screen_min = clip_to_normalized(clip_min.xy);
-    let ncd_max = view_proj * vec4<f32>(max, 1.);
+    let ncd_max = view_proj * vec4<f32>(real_max, 1.);
     let clip_max = ncd_max.xyz / ncd_max.w;
     let screen_max = clip_to_normalized(clip_max.xy);
     let screen_diff = max(screen_max, screen_min) - min(screen_max, screen_min);
     let screen_occupancy = clamp(max(screen_diff.x, screen_diff.y), 0., 1.);  
     screen_lod_level =  clamp(u32(screen_occupancy * f_max), 0u, MAX_LOD_LEVELS - 1u);
     //
-    let center = min + (max-min) * 0.5;
+    let center = real_min + (real_max-real_min) * 0.5;
     let distance = length(view_pos() - center);
     let distance_lod_level = MAX_LOD_LEVELS - 1u - clamp(u32(((distance * distance) / (constant_data.camera_far - constant_data.camera_near)) * f_max), 0u, MAX_LOD_LEVELS - 1u);
     //
