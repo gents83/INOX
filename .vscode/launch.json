@@ -81,7 +81,7 @@
                 //"models/bunnies/bunnies.scene"
                 //"models/girl/girl.scene"
                 //"models/suzanne/suzanne.scene"
-                //"models/OriginalSponza/OriginalSponza.scene"
+                "models/OriginalSponza/OriginalSponza.scene"
                 //"models/sponza/sponza.scene"
             ],
             "cwd": "${workspaceFolder}",

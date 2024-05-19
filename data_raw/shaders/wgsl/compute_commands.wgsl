@@ -22,7 +22,6 @@ var<storage, read_write> commands: DrawIndexedCommands;
 fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>, 
 ) {  
-
     let instance_id = global_invocation_id.x;
     if (instance_id >= arrayLength(&active_instances.data)) {
         return;
@@ -37,13 +36,12 @@ fn main(
     let mesh = meshes.data[instance.mesh_id];
     let meshlet_id = instance.meshlet_id;
     let meshlet = meshlets.data[meshlet_id];
-    command_index = commands_data[meshlet_id];
 
-    let index = u32(command_index);   
+    let index = commands_data[meshlet_id];
     var first_instance = 0u;
     let instance_count = atomicAdd(&commands.data[index].instance_count, 1u);
-    if (meshlet_id > 0u) {
-        first_instance = meshlet_counts[meshlet_id - 1u];
+    if (index > 0) {
+        first_instance = meshlet_counts[index - 1];
     }
     //same for everyone
     commands.data[index].vertex_count = meshlet.indices_count;

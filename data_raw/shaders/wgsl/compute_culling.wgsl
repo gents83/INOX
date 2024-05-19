@@ -49,10 +49,12 @@ fn is_sphere_inside_frustum(min: vec3<f32>, max: vec3<f32>, position: vec3<f32>,
     {
         return false;
     }
-    var visible = true;
+    var visible = false;
 	// the left/top/right/bottom plane culling utilizes frustum symmetry to cull against two planes at the same time
-	visible = visible && center.z * frustum.y - abs(center.x) * frustum.x > -radius;
-	visible = visible && center.z * frustum.w - abs(center.y) * frustum.z > -radius;
+	visible = visible || center.z * frustum.y - abs(center.x) * frustum.x > -radius;
+	visible = visible || center.z * frustum.w - abs(center.y) * frustum.z > -radius;
+	// the near/far plane culling uses camera space Z directly
+	visible = visible || center.z - radius > znear && center.z + radius < zfar;
     return visible;
 }
 
@@ -122,19 +124,16 @@ fn main(
     var command_id = -1;
     if(meshlet_lod_level == desired_lod_level) {
         let result = atomicCompareExchangeWeak(&commands_data[meshlet_id], -1, 0);
-        command_id = result.old_value;
-        if(result.exchanged) {
-            let command_index = atomicAdd(&commands.count, 1u);
-            command_id = i32(command_index);
-            atomicStore(&commands_data[meshlet_id], command_id); 
+        if(result.old_value == -1) {
+            command_id = i32(atomicAdd(&commands.count, 1u));
+            atomicStore(&commands_data[meshlet_id], i32(command_id));
+        } else {
+            command_id = result.old_value;
         }
-        atomicStore(&instances.data[instance_id].command_id, command_id);
-
-        let active_instance_id = atomicAdd(&active_instances.count, 1u);
-        active_instances.data[active_instance_id] = instances.data[instance_id];
+        atomicStore(&active_instances.data[instance_id].command_id, i32(command_id));
         
-        for (var i = 0u; i <= meshlet_id; i++) {
-            atomicAdd(&meshlet_counts[meshlet_id], 1u); 
+        for (var i = 0; i <= command_id; i++) {
+            atomicAdd(&meshlet_counts[i], 1u); 
         }
     }
 }
