@@ -64,7 +64,7 @@ fn draw_triangle_from_visibility(visibility_id: u32, instance_id: u32, pixel: ve
     let meshlet = &meshlets.data[meshlet_id];
     let index_offset = (*meshlet).indices_offset + (primitive_id * 3u);
 
-    let mesh_id = (*meshlet).mesh_index_and_lod_level >> 3u;
+    let mesh_id = (*meshlet).mesh_index;
     let mesh = &meshes.data[mesh_id];
     let position_offset = (*mesh).vertices_position_offset;
     
@@ -145,12 +145,50 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
             let instance_id = (visibility_id >> 8u); 
             let meshlet_id = instances.data[instance_id].meshlet_id;
+            let meshlet = meshlets.data[meshlet_id];
             let meshlet_color = hash(meshlet_id + 1u);
             out_color = vec4<f32>(vec3<f32>(
                 f32((meshlet_color << 1u) & 255u),
                 f32((meshlet_color >> 3u) & 255u),
                 f32((meshlet_color >> 7u) & 255u)
             ) / 255., 1.);
+        }
+    } 
+    else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_LOD_LEVEL) != 0) {
+        let visibility_dimensions = textureDimensions(visibility_texture);
+        let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
+        let visibility_pixel = vec2<u32>(pixel * visibility_scale);
+        let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
+        let visibility_id = visibility_value.r;
+        if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
+            let instance_id = (visibility_id >> 8u); 
+            let meshlet_id = instances.data[instance_id].meshlet_id;
+            let meshlet = meshlets.data[meshlet_id];
+            let meshlet_color = hash(meshlet_id + 1u);
+            if (meshlet.lod_level == MAX_LOD_LEVELS - 1) {
+                out_color = vec4<f32>(vec3<f32>(1., 0., 0.), 1.);
+            }
+            else if (meshlet.lod_level == MAX_LOD_LEVELS - 2) {
+                out_color = vec4<f32>(vec3<f32>(1., 1., 0.), 1.);
+            }
+            else if (meshlet.lod_level == MAX_LOD_LEVELS - 3) {
+                out_color = vec4<f32>(vec3<f32>(0., 1., 0.), 1.);
+            }
+            else if (meshlet.lod_level == MAX_LOD_LEVELS - 4) {
+                out_color = vec4<f32>(vec3<f32>(0., 1., 1.), 1.);
+            }
+            else if (meshlet.lod_level == MAX_LOD_LEVELS - 5) {
+                out_color = vec4<f32>(vec3<f32>(0., 0., 1.), 1.);
+            }
+            else if (meshlet.lod_level == MAX_LOD_LEVELS - 6) {
+                out_color = vec4<f32>(vec3<f32>(0.3, 0.3, 0.3), 1.);
+            }
+            else if (meshlet.lod_level == MAX_LOD_LEVELS - 7) {
+                out_color = vec4<f32>(vec3<f32>(0.5, 0.5, 0.5), 1.);
+            }
+            else if (meshlet.lod_level == 0) {
+                out_color = vec4<f32>(vec3<f32>(1., 1., 1.), 1.);
+            }
         }
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_UV_0) != 0) {

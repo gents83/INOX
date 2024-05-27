@@ -15,7 +15,7 @@ use crate::{
     AsBinding, ConstantDataRw, GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture,
     GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, Light, LightId, Material,
     MaterialData, MaterialFlags, MaterialId, Mesh, MeshData, MeshFlags, MeshId, RenderContext,
-    TextureId, TextureType, INVALID_INDEX, MAX_LOD_LEVELS, MESHLETS_GROUP_SIZE,
+    TextureId, TextureType, INVALID_INDEX, MAX_LOD_LEVELS,
 };
 
 pub const TLAS_UID: ResourceId = generate_static_uid_from_string("TLAS");
@@ -117,21 +117,17 @@ impl GlobalBuffers {
             .for_each(|(lod_level, meshlets_data)| {
                 lod_meshlets_count.push(meshlets_data.len());
                 meshlets_data.iter().for_each(|meshlet_data| {
-                    let mut child_meshlets = [-1; MESHLETS_GROUP_SIZE];
-                    meshlet_data
-                        .child_meshlets
-                        .iter()
-                        .enumerate()
-                        .for_each(|(index, &mi)| {
-                            child_meshlets[index] = mi as i32;
-                        });
                     let meshlet = GPUMeshlet {
-                        mesh_index_and_lod_level: (mesh_index << 3)
-                            | ((MAX_LOD_LEVELS - 1 - lod_level) as u32),
+                        mesh_index,
+                        lod_level: (MAX_LOD_LEVELS - 1 - lod_level) as u32,
                         indices_offset: (indices_offset + meshlet_data.indices_offset) as _,
                         indices_count: meshlet_data.indices_count,
-                        bvh_offset: meshlet_data.bvh_offset,
-                        child_meshlets,
+                        aabb_min: meshlet_data.aabb_min.into(),
+                        aabb_max: meshlet_data.aabb_max.into(),
+                        parent_error: meshlet_data.parent_error,
+                        cluster_error: meshlet_data.cluster_error,
+                        bounding_sphere: meshlet_data.bounding_sphere.into(),
+                        parent_bounding_sphere: meshlet_data.parent_bounding_sphere.into(),
                     };
                     meshlets.push(meshlet);
                 });
@@ -173,21 +169,6 @@ impl GlobalBuffers {
             .allocate(mesh_id, meshlets.as_slice())
             .1;
         let meshlet_start_index = meshlet_range.start as i32;
-        let mut lod_index = 0;
-        self.buffer::<GPUMeshlet>().write().unwrap().data_mut()[meshlet_range]
-            .iter_mut()
-            .enumerate()
-            .for_each(|(i, m)| {
-                if i == lod_meshlets_ending_offset[lod_index] {
-                    lod_index += 1;
-                }
-                m.bvh_offset += blas_index as u32;
-                m.child_meshlets.iter_mut().for_each(|v| {
-                    if *v >= 0 {
-                        *v += meshlet_start_index;
-                    }
-                });
-            });
         self.buffer::<GPUMeshlet>()
             .write()
             .unwrap()
@@ -635,14 +616,14 @@ impl GlobalBuffers {
     pub fn update_constant_data(
         &self,
         render_context: &RenderContext,
-        view_proj_near_far: (Matrix4, Matrix4, f32, f32),
+        view_proj_near_far_fov: (Matrix4, Matrix4, f32, f32, f32),
         screen_size: Vector2,
         debug_coords: Vector2,
     ) {
         inox_profiler::scoped_profile!("render_context::update_constant_data");
         self.constant_data.write().unwrap().update(
             render_context,
-            view_proj_near_far,
+            view_proj_near_far_fov,
             (screen_size, debug_coords),
             self.tlas_start_index
                 .read()

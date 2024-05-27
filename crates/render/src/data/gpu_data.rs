@@ -81,24 +81,16 @@ impl Default for GPUMesh {
 #[repr(C)]
 #[derive(Default, PartialEq, Clone, Copy, Debug)]
 pub struct GPUMeshlet {
-    pub mesh_index_and_lod_level: u32, // 29 mesh + 3 lod bits
+    pub mesh_index: u32,
     pub indices_offset: u32,
     pub indices_count: u32,
-    pub bvh_offset: u32,
-    pub child_meshlets: [i32; MESHLETS_GROUP_SIZE],
-}
-
-impl GPUMeshlet {
-    pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
-        let mut layout_builder = VertexBufferLayoutBuilder::instance();
-        layout_builder.starting_location(starting_location);
-        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
-        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
-        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
-        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
-        layout_builder.add_attribute::<[i32; 4]>(VertexFormat::Uint32x4.into());
-        layout_builder
-    }
+    pub lod_level: u32,
+    pub aabb_min: [f32; 3],
+    pub parent_error: f32,
+    pub aabb_max: [f32; 3],
+    pub cluster_error: f32,
+    pub bounding_sphere: [f32; 4],
+    pub parent_bounding_sphere: [f32; 4],
 }
 
 #[repr(C)]

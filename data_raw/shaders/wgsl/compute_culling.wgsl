@@ -1,8 +1,6 @@
 #import "common.inc"
 #import "utils.inc"
 
-const MIN_CULLING_DISTANCE = 20.;
-
 struct CullingData {
     view: mat4x4<f32>,
     mesh_flags: u32,
@@ -18,7 +16,7 @@ var<uniform> culling_data: CullingData;
 @group(0) @binding(2)
 var<storage, read> meshlets: Meshlets;
 @group(0) @binding(3)
-var<storage, read> bvh: BVH;
+var<storage, read> bvh: BVH; //unused
 @group(0) @binding(4)
 var<storage, read> transforms: Transforms;
 @group(0) @binding(5)
@@ -40,11 +38,8 @@ fn is_sphere_inside_frustum(min: vec3<f32>, max: vec3<f32>, position: vec3<f32>,
     var center = (min + max) * 0.5;
     center = (culling_data.view * vec4<f32>(center, 1.0)).xyz;
     let radius = length(max - min) * 0.5;
-    let v = -(center.z + radius);
+    let v = -(center.z + radius * 0.5);
 
-    if(length(center) <= MIN_CULLING_DISTANCE) {
-        return true;
-    }
     // Frustum plane checks
     var visible = true;
     visible &= v * frustum.y < -abs(center.x) * frustum.x;
@@ -52,6 +47,48 @@ fn is_sphere_inside_frustum(min: vec3<f32>, max: vec3<f32>, position: vec3<f32>,
     visible &= v > znear && v < zfar;
     
     return visible;
+}
+
+fn transform_sphere(sphere: vec4<f32>, position: vec3<f32>, orientation: vec4<f32>, scale: vec3<f32>) -> vec4<f32> {
+    let transform = culling_data.view * transform_matrix(position, orientation, scale);
+    let center = transform * vec4<f32>(sphere.xyz, 1.);
+    let p = center.xyz / center.w;
+    let v = transform * vec4<f32>(sphere.w, 0., 0., 0.);
+    return vec4<f32>(p, length(v.xyz));
+}
+
+fn is_infinite(value: f32) -> bool {
+    let BIG_VALUE: f32 = 1e30f; // Adjust as needed
+    return abs(value) > BIG_VALUE;
+}
+
+fn project_error_to_screen(sphere: vec4<f32>, fov: f32) -> f32 {
+    // https://stackoverflow.com/questions/21648630/radius-of-projected-sphere-in-screen-space
+    if (is_infinite(sphere.w)) {
+        return sphere.w;
+    }
+    let cot_half_fov = 1.0 / tan(fov * 0.5);
+    let d2 = dot(sphere.xyz, sphere.xyz);
+    let r = sphere.w;
+    let projected_radius = constant_data.screen_height * 4. * cot_half_fov * r / sqrt(d2 - r * r);
+    return projected_radius;
+}
+
+fn is_lod_visible(meshlet: Meshlet, position: vec3<f32>, orientation: vec4<f32>, scale: vec3<f32>, fov: f32) -> bool {
+    if (constant_data.forced_lod_level >= 0) {
+        let desired_lod_level = MAX_LOD_LEVELS - 1u - u32(constant_data.forced_lod_level);
+        return meshlet.lod_level == desired_lod_level;
+    }
+    var projected_bounds = vec4<f32>(meshlet.bounding_sphere.xyz, max(meshlet.cluster_error, MAX_PROJECTED_ERROR));
+    projected_bounds = transform_sphere(projected_bounds, position, orientation, scale);
+
+    var parent_projected_bounds  = vec4<f32>(meshlet.parent_bounding_sphere.xyz, max(meshlet.parent_error, MAX_PROJECTED_ERROR));
+    parent_projected_bounds = transform_sphere(parent_projected_bounds, position, orientation, scale);
+
+    let cluster_error: f32 = project_error_to_screen(projected_bounds, fov);
+    let parent_error: f32 = project_error_to_screen(parent_projected_bounds, fov);
+    let render: bool = cluster_error <= LOD_ERROR_THRESHOLD && parent_error > LOD_ERROR_THRESHOLD;
+    return render;
 }
 
 @compute
@@ -72,15 +109,14 @@ fn main(
     let transform = transforms.data[instance.transform_id];
     let meshlet_id = instance.meshlet_id;
     let meshlet = meshlets.data[meshlet_id];
-    let meshlet_lod_level = meshlet.mesh_index_and_lod_level & 7u;
-    let bvh_node = bvh.data[meshlet.bvh_offset];
+    let meshlet_lod_level = meshlet.lod_level;
     
     let position = transform.position_scale_x.xyz;
     let scale = vec3<f32>(transform.position_scale_x.w, transform.bb_min_scale_y.w, transform.bb_min_scale_y.w);
-    let bb_min = transform_vector(bvh_node.min, position, transform.orientation, scale);
-    let bb_max = transform_vector(bvh_node.max, position, transform.orientation, scale);
-    let real_min = min(bb_min, bb_max);
-    let real_max = max(bb_min, bb_max);
+    let bb_min = transform_vector(meshlet.aabb_min, position, transform.orientation, scale);
+    let bb_max = transform_vector(meshlet.aabb_max, position, transform.orientation, scale);
+    let aabb_min = min(bb_min, bb_max);
+    let aabb_max = max(bb_min, bb_max);
     
     let perspective_t = matrix_transpose(constant_data.proj);
     // x + w < 0
@@ -88,47 +124,24 @@ fn main(
     // y + w < 0
     let frustum_y = normalize(perspective_t[3] + perspective_t[1]);
     let frustum = vec4<f32>(frustum_x.x, frustum_x.z, frustum_y.y, frustum_y.z);
-    if(!is_sphere_inside_frustum(real_min, real_max, position, transform.orientation, scale, frustum, constant_data.camera_near, constant_data.camera_far)) {
+    if(!is_sphere_inside_frustum(aabb_min, aabb_max, position, transform.orientation, scale, frustum, constant_data.camera_near, constant_data.camera_far)) {
         return;
     } 
-    
-    //Evaluate screen occupancy to decide if lod is ok to use for this meshlet or to use childrens
-    var screen_lod_level = 0u;   
-    let f_max = f32(MAX_LOD_LEVELS);   
-    //
-    let ncd_min = view_proj * vec4<f32>(real_min, 1.);
-    let clip_min = ncd_min.xyz / ncd_min.w;
-    let screen_min = clip_to_normalized(clip_min.xy);
-    let ncd_max = view_proj * vec4<f32>(real_max, 1.);
-    let clip_max = ncd_max.xyz / ncd_max.w;
-    let screen_max = clip_to_normalized(clip_max.xy);
-    let screen_diff = max(screen_max, screen_min) - min(screen_max, screen_min);
-    let screen_occupancy = clamp(max(screen_diff.x, screen_diff.y), 0., 1.);  
-    screen_lod_level =  clamp(u32(screen_occupancy * f_max), 0u, MAX_LOD_LEVELS - 1u);
-    //
-    let center = real_min + (real_max-real_min) * 0.5;
-    let distance = length(view_pos() - center);
-    let distance_lod_level = MAX_LOD_LEVELS - 1u - clamp(u32(((distance * distance) / (constant_data.camera_far - constant_data.camera_near)) * f_max), 0u, MAX_LOD_LEVELS - 1u);
-    //
-    var desired_lod_level = max(distance_lod_level, screen_lod_level);
-    //
-    if (constant_data.forced_lod_level >= 0) {
-        desired_lod_level = MAX_LOD_LEVELS - 1u - u32(constant_data.forced_lod_level);
+    if !is_lod_visible(meshlet, position, transform.orientation, scale, constant_data.camera_fov) {
+        return;
     }
-    //
+
     var command_id = -1;
-    if(meshlet_lod_level == desired_lod_level) {
-        let result = atomicCompareExchangeWeak(&commands_data[meshlet_id], -1, 0);
-        if(result.old_value == -1) {
-            command_id = i32(atomicAdd(&commands.count, 1u));
-            atomicStore(&commands_data[meshlet_id], i32(command_id));
-        } else {
-            command_id = result.old_value;
-        }
-        atomicStore(&active_instances.data[instance_id].command_id, i32(command_id));
-        
-        for (var i = 0; i <= command_id; i++) {
-            atomicAdd(&meshlet_counts[i], 1u); 
-        }
+    let result = atomicCompareExchangeWeak(&commands_data[meshlet_id], -1, 0);
+    if(result.old_value == -1) {
+        command_id = i32(atomicAdd(&commands.count, 1u));
+        atomicStore(&commands_data[meshlet_id], i32(command_id));
+    } else {
+        command_id = result.old_value;
+    }
+    active_instances.data[instance_id].command_id = i32(command_id);
+    
+    for (var i = 0; i <= command_id; i++) {
+        atomicAdd(&meshlet_counts[i], 1u); 
     }
 }

@@ -244,7 +244,7 @@ impl ComputeInstancesPass {
                         meshlets.iter().enumerate().for_each(|(i, meshlet)| {
                             instances.push(GPUInstance {
                                 transform_id: base_instance + j as u32,
-                                mesh_id: meshlet.mesh_index_and_lod_level >> 3,
+                                mesh_id: meshlet.mesh_index,
                                 meshlet_id: mesh.meshlets_offset + i as u32,
                                 command_id: -1,
                             });

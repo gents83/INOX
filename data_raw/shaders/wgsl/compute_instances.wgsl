@@ -22,7 +22,7 @@ fn main(
     let id = global_invocation_id.x;
     atomicStore(&active_instances.count, 0u);
     if (id < arrayLength(&instances.data)) {
-        atomicStore(&instances.data[id].command_id, -1);
+        instances.data[id].command_id = -1;
         active_instances.data[id] = instances.data[id];
     }
     if (id < arrayLength(&commands_data)) {

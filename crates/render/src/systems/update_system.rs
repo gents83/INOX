@@ -253,6 +253,7 @@ impl System for UpdateSystem {
                     self.view.get().proj(),
                     self.view.get().near(),
                     self.view.get().far(),
+                    self.view.get().fov_in_radians().0,
                 ),
                 screen_size,
                 self.mouse_coords,

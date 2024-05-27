@@ -27,7 +27,7 @@ fn main(
         return;
     }
 
-    var command_index = atomicLoad(&active_instances.data[instance_id].command_id);
+    var command_index = active_instances.data[instance_id].command_id;
     if(command_index < 0) {
         return;
     }

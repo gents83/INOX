@@ -19,6 +19,11 @@ pub struct MeshletData {
     pub indices_count: u32,
     pub child_meshlets: Vec<u32>,
     pub bvh_offset: u32,
+    pub lod: u32,
+    pub bounding_sphere: Vector4,
+    pub parent_bounding_sphere: Vector4,
+    pub parent_error: f32,
+    pub cluster_error: f32,
 }
 
 impl Default for MeshletData {
@@ -30,6 +35,11 @@ impl Default for MeshletData {
             indices_count: 0,
             child_meshlets: Vec::default(),
             bvh_offset: 0,
+            lod: 0,
+            bounding_sphere: Vector4::default_zero(),
+            parent_bounding_sphere: Vector4::default_zero(),
+            parent_error: f32::INFINITY,
+            cluster_error: 0.0,
         }
     }
 }

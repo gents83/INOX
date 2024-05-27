@@ -5,11 +5,13 @@ const MAX_LOD_LEVELS: u32 = 8u;
 const MAX_NUM_LIGHTS: u32 = 512u;
 const MAX_NUM_TEXTURES: u32 = 65536u;
 const MAX_NUM_MATERIALS: u32 = 65536u;
+const MAX_PROJECTED_ERROR: f32 = 10e-10;
+const LOD_ERROR_THRESHOLD: f32 = 1.;
 
 const CONSTANT_DATA_FLAGS_NONE: u32 = 0u;
 const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1u;
 const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 1u << 1u;
-const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 1u << 2u;
+const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_LOD_LEVEL: u32 = 1u << 2u;
 const CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER: u32 = 1u << 3u;
 const CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER: u32 = 1u << 4u;
 const CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE: u32 = 1u << 5u;
@@ -116,14 +118,14 @@ struct ConstantData {
     forced_lod_level: i32,
     camera_near: f32,
     camera_far: f32,
-    _empty3: u32,
+    camera_fov: f32,
 };
 
 struct Instance {
     @location(1) transform_id: u32,
     @location(2) mesh_id: u32,
     @location(3) meshlet_id: u32,
-    @location(4) command_id: atomic<i32>,
+    @location(4) command_id: i32,
 }
 
 struct Transform {
@@ -167,11 +169,16 @@ struct Mesh {
 };
 
 struct Meshlet {
-    mesh_index_and_lod_level: u32, // 29 mesh + 3 lod bits
+    mesh_index: u32,
     indices_offset: u32,
     indices_count: u32,
-    bvh_offset: u32,
-    child_meshlets: vec4<i32>,
+    lod_level: u32,
+    aabb_min: vec3<f32>,
+    parent_error: f32,
+    aabb_max: vec3<f32>,
+    cluster_error: f32,
+    bounding_sphere: vec4<f32>,
+    parent_bounding_sphere: vec4<f32>,
 };
 
 struct BVHNode {

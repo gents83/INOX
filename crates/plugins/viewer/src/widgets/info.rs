@@ -13,7 +13,7 @@ use inox_render::{
     DrawEvent, GPULight, Light, LightType, Mesh, MeshFlags, MeshId, RenderContextRc,
     CONSTANT_DATA_FLAGS_DISPLAY_BASE_COLOR, CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT,
     CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
-    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX, CONSTANT_DATA_FLAGS_DISPLAY_METALLIC,
+    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_LOD_LEVEL, CONSTANT_DATA_FLAGS_DISPLAY_METALLIC,
     CONSTANT_DATA_FLAGS_DISPLAY_NORMALS, CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE,
     CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_ROUGHNESS,
     CONSTANT_DATA_FLAGS_DISPLAY_TANGENT, CONSTANT_DATA_FLAGS_DISPLAY_UV_0,
@@ -30,14 +30,12 @@ use crate::events::{WidgetEvent, WidgetType};
 
 #[derive(Clone)]
 struct MeshInfo {
-    meshlets: Vec<MeshletInfo>,
     flags: MeshFlags,
 }
 
 impl Default for MeshInfo {
     fn default() -> Self {
         Self {
-            meshlets: Vec::new(),
             flags: MeshFlags::None,
         }
     }
@@ -125,6 +123,11 @@ impl Info {
             visualization_debug_selected: 0,
             visualization_debug_choices: vec![
                 (CONSTANT_DATA_FLAGS_NONE, "None"),
+                (CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS, "Meshlets"),
+                (
+                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_LOD_LEVEL,
+                    "Meshlets Lod Level",
+                ),
                 (CONSTANT_DATA_FLAGS_DISPLAY_BASE_COLOR, "Base Color"),
                 (CONSTANT_DATA_FLAGS_DISPLAY_METALLIC, "Metallic"),
                 (CONSTANT_DATA_FLAGS_DISPLAY_ROUGHNESS, "Roughness"),
@@ -135,15 +138,10 @@ impl Info {
                 (CONSTANT_DATA_FLAGS_DISPLAY_UV_1, "TexCoord UV 1"),
                 (CONSTANT_DATA_FLAGS_DISPLAY_UV_2, "TexCoord UV 2"),
                 (CONSTANT_DATA_FLAGS_DISPLAY_UV_3, "TexCoord UV 3"),
-                (CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS, "Meshlets"),
                 (CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, "DepthBuffer"),
                 (
                     CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER,
                     "RadianceBuffer",
-                ),
-                (
-                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
-                    "Meshlets BoundingBox",
                 ),
                 (CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE, "PathTrace"),
             ],
@@ -214,7 +212,6 @@ impl Info {
                     data.meshes.insert(
                         *id,
                         MeshInfo {
-                            meshlets,
                             ..Default::default()
                         },
                     );
@@ -359,11 +356,6 @@ impl Info {
             if !data.selected_object_id.is_nil() {
                 Self::show_object_in_scene(data, &data.selected_object_id);
             }
-            if data.visualization_debug_choices[data.visualization_debug_selected].0
-                == CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX
-            {
-                Self::show_meshlets_bounding_box(data);
-            }
         }
     }
 
@@ -412,28 +404,6 @@ impl Info {
                         true,
                     ));
                 }
-            });
-    }
-
-    fn show_meshlets_bounding_box(data: &mut Data) {
-        data.context
-            .shared_data()
-            .for_each_resource(|_h, object: &Object| {
-                let meshes = object.components_of_type::<Mesh>();
-                let matrix = object.transform();
-                meshes.iter().for_each(|mesh| {
-                    if let Some(info) = data.meshes.get(mesh.id()) {
-                        info.meshlets.iter().for_each(|meshlet_info| {
-                            data.context
-                                .message_hub()
-                                .send_event(DrawEvent::BoundingBox(
-                                    matrix.rotate_point(meshlet_info.min),
-                                    matrix.rotate_point(meshlet_info.max),
-                                    [1.0, 1.0, 0.0, 1.0].into(),
-                                ));
-                        });
-                    }
-                });
             });
     }
 

@@ -4,14 +4,14 @@ use inox_math::{matrix4_to_array, Mat4Ops, MatBase, Matrix4, VecBase, Vector2};
 use inox_uid::Uid;
 
 use crate::{
-    declare_as_binding, AsBinding, RenderContext, DEFAULT_HEIGHT, DEFAULT_WIDTH, ENV_MAP_UID,
-    LUT_PBR_CHARLIE_UID, LUT_PBR_GGX_UID,
+    declare_as_binding, AsBinding, RenderContext, DEFAULT_FOV, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    ENV_MAP_UID, LUT_PBR_CHARLIE_UID, LUT_PBR_GGX_UID,
 };
 
 pub const CONSTANT_DATA_FLAGS_NONE: u32 = 0;
 pub const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 1 << 1;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 1 << 2;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_LOD_LEVEL: u32 = 1 << 2;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER: u32 = 1 << 3;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER: u32 = 1 << 4;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE: u32 = 1 << 5;
@@ -47,7 +47,7 @@ pub struct ConstantData {
     forced_lod_level: i32,
     camera_near: f32,
     camera_far: f32,
-    _empty3: u32,
+    camera_fov: f32,
 }
 
 impl Default for ConstantData {
@@ -71,7 +71,7 @@ impl Default for ConstantData {
             forced_lod_level: -1,
             camera_near: 0.,
             camera_far: 0.,
-            _empty3: 0,
+            camera_fov: DEFAULT_FOV,
         }
     }
 }
@@ -80,6 +80,9 @@ declare_as_binding!(ConstantData);
 pub type ConstantDataRw = Arc<RwLock<ConstantData>>;
 
 impl ConstantData {
+    pub fn tlas_starting_index(&self) -> u32 {
+        self.tlas_starting_index
+    }
     pub fn add_flag(&mut self, render_context: &RenderContext, flag: u32) -> &mut Self {
         if self.flags & flag == 0 {
             self.flags |= flag;
@@ -170,12 +173,12 @@ impl ConstantData {
     pub fn update(
         &mut self,
         render_context: &RenderContext,
-        view_proj_near_far: (Matrix4, Matrix4, f32, f32),
+        view_proj_near_far_fov: (Matrix4, Matrix4, f32, f32, f32),
         screen_size_and_debug_coords: (Vector2, Vector2),
         tlas_starting_index: u32,
     ) -> bool {
-        let v = matrix4_to_array(view_proj_near_far.0);
-        let p = matrix4_to_array(view_proj_near_far.1);
+        let v = matrix4_to_array(view_proj_near_far_fov.0);
+        let p = matrix4_to_array(view_proj_near_far_fov.1);
         if self.view != v
             || self.proj != p
             || self.screen_size[0] != screen_size_and_debug_coords.0.x
@@ -185,11 +188,12 @@ impl ConstantData {
         }
         self.view = v;
         self.proj = p;
-        self.camera_near = view_proj_near_far.2;
-        self.camera_far = view_proj_near_far.3;
-        self.view_proj = matrix4_to_array(view_proj_near_far.1 * view_proj_near_far.0);
+        self.camera_near = view_proj_near_far_fov.2;
+        self.camera_far = view_proj_near_far_fov.3;
+        self.camera_fov = view_proj_near_far_fov.4;
+        self.view_proj = matrix4_to_array(view_proj_near_far_fov.1 * view_proj_near_far_fov.0);
         self.inverse_view_proj =
-            matrix4_to_array((view_proj_near_far.1 * view_proj_near_far.0).inverse());
+            matrix4_to_array((view_proj_near_far_fov.1 * view_proj_near_far_fov.0).inverse());
         self.screen_size = screen_size_and_debug_coords.0.into();
         self.debug_uv_coords = (screen_size_and_debug_coords
             .1

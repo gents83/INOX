@@ -1,7 +1,8 @@
+use inox_bvh::GPUBVHNode;
 use inox_commands::CommandParser;
 use inox_core::{implement_unique_system_uid, ContextRc, System};
 use inox_log::debug_log;
-use inox_math::{Mat4Ops, Matrix4, VecBase, Vector2, Vector3, Vector3u};
+use inox_math::{Mat4Ops, Matrix4, VecBase, VecBaseFloat, Vector2, Vector3, Vector3u};
 use inox_messenger::Listener;
 use inox_platform::{InputState, Key, KeyEvent, MouseEvent, MouseState, WindowEvent};
 use inox_render::{
@@ -20,7 +21,7 @@ use crate::{
 };
 
 const CULLING_TEST: bool = true;
-const CULLING_MESH_PATH: &str = "models\\sphere\\mesh\\Sphere.001_Primitive_0.mesh";
+const CULLING_MESH_PATH: &str = "models/stanford_bunny/mesh/bun_zipper_Primitive_0.mesh";
 
 pub struct ViewerSystem {
     context: ContextRc,
@@ -35,10 +36,10 @@ pub struct ViewerSystem {
     graphics: Option<Gfx>,
     last_frame: u64,
     camera_index: u32,
+    camera_speed: f32,
 }
 
 const FORCE_USE_DEFAULT_CAMERA: bool = false;
-const CAMERA_SPEED: f32 = 100.;
 const CAMERA_ROTATION_SPEED: f32 = 400.;
 
 impl Drop for ViewerSystem {
@@ -79,6 +80,24 @@ impl System for ViewerSystem {
         }
         if let Some(gfx) = &mut self.graphics {
             gfx.update();
+        }
+
+        {
+            let bvh = self.render_context.global_buffers().buffer::<GPUBVHNode>();
+            let bvh = bvh.read().unwrap();
+            let tlas_index = self
+                .render_context
+                .global_buffers()
+                .constant_data
+                .read()
+                .unwrap()
+                .tlas_starting_index();
+            if tlas_index < bvh.item_count() as u32 {
+                let max: Vector3 = bvh.data()[tlas_index as usize].max.into();
+                let min: Vector3 = bvh.data()[tlas_index as usize].min.into();
+                let length = (max - min).length();
+                self.camera_speed = length * 100.;
+            }
         }
 
         let timer = self.context.global_timer();
@@ -141,6 +160,7 @@ impl ViewerSystem {
             scene,
             camera_index: 0,
             last_mouse_pos: Vector2::default_zero(),
+            camera_speed: 1.,
         }
     }
 
@@ -180,8 +200,8 @@ impl ViewerSystem {
                 &PathBuf::from(CULLING_MESH_PATH),
                 None,
             );
-            const MIN: Vector3 = Vector3::new(-500., -500., -1500.);
-            const MAX: Vector3 = Vector3::new(500., 500., 500.);
+            const MIN: Vector3 = Vector3::new(-2., -2., -5.);
+            const MAX: Vector3 = Vector3::new(2., 2., 2.);
             const OBJECT_PER_AXIS: Vector3u = Vector3u::new(10, 10, 20);
             for i in 0..OBJECT_PER_AXIS.x {
                 for j in 0..OBJECT_PER_AXIS.y {
@@ -435,17 +455,17 @@ impl ViewerSystem {
 
             let mut movement = Vector3::default_zero();
             if event.code == Key::W {
-                movement.z += CAMERA_SPEED;
+                movement.z += self.camera_speed;
             } else if event.code == Key::S {
-                movement.z -= CAMERA_SPEED;
+                movement.z -= self.camera_speed;
             } else if event.code == Key::A {
-                movement.x += CAMERA_SPEED;
+                movement.x += self.camera_speed;
             } else if event.code == Key::D {
-                movement.x -= CAMERA_SPEED;
+                movement.x -= self.camera_speed;
             } else if event.code == Key::Q {
-                movement.y += CAMERA_SPEED;
+                movement.y += self.camera_speed;
             } else if event.code == Key::E {
-                movement.y -= CAMERA_SPEED;
+                movement.y -= self.camera_speed;
             }
             movement *= self.context.global_timer().dt().as_secs_f32();
             if movement != Vector3::default_zero() {

@@ -14,7 +14,7 @@ fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData
     let meshlet = meshlets.data[instance.meshlet_id];
     let index_offset = meshlet.indices_offset + (primitive_id * 3u);
 
-    let mesh_id = meshlet.mesh_index_and_lod_level >> 3u;
+    let mesh_id = meshlet.mesh_index;
     let mesh = meshes.data[mesh_id];
     let material_id = u32(mesh.material_index);
     let position_offset = mesh.vertices_position_offset;
