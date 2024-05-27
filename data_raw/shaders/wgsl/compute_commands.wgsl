@@ -37,18 +37,18 @@ fn main(
     let meshlet_id = instance.meshlet_id;
     let meshlet = meshlets.data[meshlet_id];
 
-    let index = commands_data[meshlet_id];
+    let command_id = commands_data[meshlet_id];
     var first_instance = 0u;
-    let instance_count = atomicAdd(&commands.data[index].instance_count, 1u);
-    if (index > 0) {
-        first_instance = meshlet_counts[index - 1];
+    let instance_count = atomicAdd(&commands.data[command_id].instance_count, 1u);
+    if (command_id > 0) {
+        first_instance = meshlet_counts[command_id - 1];
     }
     //same for everyone
-    commands.data[index].vertex_count = meshlet.indices_count;
-    commands.data[index].base_index = meshlet.indices_offset;
-    commands.data[index].vertex_offset = i32(mesh.vertices_position_offset);
+    commands.data[command_id].vertex_count = meshlet.indices_count;
+    commands.data[command_id].base_index = meshlet.indices_offset;
+    commands.data[command_id].vertex_offset = i32(mesh.vertices_position_offset);
     //we need to find first instance
-    commands.data[index].base_instance = first_instance;
+    commands.data[command_id].base_instance = first_instance;
     //we need to pack instances of same meshlet
     instances.data[first_instance + instance_count] = instance;
 }
