@@ -9,7 +9,7 @@ var<storage, read> meshes: Meshes;
 @group(0) @binding(2)
 var<storage, read_write> instances: Instances;
 @group(0) @binding(3)
-var<storage, read> active_instances: ActiveInstances;
+var<storage, read> active_instances: Instances;
 @group(0) @binding(4)
 var<storage, read> meshlet_counts: array<u32>;
 @group(0) @binding(5)
@@ -23,7 +23,7 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>, 
 ) {  
     let instance_id = global_invocation_id.x;
-    if (instance_id >= arrayLength(&active_instances.data)) {
+    if (instance_id >= arrayLength(&instances.data)) {
         return;
     }
 

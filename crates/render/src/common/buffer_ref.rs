@@ -55,7 +55,7 @@ impl BufferRef {
         inox_profiler::scoped_profile!("GpuBuffer::init({})", buffer_name);
 
         self.offset = 0;
-        if size > self.size || usage != self.usage {
+        if size > self.size || !self.usage.contains(usage) {
             let label = format!("{buffer_name} Buffer");
             self.name = label;
             self.release();

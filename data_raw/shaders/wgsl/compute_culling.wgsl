@@ -27,7 +27,7 @@ var<storage, read_write> commands_data: array<atomic<i32>>;
 var<storage, read_write> commands: DrawIndexedCommands;
 
 @group(1) @binding(0)
-var<storage, read_write> active_instances: ActiveInstances;
+var<storage, read_write> active_instances: Instances;
 @group(1) @binding(1)
 var<storage, read_write> meshlet_counts: array<atomic<u32>>;
 
@@ -105,7 +105,7 @@ fn main(
     }
      
     let view_proj = constant_data.proj * culling_data.view;
-    let instance = instances.data[instance_id];
+    let instance = active_instances.data[instance_id];
     let transform = transforms.data[instance.transform_id];
     let meshlet_id = instance.meshlet_id;
     let meshlet = meshlets.data[meshlet_id];
@@ -139,9 +139,11 @@ fn main(
     } else {
         command_id = result.old_value;
     }
+    instances.data[instance_id].command_id = i32(command_id);
     active_instances.data[instance_id].command_id = i32(command_id);
-    
-    for (var i = 0; i <= command_id; i++) {
+
+    let commands_count = i32(arrayLength(&commands.data));
+    for (var i = command_id; i < commands_count; i++) {
         atomicAdd(&meshlet_counts[i], 1u); 
     }
 }

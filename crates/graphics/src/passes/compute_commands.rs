@@ -69,7 +69,7 @@ impl Pass for CommandsPass {
                 .vector_with_id::<GPUInstance>(INSTANCE_DATA_ID),
             active_instances: render_context
                 .global_buffers()
-                .vector_with_id(ACTIVE_INSTANCE_DATA_ID),
+                .vector_with_id::<GPUInstance>(ACTIVE_INSTANCE_DATA_ID),
             meshlets_count: render_context
                 .global_buffers()
                 .vector_with_id::<u32>(MESHLETS_COUNT_ID),
@@ -84,10 +84,6 @@ impl Pass for CommandsPass {
 
         let commands_count = self.commands_data.read().unwrap().len();
         if self.instances.read().unwrap().is_empty() || commands_count == 0 {
-            return;
-        }
-        let active_instances_count = self.active_instances.read().unwrap().len();
-        if active_instances_count == 0 {
             return;
         }
 
@@ -131,7 +127,7 @@ impl Pass for CommandsPass {
                     binding_index: 3,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Read,
-                    count: Some(active_instances_count),
+                    ..Default::default()
                 },
             )
             .add_storage_buffer(

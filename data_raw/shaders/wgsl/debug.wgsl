@@ -143,7 +143,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
-            let instance_id = (visibility_id >> 8u); 
+            let instance_id = (visibility_id >> 8u) - 1u; 
             let meshlet_id = instances.data[instance_id].meshlet_id;
             let meshlet = meshlets.data[meshlet_id];
             let meshlet_color = hash(meshlet_id + 1u);
@@ -161,7 +161,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
-            let instance_id = (visibility_id >> 8u); 
+            let instance_id = (visibility_id >> 8u) - 1u; 
             let meshlet_id = instances.data[instance_id].meshlet_id;
             let meshlet = meshlets.data[meshlet_id];
             let meshlet_color = hash(meshlet_id + 1u);

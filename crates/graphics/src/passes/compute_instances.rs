@@ -19,6 +19,7 @@ pub const COMPUTE_INSTANCES_NAME: &str = "ComputeInstancesPass";
 pub const INSTANCE_DATA_ID: Uid = generate_static_uid_from_string("INSTANCE_DATA_ID");
 pub const ACTIVE_INSTANCE_DATA_ID: Uid = generate_static_uid_from_string("ACTIVE_INSTANCE_DATA_ID");
 pub const COMMANDS_DATA_ID: Uid = generate_static_uid_from_string("COMMANDS_DATA_ID");
+pub const MESHLETS_COUNT_ID: Uid = generate_static_uid_from_string("MESHLETS_COUNT_ID");
 
 struct TransformMapData {
     transform: GPUTransform,
@@ -53,6 +54,7 @@ pub struct ComputeInstancesPass {
     commands_data: GPUVector<CommandsData>,
     instances: GPUVector<GPUInstance>,
     active_instances: GPUVector<GPUInstance>,
+    meshlets_count: GPUVector<u32>,
     transform_map: HashMap<MeshId, Vec<TransformMapData>>,
     is_dirty: bool,
 }
@@ -110,6 +112,9 @@ impl Pass for ComputeInstancesPass {
             commands_data: render_context
                 .global_buffers()
                 .vector_with_id::<CommandsData>(COMMANDS_DATA_ID),
+            meshlets_count: render_context
+                .global_buffers()
+                .vector_with_id::<u32>(MESHLETS_COUNT_ID),
             binding_data: BindingData::new(render_context, COMPUTE_INSTANCES_NAME),
         }
     }
@@ -123,9 +128,18 @@ impl Pass for ComputeInstancesPass {
         if commands_count == 0 || self.transforms.read().unwrap().is_empty() {
             return;
         }
-        let active_instances_count = self.active_instances.read().unwrap().len();
-        if active_instances_count == 0 {
-            return;
+
+        {
+            let meshlets_count = {
+                let count = self.meshlets.read().unwrap().item_count();
+                count
+            };
+
+            let mut meshlet_counts = self.meshlets_count.write().unwrap();
+            if meshlet_counts.len() != meshlets_count {
+                meshlet_counts.resize(meshlets_count, 0);
+                meshlet_counts.mark_as_dirty(render_context);
+            }
         }
         self.binding_data
             .add_storage_buffer(
@@ -147,7 +161,7 @@ impl Pass for ComputeInstancesPass {
                     binding_index: 1,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite,
-                    count: Some(active_instances_count),
+                    ..Default::default()
                 },
             )
             .add_storage_buffer(
@@ -170,6 +184,17 @@ impl Pass for ComputeInstancesPass {
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite,
                     count: Some(commands_count),
+                },
+            )
+            .add_storage_buffer(
+                &mut *self.meshlets_count.write().unwrap(),
+                Some("MeshletsCount"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 4,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::ReadWrite,
+                    ..Default::default()
                 },
             )
             .bind_buffer(

@@ -29,7 +29,7 @@ impl BindingDataBuffer {
         }
         let buffers = self.buffers.read().unwrap();
         let buffer = buffers.get(&id).unwrap();
-        usage != buffer.usage()
+        !buffer.usage().contains(usage)
     }
     pub fn mark_buffer_as_changed(&self, id: BufferId) {
         self.changed_this_frame.write().unwrap().insert(id, true);

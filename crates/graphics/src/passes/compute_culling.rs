@@ -13,14 +13,14 @@ use inox_core::ContextRc;
 
 use inox_messenger::{implement_message, Listener};
 use inox_resources::{DataTypeResource, Resource};
-use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
+use inox_uid::generate_random_uid;
 
-use crate::{CommandsData, ACTIVE_INSTANCE_DATA_ID, COMMANDS_DATA_ID, INSTANCE_DATA_ID};
+use crate::{
+    CommandsData, ACTIVE_INSTANCE_DATA_ID, COMMANDS_DATA_ID, INSTANCE_DATA_ID, MESHLETS_COUNT_ID,
+};
 
 pub const CULLING_PIPELINE: &str = "pipelines/ComputeCulling.compute_pipeline";
 pub const CULLING_PASS_NAME: &str = "CullingPass";
-
-pub const MESHLETS_COUNT_ID: Uid = generate_static_uid_from_string("MESHLETS_COUNT_ID");
 
 #[repr(C)]
 #[derive(Default, PartialEq, Clone, Copy, Debug)]
@@ -141,7 +141,7 @@ impl Pass for CullingPass {
                 .vector_with_id::<GPUInstance>(INSTANCE_DATA_ID),
             active_instances: render_context
                 .global_buffers()
-                .vector_with_id(ACTIVE_INSTANCE_DATA_ID),
+                .vector_with_id::<GPUInstance>(ACTIVE_INSTANCE_DATA_ID),
             commands_data: render_context
                 .global_buffers()
                 .vector_with_id::<CommandsData>(COMMANDS_DATA_ID),
@@ -163,10 +163,7 @@ impl Pass for CullingPass {
         if self.instances.read().unwrap().is_empty() || commands_count == 0 {
             return;
         }
-        let active_instances_count = self.active_instances.read().unwrap().len();
-        if active_instances_count == 0 {
-            return;
-        }
+
         let mesh_flags = MeshFlags::Visible | MeshFlags::Opaque;
 
         let flags: u32 = mesh_flags.into();
@@ -181,17 +178,6 @@ impl Pass for CullingPass {
                 self.culling_data.view = view;
                 self.culling_data.mark_as_dirty(render_context);
             }
-        }
-
-        {
-            let meshlets_count = {
-                let count = self.meshlets.read().unwrap().item_count();
-                count
-            };
-
-            let mut meshlet_counts = self.meshlets_count.write().unwrap();
-            meshlet_counts.resize(meshlets_count, 0);
-            meshlet_counts.mark_as_dirty(render_context);
         }
         self.binding_data
             .add_uniform_buffer(
@@ -285,7 +271,7 @@ impl Pass for CullingPass {
                     binding_index: 0,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite,
-                    count: Some(active_instances_count),
+                    ..Default::default()
                 },
             )
             .add_storage_buffer(

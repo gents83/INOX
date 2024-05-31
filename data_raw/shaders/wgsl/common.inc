@@ -261,14 +261,6 @@ struct Instances {
     data: array<Instance>,
 };
 
-struct ActiveInstances {
-    count: atomic<u32>,
-    _padding0: u32,
-    _padding1: u32,
-    _padding2: u32,
-    data: array<Instance>,
-};
-
 struct Meshes {
     data: array<Mesh>,
 };
