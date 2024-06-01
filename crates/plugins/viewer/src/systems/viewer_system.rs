@@ -96,7 +96,7 @@ impl System for ViewerSystem {
                 let max: Vector3 = bvh.data()[tlas_index as usize].max.into();
                 let min: Vector3 = bvh.data()[tlas_index as usize].min.into();
                 let length = (max - min).length();
-                self.camera_speed = length * 100.;
+                self.camera_speed = length * 10.;
             }
         }
 

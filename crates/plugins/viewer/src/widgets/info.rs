@@ -500,20 +500,6 @@ impl Info {
                             data.mouse_coords.x / data.screen_size.x,
                             data.mouse_coords.y / data.screen_size.y
                         ));
-                        data.context
-                            .shared_data()
-                            .for_each_resource(|h, c: &Camera| {
-                                ui.horizontal(|ui| {
-                                    let p = c.transform().translation();
-                                    ui.label(format!(
-                                        "Camera [{}] position:({:.3},{:.3},{:.3})",
-                                        h.id(),
-                                        p.x,
-                                        p.y,
-                                        p.z,
-                                    ));
-                                });
-                            });
                         ui.checkbox(&mut data.show_hierarchy, "Hierarchy");
                         ui.checkbox(&mut data.show_graphics, "Graphics");
                         ui.checkbox(&mut data.show_lights, "Show Lights");
@@ -629,6 +615,95 @@ impl Info {
                                 }
                             }
                         });
+
+                        ui.horizontal(|ui| {
+                            ui.label("Debug mode:");
+                            let previous_debug_selected = data.visualization_debug_selected;
+                            let combo_box = ComboBox::from_id_source("Debug mode")
+                                .selected_text(
+                                    data.visualization_debug_choices
+                                        [data.visualization_debug_selected]
+                                        .1
+                                        .to_string(),
+                                )
+                                .show_ui(ui, |ui| {
+                                    let mut is_changed = false;
+                                    data.visualization_debug_choices
+                                        .iter()
+                                        .enumerate()
+                                        .for_each(|(i, v)| {
+                                            is_changed |= ui
+                                                .selectable_value(
+                                                    &mut data.visualization_debug_selected,
+                                                    i,
+                                                    v.1,
+                                                )
+                                                .changed();
+                                        });
+                                    is_changed
+                                });
+                            if let Some(is_changed) = combo_box.inner {
+                                if is_changed {
+                                    data.params
+                                        .render_context
+                                        .global_buffers()
+                                        .constant_data
+                                        .write()
+                                        .unwrap()
+                                        .remove_flag(
+                                            &data.params.render_context,
+                                            data.visualization_debug_choices
+                                                [previous_debug_selected]
+                                                .0,
+                                        );
+                                    match data.visualization_debug_choices
+                                        [data.visualization_debug_selected]
+                                        .0
+                                    {
+                                        CONSTANT_DATA_FLAGS_NONE => {
+                                            data.params
+                                                .render_context
+                                                .global_buffers()
+                                                .constant_data
+                                                .write()
+                                                .unwrap()
+                                                .set_frame_index(&data.params.render_context, 0);
+                                        }
+                                        _ => {
+                                            data.params
+                                                .render_context
+                                                .global_buffers()
+                                                .constant_data
+                                                .write()
+                                                .unwrap()
+                                                .set_frame_index(&data.params.render_context, 0)
+                                                .add_flag(
+                                                    &data.params.render_context,
+                                                    data.visualization_debug_choices
+                                                        [data.visualization_debug_selected]
+                                                        .0,
+                                                );
+                                        }
+                                    }
+                                }
+                            }
+                        });
+
+                        data.context
+                            .shared_data()
+                            .for_each_resource(|h, c: &Camera| {
+                                ui.horizontal(|ui| {
+                                    let p = c.transform().translation();
+                                    ui.label(format!(
+                                        "Camera [{}] position:({:.3},{:.3},{:.3})",
+                                        h.id(),
+                                        p.x,
+                                        p.y,
+                                        p.z,
+                                    ));
+                                });
+                            });
+
                         ui.vertical(|ui| {
                             let lights = data
                                 .params
@@ -720,79 +795,6 @@ impl Info {
                             });
                             let lights_label = format!("Total Num Lights: {}", num_lights);
                             ui.label(&lights_label);
-                        });
-
-                        ui.horizontal(|ui| {
-                            ui.label("Debug mode:");
-                            let previous_debug_selected = data.visualization_debug_selected;
-                            let combo_box = ComboBox::from_id_source("Debug mode")
-                                .selected_text(
-                                    data.visualization_debug_choices
-                                        [data.visualization_debug_selected]
-                                        .1
-                                        .to_string(),
-                                )
-                                .show_ui(ui, |ui| {
-                                    let mut is_changed = false;
-                                    data.visualization_debug_choices
-                                        .iter()
-                                        .enumerate()
-                                        .for_each(|(i, v)| {
-                                            is_changed |= ui
-                                                .selectable_value(
-                                                    &mut data.visualization_debug_selected,
-                                                    i,
-                                                    v.1,
-                                                )
-                                                .changed();
-                                        });
-                                    is_changed
-                                });
-                            if let Some(is_changed) = combo_box.inner {
-                                if is_changed {
-                                    data.params
-                                        .render_context
-                                        .global_buffers()
-                                        .constant_data
-                                        .write()
-                                        .unwrap()
-                                        .remove_flag(
-                                            &data.params.render_context,
-                                            data.visualization_debug_choices
-                                                [previous_debug_selected]
-                                                .0,
-                                        );
-                                    match data.visualization_debug_choices
-                                        [data.visualization_debug_selected]
-                                        .0
-                                    {
-                                        CONSTANT_DATA_FLAGS_NONE => {
-                                            data.params
-                                                .render_context
-                                                .global_buffers()
-                                                .constant_data
-                                                .write()
-                                                .unwrap()
-                                                .set_frame_index(&data.params.render_context, 0);
-                                        }
-                                        _ => {
-                                            data.params
-                                                .render_context
-                                                .global_buffers()
-                                                .constant_data
-                                                .write()
-                                                .unwrap()
-                                                .set_frame_index(&data.params.render_context, 0)
-                                                .add_flag(
-                                                    &data.params.render_context,
-                                                    data.visualization_debug_choices
-                                                        [data.visualization_debug_selected]
-                                                        .0,
-                                                );
-                                        }
-                                    }
-                                }
-                            }
                         });
                     })
                 {
