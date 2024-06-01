@@ -133,7 +133,8 @@ fn transform_sphere(sphere: vec4<f32>, position: vec3<f32>, orientation: vec4<f3
     let center = transform * vec4<f32>(sphere.xyz, 1.);
     let p = center.xyz / center.w;
     let v = transform * vec4<f32>(sphere.w, 0., 0., 0.);
-    return vec4<f32>(p, length(v.xyz));
+    let l = length(v.xyz);
+    return vec4<f32>(p, l);
 }
 
 fn is_infinite(value: f32) -> bool {
@@ -146,10 +147,10 @@ fn project_error_to_screen(sphere: vec4<f32>, fov: f32) -> f32 {
     if (is_infinite(sphere.w)) {
         return sphere.w;
     }
-    let cot_half_fov = 1.0 / tan(fov * 0.5);
+    let cot_half_fov = 1. / tan(fov * 0.5);
     let d2 = dot(sphere.xyz, sphere.xyz);
     let r = sphere.w;
-    let projected_radius = constant_data.screen_height * 4. * cot_half_fov * r / sqrt(d2 - r * r);
+    let projected_radius = (constant_data.screen_height * cot_half_fov * r / sqrt(d2 - r * r));
     return projected_radius;
 }
 
@@ -179,7 +180,7 @@ fn main(
     @builtin(workgroup_id) workgroup_id: vec3<u32>
 ) {
     let instance_id = global_invocation_id.x;
-    if (instance_id >= arrayLength(&instances.data)) {
+    if (instance_id >= arrayLength(&active_instances.data)) {
         return;
     }
      
@@ -212,7 +213,6 @@ fn main(
     } else {
         command_id = result.old_value;
     }
-    instances.data[instance_id].command_id = i32(command_id);
     active_instances.data[instance_id].command_id = i32(command_id);
 
     let commands_count = i32(arrayLength(&commands.data));

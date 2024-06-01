@@ -23,7 +23,7 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>, 
 ) {  
     let instance_id = global_invocation_id.x;
-    if (instance_id >= arrayLength(&instances.data)) {
+    if (instance_id >= arrayLength(&active_instances.data)) {
         return;
     }
 

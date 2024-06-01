@@ -23,7 +23,7 @@ fn main(
 ) {
     let id = global_invocation_id.x;
     
-    if (id < arrayLength(&instances.data)) {
+    if (id < arrayLength(&active_instances.data)) {
         active_instances.data[id].command_id = -1;
         instances.data[id] = active_instances.data[id];
     }
