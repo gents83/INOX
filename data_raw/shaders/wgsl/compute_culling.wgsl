@@ -205,18 +205,13 @@ fn main(
     }
 
     var command_id = -1;
-    workgroupBarrier();
     let result = atomicCompareExchangeWeak(&commands_data[meshlet_id], -1, 0);
-    workgroupBarrier();
     if(result.old_value == -1) {
         command_id = i32(atomicAdd(&commands.count, 1u));
-    workgroupBarrier();
         atomicStore(&commands_data[meshlet_id], i32(command_id));
-    workgroupBarrier();
     } else {
         command_id = result.old_value;
     }
-    workgroupBarrier();
     instances.data[instance_id].command_id = i32(command_id);
     active_instances.data[instance_id].command_id = i32(command_id);
 
