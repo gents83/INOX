@@ -283,7 +283,6 @@ impl ComputeInstancesPass {
             return;
         }
         active_instances.clone_from(&instances);
-        //sort in descending order
         transforms.mark_as_dirty(render_context);
         commands_data.mark_as_dirty(render_context);
         instances.mark_as_dirty(render_context);

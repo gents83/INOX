@@ -146,12 +146,8 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
             let instance_id = (visibility_id >> 8u) - 1u; 
             let meshlet_id = instances.data[instance_id].meshlet_id;
             let meshlet = meshlets.data[meshlet_id];
-            let meshlet_color = hash(meshlet_id + 1u);
-            out_color = vec4<f32>(vec3<f32>(
-                f32((meshlet_color << 1u) & 255u),
-                f32((meshlet_color >> 3u) & 255u),
-                f32((meshlet_color >> 7u) & 255u)
-            ) / 255., 1.);
+            let meshlet_color = get_color_for_int(meshlet_id);
+            out_color = vec4<f32>(meshlet_color, 1.);
         }
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_LOD_LEVEL) != 0) {
@@ -164,7 +160,6 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
             let instance_id = (visibility_id >> 8u) - 1u; 
             let meshlet_id = instances.data[instance_id].meshlet_id;
             let meshlet = meshlets.data[meshlet_id];
-            let meshlet_color = hash(meshlet_id + 1u);
             if (meshlet.lod_level == MAX_LOD_LEVELS - 1) {
                 out_color = vec4<f32>(vec3<f32>(1., 0., 0.), 1.);
             }
