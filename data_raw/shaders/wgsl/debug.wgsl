@@ -58,8 +58,9 @@ var<storage, read> data_buffer_debug: array<f32>;
 #import "color_utils.inc"
 
 
-fn draw_triangle_from_visibility(visibility_id: u32, instance_id: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec3<f32>{
-    let meshlet_id = (visibility_id >> 8u) - 1u;
+fn draw_triangle_from_visibility(visibility_id: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec3<f32>{
+    let instance_id = (visibility_id >> 8u) - 1u;
+    let meshlet_id = instances.data[instance_id].meshlet_id;
     let primitive_id = visibility_id & 255u;
     let meshlet = &meshlets.data[meshlet_id];
     let index_offset = (*meshlet).indices_offset + (primitive_id * 3u);
@@ -425,7 +426,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         if(max_index > 8u) {
             while(debug_index < max_index) {
                 let visibility_id = u32(data_buffer_debug[debug_index]);
-                color += draw_triangle_from_visibility(visibility_id, instance_id, screen_pixel, dimensions);
+                color += draw_triangle_from_visibility(visibility_id, screen_pixel, dimensions);
                 
                 var previous = origin;
                 origin = vec3<f32>(data_buffer_debug[debug_index + 1u], data_buffer_debug[debug_index + 2u], data_buffer_debug[debug_index + 3u]);

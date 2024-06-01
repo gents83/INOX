@@ -34,6 +34,85 @@ var<storage, read_write> meshlet_counts: array<atomic<u32>>;
 #import "matrix_utils.inc"
 #import "geom_utils.inc"
 
+fn get_plane(index: u32, frustum_planes: array<vec4<f32>, 6>) -> vec4<f32> {
+    if (index == 0) {
+        return frustum_planes[0];
+    } else if (index == 1) {
+        return frustum_planes[1];
+    } else if (index == 2) {
+        return frustum_planes[2];
+    } else if (index == 3) {
+        return frustum_planes[3];
+    } else if (index == 4) {
+        return frustum_planes[4];
+    }
+    return frustum_planes[5];
+}
+
+fn get_vertex(index: u32, min: vec3<f32>, max: vec3<f32>) -> vec3<f32> {
+    if (index == 0) {
+        return vec3<f32>(min.x, min.y, min.z);
+    } else if(index == 1) {
+        return vec3<f32>(max.x, min.y, min.z);
+    } else if(index == 2) {
+        return vec3<f32>(min.x, max.y, min.z);
+    } else if(index == 3) {
+        return vec3<f32>(max.x, max.y, min.z);
+    } else if(index == 4) {
+        return vec3<f32>(min.x, min.y, max.z);
+    } else if(index == 5) {
+        return vec3<f32>(max.x, min.y, max.z);
+    } else if(index == 6) {
+        return vec3<f32>(min.x, max.y, max.z);
+    }
+    return vec3<f32>(max.x, max.y, max.z);
+}
+
+fn is_box_inside_frustum(min: vec3<f32>, max: vec3<f32>, frustum_planes: array<vec4<f32>, 6>) -> bool {
+    for (var i = 0u; i < 6u; i = i + 1u) {
+        let plane = get_plane(i, frustum_planes);
+        var all_out = true;
+
+        for (var j = 0u; j < 8u; j = j + 1u) {
+            if (dot(plane.xyz, get_vertex(j, min, max)) + plane.w >= 0.) {
+                all_out = false;
+                break;
+            }
+        }
+
+        if (all_out) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+fn extract_planes_from_matrix(view_proj: mat4x4<f32>) -> array<vec4<f32>, 6> {
+    var planes: array<vec4<f32>, 6>;
+
+    // Left Plane
+    planes[0] = view_proj[3] + view_proj[0];
+    // Right Plane
+    planes[1] = view_proj[3] - view_proj[0];
+    // Bottom Plane
+    planes[2] = view_proj[3] + view_proj[1];
+    // Top Plane
+    planes[3] = view_proj[3] - view_proj[1];
+    // Near Plane
+    planes[4] = view_proj[3] + view_proj[2];
+    // Far Plane
+    planes[5] = view_proj[3] - view_proj[2];
+
+    // Normalize the planes
+    for (var i = 0; i < 6; i = i + 1) {
+        let length = length(planes[i].xyz);
+        planes[i] /= length;
+    }
+
+    return planes;
+}
+
 fn is_sphere_inside_frustum(min: vec3<f32>, max: vec3<f32>, position: vec3<f32>, orientation: vec4<f32>, scale: vec3<f32>, frustum: vec4<f32>, znear: f32, zfar: f32) -> bool {
     var center = (min + max) * 0.5;
     center = (culling_data.view * vec4<f32>(center, 1.0)).xyz;
@@ -118,27 +197,26 @@ fn main(
     let aabb_min = min(bb_min, bb_max);
     let aabb_max = max(bb_min, bb_max);
     
-    let perspective_t = matrix_transpose(constant_data.proj);
-    // x + w < 0
-    let frustum_x = normalize(perspective_t[3] + perspective_t[0]);
-    // y + w < 0
-    let frustum_y = normalize(perspective_t[3] + perspective_t[1]);
-    let frustum = vec4<f32>(frustum_x.x, frustum_x.z, frustum_y.y, frustum_y.z);
-    if(!is_sphere_inside_frustum(aabb_min, aabb_max, position, transform.orientation, scale, frustum, constant_data.camera_near, constant_data.camera_far)) {
+    if(!is_box_inside_frustum(aabb_min, aabb_max, extract_planes_from_matrix(matrix_transpose(view_proj)))) {
         return;
-    } 
+    }
     if !is_lod_visible(meshlet, position, transform.orientation, scale, constant_data.camera_fov) {
         return;
     }
 
     var command_id = -1;
+    workgroupBarrier();
     let result = atomicCompareExchangeWeak(&commands_data[meshlet_id], -1, 0);
+    workgroupBarrier();
     if(result.old_value == -1) {
         command_id = i32(atomicAdd(&commands.count, 1u));
+    workgroupBarrier();
         atomicStore(&commands_data[meshlet_id], i32(command_id));
+    workgroupBarrier();
     } else {
         command_id = result.old_value;
     }
+    workgroupBarrier();
     instances.data[instance_id].command_id = i32(command_id);
     active_instances.data[instance_id].command_id = i32(command_id);
 
