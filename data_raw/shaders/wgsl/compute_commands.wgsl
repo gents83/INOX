@@ -18,7 +18,7 @@ var<storage, read> commands_data: array<i32>;
 var<storage, read_write> commands: DrawIndexedCommands;
 
 @compute
-@workgroup_size(32, 1, 1)
+@workgroup_size(256, 1, 1)
 fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>, 
 ) {  
@@ -27,17 +27,15 @@ fn main(
         return;
     }
 
-    var command_index = active_instances.data[instance_id].command_id;
-    if(command_index < 0) {
+    let command_id = active_instances.data[instance_id].command_id;
+    if(command_id < 0) {
         return;
     }
 
     let instance = active_instances.data[instance_id];
-    let mesh = meshes.data[instance.mesh_id];
-    let meshlet_id = instance.meshlet_id;
-    let meshlet = meshlets.data[meshlet_id];
+    let meshlet = meshlets.data[instance.meshlet_id];
+    let mesh = meshes.data[meshlet.mesh_index];
 
-    let command_id = commands_data[meshlet_id];
     var first_instance = 0u;
     let instance_count = atomicAdd(&commands.data[command_id].instance_count, 1u);
     if (command_id > 0) {

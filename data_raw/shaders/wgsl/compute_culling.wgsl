@@ -172,7 +172,7 @@ fn is_lod_visible(meshlet: Meshlet, position: vec3<f32>, orientation: vec4<f32>,
 }
 
 @compute
-@workgroup_size(32, 1, 1)
+@workgroup_size(256, 1, 1)
 fn main(
     @builtin(local_invocation_id) local_invocation_id: vec3<u32>, 
     @builtin(local_invocation_index) local_invocation_index: u32, 
@@ -189,7 +189,6 @@ fn main(
     let transform = transforms.data[instance.transform_id];
     let meshlet_id = instance.meshlet_id;
     let meshlet = meshlets.data[meshlet_id];
-    let meshlet_lod_level = meshlet.lod_level;
     
     let position = transform.position_scale_x.xyz;
     let scale = vec3<f32>(transform.position_scale_x.w, transform.bb_min_scale_y.w, transform.bb_min_scale_y.w);

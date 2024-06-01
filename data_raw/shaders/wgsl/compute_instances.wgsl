@@ -14,7 +14,7 @@ var<storage, read_write> meshlet_counts: array<atomic<u32>>;
 
 
 @compute
-@workgroup_size(32, 1, 1)
+@workgroup_size(256, 1, 1)
 fn main(
     @builtin(local_invocation_id) local_invocation_id: vec3<u32>, 
     @builtin(local_invocation_index) local_invocation_index: u32, 

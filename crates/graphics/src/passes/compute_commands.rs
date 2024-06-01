@@ -175,16 +175,16 @@ impl Pass for CommandsPass {
     ) {
         inox_profiler::scoped_profile!("compute_commands_pass::update");
 
-        if self.instances.read().unwrap().is_empty() {
+        if self.active_instances.read().unwrap().is_empty() {
             return;
         }
 
-        let num = self.instances.read().unwrap().len();
+        let num = self.active_instances.read().unwrap().len();
         if num == 0 {
             return;
         }
 
-        let workgroup_max_size = 32;
+        let workgroup_max_size = 256;
         let workgroup_size = (num + workgroup_max_size - 1) / workgroup_max_size;
 
         let pass = self.compute_pass.get();

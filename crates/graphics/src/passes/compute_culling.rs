@@ -298,12 +298,12 @@ impl Pass for CullingPass {
     ) {
         inox_profiler::scoped_profile!("compute_culling_pass::update");
 
-        let num = self.instances.read().unwrap().len();
+        let num = self.active_instances.read().unwrap().len();
         if num == 0 {
             return;
         }
 
-        let workgroup_max_size = 32;
+        let workgroup_max_size = 256;
         let workgroup_size = (num + workgroup_max_size - 1) / workgroup_max_size;
 
         let pass = self.compute_pass.get();
