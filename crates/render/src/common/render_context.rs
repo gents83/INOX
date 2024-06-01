@@ -496,6 +496,7 @@ impl RenderContext {
                 }
             });
         }
+        self.binding_data_buffer().clear_buffers_changed();
         self.set_command_buffer(command_buffer);
     }
 }

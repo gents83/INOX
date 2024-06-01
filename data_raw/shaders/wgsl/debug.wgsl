@@ -188,6 +188,8 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
             }
             else if (meshlet.lod_level == 0) {
                 out_color = vec4<f32>(vec3<f32>(1., 1., 1.), 1.);
+            } else {
+                out_color = vec4<f32>(vec3<f32>(0.1, 0.1, 0.1), 1.);
             }
         }
     } 

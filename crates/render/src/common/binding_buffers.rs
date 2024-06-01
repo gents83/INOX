@@ -34,6 +34,9 @@ impl BindingDataBuffer {
     pub fn mark_buffer_as_changed(&self, id: BufferId) {
         self.changed_this_frame.write().unwrap().insert(id, true);
     }
+    pub fn clear_buffers_changed(&self) {
+        self.changed_this_frame.write().unwrap().clear();
+    }
     pub fn bind_buffer<T>(
         &self,
         label: Option<&str>,
@@ -51,7 +54,9 @@ impl BindingDataBuffer {
             let mut bind_data_buffer = self.buffers.write().unwrap();
             let buffer = bind_data_buffer.entry(id).or_default();
             is_changed |= buffer.bind(label, data, count, usage, render_context);
-            self.changed_this_frame.write().unwrap().remove(&id);
+            if is_changed {
+                self.mark_buffer_as_changed(id);
+            }
         }
         is_changed
     }
