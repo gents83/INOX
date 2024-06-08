@@ -204,18 +204,10 @@ fn main(
         return;
     }
 
-    var command_id = -1;
-    let result = atomicCompareExchangeWeak(&commands_data[meshlet_id], -1, 0);
-    if(result.old_value == -1) {
-        command_id = i32(atomicAdd(&commands.count, 1u));
-        atomicStore(&commands_data[meshlet_id], i32(command_id));
-    } else {
-        command_id = result.old_value;
-    }
-    active_instances.data[instance_id].command_id = i32(command_id);
-
-    let commands_count = i32(arrayLength(&commands.data));
-    for (var i = command_id; i < commands_count; i++) {
-        atomicAdd(&meshlet_counts[i], 1u); 
+    active_instances.data[instance_id].command_id = 0;
+    
+    let commands_count = arrayLength(&commands_data);
+    for(var i = meshlet_id; i < commands_count; i++) {
+        atomicAdd(&meshlet_counts[i], 1u);
     }
 }

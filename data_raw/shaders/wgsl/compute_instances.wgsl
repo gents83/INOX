@@ -30,7 +30,7 @@ fn main(
     if (id < arrayLength(&commands_data)) {
         atomicStore(&commands_data[id], -1);
     }
-    atomicStore(&commands.count, 0u);
+    atomicStore(&commands.count, arrayLength(&commands_data));
     if (id < arrayLength(&commands.data)) {
         meshlet_counts[id] = 0u;
 

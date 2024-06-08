@@ -26,18 +26,18 @@ fn main(
     if (instance_id >= arrayLength(&active_instances.data)) {
         return;
     }
+    let instance = active_instances.data[instance_id];
 
-    let command_id = active_instances.data[instance_id].command_id;
-    if(command_id < 0) {
+    if(instance.command_id < 0) {
         return;
     }
 
-    let instance = active_instances.data[instance_id];
+    let command_id = instance.meshlet_id;
     let meshlet = meshlets.data[instance.meshlet_id];
     let mesh = meshes.data[meshlet.mesh_index];
 
+    let instance_index = atomicAdd(&commands.data[command_id].instance_count, 1u);
     var first_instance = 0u;
-    let instance_count = atomicAdd(&commands.data[command_id].instance_count, 1u);
     if (command_id > 0) {
         first_instance = meshlet_counts[command_id - 1];
     }
@@ -48,5 +48,5 @@ fn main(
     //we need to find first instance
     commands.data[command_id].base_instance = first_instance;
     //we need to pack instances of same meshlet
-    instances.data[first_instance + instance_count] = instance;
+    instances.data[first_instance + u32(instance_index)] = instance;
 }
