@@ -317,6 +317,7 @@ impl ComputeInstancesPass {
                                         Vector4::new(bb_min.x, bb_min.y, bb_min.z, scale.y).into();
                                     data.transform.bb_max_scale_z =
                                         Vector4::new(bb_max.x, bb_max.y, bb_max.z, scale.z).into();
+                                    self.is_dirty = true;
                                 } else {
                                     let transform = GPUTransform {
                                         orientation: matrix.orientation().into(),
@@ -337,9 +338,9 @@ impl ComputeInstancesPass {
                                         transform,
                                         id: *object.id(),
                                     });
+                                    self.is_dirty = true;
                                 }
                             });
-                        self.is_dirty = true;
                     }
                 }
                 ResourceEvent::Destroyed(id) => {

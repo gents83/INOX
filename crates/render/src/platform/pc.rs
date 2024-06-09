@@ -15,6 +15,7 @@ pub fn required_gpu_features() -> wgpu::Features {
         | wgpu::Features::PIPELINE_STATISTICS_QUERY
         | wgpu::Features::TIMESTAMP_QUERY
         | wgpu::Features::TIMESTAMP_QUERY_INSIDE_PASSES
+        | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS
         | wgpu::Features::PUSH_CONSTANTS
         | wgpu::Features::DEPTH32FLOAT_STENCIL8
         | wgpu::Features::VERTEX_WRITABLE_STORAGE

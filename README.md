@@ -76,11 +76,15 @@ Useful hotkeys to know:
 
 Following screenshots are just related about INOX engine capabilities:
 
-![PBR_IBL](https://github.com/gents83/INOX/assets/62186646/7e6ef5f5-f236-4ed2-8909-a4074614e2e3)
+![NaniteLikeINOX](https://github.com/gents83/INOX/assets/62186646/d0e2af3a-c741-4ce5-98f3-da943fe719b6)
 
 ![LODs](https://github.com/gents83/INOX/assets/62186646/e3e70000-be47-47b3-8d3f-da94a74605b4)
 
+![PBR_IBL](https://github.com/gents83/INOX/assets/62186646/7e6ef5f5-f236-4ed2-8909-a4074614e2e3)
+
 ![Suzanne](https://github.com/gents83/INOX/assets/62186646/6ea1d292-1ae6-42b0-9265-914c6ef4d6fc)
+
+And some older memories:
 
 ![Sponza](https://github.com/gents83/INOX/assets/62186646/1e04e4df-0966-4a1f-af51-6e44397ffaa8)
 
