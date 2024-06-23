@@ -15,7 +15,7 @@ use std::{
         mpsc::{channel, Receiver, Sender},
         Arc, Mutex,
     },
-    thread, u64,
+    thread,
 };
 
 use crate::current_time_in_micros;

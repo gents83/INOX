@@ -1,5 +1,3 @@
-#![cfg(target_os = "windows")]
-
 use std::{path::PathBuf, sync::Arc};
 
 use inox_commands::CommandParser;

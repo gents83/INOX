@@ -159,7 +159,7 @@ impl ComputePipeline {
                         .as_str(),
                     ),
                     layout: Some(&compute_pipeline_layout),
-
+                    cache: None,
                     module: self.shader.as_ref().unwrap().get().module(),
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                     entry_point: entry_point_name.unwrap_or(SHADER_ENTRY_POINT),

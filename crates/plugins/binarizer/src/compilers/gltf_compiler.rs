@@ -221,7 +221,7 @@ impl GltfCompiler {
     fn extract_vertices(&mut self, path: &Path, primitive: &Primitive) -> Vec<MeshVertex> {
         let mut vertices = Vec::new();
 
-        primitive.attributes().enumerate().for_each(|(_attribute_index, (semantic, accessor))| {
+        primitive.attributes().for_each(| (semantic, accessor)| {
             //debug_log!("Attribute[{}]: {:?}", _attribute_index, semantic);
             match semantic {
                 Semantic::Positions => {
@@ -421,22 +421,18 @@ impl GltfCompiler {
             mesh_data.meshlets_bvh.clear();
             mesh_data.material = material_path.to_path_buf();
 
-            mesh_data
-                .meshlets
-                .iter_mut()
-                .enumerate()
-                .for_each(|(_lod_level, meshlets)| {
-                    //println!("LOD {} has {} meshlets", _lod_level, meshlets.len());
+            mesh_data.meshlets.iter_mut().for_each(|meshlets| {
+                //println!("LOD {} has {} meshlets", _lod_level, meshlets.len());
 
-                    let mut meshlets_aabbs = Vec::new();
-                    meshlets_aabbs.resize_with(meshlets.len(), AABB::empty);
-                    meshlets.iter_mut().enumerate().for_each(|(i, m)| {
-                        meshlets_aabbs[i] = AABB::create(m.aabb_min, m.aabb_max, i as _);
-                        m.bvh_offset = i as _;
-                    });
-                    let bvh = BVHTree::new(&meshlets_aabbs);
-                    mesh_data.meshlets_bvh.push(create_linearized_bvh(&bvh));
+                let mut meshlets_aabbs = Vec::new();
+                meshlets_aabbs.resize_with(meshlets.len(), AABB::empty);
+                meshlets.iter_mut().enumerate().for_each(|(i, m)| {
+                    meshlets_aabbs[i] = AABB::create(m.aabb_min, m.aabb_max, i as _);
+                    m.bvh_offset = i as _;
                 });
+                let bvh = BVHTree::new(&meshlets_aabbs);
+                mesh_data.meshlets_bvh.push(create_linearized_bvh(&bvh));
+            });
 
             self.create_file(
                 path,

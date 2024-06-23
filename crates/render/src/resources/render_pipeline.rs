@@ -241,6 +241,7 @@ impl RenderPipeline {
                         )
                         .as_str(),
                     ),
+                    cache: None,
                     layout: Some(&render_pipeline_layout),
                     vertex: wgpu::VertexState {
                         module: self.vertex_shader.as_ref().unwrap().get().module(),

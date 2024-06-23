@@ -43,7 +43,7 @@ pub fn read_spirv_from_bytes<Data: ::std::io::Read + ::std::io::Seek>(
     if size % 4 != 0 {
         panic!("Input data length not divisible by 4");
     }
-    if size > usize::max_value() as u64 {
+    if size > usize::MAX as u64 {
         panic!("Input data too long");
     }
     let words = (size / 4) as usize;

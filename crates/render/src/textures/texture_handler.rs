@@ -56,7 +56,7 @@ impl TextureHandler {
             min_filter: wgpu::FilterMode::Nearest,
             mipmap_filter: wgpu::FilterMode::Nearest,
             lod_min_clamp: 0.0,
-            lod_max_clamp: std::f32::MAX,
+            lod_max_clamp: f32::MAX,
             ..Default::default()
         });
         let depth_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
@@ -68,7 +68,7 @@ impl TextureHandler {
             min_filter: wgpu::FilterMode::Nearest,
             mipmap_filter: wgpu::FilterMode::Nearest,
             lod_min_clamp: 0.0,
-            lod_max_clamp: std::f32::MAX,
+            lod_max_clamp: f32::MAX,
             compare: Some(wgpu::CompareFunction::Less),
             ..Default::default()
         });

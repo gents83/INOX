@@ -1,5 +1,3 @@
-#![cfg(target_os = "windows")]
-
 use std::{env, path::PathBuf};
 
 use crate::{Data, DATA_FOLDER, DATA_RAW_FOLDER, PC_FOLDER};

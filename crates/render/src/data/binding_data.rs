@@ -661,19 +661,16 @@ impl BindingData {
         }
 
         if !self.is_data_changed {
-            self.binding_types
-                .iter()
-                .enumerate()
-                .for_each(|(_, binding_type_array)| {
-                    binding_type_array.iter().for_each(|binding_type| {
-                        if let BindingType::Buffer(_, buffer_id) = binding_type {
-                            self.is_data_changed |= self
-                                .render_context
-                                .binding_data_buffer()
-                                .is_buffer_changed(*buffer_id);
-                        }
-                    });
+            self.binding_types.iter().for_each(|binding_type_array| {
+                binding_type_array.iter().for_each(|binding_type| {
+                    if let BindingType::Buffer(_, buffer_id) = binding_type {
+                        self.is_data_changed |= self
+                            .render_context
+                            .binding_data_buffer()
+                            .is_buffer_changed(*buffer_id);
+                    }
                 });
+            });
         }
 
         if self.is_data_changed {

@@ -65,14 +65,8 @@ impl Glyph {
             Some(a) => a as _,
             _ => 0.0,
         };
-        let glyph_v_bearing = match face.glyph_ver_side_bearing(glyph_id) {
-            Some(a) => a,
-            _ => 0,
-        };
-        let glyph_hor_advance = match face.glyph_hor_advance(glyph_id) {
-            Some(a) => a,
-            _ => 0,
-        };
+        let glyph_v_bearing = face.glyph_ver_side_bearing(glyph_id).unwrap_or_default();
+        let glyph_hor_advance = face.glyph_hor_advance(glyph_id).unwrap_or_default();
         let glyph_width = glyph_hor_advance as _;
         glyph_height = (glyph_height as i16 + glyph_v_bearing) as _;
 
