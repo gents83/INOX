@@ -296,13 +296,13 @@ impl RenderContext {
         let format = texture.get().format();
         let usage = texture.get().usage();
         let sample_count = texture.get().sample_count();
+        let mips_count = texture.get().mips_count();
         let index = self.texture_handler.add_render_target(
             &self.webgpu.device,
             texture_id,
-            (width, height),
+            (width, height, sample_count, mips_count),
             format,
             usage,
-            sample_count,
         );
         index as _
     }
@@ -314,7 +314,7 @@ impl RenderContext {
                 && texture.get().width() > 0
                 && texture.get().height() > 0
             {
-                if texture.get().usage().contains(TextureUsage::RenderTarget) {
+                if texture.get().usage().contains(TextureUsage::RenderTarget) || texture.get().usage().contains(TextureUsage::StorageBinding) {
                     let uniform_index = self.add_render_target(&texture);
                     texture.get_mut().set_texture_index(uniform_index);
                 } else if self.texture_handler.texture_info(texture_id).is_none() {
@@ -417,20 +417,16 @@ impl RenderContext {
 
     pub fn create_render_target(
         &self,
-        width: u32,
-        height: u32,
+        texture_data: (u32, u32, u32, u32, u32),
         format: TextureFormat,
         usage: TextureUsage,
-        sample_count: u32,
     ) -> usize {
         let texture = Texture::create_from_format(
             &self.shared_data,
             &self.message_hub,
-            width,
-            height,
+            texture_data,
             format,
             usage,
-            sample_count,
         );
         let mut render_targets = self.render_targets.write().unwrap();
         render_targets.push(texture);

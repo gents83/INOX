@@ -276,7 +276,7 @@ impl Pass for ComputePathTracingIndirectPass {
             });
 
         let mut pass = self.compute_pass.get_mut();
-        pass.init(render_context, &mut self.binding_data);
+        pass.init(render_context, &mut self.binding_data, None);
     }
 
     fn update(

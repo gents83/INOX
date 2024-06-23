@@ -252,6 +252,7 @@ impl Pass for ComputePathTracingDirectPass {
             )
             .add_texture(
                 &self.visibility_texture,
+                0,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 3,
@@ -261,6 +262,7 @@ impl Pass for ComputePathTracingDirectPass {
             )
             .add_texture(
                 &self.depth_texture,
+                0,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 4,
@@ -320,7 +322,7 @@ impl Pass for ComputePathTracingDirectPass {
             });
 
         let mut pass = self.compute_pass.get_mut();
-        pass.init(render_context, &mut self.binding_data);
+        pass.init(render_context, &mut self.binding_data, None);
     }
 
     fn update(

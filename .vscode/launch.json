@@ -50,7 +50,9 @@
                 "-plugin inox_common_script",
                 "-plugin inox_viewer",
                 "-load_file",
-                //"models/craftman/craftman.scene"
+                "models/craftman/craftman.scene"
+                //"models/sponza/sponza.scene"
+                //"models/OriginalSponza/OriginalSponza.scene"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,

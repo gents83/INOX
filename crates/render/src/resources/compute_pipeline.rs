@@ -106,7 +106,12 @@ impl ComputePipeline {
     ) -> Resource<Shader> {
         Shader::request_load(shared_data, message_hub, data.shader.as_path(), None)
     }
-    pub fn init(&mut self, context: &RenderContext, binding_data: &BindingData) -> bool {
+    pub fn init(
+        &mut self,
+        context: &RenderContext,
+        binding_data: &BindingData,
+        entry_point_name: Option<&str>,
+    ) -> bool {
         inox_profiler::scoped_profile!("compute_pipeline::init");
         if self.shader.is_none() {
             return false;
@@ -157,7 +162,7 @@ impl ComputePipeline {
 
                     module: self.shader.as_ref().unwrap().get().module(),
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
-                    entry_point: SHADER_ENTRY_POINT,
+                    entry_point: entry_point_name.unwrap_or(SHADER_ENTRY_POINT),
                 })
         };
         self.compute_pipeline = Some(compute_pipeline);

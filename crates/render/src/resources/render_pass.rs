@@ -118,19 +118,18 @@ impl RenderPass {
             height,
             format,
             sample_count,
+            mips_count,
         } = render_target
         {
             let texture = Texture::create_from_format(
                 &self.shared_data,
                 &self.message_hub,
-                width,
-                height,
+                (width, height, sample_count, 1, mips_count),
                 format,
                 TextureUsage::TextureBinding
                     | TextureUsage::CopySrc
                     | TextureUsage::CopyDst
                     | TextureUsage::RenderTarget,
-                sample_count,
             );
             self.render_textures.push(texture)
         }
@@ -156,18 +155,17 @@ impl RenderPass {
                 height,
                 format,
                 sample_count,
+                mips_count,
             } => {
                 let texture = Texture::create_from_format(
                     &self.shared_data,
                     &self.message_hub,
-                    width,
-                    height,
+                    (width, height, sample_count, 1, mips_count),
                     format,
                     TextureUsage::TextureBinding
                         | TextureUsage::CopySrc
                         | TextureUsage::CopyDst
                         | TextureUsage::RenderTarget,
-                    sample_count,
                 );
                 Some(texture)
             }
@@ -232,6 +230,7 @@ impl RenderPass {
             }
         }
         let mut sample_count = 0;
+        let mips_count = 1;
         if let Some(pipeline) = &self.pipeline {
             binding_data.set_bind_group_layout();
             let mut pipeline = pipeline.get_mut();
@@ -255,6 +254,7 @@ impl RenderPass {
                 height: render_context.webgpu.config.read().unwrap().height,
                 format: render_context.webgpu.config.read().unwrap().format.into(),
                 sample_count,
+                mips_count,
             });
         }
     }
@@ -310,7 +310,7 @@ impl RenderPass {
                     .iter()
                     .find(|t| t.id() == id)
                 {
-                    render_targets_views.push(texture.view().as_ref());
+                    render_targets_views.push(texture.view(0).as_ref());
                 }
             });
         }
@@ -320,7 +320,7 @@ impl RenderPass {
                 .iter()
                 .find(|t| t.id() == texture.id())
             {
-                depth_target_view = Some(texture.view().as_ref());
+                depth_target_view = Some(texture.view(0).as_ref());
             }
         }
 

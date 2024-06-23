@@ -59,7 +59,9 @@ impl DataTypeResource for Font {
             format: TextureFormat::Rgba8Unorm,
             usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
             sample_count: 1,
+            layer_count: 1,
             is_LUT: false,
+            mips_count: 1,
         };
         let texture = Texture::new_resource(
             shared_data,

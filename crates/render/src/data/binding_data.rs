@@ -86,7 +86,7 @@ pub enum VextexBindingType {
 enum BindingType {
     Buffer(usize, BufferId),
     DefaultSampler(usize, SamplerType),
-    Texture(usize, TextureId),
+    Texture(usize, TextureId, u32),
     TextureArray(usize, Box<[TextureId; MAX_TEXTURE_ATLAS_COUNT as usize]>),
 }
 
@@ -427,16 +427,20 @@ impl BindingData {
 
         self.create_group_and_binding_index(info.group_index);
 
-        if self.bind_group_layout_entries[info.group_index].is_empty() {
+        if self.bind_group_layout_entries[info.group_index].is_empty()
+            || info.binding_index >= self.bind_group_layout_entries[info.group_index].len()
+        {
             self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
                 binding: info.binding_index as _,
                 visibility: info.stage.into(),
-                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                ty: wgpu::BindingType::Sampler(sampler_type.into()),
                 count: None,
             });
             self.is_layout_changed = true;
         }
-        if self.binding_types[info.group_index].is_empty() {
+        if self.binding_types[info.group_index].is_empty()
+            || info.binding_index >= self.binding_types[info.group_index].len()
+        {
             self.binding_types[info.group_index].push(BindingType::DefaultSampler(
                 info.binding_index,
                 sampler_type,
@@ -531,7 +535,12 @@ impl BindingData {
         self
     }
 
-    pub fn add_texture(&mut self, texture_id: &TextureId, info: BindingInfo) -> &mut Self {
+    pub fn add_texture(
+        &mut self,
+        texture_id: &TextureId,
+        view_index: u32,
+        info: BindingInfo,
+    ) -> &mut Self {
         inox_profiler::scoped_profile!("binding_data::add_texture");
 
         self.create_group_and_binding_index(info.group_index);
@@ -581,18 +590,21 @@ impl BindingData {
             }
 
             if self.binding_types[info.group_index].len() <= info.binding_index {
-                self.binding_types[info.group_index]
-                    .push(BindingType::Texture(info.binding_index, *texture_id));
+                self.binding_types[info.group_index].push(BindingType::Texture(
+                    info.binding_index,
+                    *texture_id,
+                    view_index,
+                ));
                 self.is_data_changed = true;
             }
         }
         if self.binding_types[info.group_index].len() > info.binding_index {
-            if let BindingType::Texture(_, id) =
+            if let BindingType::Texture(_, id, view) =
                 &self.binding_types[info.group_index][info.binding_index]
             {
-                if id != texture_id {
+                if id != texture_id || view != &view_index {
                     self.binding_types[info.group_index][info.binding_index] =
-                        BindingType::Texture(info.binding_index, *texture_id);
+                        BindingType::Texture(info.binding_index, *texture_id, view_index);
                     self.is_data_changed = true;
                 }
             }
@@ -681,11 +693,11 @@ impl BindingData {
                                 if let Some(texture) =
                                     texture_atlas.iter().find(|t| t.texture_id() == id)
                                 {
-                                    textures_view.push(texture.texture_view().as_ref());
+                                    textures_view.push(texture.texture_view(0).as_ref());
                                 }
                                 if let Some(texture) = render_targets.iter().find(|t| t.id() == id)
                                 {
-                                    textures_view.push(texture.view().as_ref());
+                                    textures_view.push(texture.view(0).as_ref());
                                 }
                             });
                         }
@@ -753,7 +765,7 @@ impl BindingData {
                                     ),
                                 });
                             }
-                            BindingType::Texture(binding_index, id) => {
+                            BindingType::Texture(binding_index, id, view_index) => {
                                 if DEBUG_BINDINGS {
                                     inox_log::debug_log!(
                                         "Binding Texture[{}][{}] with id {:?}",
@@ -767,7 +779,7 @@ impl BindingData {
                                     bind_group.push(wgpu::BindGroupEntry {
                                         binding: *binding_index as _,
                                         resource: wgpu::BindingResource::TextureView(
-                                            texture.view().as_ref(),
+                                            texture.view(*view_index as usize).as_ref(),
                                         ),
                                     });
                                 }

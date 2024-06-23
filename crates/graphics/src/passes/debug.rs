@@ -239,6 +239,7 @@ impl Pass for DebugPass {
             )
             .add_texture(
                 &self.visibility_texture,
+                0,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 3,
@@ -248,6 +249,7 @@ impl Pass for DebugPass {
             )
             .add_texture(
                 &self.depth_texture,
+                0,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 4,

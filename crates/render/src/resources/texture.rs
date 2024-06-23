@@ -40,6 +40,7 @@ pub struct Texture {
     format: TextureFormat,
     usage: TextureUsage,
     sample_count: u32,
+    mips_count: u32,
     lut_id: Uid,
     update_from_gpu: bool,
 }
@@ -70,6 +71,7 @@ impl DataTypeResource for Texture {
             format: TextureFormat::Rgba8Unorm,
             usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
             sample_count: 1,
+            mips_count: 1,
             lut_id: INVALID_UID,
             update_from_gpu: false,
         }
@@ -94,6 +96,7 @@ impl DataTypeResource for Texture {
         } else {
             1
         };
+        texture.mips_count = data.mips_count;
         if let Some(image_data) = &data.data {
             texture.blocks_to_update = vec![TextureBlock {
                 x: 0,
@@ -145,7 +148,9 @@ impl SerializableResource for Texture {
                         data: Some(image_data.into_rgba8().to_vec()),
                         usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
                         sample_count: if has_multisampling_support() { 8 } else { 1 },
+                        layer_count: 1,
                         is_LUT,
+                        mips_count: 1,
                     });
                 }
                 Err(e) => {
@@ -218,6 +223,9 @@ impl Texture {
     pub fn sample_count(&self) -> u32 {
         self.sample_count
     }
+    pub fn mips_count(&self) -> u32 {
+        self.mips_count
+    }
     #[allow(non_snake_case)]
     pub fn is_LUT(&self) -> bool {
         !self.lut_id.is_nil()
@@ -252,11 +260,9 @@ impl Texture {
     pub fn create_from_format(
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
-        width: u32,
-        height: u32,
+        texture_data: (u32, u32, u32, u32, u32),
         format: TextureFormat,
         usage: TextureUsage,
-        sample_count: u32,
     ) -> Resource<Texture> {
         let texture_id = generate_random_uid();
         let texture = Texture::create_from_data(
@@ -264,16 +270,18 @@ impl Texture {
             message_hub,
             texture_id,
             &TextureData {
-                width,
-                height,
+                width: texture_data.0,
+                height: texture_data.1,
                 format,
                 data: None,
                 usage,
                 sample_count: if has_multisampling_support() {
-                    sample_count
+                    texture_data.2
                 } else {
                     1
                 },
+                layer_count: texture_data.3,
+                mips_count: texture_data.4,
                 is_LUT: false,
             },
         );

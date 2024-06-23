@@ -4,8 +4,8 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
     BlitPass, CommandsPass, ComputeInstancesPass, ComputePathTracingDirectPass,
-    ComputePathTracingIndirectPass, CullingPass, DebugPass, FinalizePass, VisibilityBufferPass,
-    WireframePass, WIREFRAME_PASS_NAME,
+    ComputePathTracingIndirectPass, CullingPass, DebugPass, DepthPyramidPass, FinalizePass,
+    VisibilityBufferPass, WireframePass, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_render::{
@@ -29,8 +29,9 @@ const MAX_NUM_MATERIALS: usize = 65536;
 enum RenderTargetType {
     Visibility = 0,
     Depth = 1,
-    Frame0 = 2,
-    Frame1 = 3,
+    HiZ = 2,
+    Frame0 = 3,
+    Frame1 = 4,
 }
 
 pub struct Viewer {
@@ -174,38 +175,40 @@ impl Viewer {
 
         //Visibility,
         let _visibility = render_context.create_render_target(
-            width,
-            height,
+            (width, height, single_sample, 1, 1),
             TextureFormat::R32Uint,
             usage,
-            single_sample,
         );
         debug_assert!(_visibility == RenderTargetType::Visibility as usize);
         //Depth,
         let _depth = render_context.create_render_target(
-            width,
-            height,
+            (width, height, single_sample, 1, 1),
             TextureFormat::Depth32Float,
             usage,
-            single_sample,
         );
         debug_assert!(_depth == RenderTargetType::Depth as usize);
+        //HiZ,
+        let _hzb = render_context.create_render_target(
+            (width, height, single_sample, 1, 11),
+            TextureFormat::R32Float,
+            TextureUsage::TextureBinding
+                | TextureUsage::CopySrc
+                | TextureUsage::CopyDst
+                | TextureUsage::StorageBinding,
+        );
+        debug_assert!(_hzb == RenderTargetType::HiZ as usize);
         //Frame0,
         let _frame0 = render_context.create_render_target(
-            width,
-            height,
+            (width, height, single_sample, 1, 1),
             TextureFormat::Rgba8Unorm,
             usage,
-            single_sample,
         );
         debug_assert!(_frame0 == RenderTargetType::Frame0 as usize);
         //Frame1,
         let _frame1 = render_context.create_render_target(
-            width,
-            height,
+            (width, height, single_sample, 1, 1),
             TextureFormat::Rgba8Unorm,
             usage,
-            single_sample,
         );
         debug_assert!(_frame1 == RenderTargetType::Frame1 as usize);
     }
@@ -230,6 +233,7 @@ impl Viewer {
             .prealloc::<MAX_NUM_MATERIALS>();
     }
     fn create_render_passes(context: &ContextRc, render_context: &RenderContextRc) {
+        Self::create_depth_pyramid_pass(context, render_context);
         Self::create_instances_pass(context, render_context);
         Self::create_culling_pass(context, render_context);
 
@@ -238,6 +242,8 @@ impl Viewer {
         //Self::create_compute_pathtracing_indirect_pass(context, render_context);
         Self::create_finalize_pass(context, render_context);
         Self::create_blit_pass(context, render_context);
+
+        Self::create_depth_pyramid_pass(context, render_context);
 
         Self::create_debug_pass(context, render_context);
         Self::create_wireframe_pass(context, render_context, has_wireframe_support());
@@ -248,7 +254,8 @@ impl Viewer {
         render_context.add_pass(instances_pass, true);
     }
     fn create_culling_pass(context: &ContextRc, render_context: &RenderContextRc) {
-        let culling_pass = CullingPass::create(context, render_context);
+        let mut culling_pass = CullingPass::create(context, render_context);
+        culling_pass.set_hzb_texture(&render_context.render_target(RenderTargetType::HiZ as usize));
         render_context.add_pass(culling_pass, true);
         let commands_pass = CommandsPass::create(context, render_context);
         render_context.add_pass(commands_pass, true);
@@ -302,6 +309,13 @@ impl Viewer {
             &render_context.render_target_id(RenderTargetType::Frame1 as usize),
         ]);
         render_context.add_pass(blit_pass, true);
+    }
+    fn create_depth_pyramid_pass(context: &ContextRc, render_context: &RenderContextRc) {
+        let mut depth_pyramid_pass = DepthPyramidPass::create(context, render_context);
+        depth_pyramid_pass
+            .set_depth_texture(render_context.render_target(RenderTargetType::Depth as usize))
+            .set_hzb_texture(render_context.render_target(RenderTargetType::HiZ as usize));
+        render_context.add_pass(depth_pyramid_pass, true);
     }
     fn create_debug_pass(context: &ContextRc, render_context: &RenderContextRc) {
         let mut debug_pass = DebugPass::create(context, render_context);

@@ -28,6 +28,8 @@ pub struct TextureData {
     pub format: TextureFormat,
     pub usage: TextureUsage,
     pub sample_count: u32,
+    pub layer_count: u32,
+    pub mips_count: u32,
     pub is_LUT: bool,
     pub data: Option<Vec<u8>>,
 }

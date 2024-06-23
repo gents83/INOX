@@ -4,7 +4,7 @@ use inox_bvh::GPUBVHNode;
 use inox_render::{
     AsBinding, BindingData, BindingFlags, BindingInfo, BufferRef, CommandBuffer, ComputePass,
     ComputePassData, ConstantDataRw, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMeshlet,
-    GPUTransform, GPUVector, MeshFlags, Pass, RenderContext, RenderContextRc, ShaderStage,
+    GPUTransform, GPUVector, MeshFlags, Pass, RenderContext, RenderContextRc, ShaderStage, Texture,
     TextureView,
 };
 
@@ -12,7 +12,7 @@ use inox_commands::CommandParser;
 use inox_core::ContextRc;
 
 use inox_messenger::{implement_message, Listener};
-use inox_resources::{DataTypeResource, Resource};
+use inox_resources::{DataTypeResource, Handle, Resource};
 use inox_uid::generate_random_uid;
 
 use crate::{
@@ -92,6 +92,7 @@ pub struct CullingPass {
     active_instances: GPUVector<GPUInstance>,
     commands_data: GPUVector<CommandsData>,
     meshlets_count: GPUVector<u32>,
+    hzb_texture: Handle<Texture>,
     culling_data: CullingData,
     listener: Listener,
     update_camera: bool,
@@ -148,6 +149,7 @@ impl Pass for CullingPass {
             meshlets_count: render_context
                 .global_buffers()
                 .vector_with_id::<u32>(MESHLETS_COUNT_ID),
+            hzb_texture: None,
             binding_data: BindingData::new(render_context, CULLING_PASS_NAME),
             culling_data: CullingData::default(),
             listener,
@@ -284,10 +286,29 @@ impl Pass for CullingPass {
                     flags: BindingFlags::ReadWrite,
                     ..Default::default()
                 },
+            )
+            .add_texture(
+                self.hzb_texture.as_ref().unwrap().id(),
+                0,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 2,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_default_sampler(
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 3,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+                inox_render::SamplerType::Unfiltered,
             );
 
         let mut pass = self.compute_pass.get_mut();
-        pass.init(render_context, &mut self.binding_data);
+        pass.init(render_context, &mut self.binding_data, None);
     }
 
     fn update(
@@ -319,6 +340,9 @@ impl Pass for CullingPass {
 }
 
 impl CullingPass {
+    pub fn set_hzb_texture(&mut self, hzb_texture: &Resource<Texture>) {
+        self.hzb_texture = Some(hzb_texture.clone());
+    }
     fn process_messages(&mut self) {
         self.listener
             .process_messages(|event: &CullingEvent| match event {

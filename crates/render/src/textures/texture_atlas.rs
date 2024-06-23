@@ -34,6 +34,7 @@ impl TextureAtlas {
                 1,
                 format,
                 wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                1,
             ),
         );
         Self {
@@ -49,8 +50,8 @@ impl TextureAtlas {
     pub fn texture_id(&self) -> &TextureId {
         self.texture.id()
     }
-    pub fn texture_view(&self) -> &TextureView {
-        self.texture.view()
+    pub fn texture_view(&self, index: usize) -> &TextureView {
+        self.texture.view(index)
     }
     pub fn texture_format(&self) -> &TextureFormat {
         self.texture.format()

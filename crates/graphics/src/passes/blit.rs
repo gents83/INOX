@@ -71,6 +71,7 @@ impl Pass for BlitPass {
 
         self.binding_data.add_texture(
             &self.source_textures[self.frame_index],
+            0,
             BindingInfo {
                 group_index: 0,
                 binding_index: 0,

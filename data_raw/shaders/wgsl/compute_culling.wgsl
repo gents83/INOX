@@ -30,6 +30,10 @@ var<storage, read_write> commands: DrawIndexedCommands;
 var<storage, read_write> active_instances: Instances;
 @group(1) @binding(1)
 var<storage, read_write> meshlet_counts: array<atomic<u32>>;
+@group(1) @binding(2) 
+var texture_hzb: texture_2d<f32>;
+@group(1) @binding(3)
+var default_sampler: sampler;
 
 #import "matrix_utils.inc"
 #import "geom_utils.inc"
@@ -171,6 +175,26 @@ fn is_lod_visible(meshlet: Meshlet, position: vec3<f32>, orientation: vec4<f32>,
     return render;
 }
 
+fn is_occluded(aabb_min: vec3<f32>, aabb_max: vec3<f32>, view_proj: mat4x4<f32>) -> bool {
+    let ndc_min = view_proj * vec4<f32>(aabb_min, 1.0);
+    let ndc_max = view_proj * vec4<f32>(aabb_max, 1.0);
+    var clip_min = clip_to_normalized(ndc_min.xy / ndc_min.w);
+    var clip_max = clip_to_normalized(ndc_max.xy / ndc_max.w);
+    let width = (clip_max.x - clip_min.x) * constant_data.screen_width;
+    let height = (clip_max.y - clip_min.y) * constant_data.screen_height;
+    let mip_level = ceil(log2(max(width, height)));
+    var depth_values = vec4<f32>(0.);
+    depth_values.x = textureSampleLevel(texture_hzb, default_sampler, vec2<f32>(clip_min.x, 1. - clip_min.y), mip_level).r;
+    depth_values.y = textureSampleLevel(texture_hzb, default_sampler, vec2<f32>(clip_min.x, 1. - clip_max.y), mip_level).r;
+    depth_values.z = textureSampleLevel(texture_hzb, default_sampler, vec2<f32>(clip_max.x, 1. - clip_min.y), mip_level).r;
+    depth_values.w = textureSampleLevel(texture_hzb, default_sampler, vec2<f32>(clip_max.x, 1. - clip_max.y), mip_level).r;
+    let depth = min(min(depth_values.x, depth_values.y), min(depth_values.z, depth_values.w));
+    if ((ndc_min.z/ndc_min.w) > depth) {
+        return true;
+    }
+    return false;
+}
+
 @compute
 @workgroup_size(256, 1, 1)
 fn main(
@@ -185,6 +209,7 @@ fn main(
     }
      
     let view_proj = constant_data.proj * culling_data.view;
+    let trans_view_proj = matrix_transpose(view_proj);
     let instance = active_instances.data[instance_id];
     let transform = transforms.data[instance.transform_id];
     let meshlet_id = instance.meshlet_id;
@@ -197,12 +222,15 @@ fn main(
     let aabb_min = min(bb_min, bb_max);
     let aabb_max = max(bb_min, bb_max);
     
-    if(!is_box_inside_frustum(aabb_min, aabb_max, extract_planes_from_matrix(matrix_transpose(view_proj)))) {
+    if(!is_box_inside_frustum(aabb_min, aabb_max, extract_planes_from_matrix(trans_view_proj))) {
         return;
     }
     if !is_lod_visible(meshlet, position, transform.orientation, scale, constant_data.camera_fov) {
         return;
     }
+    //if is_occluded(aabb_min, aabb_max, view_proj) {
+    //    return;    
+    //}
 
     active_instances.data[instance_id].command_id = 0;
     

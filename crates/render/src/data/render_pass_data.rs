@@ -36,6 +36,7 @@ pub enum RenderTarget {
         height: u32,
         format: TextureFormat,
         sample_count: u32,
+        mips_count: u32,
     },
     RWTexture {
         width: u32,

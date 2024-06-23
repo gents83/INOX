@@ -112,6 +112,7 @@ impl Pass for FinalizePass {
                     .as_ref()
                     .unwrap()
                     .id(),
+                0,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,
