@@ -150,7 +150,7 @@ impl Pass for DepthPyramidPass {
             }
         }
 
-        let mut dimensions = self.depth_texture.as_ref().unwrap().get().dimensions();
+        let dimensions = self.depth_texture.as_ref().unwrap().get().dimensions();
 
         self.binding_data
             .iter_mut()
