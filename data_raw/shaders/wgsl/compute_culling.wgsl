@@ -38,83 +38,39 @@ var default_sampler: sampler;
 #import "matrix_utils.inc"
 #import "geom_utils.inc"
 
-fn get_plane(index: u32, frustum_planes: array<vec4<f32>, 6>) -> vec4<f32> {
-    if (index == 0) {
-        return frustum_planes[0];
-    } else if (index == 1) {
-        return frustum_planes[1];
-    } else if (index == 2) {
-        return frustum_planes[2];
-    } else if (index == 3) {
-        return frustum_planes[3];
-    } else if (index == 4) {
-        return frustum_planes[4];
-    }
-    return frustum_planes[5];
-}
+fn is_box_inside_frustum(aabb_min: vec3<f32>, aabb_max: vec3<f32>, view_proj: mat4x4<f32>) -> bool {
+    // Calculate AABB center and half-extents
+    let center = aabb_min + (aabb_min + aabb_max) * 0.5;
+    let extents = (aabb_max - center);
 
-fn get_vertex(index: u32, min: vec3<f32>, max: vec3<f32>) -> vec3<f32> {
-    if (index == 0) {
-        return vec3<f32>(min.x, min.y, min.z);
-    } else if(index == 1) {
-        return vec3<f32>(max.x, min.y, min.z);
-    } else if(index == 2) {
-        return vec3<f32>(min.x, max.y, min.z);
-    } else if(index == 3) {
-        return vec3<f32>(max.x, max.y, min.z);
-    } else if(index == 4) {
-        return vec3<f32>(min.x, min.y, max.z);
-    } else if(index == 5) {
-        return vec3<f32>(max.x, min.y, max.z);
-    } else if(index == 6) {
-        return vec3<f32>(min.x, max.y, max.z);
-    }
-    return vec3<f32>(max.x, max.y, max.z);
-}
+    // Transform the center point into clip space
+    var clip_center = view_proj * vec4(center, 1.0);
 
-fn is_box_inside_frustum(min: vec3<f32>, max: vec3<f32>, frustum_planes: array<vec4<f32>, 6>) -> bool {
-    for (var i = 0u; i < 6u; i = i + 1u) {
-        let plane = get_plane(i, frustum_planes);
-        var all_out = true;
-
-        for (var j = 0u; j < 8u; j = j + 1u) {
-            if (dot(plane.xyz, get_vertex(j, min, max)) + plane.w >= 0.) {
-                all_out = false;
-                break;
-            }
-        }
-
-        if (all_out) {
-            return false;
-        }
+    // Early out: if the center is inside the frustum, we consider the AABB visible
+    if (all(abs(clip_center.xyz) <= clip_center.www)) {
+        return true;
     }
 
-    return true;
-}
+    // Handle the reversed depth in WebGPU
+    clip_center.z = -clip_center.z;
 
-fn extract_planes_from_matrix(view_proj: mat4x4<f32>) -> array<vec4<f32>, 6> {
-    var planes: array<vec4<f32>, 6>;
+    // Calculate the sum of the absolute values of the extents projected onto each axis
+    let abs_extents_x = abs(extents.x * view_proj[0][0]) + abs(extents.y * view_proj[1][0]) + abs(extents.z * view_proj[2][0]);
+    let abs_extents_y = abs(extents.x * view_proj[0][1]) + abs(extents.y * view_proj[1][1]) + abs(extents.z * view_proj[2][1]);
+    let abs_extents_z = abs(extents.x * view_proj[0][2]) + abs(extents.y * view_proj[1][2]) + abs(extents.z * view_proj[2][2]);
 
-    // Left Plane
-    planes[0] = view_proj[3] + view_proj[0];
-    // Right Plane
-    planes[1] = view_proj[3] - view_proj[0];
-    // Bottom Plane
-    planes[2] = view_proj[3] + view_proj[1];
-    // Top Plane
-    planes[3] = view_proj[3] - view_proj[1];
-    // Near Plane
-    planes[4] = view_proj[3] + view_proj[2];
-    // Far Plane
-    planes[5] = view_proj[3] - view_proj[2];
-
-    // Normalize the planes
-    for (var i = 0; i < 6; i = i + 1) {
-        let length = length(planes[i].xyz);
-        planes[i] /= length;
+    // Check against each pair of symmetric planes
+    if (abs(clip_center.x) > abs_extents_x + clip_center.w) {
+        return false; // Outside left/right planes
+    }
+    if (abs(clip_center.y) > abs_extents_y + clip_center.w) {
+        return false; // Outside top/bottom planes
+    }
+    if (abs(clip_center.z) > abs_extents_z + clip_center.w) {
+        return false; // Outside near/far planes
     }
 
-    return planes;
+    return true; // Inside or intersecting all planes
 }
 
 fn is_sphere_inside_frustum(min: vec3<f32>, max: vec3<f32>, position: vec3<f32>, orientation: vec4<f32>, scale: vec3<f32>, frustum: vec4<f32>, znear: f32, zfar: f32) -> bool {
@@ -218,7 +174,6 @@ fn main(
     }
      
     let view_proj = constant_data.proj * culling_data.view;
-    let trans_view_proj = matrix_transpose(view_proj);
     let instance = active_instances.data[instance_id];
     let transform = transforms.data[instance.transform_id];
     let meshlet_id = instance.meshlet_id;
@@ -231,7 +186,7 @@ fn main(
     let aabb_min = min(bb_min, bb_max);
     let aabb_max = max(bb_min, bb_max);
     
-    if(!is_box_inside_frustum(aabb_min, aabb_max, extract_planes_from_matrix(trans_view_proj))) {
+    if(!is_box_inside_frustum(aabb_min, aabb_max, view_proj)) {
         return;
     }
     if !is_lod_visible(meshlet, position, transform.orientation, scale, constant_data.camera_fov) {

@@ -8,14 +8,6 @@ use crate::{DEFAULT_FAR, DEFAULT_FOV, DEFAULT_HEIGHT, DEFAULT_NEAR, DEFAULT_WIDT
 
 pub type ViewId = ResourceId;
 
-#[rustfmt::skip]
-const OPENGL_TO_WGPU_MATRIX: Matrix4 = Matrix4::new(
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 0.5,
-    0.0, 0.0, 0.0, 1.0,
-);
-
 #[derive(Clone)]
 pub struct View {
     view_index: u32,

@@ -60,5 +60,5 @@ fn main(
     instances.data[first_instance + u32(instance_index)] = instance;
     
     results.draw_vertices_count += meshlet.indices_count;
-    results.active_instances_count = max(results.active_instances_count, instance_index + 1);
+    results.active_instances_count += 1u;
 }

@@ -119,8 +119,8 @@ impl System for RenderingSystem {
             JobPriority::High,
             move || {
                 render_context.submit_command_buffer();
-                render_context.present();
                 render_context.change_state(RendererState::Submitted);
+                render_context.present();
             },
         );
         true

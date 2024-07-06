@@ -247,7 +247,9 @@ pub fn compute_clusters(
             &group_vertices,
             target_count,
             target_error,
-            meshopt::SimplifyOptions::LockBorder,
+            meshopt::SimplifyOptions::LockBorder
+                | meshopt::SimplifyOptions::Sparse
+                | meshopt::SimplifyOptions::ErrorAbsolute,
             Some(&mut simplification_error),
         );
 
