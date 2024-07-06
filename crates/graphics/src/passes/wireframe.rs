@@ -2,10 +2,11 @@ use std::path::PathBuf;
 
 use inox_render::{
     create_arrow, create_circumference, create_colored_quad, create_cube_from_min_max, create_line,
-    create_sphere, AsBinding, BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawEvent,
-    DrawIndexedCommand, GPUVector, LoadOperation, MeshData, Pass, RenderContext, RenderContextRc,
-    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
-    TextureView, VertexBufferLayoutBuilder, VertexFormat, VextexBindingType, View,
+    create_sphere, AsBinding, BindingData, BindingFlags, BindingInfo, CommandBuffer,
+    ConstantDataRw, DrawEvent, DrawIndexedCommand, GPUVector, LoadOperation, MeshData, Pass,
+    RenderContext, RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
+    ShaderStage, StoreOperation, TextureView, VertexBufferLayoutBuilder, VertexFormat,
+    VextexBindingType, View,
 };
 
 use inox_core::ContextRc;
@@ -110,13 +111,14 @@ impl Pass for WireframePass {
         let mut pass = self.render_pass.get_mut();
 
         self.binding_data
-            .add_uniform_buffer(
+            .add_buffer(
                 &mut *self.constant_data.write().unwrap(),
                 Some("ConstantData"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 0,
                     stage: ShaderStage::Vertex,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
                 },
             )
@@ -126,10 +128,16 @@ impl Pass for WireframePass {
                 Some("DebugVertices"),
             )
             .set_index_buffer(&mut self.indices, Some("DebugIndices"))
-            .bind_buffer(
+            .add_buffer(
                 &mut *self.debug_commands.write().unwrap(),
-                Some(commands_count),
                 Some("DebugInstances"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 1,
+                    stage: ShaderStage::Vertex,
+                    flags: BindingFlags::Storage | BindingFlags::Read | BindingFlags::Indirect,
+                    count: Some(commands_count),
+                },
             );
 
         let vertex_layout = DebugVertex::descriptor(0);

@@ -26,10 +26,10 @@ impl From<BindingFlags> for wgpu::BufferUsages {
     fn from(val: BindingFlags) -> Self {
         let mut usage = wgpu::BufferUsages::empty();
         if val.intersects(BindingFlags::Read) || val.intersects(BindingFlags::ReadWrite) {
-            usage |= wgpu::BufferUsages::COPY_SRC;
+            usage |= wgpu::BufferUsages::COPY_DST;
         }
         if val.intersects(BindingFlags::Write) || val.intersects(BindingFlags::ReadWrite) {
-            usage |= wgpu::BufferUsages::COPY_DST;
+            usage |= wgpu::BufferUsages::COPY_SRC;
         }
         if val.intersects(BindingFlags::CPURead) {
             usage |= wgpu::BufferUsages::MAP_READ;
@@ -133,31 +133,6 @@ impl BindingData {
                 .resize(group_index + 1, Default::default());
         }
     }
-    pub fn bind_buffer<T>(
-        &mut self,
-        data: &mut T,
-        count: Option<usize>,
-        label: Option<&str>,
-    ) -> &mut Self
-    where
-        T: AsBinding,
-    {
-        inox_profiler::scoped_profile!("binding_data::bind_buffer");
-
-        let usage = wgpu::BufferUsages::STORAGE
-            | wgpu::BufferUsages::COPY_SRC
-            | wgpu::BufferUsages::COPY_DST
-            | wgpu::BufferUsages::INDIRECT;
-        self.render_context.binding_data_buffer().bind_buffer(
-            label,
-            data,
-            count,
-            usage,
-            &self.render_context,
-        );
-
-        self
-    }
     pub fn set_vertex_buffer<T>(
         &mut self,
         binding_type: VextexBindingType,
@@ -228,7 +203,76 @@ impl BindingData {
         &self.index_buffer
     }
 
-    pub fn add_uniform_buffer<T>(
+    pub fn add_buffer_with_id<T>(
+        &mut self,
+        id: BufferId,
+        data: &mut T,
+        label: Option<&str>,
+        info: BindingInfo,
+    ) -> &mut Self
+    where
+        T: AsBinding,
+    {
+        inox_profiler::scoped_profile!("binding_data::add_buffer");
+
+        if data.size() == 0 {
+            return self;
+        }
+        #[cfg(debug_assertions)]
+        {
+            if (info.flags.intersects(BindingFlags::Storage)
+                && data.size()
+                    > self
+                        .render_context
+                        .webgpu
+                        .device
+                        .limits()
+                        .max_storage_buffer_binding_size as _)
+                || (info.flags.intersects(BindingFlags::Uniform)
+                    && data.size()
+                        > self
+                            .render_context
+                            .webgpu
+                            .device
+                            .limits()
+                            .max_uniform_buffer_binding_size as _)
+            {
+                inox_log::debug_log!(
+                    "Trying to bind buffer {} with size {} greater than maximum allowed [{}]",
+                    label.unwrap_or_default(),
+                    data.size(),
+                    self.render_context.webgpu.device.limits().max_buffer_size
+                );
+            }
+        }
+
+        let usage = info.flags.into();
+        let is_changed = self
+            .render_context
+            .binding_data_buffer()
+            .bind_buffer_with_id(id, label, data, info.count, usage, &self.render_context);
+        self.is_data_changed |= is_changed;
+
+        if DEBUG_BINDINGS {
+            inox_log::debug_log!(
+                "Add Buffer[{}][{}] with {:?} - Changed {:?}",
+                info.group_index,
+                info.binding_index,
+                id,
+                is_changed
+            );
+        }
+
+        if info.flags.intersects(BindingFlags::Storage)
+            || info.flags.intersects(BindingFlags::Uniform)
+        {
+            return self.bind_buffer(id, info);
+        }
+
+        self
+    }
+
+    pub fn add_buffer<T>(
         &mut self,
         data: &mut T,
         label: Option<&str>,
@@ -237,57 +281,11 @@ impl BindingData {
     where
         T: AsBinding,
     {
-        inox_profiler::scoped_profile!("binding_data::add_uniform_buffer");
-
-        if data.size() == 0 {
-            return self;
-        }
-        #[cfg(debug_assertions)]
-        {
-            if data.size()
-                > self
-                    .render_context
-                    .webgpu
-                    .device
-                    .limits()
-                    .max_uniform_buffer_binding_size as _
-            {
-                inox_log::debug_log!(
-                    "Trying to bind uniform buffer {} with size {} greater than maximum allowed [{}]",
-                    label.unwrap_or_default(),
-                    data.size(),
-                    self.render_context.webgpu
-                        .device
-                        .limits()
-                        .max_uniform_buffer_binding_size
-                );
-            }
-        }
-        let usage = wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST;
-        let is_changed = self.render_context.binding_data_buffer().bind_buffer(
-            label,
-            data,
-            info.count,
-            usage,
-            &self.render_context,
-        );
-        self.is_data_changed |= is_changed;
-
-        if DEBUG_BINDINGS {
-            inox_log::debug_log!(
-                "Add UniformBuffer[{}][{}] with {:?} - Changed {:?}",
-                info.group_index,
-                info.binding_index,
-                data.buffer_id(),
-                is_changed
-            );
-        }
-        self.bind_uniform_buffer(data.buffer_id(), info);
-        self
+        self.add_buffer_with_id(data.buffer_id(), data, label, info)
     }
 
-    fn bind_uniform_buffer(&mut self, data_id: BufferId, info: BindingInfo) -> &mut Self {
-        inox_profiler::scoped_profile!("binding_data::bind_uniform_buffer");
+    fn bind_buffer(&mut self, data_id: BufferId, info: BindingInfo) -> &mut Self {
+        inox_profiler::scoped_profile!("binding_data::bind_buffer");
 
         self.create_group_and_binding_index(info.group_index);
 
@@ -296,103 +294,12 @@ impl BindingData {
                 binding: info.binding_index as _,
                 visibility: info.stage.into(),
                 ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            };
-            self.bind_group_layout_entries[info.group_index].push(layout_entry);
-            self.is_layout_changed = true;
-        }
-
-        if info.binding_index >= self.binding_types[info.group_index].len() {
-            self.binding_types[info.group_index]
-                .push(BindingType::Buffer(info.binding_index, data_id));
-            self.is_data_changed = true;
-        } else if let BindingType::Buffer(_, old_data_id) =
-            &mut self.binding_types[info.group_index][info.binding_index]
-        {
-            if *old_data_id != data_id {
-                *old_data_id = data_id;
-                self.is_data_changed = true;
-            }
-        }
-        self
-    }
-
-    pub fn add_storage_buffer<T>(
-        &mut self,
-        data: &mut T,
-        label: Option<&str>,
-        info: BindingInfo,
-    ) -> &mut Self
-    where
-        T: AsBinding,
-    {
-        inox_profiler::scoped_profile!("binding_data::add_storage_buffer");
-
-        if data.size() == 0 {
-            return self;
-        }
-        #[cfg(debug_assertions)]
-        {
-            if data.size()
-                > self
-                    .render_context
-                    .webgpu
-                    .device
-                    .limits()
-                    .max_storage_buffer_binding_size as _
-            {
-                inox_log::debug_log!(
-                    "Trying to bind storage buffer {} with size {} greater than maximum allowed [{}]",
-                    label.unwrap_or_default(),
-                    data.size(),
-                    self.render_context.webgpu
-                        .device
-                        .limits()
-                        .max_storage_buffer_binding_size
-                );
-            }
-        }
-
-        let usage = wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | info.flags.into();
-        let is_changed = self.render_context.binding_data_buffer().bind_buffer(
-            label,
-            data,
-            info.count,
-            usage,
-            &self.render_context,
-        );
-        self.is_data_changed |= is_changed;
-
-        if DEBUG_BINDINGS {
-            inox_log::debug_log!(
-                "Add StorageBuffer[{}][{}] with {:?} - Changed {:?}",
-                info.group_index,
-                info.binding_index,
-                data.buffer_id(),
-                is_changed
-            );
-        }
-        self.bind_storage_buffer(data.buffer_id(), info);
-
-        self
-    }
-
-    fn bind_storage_buffer(&mut self, data_id: BufferId, info: BindingInfo) -> &mut Self {
-        inox_profiler::scoped_profile!("binding_data::bind_storage_buffer");
-
-        self.create_group_and_binding_index(info.group_index);
-
-        if info.binding_index >= self.bind_group_layout_entries[info.group_index].len() {
-            let layout_entry = wgpu::BindGroupLayoutEntry {
-                binding: info.binding_index as _,
-                visibility: info.stage.into(),
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage {
-                        read_only: info.flags.intersects(BindingFlags::Read),
+                    ty: if info.flags.intersects(BindingFlags::Uniform) {
+                        wgpu::BufferBindingType::Uniform
+                    } else {
+                        wgpu::BufferBindingType::Storage {
+                            read_only: info.flags.intersects(BindingFlags::Read),
+                        }
                     },
                     has_dynamic_offset: false,
                     min_binding_size: None,

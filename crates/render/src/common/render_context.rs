@@ -116,6 +116,10 @@ impl RenderContext {
         self.webgpu.new_command_buffer()
     }
 
+    pub fn mark_as_dirty(&self, buffer_id: BufferId) {
+        self.binding_data_buffer.mark_buffer_as_changed(buffer_id);
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     fn log_adapters(instance: &wgpu::Instance, backends: &wgpu::Backends) {
         use wgpu::Adapter;
@@ -314,7 +318,9 @@ impl RenderContext {
                 && texture.get().width() > 0
                 && texture.get().height() > 0
             {
-                if texture.get().usage().contains(TextureUsage::RenderTarget) || texture.get().usage().contains(TextureUsage::StorageBinding) {
+                if texture.get().usage().contains(TextureUsage::RenderTarget)
+                    || texture.get().usage().contains(TextureUsage::StorageBinding)
+                {
                     let uniform_index = self.add_render_target(&texture);
                     texture.get_mut().set_texture_index(uniform_index);
                 } else if self.texture_handler.texture_info(texture_id).is_none() {

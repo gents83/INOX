@@ -3,10 +3,10 @@ use std::path::PathBuf;
 use inox_core::ContextRc;
 use inox_messenger::Listener;
 use inox_render::{
-    declare_as_binding, AsBinding, BindingData, BindingInfo, CommandBuffer, ConstantDataRw,
-    GPUBuffer, GPUTexture, LoadOperation, Pass, RenderContext, RenderContextRc, RenderPass,
-    RenderPassBeginData, RenderPassData, RenderTarget, SamplerType, ShaderStage, StoreOperation,
-    TextureView, VertexBufferLayoutBuilder, VertexFormat, VextexBindingType,
+    declare_as_binding, AsBinding, BindingData, BindingFlags, BindingInfo, CommandBuffer,
+    ConstantDataRw, GPUBuffer, GPUTexture, LoadOperation, Pass, RenderContext, RenderContextRc,
+    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType, ShaderStage,
+    StoreOperation, TextureView, VertexBufferLayoutBuilder, VertexFormat, VextexBindingType,
 };
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::generate_random_uid;
@@ -136,34 +136,36 @@ impl Pass for UIPass {
         let mut pass = self.render_pass.get_mut();
 
         self.binding_data
-            .add_uniform_buffer(
+            .add_buffer(
                 &mut *self.constant_data.write().unwrap(),
                 Some("ConstantData"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 0,
                     stage: ShaderStage::Vertex,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_uniform_buffer(
+            .add_buffer(
                 &mut self.custom_data,
                 Some("UICustomData"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,
                     stage: ShaderStage::Vertex,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.textures.write().unwrap(),
                 Some("Textures"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 0,
                     stage: ShaderStage::Fragment,
-
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )

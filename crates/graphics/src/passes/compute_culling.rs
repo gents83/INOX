@@ -182,108 +182,113 @@ impl Pass for CullingPass {
             }
         }
         self.binding_data
-            .add_uniform_buffer(
+            .add_buffer(
                 &mut *self.constant_data.write().unwrap(),
                 Some("ConstantData"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 0,
                     stage: ShaderStage::Compute,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_uniform_buffer(
+            .add_buffer(
                 &mut self.culling_data,
                 Some("CullingData"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,
                     stage: ShaderStage::Compute,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.meshlets.write().unwrap(),
                 Some("Meshlets"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,
                     stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.bvh.write().unwrap(),
                 Some("BVH"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 3,
                     stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.transforms.write().unwrap(),
                 Some("Transforms"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 4,
                     stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.instances.write().unwrap(),
                 Some("Instances"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 5,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite,
+                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.commands_data.write().unwrap(),
                 Some("CommandsData"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 6,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite,
+                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.commands.write().unwrap(),
                 Some("Commands"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 7,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite,
+                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                     count: Some(commands_count),
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.active_instances.write().unwrap(),
                 Some("ActiveInstances"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 0,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite,
+                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.meshlets_count.write().unwrap(),
                 Some("MeshletsCount"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 1,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite,
+                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                     ..Default::default()
                 },
             )

@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
 use inox_render::{
-    BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawIndexedCommand, GPUBuffer,
-    GPUInstance, GPUTransform, GPUVector, GPUVertexIndices, GPUVertexPosition, Pass, RenderContext,
-    RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage,
-    StoreOperation, Texture, TextureView, VextexBindingType,
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DrawIndexedCommand,
+    GPUBuffer, GPUInstance, GPUTransform, GPUVector, GPUVertexIndices, GPUVertexPosition, Pass,
+    RenderContext, RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
+    ShaderStage, StoreOperation, Texture, TextureView, VextexBindingType,
 };
 
 use inox_core::ContextRc;
@@ -88,23 +88,25 @@ impl Pass for VisibilityBufferPass {
         let mut pass = self.render_pass.get_mut();
 
         self.binding_data
-            .add_uniform_buffer(
+            .add_buffer(
                 &mut *self.constant_data.write().unwrap(),
                 Some("ConstantData"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 0,
                     stage: ShaderStage::Vertex,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.transforms.write().unwrap(),
                 Some("Transforms"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,
                     stage: ShaderStage::Vertex,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
@@ -119,10 +121,16 @@ impl Pass for VisibilityBufferPass {
                 Some("Instances"),
             )
             .set_index_buffer(&mut *self.indices.write().unwrap(), Some("Indices"))
-            .bind_buffer(
+            .add_buffer(
                 &mut *self.commands.write().unwrap(),
-                Some(commands_count),
                 Some("Commands"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 2,
+                    stage: ShaderStage::Vertex,
+                    flags: BindingFlags::Storage | BindingFlags::Read | BindingFlags::Indirect,
+                    count: Some(commands_count),
+                },
             );
 
         let vertex_layout = GPUVertexPosition::descriptor(0);

@@ -44,7 +44,7 @@ macro_rules! declare_as_binding {
                 render_context: &$crate::RenderContext,
                 buffer: &mut $crate::BufferRef,
             ) {
-                buffer.add_to_gpu_buffer(render_context, &[*self]);
+                buffer.add_to_gpu_buffer(render_context, &[self.clone()]);
             }
         }
     };

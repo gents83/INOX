@@ -1,6 +1,13 @@
 #import "common.inc"
 #import "utils.inc"
 
+struct DrawPreparationResults {
+    draw_vertices_count: u32,
+    active_instances_count: u32,
+    _count: u32,
+    _count: u32,
+}
+
 
 @group(0) @binding(0)
 var<storage, read> meshlets: Meshlets;
@@ -16,6 +23,8 @@ var<storage, read> meshlet_counts: array<u32>;
 var<storage, read> commands_data: array<i32>;
 @group(0) @binding(6)
 var<storage, read_write> commands: DrawIndexedCommands;
+@group(0) @binding(7)
+var<storage, read_write> results: DrawPreparationResults;
 
 @compute
 @workgroup_size(256, 1, 1)
@@ -49,4 +58,7 @@ fn main(
     commands.data[command_id].base_instance = first_instance;
     //we need to pack instances of same meshlet
     instances.data[first_instance + u32(instance_index)] = instance;
+    
+    results.draw_vertices_count += meshlet.indices_count;
+    results.active_instances_count = max(results.active_instances_count, instance_index + 1);
 }

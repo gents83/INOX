@@ -90,13 +90,14 @@ impl Pass for DepthPyramidPass {
             .enumerate()
             .for_each(|(i, binding_data)| {
                 binding_data
-                    .add_uniform_buffer(
+                    .add_buffer(
                         &mut *self.constant_data.write().unwrap(),
                         Some("ConstantData"),
                         BindingInfo {
                             group_index: 0,
                             binding_index: 0,
                             stage: ShaderStage::Compute,
+                            flags: BindingFlags::Uniform | BindingFlags::Read,
                             ..Default::default()
                         },
                     )
@@ -132,13 +133,14 @@ impl Pass for DepthPyramidPass {
                             ..Default::default()
                         },
                     )
-                    .add_uniform_buffer(
+                    .add_buffer(
                         &mut self.mip_levels[i],
                         Some("MipLevel"),
                         BindingInfo {
                             group_index: 0,
                             binding_index: 4,
                             stage: ShaderStage::Compute,
+                            flags: BindingFlags::Uniform | BindingFlags::Read,
                             ..Default::default()
                         },
                     );

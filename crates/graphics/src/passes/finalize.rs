@@ -86,17 +86,18 @@ impl Pass for FinalizePass {
             .add_render_target(self.frame_textures[self.frame_index].as_ref().unwrap());
 
         self.binding_data
-            .add_uniform_buffer(
+            .add_buffer(
                 &mut *self.constant_data.write().unwrap(),
                 Some("ConstantData"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 0,
                     stage: ShaderStage::Fragment,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.data_buffer_1.write().unwrap(),
                 Some("DataBuffer_1"),
                 BindingInfo {

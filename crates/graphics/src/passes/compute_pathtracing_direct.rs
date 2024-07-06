@@ -138,115 +138,124 @@ impl Pass for ComputePathTracingDirectPass {
         }
 
         self.binding_data
-            .add_uniform_buffer(
+            .add_buffer(
                 &mut *self.constant_data.write().unwrap(),
                 Some("ConstantData"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 0,
                     stage: ShaderStage::Compute,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.indices.write().unwrap(),
                 Some("Indices"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::Read | BindingFlags::Index,
+                    flags: BindingFlags::Storage | BindingFlags::Read | BindingFlags::Index,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.vertices_positions.write().unwrap(),
                 Some("Vertices Positions"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::Read | BindingFlags::Vertex,
+                    flags: BindingFlags::Storage | BindingFlags::Read | BindingFlags::Vertex,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.vertices_attributes.write().unwrap(),
                 Some("Vertices Attributes"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 3,
                     stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.instances.write().unwrap(),
                 Some("Instances"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 4,
                     stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.transforms.write().unwrap(),
                 Some("Transforms"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 5,
                     stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.meshes.write().unwrap(),
                 Some("Meshes"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 6,
                     stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.meshlets.write().unwrap(),
                 Some("Meshlets"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 7,
                     stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.materials.write().unwrap(),
                 Some("Materials"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 0,
                     stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.textures.write().unwrap(),
                 Some("Textures"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 1,
                     stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_uniform_buffer(
+            .add_buffer(
                 &mut *self.lights.write().unwrap(),
                 Some("Lights"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 2,
                     stage: ShaderStage::Compute,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
                 },
             )
@@ -270,7 +279,7 @@ impl Pass for ComputePathTracingDirectPass {
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.data_buffer_0.write().unwrap(),
                 Some("DataBuffer_0"),
                 BindingInfo {
@@ -281,7 +290,7 @@ impl Pass for ComputePathTracingDirectPass {
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.data_buffer_1.write().unwrap(),
                 Some("DataBuffer_1"),
                 BindingInfo {
@@ -292,7 +301,7 @@ impl Pass for ComputePathTracingDirectPass {
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.data_buffer_2.write().unwrap(),
                 Some("DataBuffer_2"),
                 BindingInfo {

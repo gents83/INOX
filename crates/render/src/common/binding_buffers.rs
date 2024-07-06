@@ -37,6 +37,29 @@ impl BindingDataBuffer {
     pub fn clear_buffers_changed(&self) {
         self.changed_this_frame.write().unwrap().clear();
     }
+    pub fn bind_buffer_with_id<T>(
+        &self,
+        id: BufferId,
+        label: Option<&str>,
+        data: &mut T,
+        count: Option<usize>,
+        usage: wgpu::BufferUsages,
+        render_context: &RenderContext,
+    ) -> bool
+    where
+        T: AsBinding,
+    {
+        let mut is_changed = self.is_buffer_or_usage_changed(id, usage);
+        if is_changed {
+            let mut bind_data_buffer = self.buffers.write().unwrap();
+            let buffer = bind_data_buffer.entry(id).or_default();
+            is_changed |= buffer.bind(label, data, count, usage, render_context);
+            if is_changed {
+                self.mark_buffer_as_changed(id);
+            }
+        }
+        is_changed
+    }
     pub fn bind_buffer<T>(
         &self,
         label: Option<&str>,
@@ -49,15 +72,6 @@ impl BindingDataBuffer {
         T: AsBinding,
     {
         let id = data.buffer_id();
-        let mut is_changed = self.is_buffer_or_usage_changed(id, usage);
-        if is_changed {
-            let mut bind_data_buffer = self.buffers.write().unwrap();
-            let buffer = bind_data_buffer.entry(id).or_default();
-            is_changed |= buffer.bind(label, data, count, usage, render_context);
-            if is_changed {
-                self.mark_buffer_as_changed(id);
-            }
-        }
-        is_changed
+        self.bind_buffer_with_id(id, label, data, count, usage, render_context)
     }
 }
