@@ -1,5 +1,8 @@
 use inox_core::ContextRc;
-use inox_render::{GPUMesh, GPUMeshlet, GPUVertexIndices, GPUVertexPosition, RenderContextRc};
+use inox_render::{
+    DrawIndexedCommand, GPUInstance, GPUMesh, GPUMeshlet, GPUVertexIndices, GPUVertexPosition,
+    RenderContextRc,
+};
 
 use inox_messenger::MessageHubRc;
 use inox_resources::{Resource, SharedDataRc};
@@ -12,6 +15,8 @@ struct GfxData {
     indices_count: usize,
     meshes_count: usize,
     meshlets_count: usize,
+    instance_count: usize,
+    commands_instance_count: usize,
     passes: Vec<(String, bool)>,
 }
 implement_widget_data!(GfxData);
@@ -28,6 +33,8 @@ impl Gfx {
             indices_count: 0,
             meshes_count: 0,
             meshlets_count: 0,
+            instance_count: 0,
+            commands_instance_count: 0,
             passes: Vec::new(),
             render_context: render_context.clone(),
         };
@@ -68,6 +75,22 @@ impl Gfx {
                     .read()
                     .unwrap()
                     .item_count();
+                data.instance_count = data
+                    .render_context
+                    .global_buffers()
+                    .vector::<GPUInstance>()
+                    .read()
+                    .unwrap()
+                    .len();
+                let commands = data
+                    .render_context
+                    .global_buffers()
+                    .vector::<DrawIndexedCommand>();
+                let commands = commands.read().unwrap();
+                data.commands_instance_count = 0;
+                commands.iter().for_each(|c| {
+                    data.commands_instance_count += c.instance_count as usize;
+                });
             }
 
             if data.passes.is_empty() {
@@ -126,6 +149,20 @@ impl Gfx {
                             });
                         });
                         ui.separator();
+                        ui.horizontal_wrapped(|ui| {
+                            ui.horizontal_wrapped(|ui| {
+                                ui.label("Total instances: ");
+                                inox_ui::DragValue::new(&mut data.instance_count)
+                                    .speed(0)
+                                    .ui(ui);
+                            });
+                            ui.horizontal_wrapped(|ui| {
+                                ui.label("Draw instances: ");
+                                inox_ui::DragValue::new(&mut data.commands_instance_count)
+                                    .speed(0)
+                                    .ui(ui);
+                            });
+                        });
                         data.passes.iter_mut().for_each(|(name, is_enabled)| {
                             ui.checkbox(is_enabled, name.as_str());
                         });

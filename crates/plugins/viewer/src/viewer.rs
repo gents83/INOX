@@ -243,8 +243,6 @@ impl Viewer {
         Self::create_finalize_pass(context, render_context);
         Self::create_blit_pass(context, render_context);
 
-        Self::create_depth_pyramid_pass(context, render_context);
-
         Self::create_debug_pass(context, render_context);
         Self::create_wireframe_pass(context, render_context, has_wireframe_support());
         Self::create_ui_pass(context, render_context, ADD_UI_PASS);

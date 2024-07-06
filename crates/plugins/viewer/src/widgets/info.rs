@@ -535,8 +535,7 @@ impl Info {
                             };
                             let is_changed = ui
                                 .add(
-                                    DragValue::new(&mut indirect_light_num_bounces)
-                                        .clamp_range(0..=1024),
+                                    DragValue::new(&mut indirect_light_num_bounces).range(0..=1024),
                                 )
                                 .changed();
                             if is_changed {
@@ -569,7 +568,7 @@ impl Info {
                             let is_changed = ui
                                 .add(
                                     DragValue::new(&mut forced_lod_level)
-                                        .clamp_range(-1..=(MAX_LOD_LEVELS as i32 - 1)),
+                                        .range(-1..=(MAX_LOD_LEVELS as i32 - 1)),
                                 )
                                 .changed();
                             if is_changed {

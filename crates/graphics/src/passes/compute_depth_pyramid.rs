@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use inox_messenger::Listener;
 use inox_render::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
     ConstantDataRw, Pass, RenderContext, RenderContextRc, ShaderStage, Texture, TextureView,
@@ -8,6 +9,8 @@ use inox_render::{
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Handle, Resource};
 use inox_uid::generate_random_uid;
+
+use crate::CullingEvent;
 
 pub const DEPTH_PYRAMID_PIPELINE: &str = "pipelines/ComputeDepthPyramid.compute_pipeline";
 pub const DEPTH_PYRAMID_PASS_NAME: &str = "DepthPyramidPass";
@@ -20,6 +23,8 @@ pub struct DepthPyramidPass {
     depth_texture: Handle<Texture>,
     hzb_texture: Handle<Texture>,
     mip_levels: Vec<u32>,
+    listener: Listener,
+    update_pyramid: bool,
 }
 unsafe impl Send for DepthPyramidPass {}
 unsafe impl Sync for DepthPyramidPass {}
@@ -42,6 +47,8 @@ impl Pass for DepthPyramidPass {
             name: DEPTH_PYRAMID_PASS_NAME.to_string(),
             pipelines: vec![PathBuf::from(DEPTH_PYRAMID_PIPELINE)],
         };
+        let listener = Listener::new(context.message_hub());
+        listener.register::<CullingEvent>();
         Self {
             compute_pass: ComputePass::new_resource(
                 context.shared_data(),
@@ -56,6 +63,8 @@ impl Pass for DepthPyramidPass {
             mip_levels: Vec::new(),
             depth_texture: None,
             hzb_texture: None,
+            listener,
+            update_pyramid: true,
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -68,6 +77,12 @@ impl Pass for DepthPyramidPass {
             if depth_texture.get().texture_index() < 0 {
                 return;
             }
+        }
+
+        self.process_messages();
+
+        if !self.update_pyramid {
+            return;
         }
 
         self.binding_data
@@ -150,6 +165,10 @@ impl Pass for DepthPyramidPass {
             }
         }
 
+        if !self.update_pyramid {
+            return;
+        }
+
         let dimensions = self.depth_texture.as_ref().unwrap().get().dimensions();
 
         self.binding_data
@@ -193,5 +212,16 @@ impl DepthPyramidPass {
     pub fn set_hzb_texture(&mut self, texture: Resource<Texture>) -> &mut Self {
         self.hzb_texture = Some(texture);
         self
+    }
+    fn process_messages(&mut self) {
+        self.listener
+            .process_messages(|event: &CullingEvent| match event {
+                CullingEvent::FreezeCamera => {
+                    self.update_pyramid = false;
+                }
+                CullingEvent::UnfreezeCamera => {
+                    self.update_pyramid = true;
+                }
+            });
     }
 }

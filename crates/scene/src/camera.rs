@@ -16,6 +16,14 @@ use crate::{CameraData, Object};
 
 pub type CameraId = ResourceId;
 
+#[rustfmt::skip]
+const OPENGL_TO_WGPU_MATRIX: Matrix4 = Matrix4::new(
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 0.5, 0.5,
+    0.0, 0.0, 0.0, 1.0,
+);
+
 #[derive(Clone)]
 pub struct Camera {
     filepath: PathBuf,
@@ -134,7 +142,7 @@ impl Camera {
     ) -> &mut Self {
         let proj = inox_math::perspective(fov_in_degrees, screen_width / screen_height, near, far);
 
-        self.proj = proj;
+        self.proj = OPENGL_TO_WGPU_MATRIX * proj;
 
         self.fov_in_degrees = fov_in_degrees;
         self.aspect_ratio = screen_width / screen_height;

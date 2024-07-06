@@ -75,12 +75,14 @@ impl GpuProfiler {
             }
             if self.settings.enable_timer_queries && !wgpu_results.is_empty() {
                 wgpu_results.iter().for_each(|r| {
-                    profiler.push_sample(
-                        "GPU".to_string(),
-                        r.label.to_string(),
-                        r.time.start * 1000.,
-                        r.time.end * 1000.,
-                    );
+                    if let Some(time) = &r.time {
+                        profiler.push_sample(
+                            "GPU".to_string(),
+                            r.label.to_string(),
+                            time.start * 1000.,
+                            time.end * 1000.,
+                        );
+                    }
                 });
             }
         }

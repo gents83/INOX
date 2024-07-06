@@ -176,20 +176,29 @@ fn is_lod_visible(meshlet: Meshlet, position: vec3<f32>, orientation: vec4<f32>,
 }
 
 fn is_occluded(aabb_min: vec3<f32>, aabb_max: vec3<f32>, view_proj: mat4x4<f32>) -> bool {
-    let ndc_min = view_proj * vec4<f32>(aabb_min, 1.0);
-    let ndc_max = view_proj * vec4<f32>(aabb_max, 1.0);
-    var clip_min = clip_to_normalized(ndc_min.xy / ndc_min.w);
-    var clip_max = clip_to_normalized(ndc_max.xy / ndc_max.w);
+    let proj_min = view_proj * vec4<f32>(aabb_min, 1.0);
+    let proj_max = view_proj * vec4<f32>(aabb_max, 1.0);
+    var ndc_min = proj_min.xyz / proj_min.w;
+    var ndc_max = proj_max.xyz / proj_max.w;
+    ndc_min = min(ndc_min, ndc_max);
+    ndc_max = max(ndc_min, ndc_max);
+    if (ndc_max.z < 0.0 || ndc_min.z > 1.0 || 
+        any(ndc_max.xy < vec2<f32>(-1.0)) || any(ndc_min.xy > vec2<f32>(1.0))) {
+        return false; // Outside the view frustum
+    }
+
+    let clip_min = clip_to_normalized(ndc_min.xy);
+    let clip_max = clip_to_normalized(ndc_max.xy);
     let width = (clip_max.x - clip_min.x) * constant_data.screen_width;
     let height = (clip_max.y - clip_min.y) * constant_data.screen_height;
-    let mip_level = ceil(log2(max(width, height)));
+    let mip_level = floor(0.5 * log2(max(width, height)));
     var depth_values = vec4<f32>(0.);
-    depth_values.x = textureSampleLevel(texture_hzb, default_sampler, vec2<f32>(clip_min.x, 1. - clip_min.y), mip_level).r;
-    depth_values.y = textureSampleLevel(texture_hzb, default_sampler, vec2<f32>(clip_min.x, 1. - clip_max.y), mip_level).r;
-    depth_values.z = textureSampleLevel(texture_hzb, default_sampler, vec2<f32>(clip_max.x, 1. - clip_min.y), mip_level).r;
-    depth_values.w = textureSampleLevel(texture_hzb, default_sampler, vec2<f32>(clip_max.x, 1. - clip_max.y), mip_level).r;
-    let depth = min(min(depth_values.x, depth_values.y), min(depth_values.z, depth_values.w));
-    if ((ndc_min.z/ndc_min.w) > depth) {
+    depth_values.x = textureSampleLevel(texture_hzb, default_sampler, vec2<f32>(clip_min.x, clip_min.y), mip_level).r;
+    depth_values.y = textureSampleLevel(texture_hzb, default_sampler, vec2<f32>(clip_min.x, clip_max.y), mip_level).r;
+    depth_values.z = textureSampleLevel(texture_hzb, default_sampler, vec2<f32>(clip_max.x, clip_min.y), mip_level).r;
+    depth_values.w = textureSampleLevel(texture_hzb, default_sampler, vec2<f32>(clip_max.x, clip_max.y), mip_level).r;
+    let depth = max(max(depth_values.x, depth_values.y), max(depth_values.z, depth_values.w));
+    if (ndc_min.z > depth + 0.01) {
         return true;
     }
     return false;
@@ -228,9 +237,9 @@ fn main(
     if !is_lod_visible(meshlet, position, transform.orientation, scale, constant_data.camera_fov) {
         return;
     }
-    //if is_occluded(aabb_min, aabb_max, view_proj) {
-    //    return;    
-    //}
+    if is_occluded(aabb_min, aabb_max, view_proj) {
+        return;    
+    }
 
     active_instances.data[instance_id].command_id = 0;
     
