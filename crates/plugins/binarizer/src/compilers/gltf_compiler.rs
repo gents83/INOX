@@ -395,7 +395,6 @@ impl GltfCompiler {
                     &mesh_indices,
                 );
                 let groups = group_meshlets_with_metis(&meshlets_adjacency);
-                level += 1;
 
                 let (mut cluster_indices, cluster_meshlets) = compute_clusters(
                     &groups,
@@ -409,9 +408,10 @@ impl GltfCompiler {
 
                 mesh_indices_offset += cluster_indices.len();
                 mesh_indices.append(&mut cluster_indices);
-                previous_meshlets_starting_offset += meshlets_per_lod[level - 1].len();
+                previous_meshlets_starting_offset += meshlets_per_lod[level].len();
                 all_meshlets.push(cluster_meshlets.clone());
                 meshlets_per_lod.push(cluster_meshlets);
+                level += 1;
 
                 is_meshlet_tree_created = groups.len() == 1 || level >= (MAX_LOD_LEVELS - 1);
             }

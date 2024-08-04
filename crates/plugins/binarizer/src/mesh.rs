@@ -239,7 +239,7 @@ pub fn compute_clusters(
         let local_scale = meshopt::simplify_scale_decoder(&group_vertices);
 
         let target_count = (group_indices.len() as f32 * 0.5) as usize;
-        let target_error = 0.1 * lod_level as f32;
+        let target_error = 0.1 * lod_level as f32 + 0.01 * (1 - lod_level) as f32;
         let mut simplification_error = 0.0;
 
         let mut simplified_indices = meshopt::simplify_decoder(
@@ -248,8 +248,7 @@ pub fn compute_clusters(
             target_count,
             target_error,
             meshopt::SimplifyOptions::LockBorder
-                | meshopt::SimplifyOptions::Sparse
-                | meshopt::SimplifyOptions::ErrorAbsolute,
+                | meshopt::SimplifyOptions::Sparse,
             Some(&mut simplification_error),
         );
 

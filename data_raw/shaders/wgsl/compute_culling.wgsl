@@ -40,7 +40,7 @@ var default_sampler: sampler;
 
 fn is_box_inside_frustum(aabb_min: vec3<f32>, aabb_max: vec3<f32>, view_proj: mat4x4<f32>) -> bool {
     // Calculate AABB center and half-extents
-    let center = aabb_min + (aabb_min + aabb_max) * 0.5;
+    let center = (aabb_min + aabb_max) * 0.5;
     let extents = (aabb_max - center);
 
     // Transform the center point into clip space
@@ -88,8 +88,7 @@ fn is_sphere_inside_frustum(min: vec3<f32>, max: vec3<f32>, position: vec3<f32>,
     return visible;
 }
 
-fn transform_sphere(sphere: vec4<f32>, position: vec3<f32>, orientation: vec4<f32>, scale: vec3<f32>) -> vec4<f32> {
-    let transform = culling_data.view * transform_matrix(position, orientation, scale);
+fn transform_sphere(sphere: vec4<f32>, transform: mat4x4<f32>) -> vec4<f32> {
     let center = transform * vec4<f32>(sphere.xyz, 1.);
     let p = center.xyz / center.w;
     let v = transform * vec4<f32>(sphere.w, 0., 0., 0.);
@@ -119,11 +118,12 @@ fn is_lod_visible(meshlet: Meshlet, position: vec3<f32>, orientation: vec4<f32>,
         let desired_lod_level = MAX_LOD_LEVELS - 1u - u32(constant_data.forced_lod_level);
         return meshlet.lod_level == desired_lod_level;
     }
+    let model_view = culling_data.view * transform_matrix(position, orientation, scale);
     var projected_bounds = vec4<f32>(meshlet.bounding_sphere.xyz, max(meshlet.cluster_error, MAX_PROJECTED_ERROR));
-    projected_bounds = transform_sphere(projected_bounds, position, orientation, scale);
+    projected_bounds = transform_sphere(projected_bounds, model_view);
 
     var parent_projected_bounds  = vec4<f32>(meshlet.parent_bounding_sphere.xyz, max(meshlet.parent_error, MAX_PROJECTED_ERROR));
-    parent_projected_bounds = transform_sphere(parent_projected_bounds, position, orientation, scale);
+    parent_projected_bounds = transform_sphere(parent_projected_bounds, model_view);
 
     let cluster_error: f32 = project_error_to_screen(projected_bounds, fov);
     let parent_error: f32 = project_error_to_screen(parent_projected_bounds, fov);
