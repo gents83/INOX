@@ -154,7 +154,7 @@ fn is_occluded(aabb_min: vec3<f32>, aabb_max: vec3<f32>, view_proj: mat4x4<f32>)
     depth_values.z = textureSampleLevel(texture_hzb, default_sampler, vec2<f32>(clip_max.x, clip_min.y), mip_level).r;
     depth_values.w = textureSampleLevel(texture_hzb, default_sampler, vec2<f32>(clip_max.x, clip_max.y), mip_level).r;
     let depth = max(max(depth_values.x, depth_values.y), max(depth_values.z, depth_values.w));
-    if (ndc_min.z > depth + 0.01) {
+    if (ndc_min.z > depth + 0.1) {
         return true;
     }
     return false;
@@ -186,10 +186,10 @@ fn main(
     let aabb_min = min(bb_min, bb_max);
     let aabb_max = max(bb_min, bb_max);
     
-    if(!is_box_inside_frustum(aabb_min, aabb_max, view_proj)) {
+    if !is_lod_visible(meshlet, position, transform.orientation, scale, constant_data.camera_fov) {
         return;
     }
-    if !is_lod_visible(meshlet, position, transform.orientation, scale, constant_data.camera_fov) {
+    if(!is_box_inside_frustum(aabb_min, aabb_max, view_proj)) {
         return;
     }
     if is_occluded(aabb_min, aabb_max, view_proj) {
