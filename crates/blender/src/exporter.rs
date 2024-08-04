@@ -48,7 +48,7 @@ impl Exporter {
                 let scene_path = self.export_dir.join(format!("{}.{}", scene_name, "gltf"));
                 let scene_path = scene_path.to_str().unwrap_or_default().to_string();
 
-                let kwargs = PyDict::new_bound(py);
+                let kwargs = PyDict::new(py);
                 kwargs.set_item("filepath", scene_path.clone())?;
                 kwargs.set_item("check_existing", true)?;
                 kwargs.set_item("export_format", "GLTF_SEPARATE")?;

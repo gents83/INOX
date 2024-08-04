@@ -180,6 +180,7 @@ impl RenderContext {
                         label: None,
                         required_features: required_gpu_features(),
                         required_limits: platform_limits(),
+                        memory_hints: wgpu::MemoryHints::Performance,
                     },
                     // Some(&std::path::Path::new("trace")), // Trace path
                     None,

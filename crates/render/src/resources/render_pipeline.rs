@@ -247,9 +247,9 @@ impl RenderPipeline {
                         module: self.vertex_shader.as_ref().unwrap().get().module(),
                         compilation_options: wgpu::PipelineCompilationOptions::default(),
                         entry_point: if self.data.vertex_shader == self.data.fragment_shader {
-                            VERTEX_SHADER_ENTRY_POINT
+                            Some(VERTEX_SHADER_ENTRY_POINT)
                         } else {
-                            SHADER_ENTRY_POINT
+                            Some(SHADER_ENTRY_POINT)
                         },
                         buffers: vertex_state_buffers.as_slice(),
                     },
@@ -257,9 +257,9 @@ impl RenderPipeline {
                         module: self.fragment_shader.as_ref().unwrap().get().module(),
                         compilation_options: wgpu::PipelineCompilationOptions::default(),
                         entry_point: if self.data.vertex_shader == self.data.fragment_shader {
-                            FRAGMENT_SHADER_ENTRY_POINT
+                            Some(FRAGMENT_SHADER_ENTRY_POINT)
                         } else {
-                            SHADER_ENTRY_POINT
+                            Some(SHADER_ENTRY_POINT)
                         },
                         targets: pipeline_render_formats
                             .iter()

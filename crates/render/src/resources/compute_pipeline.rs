@@ -162,7 +162,7 @@ impl ComputePipeline {
                     cache: None,
                     module: self.shader.as_ref().unwrap().get().module(),
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
-                    entry_point: entry_point_name.unwrap_or(SHADER_ENTRY_POINT),
+                    entry_point: Some(entry_point_name.unwrap_or(SHADER_ENTRY_POINT)),
                 })
         };
         self.compute_pipeline = Some(compute_pipeline);
