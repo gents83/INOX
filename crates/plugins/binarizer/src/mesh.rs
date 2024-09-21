@@ -17,6 +17,19 @@ pub struct MeshVertex {
     pub uv_3: Vector2,
 }
 
+impl MeshVertex {
+    pub fn is_same_of(&self, other: &Self) -> bool {
+        self.pos.xyz() == other.pos.xyz()
+            && self.color == other.color
+            && self.normal.xyz() == other.normal.xyz()
+            && self.tangent == other.tangent
+            && self.uv_0 == other.uv_0
+            && self.uv_1 == other.uv_1
+            && self.uv_2 == other.uv_2
+            && self.uv_3 == other.uv_3
+    }
+}
+
 impl Default for MeshVertex {
     fn default() -> Self {
         Self {
@@ -194,10 +207,10 @@ pub fn compute_clusters(
             let count = meshlet.indices_count;
             for i in 0..count {
                 let global_index = indices[meshlet.indices_offset as usize + i as usize] as usize;
-                let group_index = if let Some(index) = group_vertices
-                    .iter()
-                    .position(|v: &MeshVertex| v.pos.w as usize == global_index)
-                {
+                let group_index = if let Some(index) =
+                    group_vertices.iter().position(|v: &MeshVertex| {
+                        v.pos.w as usize == global_index || v.is_same_of(&vertices[global_index])
+                    }) {
                     index
                 } else {
                     let mut v = vertices[global_index];
@@ -243,13 +256,13 @@ pub fn compute_clusters(
         let center = aabb_min + half_length;
         let radius = half_length.length();
 
-        if simplified_indices.len() >= group_indices.len() {
-            inox_log::debug_log!(
-                "No simplification happened [from {} to {}]",
-                group_indices.len(),
-                simplified_indices.len(),
-            );
-        }
+        //if simplified_indices.len() >= group_indices.len() {
+        //    inox_log::debug_log!(
+        //        "No simplification happened [from {} to {}]",
+        //        group_indices.len(),
+        //        simplified_indices.len(),
+        //    );
+        //}
 
         if simplified_indices.is_empty() {
             simplified_indices = group_indices;

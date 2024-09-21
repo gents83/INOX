@@ -134,11 +134,11 @@ where
             });
         }
     });
-    let num_meshlets = meshlets_info.len();
+    let _num_meshlets = meshlets_info.len();
     meshlets_info.iter_mut().for_each(|m| {
-        if num_meshlets > 1 && m.adjacent_meshlets.is_empty() {
-            println!("Meshlet {} has no adjacency", m.meshlet_index);
-        }
+        //if _num_meshlets > 1 && m.adjacent_meshlets.is_empty() {
+        //    println!("Meshlet {} has no adjacency", m.meshlet_index);
+        //}
         m.adjacent_meshlets
             .sort_by(|(_i, a), (_j, b)| b.partial_cmp(a).unwrap());
     });
