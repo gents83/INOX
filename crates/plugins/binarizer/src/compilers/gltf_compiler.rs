@@ -91,14 +91,12 @@ impl Geometry for GltfGeometry {
     fn normal(&self, face: usize, vert: usize) -> [f32; 3] {
         self.vertices[self.indices[face * 3 + vert] as usize]
             .normal
-            .unwrap_or_else(Vector3::default_zero)
             .into()
     }
 
     fn tex_coord(&self, face: usize, vert: usize) -> [f32; 2] {
         self.vertices[self.indices[face * 3 + vert] as usize]
             .uv_0
-            .unwrap_or_else(Vector2::default_zero)
             .into()
     }
 }
@@ -246,7 +244,7 @@ impl GltfCompiler {
                             vertices.resize(norm.len(), MeshVertex::default());
                         }
                         norm.iter().enumerate().for_each(|(i, v)| {
-                            vertices[i].normal = Some(*v);
+                            vertices[i].normal = *v;
                         });
                     }
                 }
@@ -263,7 +261,7 @@ impl GltfCompiler {
                             }
                             tan.iter().enumerate().for_each(|(i, v)| {
                                 vertices[i].tangent =
-                                    Some([v.x as f32, v.y as f32, v.z as f32, v.z as f32].into());
+                                    [v.x as f32, v.y as f32, v.z as f32, v.z as f32].into();
                             });
                         }
                     } else {
@@ -271,7 +269,7 @@ impl GltfCompiler {
                         if let Some(tan) = self.read_accessor_from_path::<Vector4>(path, &accessor)
                         {
                             tan.iter().enumerate().for_each(|(i, v)| {
-                                vertices[i].tangent = Some(*v);
+                                vertices[i].tangent = *v;
                             });
                         }
                     }
@@ -289,7 +287,7 @@ impl GltfCompiler {
                             }
                             col.iter().enumerate().for_each(|(i, v)| {
                                 vertices[i].color =
-                                    Some([v.x as f32, v.y as f32, v.z as f32, v.z as f32].into());
+                                    [v.x as f32, v.y as f32, v.z as f32, v.z as f32].into();
                             });
                         }
                     } else {
@@ -297,7 +295,7 @@ impl GltfCompiler {
                         if let Some(col) = self.read_accessor_from_path::<Vector4>(path, &accessor)
                         {
                             col.iter().enumerate().for_each(|(i, v)| {
-                                vertices[i].color = Some(*v);
+                                vertices[i].color = *v;
                             });
                         }
                     }

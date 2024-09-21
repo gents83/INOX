@@ -618,7 +618,7 @@ impl Info {
                         ui.horizontal(|ui| {
                             ui.label("Debug mode:");
                             let previous_debug_selected = data.visualization_debug_selected;
-                            let combo_box = ComboBox::from_id_source("Debug mode")
+                            let combo_box = ComboBox::from_id_salt("Debug mode")
                                 .selected_text(
                                     data.visualization_debug_choices
                                         [data.visualization_debug_selected]

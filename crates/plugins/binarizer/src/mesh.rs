@@ -1,5 +1,6 @@
 use std::mem::size_of;
 
+use gltf::Mesh;
 use inox_math::{VecBase, VecBaseFloat, Vector2, Vector3, Vector4};
 use inox_render::{MeshData, MeshletData, VertexAttributeLayout};
 use inox_resources::to_slice;
@@ -8,56 +9,35 @@ use meshopt::DecodePosition;
 #[derive(Debug, Clone, Copy)]
 pub struct MeshVertex {
     pub pos: Vector3,
-    pub color: Option<Vector4>,
-    pub normal: Option<Vector3>,
-    pub tangent: Option<Vector4>,
-    pub uv_0: Option<Vector2>,
-    pub uv_1: Option<Vector2>,
-    pub uv_2: Option<Vector2>,
-    pub uv_3: Option<Vector2>,
+    pub color: Vector4,
+    pub normal: Vector3,
+    pub tangent: Vector4,
+    pub uv_0: Vector2,
+    pub uv_1: Vector2,
+    pub uv_2: Vector2,
+    pub uv_3: Vector2,
 }
 
 impl Default for MeshVertex {
     fn default() -> Self {
         Self {
             pos: Vector3::default_zero(),
-            color: None,
-            normal: None,
-            tangent: None,
-            uv_0: None,
-            uv_1: None,
-            uv_2: None,
-            uv_3: None,
+            color: Vector4::default_one(),
+            normal: Vector3::unit_z(),
+            tangent: Vector4::unit_y(),
+            uv_0: Vector2::default_zero(),
+            uv_1: Vector2::default_zero(),
+            uv_2: Vector2::default_zero(),
+            uv_3: Vector2::default_zero(),
         }
-    }
-}
-
-impl meshopt::DecodePosition for MeshVertex {
-    fn decode_position(&self) -> [f32; 3] {
-        self.pos.into()
     }
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub(crate) struct LocalVertex {
-    pub(crate) pos: Vector3,
+    pub(crate) vertex_data: MeshVertex,
     pub(crate) global_index: usize,
-}
-
-impl Default for LocalVertex {
-    fn default() -> Self {
-        Self {
-            pos: Vector3::default_zero(),
-            global_index: 0,
-        }
-    }
-}
-
-impl meshopt::DecodePosition for LocalVertex {
-    fn decode_position(&self) -> [f32; 3] {
-        self.pos.into()
-    }
 }
 
 #[allow(dead_code)]
@@ -247,8 +227,7 @@ pub fn compute_clusters(
             &group_vertices,
             target_count,
             target_error,
-            meshopt::SimplifyOptions::LockBorder
-                | meshopt::SimplifyOptions::Sparse,
+            meshopt::SimplifyOptions::LockBorder | meshopt::SimplifyOptions::Sparse,
             Some(&mut simplification_error),
         );
 

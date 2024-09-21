@@ -197,7 +197,7 @@ fn add_node_in_blender(
     let description = node.description();
     let serialized_class = node.serialize_node(serializable_registry.clone());
 
-    py.import_bound("INOX")
+    py.import("INOX")
         .unwrap()
         .getattr("node_tree")
         .unwrap()

@@ -217,9 +217,9 @@ impl UISystem {
     }
 
     fn show_ui(
-        shared_data: SharedDataRc,
-        job_handler: JobHandlerRw,
-        context: Context,
+        shared_data: &SharedDataRc,
+        job_handler: &JobHandlerRw,
+        context: &Context,
         use_multithreading: bool,
     ) {
         inox_profiler::scoped_profile!("ui_system::show_ui");
@@ -241,7 +241,7 @@ impl UISystem {
                     },
                 );
             } else {
-                widget.execute(&context);
+                widget.execute(context);
             }
         });
         while wait_count.load(Ordering::SeqCst) > 0 {
@@ -355,7 +355,7 @@ impl System for UISystem {
             let job_handler = self.job_handler.clone();
             let ui_context = self.ui_context.clone();
             self.ui_context.run(self.ui_input.take(), move |_| {
-                Self::show_ui(shared_data, job_handler, ui_context, false);
+                Self::show_ui(&shared_data, &job_handler, &ui_context, false);
             })
         };
         /*

@@ -331,7 +331,7 @@ impl Texture {
             | crate::TextureFormat::R32Sint
             | crate::TextureFormat::R32Float
             | crate::TextureFormat::Rgb10a2Unorm
-            | crate::TextureFormat::Rg11b10Float
+            | crate::TextureFormat::Rg11b10Ufloat
             | crate::TextureFormat::Depth32Float
             | crate::TextureFormat::Depth24PlusStencil8
             | crate::TextureFormat::Rgb9e5Ufloat => {

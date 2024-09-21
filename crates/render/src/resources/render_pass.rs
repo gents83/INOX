@@ -387,7 +387,7 @@ impl RenderPass {
                         &render_pass_begin_data.render_core_context.device,
                         "render_pass::bind_groups",
                     );
-                    render_pass.set_bind_group(index as _, bind_group, &[]);
+                    render_pass.set_bind_group(index as _, Some(bind_group), &[]);
                 });
         }
 

@@ -4,8 +4,6 @@ use inox_resources::{as_slice, to_slice};
 
 use crate::{platform::WGPU_FIXED_ALIGNMENT, AsBinding, RenderContext, WebGpuContext};
 
-const DEBUG_BUFFER_CHANGES: bool = false;
-
 pub struct BufferRef {
     gpu_buffer: Option<wgpu::Buffer>,
     usage: wgpu::BufferUsages,
@@ -58,23 +56,6 @@ impl BufferRef {
 
         self.offset = 0;
         if size > self.size || !self.usage.contains(usage) {
-            if DEBUG_BUFFER_CHANGES && self.gpu_buffer.is_some() {
-                let id = self.gpu_buffer.as_ref().unwrap().global_id().inner();
-                let raw_id =
-                    wgpu::core::id::RawId::from_non_zero(std::num::NonZeroU64::new(id).unwrap());
-                let buffer_id = raw_id.unzip();
-                let reason = if size > self.size {
-                    "size change"
-                } else {
-                    "usage change"
-                };
-                inox_log::debug_log!(
-                    "Releasing buffer: {} with id {:?} due to: {}",
-                    self.name.as_str(),
-                    buffer_id,
-                    reason
-                );
-            }
             let label = format!("{buffer_name} Buffer");
             self.name = label;
             self.release();
@@ -89,17 +70,6 @@ impl BufferRef {
                     usage: self.usage,
                 });
             self.gpu_buffer = Some(data_buffer);
-            if DEBUG_BUFFER_CHANGES {
-                let id = self.gpu_buffer.as_ref().unwrap().global_id().inner();
-                let raw_id =
-                    wgpu::core::id::RawId::from_non_zero(std::num::NonZeroU64::new(id).unwrap());
-                let buffer_id = raw_id.unzip();
-                inox_log::debug_log!(
-                    "Creating buffer: {} with id {:?}",
-                    self.name.as_str(),
-                    buffer_id
-                );
-            }
             self.size = size;
             return true;
         }

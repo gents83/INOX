@@ -157,7 +157,7 @@ impl ComputePass {
                     &_render_context.webgpu.device,
                     "compute_pass::set_bind_group",
                 );
-                compute_pass.set_bind_group(index as _, bind_group, &[]);
+                compute_pass.set_bind_group(index as _, Some(bind_group), &[]);
             });
 
         inox_profiler::gpu_scoped_profile!(
@@ -223,7 +223,7 @@ impl ComputePass {
                     &_render_context.webgpu.device,
                     "compute_pass::set_bind_group",
                 );
-                compute_pass.set_bind_group(index as _, bind_group, &[]);
+                compute_pass.set_bind_group(index as _, Some(bind_group), &[]);
             });
 
         inox_profiler::gpu_scoped_profile!(

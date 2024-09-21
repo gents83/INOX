@@ -14,11 +14,11 @@ fn murmur_32(list: &[u32]) -> u32 {
     for i in list {
         let mut element = *i;
         element = element.wrapping_mul(0xcc9e2d51);
-        element = (element << 15) | (element >> (32 - 15));
+        element = element.rotate_left(15);
         element = element.wrapping_mul(0x1b873593);
 
         hash ^= element;
-        hash = (hash << 13) | (hash >> (32 - 13));
+        hash = hash.rotate_left(13);
         hash = hash.wrapping_mul(5);
         hash = hash.wrapping_add(0xe6546b64);
     }
