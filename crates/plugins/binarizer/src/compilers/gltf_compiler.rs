@@ -23,12 +23,10 @@ use gltf::{
 
 use inox_bvh::{create_linearized_bvh, BVHTree, AABB};
 use inox_log::debug_log;
-use inox_math::{
-    Mat4Ops, Matrix4, NewAngle, Parser, Radians, VecBase, Vector2, Vector3, Vector4, Vector4h,
-};
+use inox_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4, Vector4h};
 use inox_render::{
-    GPULight, LightType, MaterialData, MaterialFlags, MeshData, TextureType, MAX_LOD_LEVELS,
-    MAX_TEXTURE_COORDS_SETS,
+    GPULight, LightType, MaterialData, MaterialFlags, MeshData, TextureType, VertexAttributeLayout,
+    MAX_LOD_LEVELS, MAX_TEXTURE_COORDS_SETS,
 };
 
 use inox_nodes::LogicData;
@@ -85,12 +83,14 @@ impl Geometry for GltfGeometry {
     fn position(&self, face: usize, vert: usize) -> [f32; 3] {
         self.vertices[self.indices[face * 3 + vert] as usize]
             .pos
+            .xyz()
             .into()
     }
 
     fn normal(&self, face: usize, vert: usize) -> [f32; 3] {
         self.vertices[self.indices[face * 3 + vert] as usize]
             .normal
+            .xyz()
             .into()
     }
 
@@ -216,7 +216,12 @@ impl GltfCompiler {
         indices
     }
 
-    fn extract_vertices(&mut self, path: &Path, primitive: &Primitive) -> Vec<MeshVertex> {
+    fn extract_vertices(
+        &mut self,
+        path: &Path,
+        primitive: &Primitive,
+    ) -> (VertexAttributeLayout, Vec<MeshVertex>) {
+        let mut vertex_layout = VertexAttributeLayout::default();
         let mut vertices = Vec::new();
 
         primitive.attributes().for_each(| (semantic, accessor)| {
@@ -227,11 +232,12 @@ impl GltfCompiler {
                     let num_bytes = self.bytes_from_dimension(&accessor);
                     debug_assert!(num == 3 && num_bytes == 4);
                     if let Some(pos) = self.read_accessor_from_path::<Vector3>(path, &accessor) {
+                        vertex_layout |= VertexAttributeLayout::HasPosition;
                         if vertices.is_empty() {
                             vertices.resize(pos.len(), MeshVertex::default());
                         }
                         pos.iter().enumerate().for_each(|(i, v)| {
-                            vertices[i].pos = *v;
+                            vertices[i].pos = Vector4::new(v.x, v.y, v.z, 1.0);
                         });
                     }
                 }
@@ -240,11 +246,12 @@ impl GltfCompiler {
                     let num_bytes = self.bytes_from_dimension(&accessor);
                     debug_assert!(num == 3 && num_bytes == 4);
                     if let Some(norm) = self.read_accessor_from_path::<Vector3>(path, &accessor) {
+                        vertex_layout |= VertexAttributeLayout::HasNormal;
                         if vertices.is_empty() {
                             vertices.resize(norm.len(), MeshVertex::default());
                         }
                         norm.iter().enumerate().for_each(|(i, v)| {
-                            vertices[i].normal = *v;
+                            vertices[i].normal = Vector4::new(v.x, v.y, v.z, 1.0);
                         });
                     }
                 }
@@ -256,6 +263,7 @@ impl GltfCompiler {
                         debug_assert!(num_bytes == 2);
                         if let Some(tan) = self.read_accessor_from_path::<Vector4h>(path, &accessor)
                         {
+                            vertex_layout |= VertexAttributeLayout::HasTangent;
                             if vertices.is_empty() {
                                 vertices.resize(tan.len(), MeshVertex::default());
                             }
@@ -268,6 +276,7 @@ impl GltfCompiler {
                         debug_assert!(num_bytes == 4);
                         if let Some(tan) = self.read_accessor_from_path::<Vector4>(path, &accessor)
                         {
+                            vertex_layout |= VertexAttributeLayout::HasTangent;
                             tan.iter().enumerate().for_each(|(i, v)| {
                                 vertices[i].tangent = *v;
                             });
@@ -282,6 +291,7 @@ impl GltfCompiler {
                         debug_assert!(num_bytes == 2);
                         if let Some(col) = self.read_accessor_from_path::<Vector4h>(path, &accessor)
                         {
+                            vertex_layout |= VertexAttributeLayout::HasColor;
                             if vertices.is_empty() {
                                 vertices.resize(col.len(), MeshVertex::default());
                             }
@@ -294,6 +304,7 @@ impl GltfCompiler {
                         debug_assert!(num_bytes == 4);
                         if let Some(col) = self.read_accessor_from_path::<Vector4>(path, &accessor)
                         {
+                            vertex_layout |= VertexAttributeLayout::HasColor;
                             col.iter().enumerate().for_each(|(i, v)| {
                                 vertices[i].color = *v;
                             });
@@ -322,23 +333,27 @@ impl GltfCompiler {
                         }
                         match texture_index {
                             0 => {
+                                vertex_layout |= VertexAttributeLayout::HasUV1;
                                 tex.iter().enumerate().for_each(|(i, v)| {
-                                    vertices[i].uv_0 = Some(v - (max - min));
+                                    vertices[i].uv_0 = v - (max - min);
                                 });
                             }
                             1 => {
+                                vertex_layout |= VertexAttributeLayout::HasUV2;
                                 tex.iter().enumerate().for_each(|(i, v)| {
-                                    vertices[i].uv_1 = Some(v - (max - min));
+                                    vertices[i].uv_1 = v - (max - min);
                                 });
                             }
                             2 => {
+                                vertex_layout |= VertexAttributeLayout::HasUV3;
                                 tex.iter().enumerate().for_each(|(i, v)| {
-                                    vertices[i].uv_2 = Some(v - (max - min));
+                                    vertices[i].uv_2 = v - (max - min);
                                 });
                             }
                             3 => {
+                                vertex_layout |= VertexAttributeLayout::HasUV4;
                                 tex.iter().enumerate().for_each(|(i, v)| {
-                                    vertices[i].uv_3 = Some(v - (max - min));
+                                    vertices[i].uv_3 = v - (max - min);
                                 });
                             }
                             _ => {
@@ -352,7 +367,7 @@ impl GltfCompiler {
                 _ => {}
             }
         });
-        vertices
+        (vertex_layout, vertices)
     }
 
     fn process_mesh_data(
@@ -364,7 +379,7 @@ impl GltfCompiler {
     ) -> PathBuf {
         let new_path = self.compute_path_name::<MeshData>(path, mesh_name, "mesh");
         if need_to_binarize(path, new_path.as_path()) {
-            let vertices = self.extract_vertices(path, primitive);
+            let (vertex_layout, vertices) = self.extract_vertices(path, primitive);
             let indices = self.extract_indices(path, primitive);
             let mut geometry = GltfGeometry { vertices, indices };
             generate_tangents(&mut geometry);
@@ -414,7 +429,7 @@ impl GltfCompiler {
                 is_meshlet_tree_created = groups.len() == 1 || level >= (MAX_LOD_LEVELS - 1);
             }
 
-            let mut mesh_data = create_mesh_data(&geometry_vertices, &mesh_indices);
+            let mut mesh_data = create_mesh_data(vertex_layout, &geometry_vertices, &mesh_indices);
             mesh_data.meshlets = meshlets_per_lod;
             mesh_data.meshlets_bvh.clear();
             mesh_data.material = material_path.to_path_buf();

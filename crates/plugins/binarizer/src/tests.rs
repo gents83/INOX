@@ -1,7 +1,8 @@
-use inox_math::Vector3;
+use inox_math::{Vector3, Vector4};
+use inox_resources::to_slice;
 use metis::Graph;
 
-use crate::{adjacency::find_border_vertices, mesh::LocalVertex};
+use crate::mesh::MeshVertex;
 
 #[allow(dead_code)]
 fn simplify_test() {
@@ -12,15 +13,15 @@ fn simplify_test() {
     // 0----3----8
     #[rustfmt::skip]
     let vertices = [
-        LocalVertex{ pos: Vector3::new(0., 0., 0.), global_index: 0 },
-        LocalVertex{ pos: Vector3::new(0., 1., 0.), global_index: 1 },
-        LocalVertex{ pos: Vector3::new(1., 1., 0.), global_index: 2 },
-        LocalVertex{ pos: Vector3::new(1., 0., 0.), global_index: 3 },
-        LocalVertex{ pos: Vector3::new(0., 2., 0.), global_index: 4 },
-        LocalVertex{ pos: Vector3::new(1., 2., 0.), global_index: 5 },
-        LocalVertex{ pos: Vector3::new(2., 2., 0.), global_index: 6 },
-        LocalVertex{ pos: Vector3::new(2., 1., 0.), global_index: 7 },
-        LocalVertex{ pos: Vector3::new(2., 0., 0.), global_index: 8 },
+        MeshVertex { pos: Vector4::new(0., 0., 0., 1.), ..Default::default() },
+        MeshVertex { pos: Vector4::new(0., 1., 0., 1.), ..Default::default() },
+        MeshVertex { pos: Vector4::new(1., 1., 0., 1.), ..Default::default() },
+        MeshVertex { pos: Vector4::new(1., 0., 0., 1.), ..Default::default() },
+        MeshVertex { pos: Vector4::new(0., 2., 0., 1.), ..Default::default() },
+        MeshVertex { pos: Vector4::new(1., 2., 0., 1.), ..Default::default() },
+        MeshVertex { pos: Vector4::new(2., 2., 0., 1.), ..Default::default() },
+        MeshVertex { pos: Vector4::new(2., 1., 0., 1.), ..Default::default() },
+        MeshVertex { pos: Vector4::new(2., 0., 0., 1.), ..Default::default() },
     ];
     #[rustfmt::skip]
     let indices = [
@@ -33,22 +34,49 @@ fn simplify_test() {
         2, 7, 3,
         3, 7, 8,
     ];
-    let locked_indices = find_border_vertices(&vertices, &indices);
 
-    debug_assert!(
-        !locked_indices.is_empty() && locked_indices.len() < indices.len(),
-        "Locked indices are empty or exactly the same of total number of indices"
+    let vertex_stride = size_of::<MeshVertex>();
+
+    struct TestStruct {
+        pos: Vector3,
+        tangent: Vector4,
+    }
+    let test = [MeshVertex {
+        pos: Vector4::new(0., 1., 0., 1.),
+        ..Default::default()
+    }];
+    let test_bytes: &[u8] = to_slice(&test);
+    println!("test_bytes ({}): {:?}", test_bytes.len(), test_bytes);
+    println!("vertex_stride: {}", vertex_stride);
+
+    let vertices_bytes = to_slice(&vertices);
+    let vertex_stride = size_of::<MeshVertex>();
+    let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
+
+    println!(
+        "vertices_bytes ({}): {:?}",
+        vertices_bytes.len(),
+        vertices_bytes
     );
 
     let target_count = 6;
     let target_error = 0.01;
-    let simplified_indices = meshopt::simplify_decoder(
+    let simplified_indices = meshopt::simplify(
         &indices,
-        &vertices,
+        vertex_data_adapter.as_ref().unwrap(),
         target_count,
         target_error,
-        meshopt::SimplifyOptions::LockBorder,
+        meshopt::SimplifyOptions::LockBorder
+            | meshopt::SimplifyOptions::Sparse
+            | meshopt::SimplifyOptions::ErrorAbsolute,
         None,
+    );
+
+    println!("Indices ({}): {:?}", indices.len(), indices);
+    println!(
+        "Simplified indices ({}): {:?}",
+        simplified_indices.len(),
+        simplified_indices
     );
 
     debug_assert!(

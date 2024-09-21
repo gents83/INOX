@@ -46,44 +46,6 @@ pub(crate) struct MeshletAdjacency {
     adjacent_meshlets: Vec<(u32, usize)>,
 }
 
-#[allow(dead_code)]
-pub fn find_border_vertices<T>(vertices: &[T], indices: &[u32]) -> Vec<u32>
-where
-    T: DecodePosition,
-{
-    let mut border_vertices = Vec::with_capacity(indices.len());
-    let num_triangles = indices.len() / 3;
-    let mut edges_hit_count: HashMap<Edge, u32> = HashMap::default();
-    for triangle_index in 0..num_triangles {
-        let i1 = indices[triangle_index * 3] as usize;
-        let i2 = indices[triangle_index * 3 + 1] as usize;
-        let i3 = indices[triangle_index * 3 + 2] as usize;
-        let p1: Vector3 = vertices[i1].decode_position().into();
-        let p2: Vector3 = vertices[i2].decode_position().into();
-        let p3: Vector3 = vertices[i3].decode_position().into();
-        let h1 = compute_hash_position(&p1);
-        let h2 = compute_hash_position(&p2);
-        let h3 = compute_hash_position(&p3);
-        let e1 = Edge::create(h1, h2);
-        let e2 = Edge::create(h2, h3);
-        let e3 = Edge::create(h3, h1);
-        e1.add_to_hit_count(&mut edges_hit_count);
-        e2.add_to_hit_count(&mut edges_hit_count);
-        e3.add_to_hit_count(&mut edges_hit_count);
-    }
-    for (e, count) in edges_hit_count {
-        if count == 1 {
-            if !border_vertices.contains(&e.v1) {
-                border_vertices.push(e.v1);
-            }
-            if !border_vertices.contains(&e.v2) {
-                border_vertices.push(e.v2);
-            }
-        }
-    }
-    border_vertices
-}
-
 pub fn build_meshlets_adjacency<T>(
     meshlets: &[MeshletData],
     vertices: &[T],
