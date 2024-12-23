@@ -111,10 +111,10 @@ pub(crate) fn expand(args: TraitArgs, mut input: ItemTrait, mode: Mode) -> Token
 
 fn augment_trait(input: &mut ItemTrait, mode: Mode) {
     input.items.push(parse_quote! {
-        fn register_as_serializable(registry: &inox_serializable::SerializableRegistryRc) where Self: Sized;
+        fn register_as_serializable() where Self: Sized;
     });
     input.items.push(parse_quote! {
-        fn unregister_as_serializable(registry: &inox_serializable::SerializableRegistryRc) where Self: Sized;
+        fn unregister_as_serializable() where Self: Sized;
     });
 
     if mode.ser {
@@ -146,16 +146,10 @@ fn externally_tagged(input: &ItemTrait) -> (TokenStream, TokenStream) {
     };
 
     let deserialize_impl = quote! {
-        unsafe {
-            if let Some(serializable_registry) = inox_serializable::SERIALIZABLE_REGISTRY.as_ref() {
-                serializable_registry.read().unwrap().deserialize::<SerializableInheritTrait, D>(deserializer,
-                        inox_serializable::DeserializeType::External {
-                            trait_object: #object_name
-                        })
-            } else {
-                panic!("inox_serializable::SERIALIZABLE_REGISTRY for externally_tagged is not set");
-            }
-        }
+        inox_serializable::SERIALIZABLE_REGISTRY.read().unwrap().deserialize::<SerializableInheritTrait, D>(deserializer,
+                inox_serializable::DeserializeType::External {
+                    trait_object: #object_name
+                })
     };
 
     (serialize_impl, deserialize_impl)
@@ -171,17 +165,11 @@ fn internally_tagged(tag: LitStr, input: &ItemTrait) -> (TokenStream, TokenStrea
         inox_serializable::internally::serialize(serializer, #tag, name, self)
     };
     let deserialize_impl = quote! {
-        unsafe {
-            if let Some(serializable_registry) = inox_serializable::SERIALIZABLE_REGISTRY.as_ref() {
-                serializable_registry.read().unwrap().deserialize::<SerializableInheritTrait, D>(deserializer,
+        inox_serializable::SERIALIZABLE_REGISTRY.read().unwrap().deserialize::<SerializableInheritTrait, D>(deserializer,
             inox_serializable::DeserializeType::Internal {
                 trait_object: #object_name,
                 tag: #tag,
             })
-        } else {
-            panic!("inox_serializable::SERIALIZABLE_REGISTRY for internally_tagged is not set");
-        }
-    }
     };
 
     (serialize_impl, deserialize_impl)
@@ -202,17 +190,11 @@ fn adjacently_tagged(
     };
 
     let deserialize_impl = quote! {
-        unsafe {
-            if let Some(serializable_registry) = inox_serializable::SERIALIZABLE_REGISTRY.as_ref() {
-                serializable_registry.read().unwrap().deserialize::<SerializableInheritTrait, D>(deserializer,
+        inox_serializable::SERIALIZABLE_REGISTRY.read().unwrap().deserialize::<SerializableInheritTrait, D>(deserializer,
             inox_serializable::DeserializeType::Adjacent {
                 trait_object: #object_name,
                 fields: &[#tag, #content],
             })
-        } else {
-            panic!("inox_serializable::SERIALIZABLE_REGISTRY for adjacently_tagged is not set");
-        }
-    }
     };
 
     (serialize_impl, deserialize_impl)

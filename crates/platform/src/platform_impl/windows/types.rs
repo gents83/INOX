@@ -262,7 +262,6 @@ pub enum DWMWINDOWATTRIBUTE {
 }
 
 #[repr(C)]
-
 pub struct WINDOWPOS {
     pub hwnd: HWND,
     pub hwndInsertAfter: HWND,

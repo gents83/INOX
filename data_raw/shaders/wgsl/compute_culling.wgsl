@@ -41,7 +41,7 @@ var default_sampler: sampler;
 fn is_box_inside_frustum(aabb_min: vec3<f32>, aabb_max: vec3<f32>, view_proj: mat4x4<f32>) -> bool {
     // Calculate AABB center and half-extents
     let center = (aabb_min + aabb_max) * 0.5;
-    let extents = (aabb_max - center);
+    let extents = (aabb_max - aabb_min) * 0.5;
 
     // Transform the center point into clip space
     var clip_center = view_proj * vec4(center, 1.0);

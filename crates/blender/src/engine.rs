@@ -1,6 +1,5 @@
 use crate::exporter::Exporter;
 use inox_resources::Singleton;
-use inox_serialize::inox_serializable::SerializableRegistryRc;
 use pyo3::prelude::PyAnyMethods;
 use pyo3::{pyclass, pymethods, PyResult, Python};
 
@@ -179,23 +178,17 @@ impl INOXEngine {
 
         let registry = LogicNodeRegistry::get(data);
 
-        registry.for_each_node(|node, serializable_registry| {
-            add_node_in_blender(node, serializable_registry, py)
-        });
+        registry.for_each_node(|node| add_node_in_blender(node, py));
         Ok(true)
     }
 }
 
-fn add_node_in_blender(
-    node: &dyn NodeType,
-    serializable_registry: &SerializableRegistryRc,
-    py: Python,
-) {
+fn add_node_in_blender(node: &dyn NodeType, py: Python) {
     let node_name = node.name();
     let category = node.category();
     let base_class = "LogicNodeBase";
     let description = node.description();
-    let serialized_class = node.serialize_node(serializable_registry.clone());
+    let serialized_class = node.serialize_node();
 
     py.import("INOX")
         .unwrap()

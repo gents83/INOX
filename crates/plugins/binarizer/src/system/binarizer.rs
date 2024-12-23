@@ -94,7 +94,7 @@ impl<const PLATFORM_TYPE: PlatformType> Binarizer<PLATFORM_TYPE> {
         );
         let font_compiler = FontCompiler::new(message_hub.clone(), data_raw_folder, data_folder);
         let image_compiler = ImageCompiler::new(message_hub.clone(), data_raw_folder, data_folder);
-        let gltf_compiler = GltfCompiler::new(shared_data.clone(), data_raw_folder, data_folder);
+        let gltf_compiler = GltfCompiler::new(data_raw_folder, data_folder);
         binarizer.add_handler(shader_compiler);
         binarizer.add_handler(font_compiler);
         binarizer.add_handler(image_compiler);
@@ -184,7 +184,6 @@ impl<const PLATFORM_TYPE: PlatformType> System for Binarizer<PLATFORM_TYPE> {
         let is_ready = self.is_ready.clone();
         let file_read_success = read_from_file(
             self.config.get_filepath(plugin_name).as_path(),
-            self.shared_data.serializable_registry(),
             SerializationType::Json,
             Box::new(move |data: Config| {
                 inox_log::debug_log!(

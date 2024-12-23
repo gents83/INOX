@@ -176,7 +176,9 @@ impl App {
     }
 
     pub fn add_dynamic_plugin(&mut self, lib_path: &Path) -> PluginId {
-        let plugin_data = PluginManager::create_plugin_data(lib_path, self.context());
+        let plugin_data = self
+            .plugin_manager
+            .create_plugin_data(lib_path, &self.context);
         self.plugin_manager.add_dynamic_plugin(plugin_data)
     }
 
@@ -218,8 +220,9 @@ impl App {
 
     fn reload_dynamic_plugins(&mut self, plugins_to_reload: Vec<PathBuf>) {
         for lib_path in plugins_to_reload.into_iter() {
-            let reloaded_plugin_data =
-                PluginManager::create_plugin_data(lib_path.as_path(), self.context());
+            let reloaded_plugin_data = self
+                .plugin_manager
+                .create_plugin_data(lib_path.as_path(), &self.context);
             self.plugin_manager.add_dynamic_plugin(reloaded_plugin_data);
         }
     }

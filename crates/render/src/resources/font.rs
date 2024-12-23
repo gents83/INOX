@@ -8,7 +8,6 @@ use inox_resources::{
     DataTypeResource, Handle, ResourceId, ResourceTrait, SerializableResource, SharedData,
     SharedDataRc,
 };
-use inox_serialize::inox_serializable::SerializableRegistryRc;
 use inox_uid::{generate_random_uid, INVALID_UID};
 use std::path::{Path, PathBuf};
 
@@ -90,7 +89,6 @@ impl SerializableResource for Font {
     }
     fn deserialize_data(
         path: &Path,
-        _registry: SerializableRegistryRc,
         mut f: Box<dyn FnMut(Self::DataType) + 'static>,
     ) {
         f(FontData::new(path));

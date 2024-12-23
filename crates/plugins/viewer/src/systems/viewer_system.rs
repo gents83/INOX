@@ -100,7 +100,7 @@ impl System for ViewerSystem {
                 .read()
                 .unwrap()
                 .tlas_starting_index();
-            if tlas_index < bvh.item_count() as u32 {
+            if tlas_index < bvh.total_len() as u32 {
                 let max: Vector3 = bvh.data()[tlas_index as usize].max.into();
                 let min: Vector3 = bvh.data()[tlas_index as usize].min.into();
                 let length = (max - min).length();

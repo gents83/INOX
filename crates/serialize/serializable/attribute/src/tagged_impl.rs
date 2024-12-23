@@ -29,29 +29,24 @@ pub(crate) fn expand(args: ImplArgs, mut input: ItemImpl, mode: Mode) -> TokenSt
 
     if mode.de {
         input.items.push(parse_quote! {
-            fn register_as_serializable(registry: &inox_serializable::SerializableRegistryRc)
+            fn register_as_serializable()
             where Self: Sized 
             {
-                unsafe {
-                    if inox_serializable::SERIALIZABLE_REGISTRY.is_none() {
-                        inox_serializable::SERIALIZABLE_REGISTRY.replace(registry.clone());
-                    }
-                }
                 let func = (|deserializer| std::result::Result::Ok(
                     std::boxed::Box::new(
                         inox_serializable::erased_serde::deserialize::<#this>(deserializer)?
                     ),
                 )) as inox_serializable::DeserializeFn<<dyn #object as inox_serializable::InheritTrait>::Object>;
                 
-                registry.write().unwrap().register_type::< <dyn #object as inox_serializable::InheritTrait>::Object >(#name, func);  
+                inox_serializable::SERIALIZABLE_REGISTRY.write().unwrap().register_type::< <dyn #object as inox_serializable::InheritTrait>::Object >(#name, func);  
             
             }
         });
         input.items.push(parse_quote! {
-            fn unregister_as_serializable(registry: &inox_serializable::SerializableRegistryRc)
+            fn unregister_as_serializable()
             where Self: Sized 
             {
-                registry.write().unwrap().unregister_type::< <dyn #object as inox_serializable::InheritTrait>::Object >(#name);  
+                inox_serializable::SERIALIZABLE_REGISTRY.write().unwrap().unregister_type::< <dyn #object as inox_serializable::InheritTrait>::Object >(#name);  
             }
         });
     }

@@ -7,7 +7,7 @@ pub struct MapLookupVisitor<'a, T: ?Sized + 'static> {
     pub registry: &'a Registry<T>,
 }
 
-impl<'de, 'a, T: ?Sized + 'static> Visitor<'de> for MapLookupVisitor<'a, T> {
+impl<T: ?Sized + 'static> Visitor<'_> for MapLookupVisitor<'_, T> {
     type Value = DeserializeFn<T>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -32,7 +32,7 @@ impl<'de, 'a, T: ?Sized + 'static> Visitor<'de> for MapLookupVisitor<'a, T> {
     }
 }
 
-impl<'de, 'a, T: ?Sized + 'static> DeserializeSeed<'de> for MapLookupVisitor<'a, T> {
+impl<'de, T: ?Sized + 'static> DeserializeSeed<'de> for MapLookupVisitor<'_, T> {
     type Value = DeserializeFn<T>;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>

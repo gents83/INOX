@@ -63,17 +63,17 @@ metis = { git = "https://github.com/LIHPC-Computational-Geometry/metis-rs"}
 
 futures = { git = "https://github.com/rust-lang/futures-rs", features = ["std", "thread-pool"] }
 raw-window-handle = { version = "0.6" }
-serde = { version = "1.0", features = ["derive", "rc"]}
-serde_derive = { version = "1.0"}
-erased-serde = { version = "0.3" }
+serde = { version = "1.0.194", features = ["derive", "rc"]}
+serde_derive = { version = "1.0.194"}
+erased-serde = { version = "0.4.5" }
 rspirv = { version = "0.11" }
 
 # wasm32
-js-sys = "0.3.69"
-wasm-bindgen = "0.2.87"
-wasm-bindgen-futures = "0.4.42"
-wasm-bindgen-test = "0.3"
-web-sys = { version = "0.3.69", features = [
+js-sys = "0.3.76"
+wasm-bindgen = "0.2.99"
+wasm-bindgen-futures = "0.4.49"
+wasm-bindgen-test = "0.3.49"
+web-sys = { version = "0.3.76", features = [
     "Request", 
     "Response", 
     "Document",

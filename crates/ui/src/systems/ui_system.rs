@@ -328,7 +328,6 @@ impl System for UISystem {
         let filename = self.config.get_filename().to_string();
         read_from_file(
             self.config.get_filepath(plugin_name).as_path(),
-            self.shared_data.serializable_registry(),
             SerializationType::Json,
             Box::new(move |data: Config| {
                 message_hub.send_event(ConfigEvent::Loaded(filename.clone(), data));

@@ -9,7 +9,6 @@ use inox_resources::{
     Data, DataTypeResource, Handle, Resource, ResourceEvent, ResourceId, ResourceTrait,
     SerializableResource, SharedData, SharedDataRc,
 };
-use inox_serialize::inox_serializable::SerializableRegistryRc;
 use inox_uid::{generate_random_uid, Uid, INVALID_UID};
 
 use crate::{
@@ -123,11 +122,7 @@ impl SerializableResource for Texture {
         "png"
     }
 
-    fn deserialize_data(
-        path: &Path,
-        _registry: SerializableRegistryRc,
-        mut f: Box<dyn FnMut(Self::DataType) + 'static>,
-    ) {
+    fn deserialize_data(path: &Path, mut f: Box<dyn FnMut(Self::DataType) + 'static>) {
         let mut file = File::new(path);
         let filepath = path.to_path_buf();
         file.load(move |bytes| {

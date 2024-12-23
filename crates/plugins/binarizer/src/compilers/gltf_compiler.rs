@@ -30,12 +30,8 @@ use inox_render::{
 };
 
 use inox_nodes::LogicData;
-use inox_resources::SharedDataRc;
 use inox_scene::{CameraData, ObjectData, SceneData};
-use inox_serialize::{
-    deserialize, inox_serializable::SerializableRegistryRc, Deserialize, SerializationType,
-    Serialize, SerializeFile,
-};
+use inox_serialize::{deserialize, Deserialize, SerializationType, Serialize, SerializeFile};
 use mikktspace::{generate_tangents, Geometry};
 
 const GLTF_EXTENSION: &str = "gltf";
@@ -103,7 +99,6 @@ impl Geometry for GltfGeometry {
 
 #[derive(Default)]
 pub struct GltfCompiler {
-    shared_data: SharedDataRc,
     data_raw_folder: PathBuf,
     data_folder: PathBuf,
     node_index: usize,
@@ -112,9 +107,8 @@ pub struct GltfCompiler {
 }
 
 impl GltfCompiler {
-    pub fn new(shared_data: SharedDataRc, data_raw_folder: &Path, data_folder: &Path) -> Self {
+    pub fn new(data_raw_folder: &Path, data_folder: &Path) -> Self {
         Self {
-            shared_data,
             data_raw_folder: data_raw_folder.to_path_buf(),
             data_folder: data_folder.to_path_buf(),
             node_index: 0,
@@ -179,11 +173,7 @@ impl GltfCompiler {
         let starting_offset = view_offset + accessor_offset;
         let view_stride = view.stride().unwrap_or(0);
         let type_stride = T::size();
-        let stride = if view_stride > type_stride {
-            view_stride - type_stride
-        } else {
-            0
-        };
+        let stride = view_stride.saturating_sub(type_stride);
         let mut result = Vec::new();
         file.seek(SeekFrom::Start(starting_offset as _)).ok();
         for _i in 0..count {
@@ -452,7 +442,6 @@ impl GltfCompiler {
                 &mesh_data,
                 mesh_name,
                 "mesh",
-                self.shared_data.serializable_registry(),
                 SerializationType::Binary,
             )
         } else {
@@ -641,7 +630,6 @@ impl GltfCompiler {
                 &material_data,
                 primitive.material().name().unwrap_or(&name),
                 "material",
-                self.shared_data.serializable_registry(),
                 SerializationType::Binary,
             )
         } else {
@@ -693,10 +681,7 @@ impl GltfCompiler {
             ));
         }
         if let Some(extras) = node.extras() {
-            if let Some(extras) = deserialize::<Extras>(
-                extras.to_string().as_bytes(),
-                self.shared_data.serializable_registry(),
-            ) {
+            if let Some(extras) = deserialize::<Extras>(extras.to_string().as_bytes()) {
                 if !extras.inox_properties.logic.name.is_empty() {
                     let mut path = path
                         .parent()
@@ -754,7 +739,6 @@ impl GltfCompiler {
                 &object_data,
                 node_name,
                 "object",
-                self.shared_data.serializable_registry(),
                 SerializationType::Binary,
             ),
         )
@@ -795,14 +779,7 @@ impl GltfCompiler {
         let name = format!("Node_{}_Light_{}", self.node_index, light.index());
         (
             NodeType::Light,
-            self.create_file(
-                path,
-                &light_data,
-                &name,
-                "light",
-                self.shared_data.serializable_registry(),
-                SerializationType::Binary,
-            ),
+            self.create_file(path, &light_data, &name, "light", SerializationType::Binary),
         )
     }
 
@@ -829,7 +806,6 @@ impl GltfCompiler {
                 &camera_data,
                 &name,
                 "camera",
-                self.shared_data.serializable_registry(),
                 SerializationType::Binary,
             ),
         )
@@ -899,14 +875,7 @@ impl GltfCompiler {
                         }
                     }
 
-                    self.create_file(
-                        path,
-                        &scene_data,
-                        scene_name,
-                        "",
-                        self.shared_data.serializable_registry(),
-                        SerializationType::Binary,
-                    );
+                    self.create_file(path, &scene_data, scene_name, "", SerializationType::Binary);
                 }
             }
         }
@@ -944,7 +913,6 @@ impl GltfCompiler {
         data: &T,
         new_name: &str,
         folder: &str,
-        serializable_registry: SerializableRegistryRc,
         serialization_type: SerializationType,
     ) -> PathBuf
     where
@@ -957,11 +925,7 @@ impl GltfCompiler {
         }
         if need_to_binarize(path, new_path.as_path()) {
             debug_log!("Serializing {:?}", new_path);
-            data.save_to_file(
-                new_path.as_path(),
-                serializable_registry,
-                serialization_type,
-            );
+            data.save_to_file(new_path.as_path(), serialization_type);
         }
         new_path
     }

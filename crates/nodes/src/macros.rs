@@ -101,21 +101,14 @@ macro_rules! implement_node {
             {
                 Box::new(self.clone())
             }
-            fn serialize_node(
-                &self,
-                registry: inox_serializable::SerializableRegistryRc,
-            ) -> Vec<u8> {
-                inox_serialize::serialize(self, registry)
+            fn serialize_node(&self) -> Vec<u8> {
+                inox_serialize::serialize(self)
             }
-            fn deserialize_node(
-                &self,
-                s: &[u8],
-                registry: inox_serializable::SerializableRegistryRc,
-            ) -> Option<Self>
+            fn deserialize_node(&self, s: &[u8]) -> Option<Self>
             where
                 Self: Sized,
             {
-                inox_serialize::deserialize(s, registry)
+                inox_serialize::deserialize(s)
             }
         }
     };

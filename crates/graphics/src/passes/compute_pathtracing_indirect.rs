@@ -303,8 +303,8 @@ impl Pass for ComputePathTracingIndirectPass {
 
         let x_pixels_managed_in_shader = 8;
         let y_pixels_managed_in_shader = 8;
-        let x = (self.dimensions.0 + x_pixels_managed_in_shader - 1) / x_pixels_managed_in_shader;
-        let y = (self.dimensions.1 + y_pixels_managed_in_shader - 1) / y_pixels_managed_in_shader;
+        let x = self.dimensions.0.div_ceil(x_pixels_managed_in_shader);
+        let y = self.dimensions.1.div_ceil(y_pixels_managed_in_shader);
 
         pass.dispatch(
             render_context,

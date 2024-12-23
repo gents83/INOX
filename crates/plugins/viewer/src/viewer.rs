@@ -96,7 +96,6 @@ impl Plugin for Viewer {
 
         read_from_file(
             config.get_filepath(self.name()).as_path(),
-            context.shared_data().serializable_registry(),
             SerializationType::Json,
             Box::new(move |data: Config| {
                 if let Some(ui_pass) =

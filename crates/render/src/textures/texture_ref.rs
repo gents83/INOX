@@ -95,13 +95,14 @@ impl TextureRef {
         };
         //create_mips
         for _ in 0..mips_count {
-            texture.add_view(format, dimension.unwrap(), layers_count);
+            texture.add_view(format, Some(usage), dimension.unwrap(), layers_count);
         }
         texture
     }
     fn add_view(
         &mut self,
         format: TextureFormat,
+        usage: Option<wgpu::TextureUsages>,
         dimension: wgpu::TextureViewDimension,
         layers_count: u32,
     ) {
@@ -110,6 +111,7 @@ impl TextureRef {
             format: Some(format.into()),
             dimension: Some(dimension),
             aspect: format.aspect(),
+            usage,
             base_mip_level: self.views.len() as _,
             mip_level_count: Some(1),
             base_array_layer: 0,
@@ -178,15 +180,15 @@ impl TextureRef {
 
         inox_profiler::gpu_scoped_profile!(encoder, device, "encoder::copy_buffer_to_texture");
         encoder.copy_buffer_to_texture(
-            wgpu::ImageCopyBuffer {
+            wgpu::TexelCopyBufferInfo {
                 buffer: &buffer,
-                layout: wgpu::ImageDataLayout {
+                layout: wgpu::TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(bytes_per_row as _),
                     rows_per_image: Some(area_height),
                 },
             },
-            wgpu::ImageCopyTexture {
+            wgpu::TexelCopyTextureInfo {
                 texture: &self.texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d {

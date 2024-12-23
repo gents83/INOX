@@ -9,8 +9,7 @@ use inox_resources::{
     DataTypeResource, DataTypeResourceEvent, Handle, Resource, ResourceEvent, ResourceId,
     ResourceTrait, SerializableResource, SharedData, SharedDataRc,
 };
-use inox_serialize::{
-    inox_serializable::SerializableRegistryRc, read_from_file, SerializationType, SerializeFile,
+use inox_serialize::{ read_from_file, SerializationType, SerializeFile,
 };
 
 pub type MeshId = ResourceId;
@@ -30,8 +29,7 @@ pub enum MeshFlags {
 #[test]
 fn test_serialize() {
     let flags = MeshFlags::Visible | MeshFlags::Tranparent;
-    let registry = SerializableRegistryRc::default();
-    let s = inox_serialize::serialize(&flags, registry);
+    let s = inox_serialize::serialize(&flags);
     println!("{}", String::from_utf8(s).unwrap());
 }
 
@@ -75,10 +73,9 @@ impl SerializableResource for Mesh {
 
     fn deserialize_data(
         path: &std::path::Path,
-        registry: SerializableRegistryRc,
         f: Box<dyn FnMut(Self::DataType) + 'static>,
     ) {
-        read_from_file::<Self::DataType>(path, registry, SerializationType::Binary, f);
+        read_from_file::<Self::DataType>(path, SerializationType::Binary, f);
     }
 }
 

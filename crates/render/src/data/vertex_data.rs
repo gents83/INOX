@@ -146,11 +146,25 @@ pub enum VertexFormat {
     Float64x3 = wgpu::VertexFormat::Float64x3 as _,
     Float64x4 = wgpu::VertexFormat::Float64x4 as _,
     Unorm10_10_10_2 = wgpu::VertexFormat::Unorm10_10_10_2 as _,
+    Uint8 = wgpu::VertexFormat::Uint8 as _,
+    Sint8 = wgpu::VertexFormat::Sint8 as _,
+    Unorm8 = wgpu::VertexFormat::Unorm8 as _,
+    Snorm8 = wgpu::VertexFormat::Snorm8 as _,
+    Uint16 = wgpu::VertexFormat::Uint16 as _,
+    Sint16 = wgpu::VertexFormat::Sint16 as _,
+    Unorm16 = wgpu::VertexFormat::Unorm16 as _,
+    Snorm16 = wgpu::VertexFormat::Snorm16 as _,
+    Float16 = wgpu::VertexFormat::Float16 as _,
+    Unorm8x4Bgra = wgpu::VertexFormat::Unorm8x4Bgra as _,
 }
 
 impl From<VertexFormat> for wgpu::VertexFormat {
     fn from(format: VertexFormat) -> wgpu::VertexFormat {
         match format {
+            VertexFormat::Uint8 => wgpu::VertexFormat::Uint8,
+            VertexFormat::Sint8 => wgpu::VertexFormat::Sint8,
+            VertexFormat::Unorm8 => wgpu::VertexFormat::Unorm8,
+            VertexFormat::Snorm8 => wgpu::VertexFormat::Snorm8,
             VertexFormat::Uint8x2 => wgpu::VertexFormat::Uint8x2,
             VertexFormat::Uint8x4 => wgpu::VertexFormat::Uint8x4,
             VertexFormat::Sint8x2 => wgpu::VertexFormat::Sint8x2,
@@ -159,6 +173,10 @@ impl From<VertexFormat> for wgpu::VertexFormat {
             VertexFormat::Unorm8x4 => wgpu::VertexFormat::Unorm8x4,
             VertexFormat::Snorm8x2 => wgpu::VertexFormat::Snorm8x2,
             VertexFormat::Snorm8x4 => wgpu::VertexFormat::Snorm8x4,
+            VertexFormat::Uint16 => wgpu::VertexFormat::Uint16,
+            VertexFormat::Sint16 => wgpu::VertexFormat::Sint16,
+            VertexFormat::Unorm16 => wgpu::VertexFormat::Unorm16,
+            VertexFormat::Snorm16 => wgpu::VertexFormat::Snorm16,
             VertexFormat::Uint16x2 => wgpu::VertexFormat::Uint16x2,
             VertexFormat::Uint16x4 => wgpu::VertexFormat::Uint16x4,
             VertexFormat::Sint16x2 => wgpu::VertexFormat::Sint16x2,
@@ -167,6 +185,7 @@ impl From<VertexFormat> for wgpu::VertexFormat {
             VertexFormat::Unorm16x4 => wgpu::VertexFormat::Unorm16x4,
             VertexFormat::Snorm16x2 => wgpu::VertexFormat::Snorm16x2,
             VertexFormat::Snorm16x4 => wgpu::VertexFormat::Snorm16x4,
+            VertexFormat::Float16 => wgpu::VertexFormat::Float16,
             VertexFormat::Float16x2 => wgpu::VertexFormat::Float16x2,
             VertexFormat::Float16x4 => wgpu::VertexFormat::Float16x4,
             VertexFormat::Float32 => wgpu::VertexFormat::Float32,
@@ -186,6 +205,7 @@ impl From<VertexFormat> for wgpu::VertexFormat {
             VertexFormat::Float64x3 => wgpu::VertexFormat::Float64x3,
             VertexFormat::Float64x4 => wgpu::VertexFormat::Float64x4,
             VertexFormat::Unorm10_10_10_2 => wgpu::VertexFormat::Unorm10_10_10_2,
+            VertexFormat::Unorm8x4Bgra => wgpu::VertexFormat::Unorm8x4Bgra,
         }
     }
 }
@@ -193,6 +213,10 @@ impl From<VertexFormat> for wgpu::VertexFormat {
 impl From<wgpu::VertexFormat> for VertexFormat {
     fn from(format: wgpu::VertexFormat) -> Self {
         match format {
+            wgpu::VertexFormat::Uint8 => VertexFormat::Uint8,
+            wgpu::VertexFormat::Sint8 => VertexFormat::Sint8,
+            wgpu::VertexFormat::Unorm8 => VertexFormat::Unorm8,
+            wgpu::VertexFormat::Snorm8 => VertexFormat::Snorm8,
             wgpu::VertexFormat::Uint8x2 => VertexFormat::Uint8x2,
             wgpu::VertexFormat::Uint8x4 => VertexFormat::Uint8x4,
             wgpu::VertexFormat::Sint8x2 => VertexFormat::Sint8x2,
@@ -201,6 +225,10 @@ impl From<wgpu::VertexFormat> for VertexFormat {
             wgpu::VertexFormat::Unorm8x4 => VertexFormat::Unorm8x4,
             wgpu::VertexFormat::Snorm8x2 => VertexFormat::Snorm8x2,
             wgpu::VertexFormat::Snorm8x4 => VertexFormat::Snorm8x4,
+            wgpu::VertexFormat::Uint16 => VertexFormat::Uint16,
+            wgpu::VertexFormat::Sint16 => VertexFormat::Sint16,
+            wgpu::VertexFormat::Unorm16 => VertexFormat::Unorm16,
+            wgpu::VertexFormat::Snorm16 => VertexFormat::Snorm16,
             wgpu::VertexFormat::Uint16x2 => VertexFormat::Uint16x2,
             wgpu::VertexFormat::Uint16x4 => VertexFormat::Uint16x4,
             wgpu::VertexFormat::Sint16x2 => VertexFormat::Sint16x2,
@@ -209,6 +237,7 @@ impl From<wgpu::VertexFormat> for VertexFormat {
             wgpu::VertexFormat::Unorm16x4 => VertexFormat::Unorm16x4,
             wgpu::VertexFormat::Snorm16x2 => VertexFormat::Snorm16x2,
             wgpu::VertexFormat::Snorm16x4 => VertexFormat::Snorm16x4,
+            wgpu::VertexFormat::Float16 => VertexFormat::Float16,
             wgpu::VertexFormat::Float16x2 => VertexFormat::Float16x2,
             wgpu::VertexFormat::Float16x4 => VertexFormat::Float16x4,
             wgpu::VertexFormat::Float32 => VertexFormat::Float32,
@@ -228,6 +257,7 @@ impl From<wgpu::VertexFormat> for VertexFormat {
             wgpu::VertexFormat::Float64x3 => VertexFormat::Float64x3,
             wgpu::VertexFormat::Float64x4 => VertexFormat::Float64x4,
             wgpu::VertexFormat::Unorm10_10_10_2 => VertexFormat::Unorm10_10_10_2,
+            wgpu::VertexFormat::Unorm8x4Bgra => VertexFormat::Unorm8x4Bgra,
         }
     }
 }

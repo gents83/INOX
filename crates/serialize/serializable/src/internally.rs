@@ -54,7 +54,7 @@ struct TaggedVisitor<'a, T: ?Sized + 'static> {
     registry: &'a Registry<T>,
 }
 
-impl<'a, 'de, T: ?Sized> Visitor<'de> for TaggedVisitor<'a, T> {
+impl<'de, T: ?Sized> Visitor<'de> for TaggedVisitor<'_, T> {
     type Value = Box<T>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -127,7 +127,7 @@ struct KeyVisitor {
     tag: &'static str,
 }
 
-impl<'de> Visitor<'de> for KeyVisitor {
+impl Visitor<'_> for KeyVisitor {
     type Value = Key;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -635,7 +635,7 @@ where
 
 struct DefaultKey;
 
-impl<'de> Visitor<'de> for DefaultKey {
+impl Visitor<'_> for DefaultKey {
     type Value = ();
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

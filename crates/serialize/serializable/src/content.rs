@@ -41,7 +41,7 @@ pub enum Content<'de> {
     Map(Vec<(Content<'de>, Content<'de>)>),
 }
 
-impl<'de> Content<'de> {
+impl Content<'_> {
     fn unexpected(&self) -> Unexpected {
         match *self {
             Content::Bool(b) => Unexpected::Bool(b),

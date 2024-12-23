@@ -33,7 +33,7 @@ implement_pin!(bool);
 implement_pin!(String);
 
 pub fn register_nodes(shared_data: &SharedDataRc) {
-    shared_data.register_singleton(LogicNodeRegistry::new(shared_data.serializable_registry()));
+    shared_data.register_singleton(LogicNodeRegistry::default());
 
     let registry = LogicNodeRegistry::get(shared_data);
     //Registering basic types

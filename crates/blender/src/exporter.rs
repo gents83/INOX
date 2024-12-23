@@ -7,7 +7,7 @@ use std::{
 use pyo3::{
     prelude::PyAnyMethods,
     types::{PyDict, PyList},
-    PyObject, PyResult, Python, ToPyObject,
+    IntoPyObjectExt, PyObject, PyResult, Python,
 };
 
 use inox_nodes::LogicData;
@@ -74,11 +74,11 @@ impl Exporter {
         // For every Blender scene
         let scenes = data.getattr("scenes")?.call_method("values", (), None)?;
         let scenes = scenes.downcast::<PyList>()?;
-        if let Ok(scene) = scenes.iter() {
+        if let Ok(scene) = scenes.try_iter() {
             let objects = scene.getattr("objects")?.call_method("values", (), None)?;
             let objects = objects.downcast::<PyList>()?;
-            if let Ok(object) = objects.iter() {
-                self.process_object_properties(py, &object.to_object(py), export_dir)?;
+            if let Ok(object) = objects.try_iter() {
+                self.process_object_properties(py, &object.into_py_any(py)?, export_dir)?;
             }
         }
         Ok(true)

@@ -218,7 +218,7 @@ impl Pass for CommandsPass {
         }
 
         let workgroup_max_size = 256;
-        let workgroup_size = (num + workgroup_max_size - 1) / workgroup_max_size;
+        let workgroup_size = num.div_ceil(workgroup_max_size);
 
         let pass = self.compute_pass.get();
         pass.dispatch(

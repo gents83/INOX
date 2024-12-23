@@ -155,11 +155,7 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
                         spirv_code,
                         ..Default::default()
                     };
-                    shader_data.save_to_file(
-                        new_path.as_path(),
-                        self.shared_data.serializable_registry(),
-                        SerializationType::Binary,
-                    );
+                    shader_data.save_to_file(new_path.as_path(), SerializationType::Binary);
                     send_reloaded_event(&self.message_hub, new_path.as_path());
                 }
                 delete_file(temp_path);
@@ -246,11 +242,7 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
                                 wgsl_code: preprocessed_code,
                                 ..Default::default()
                             };
-                            shader_data.save_to_file(
-                                new_path.as_path(),
-                                self.shared_data.serializable_registry(),
-                                SerializationType::Binary,
-                            );
+                            shader_data.save_to_file(new_path.as_path(), SerializationType::Binary);
                             send_reloaded_event(&self.message_hub, new_path.as_path());
                         }
                         Err(e) => {

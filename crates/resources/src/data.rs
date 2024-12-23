@@ -4,7 +4,6 @@ use inox_filesystem::{convert_from_local_path, File};
 use inox_messenger::MessageHubRc;
 
 use inox_log::debug_log;
-use inox_serialize::inox_serializable::SerializableRegistryRc;
 use inox_uid::generate_uid_from_string;
 
 use crate::{
@@ -64,11 +63,7 @@ pub trait SerializableResource: DataTypeResource + Sized + Clone {
     fn set_path(&mut self, path: &Path) -> &mut Self;
     fn path(&self) -> &Path;
     fn extension() -> &'static str;
-    fn deserialize_data(
-        path: &Path,
-        registry: SerializableRegistryRc,
-        f: Box<dyn FnMut(Self::DataType) + 'static>,
-    );
+    fn deserialize_data(path: &Path, f: Box<dyn FnMut(Self::DataType) + 'static>);
     fn is_matching_extension(path: &Path) -> bool {
         if let Some(extension) = path.extension() {
             if let Some(ext) = extension.to_str() {
@@ -114,7 +109,6 @@ pub trait SerializableResource: DataTypeResource + Sized + Clone {
         let cloned_path = path.clone();
         Self::deserialize_data(
             path.as_path(),
-            shared_data.serializable_registry().clone(),
             Box::new(move |data| {
                 let resource_id = generate_uid_from_string(cloned_path.as_path().to_str().unwrap());
                 let resource = Self::new_resource(

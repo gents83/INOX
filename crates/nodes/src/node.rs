@@ -5,7 +5,7 @@ use std::{
 
 use crate::{LogicContext, Pin, PinId};
 use inox_serialize::{
-    inox_serializable::{self, SerializableRegistryRc},
+    inox_serializable::{self},
     Deserialize, Serialize,
 };
 use inox_uid::{generate_uid_from_string, Uid};
@@ -53,8 +53,8 @@ pub trait NodeTrait: Any + Send + Sync + 'static {
     fn execytion_type(&self) -> NodeExecutionType;
     fn execute(&mut self, pin: &PinId, context: &LogicContext) -> NodeState;
     fn duplicate(&self) -> Box<dyn NodeTrait + Send + Sync>;
-    fn serialize_node(&self, registry: SerializableRegistryRc) -> Vec<u8>;
-    fn deserialize_node(&self, s: &[u8], registry: SerializableRegistryRc) -> Option<Self>
+    fn serialize_node(&self) -> Vec<u8>;
+    fn deserialize_node(&self, s: &[u8]) -> Option<Self>
     where
         Self: Sized;
 }
