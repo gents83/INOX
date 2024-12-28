@@ -111,7 +111,7 @@ impl Info {
         let data = Data {
             context: context.clone(),
             params,
-            use_orbit_camera: true,
+            use_orbit_camera: false,
             show_hierarchy: false,
             show_graphics: false,
             show_tlas: false,
