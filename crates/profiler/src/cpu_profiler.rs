@@ -1,7 +1,5 @@
 #![allow(improper_ctypes_definitions)]
 
-use inox_filesystem::Library;
-
 use inox_platform::{get_raw_thread_id, RawThreadId};
 use std::{
     cell::RefCell,
@@ -9,11 +7,10 @@ use std::{
     fs::File,
     io::BufWriter,
     process,
-    ptr::addr_of,
     sync::{
         atomic::{AtomicBool, AtomicU64},
         mpsc::{channel, Receiver, Sender},
-        Arc, Mutex,
+        Arc, LazyLock, Mutex,
     },
     thread,
 };
@@ -22,31 +19,10 @@ use crate::current_time_in_micros;
 
 pub type GlobalCpuProfiler = Arc<CpuProfiler>;
 
-pub static mut INOX_PROFILER_LIB: Option<Library> = None;
+pub static GLOBAL_CPU_PROFILER: LazyLock<GlobalCpuProfiler> =
+    LazyLock::new(|| Arc::new(CpuProfiler::new()));
 
-pub const GET_CPU_PROFILER_FUNCTION_NAME: &str = "get_cpu_profiler";
-pub type PfnGetCpuProfiler = ::std::option::Option<unsafe extern "C" fn() -> GlobalCpuProfiler>;
-
-pub const CREATE_CPU_PROFILER_FUNCTION_NAME: &str = "create_cpu_profiler";
-pub type PfnCreateCpuProfiler = ::std::option::Option<unsafe extern "C" fn()>;
-
-pub static mut GLOBAL_CPU_PROFILER: Option<GlobalCpuProfiler> = None;
 thread_local!(pub static THREAD_PROFILER: RefCell<Option<Arc<ThreadProfiler>>> = const { RefCell::new(None) });
-
-#[no_mangle]
-pub extern "C" fn get_cpu_profiler() -> GlobalCpuProfiler {
-    unsafe { GLOBAL_CPU_PROFILER.as_ref().unwrap().clone() }
-}
-
-#[no_mangle]
-pub extern "C" fn create_cpu_profiler() {
-    unsafe {
-        GLOBAL_CPU_PROFILER.replace(Arc::new(CpuProfiler::new()));
-        if let Some(profiler) = &*addr_of!(GLOBAL_CPU_PROFILER) {
-            profiler.current_thread_profiler();
-        }
-    }
-}
 
 struct ThreadInfo {
     index: usize,

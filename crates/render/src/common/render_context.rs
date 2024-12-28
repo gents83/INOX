@@ -216,8 +216,6 @@ impl RenderContext {
         surface.configure(&device, &config);
         let _ = surface.get_current_texture();
 
-        inox_profiler::create_gpu_profiler!();
-
         let webgpu = WebGpuContext {
             instance,
             surface,

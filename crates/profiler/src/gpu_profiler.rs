@@ -1,7 +1,7 @@
 #![cfg(feature = "gpu")]
 #![allow(improper_ctypes_definitions)]
 
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 
 use crate::ThreadProfiler;
 
@@ -12,35 +12,17 @@ pub struct GpuProfiler {
 
 pub type GlobalGpuProfiler = Arc<RwLock<GpuProfiler>>;
 
-pub const GET_GPU_PROFILER_FUNCTION_NAME: &str = "get_gpu_profiler";
-pub type PfnGetGpuProfiler = ::std::option::Option<unsafe extern "C" fn() -> GlobalGpuProfiler>;
-
-pub const CREATE_GPU_PROFILER_FUNCTION_NAME: &str = "create_gpu_profiler";
-pub type PfnCreateGpuProfiler = ::std::option::Option<unsafe extern "C" fn()>;
-
-pub static mut GLOBAL_GPU_PROFILER: Option<GlobalGpuProfiler> = None;
-
-#[no_mangle]
-pub extern "C" fn create_gpu_profiler() {
-    unsafe {
-        if GLOBAL_GPU_PROFILER.is_none() {
-            let settings = wgpu_profiler::GpuProfilerSettings {
-                enable_timer_queries: false,
-                ..Default::default()
-            };
-            if let Ok(wgpu_profiler) = wgpu_profiler::GpuProfiler::new(settings.clone()) {
-                GLOBAL_GPU_PROFILER.replace(Arc::new(RwLock::new(GpuProfiler {
-                    wgpu_profiler,
-                    settings,
-                })));
-            }
-        }
-    }
-}
-#[no_mangle]
-pub extern "C" fn get_gpu_profiler() -> GlobalGpuProfiler {
-    unsafe { GLOBAL_GPU_PROFILER.as_ref().unwrap().clone() }
-}
+pub static GLOBAL_GPU_PROFILER: LazyLock<GlobalGpuProfiler> = LazyLock::new(|| {
+    let settings = wgpu_profiler::GpuProfilerSettings {
+        enable_timer_queries: false,
+        ..Default::default()
+    };
+    let wgpu_profiler = wgpu_profiler::GpuProfiler::new(settings.clone()).unwrap();
+    Arc::new(RwLock::new(GpuProfiler {
+        wgpu_profiler,
+        settings,
+    }))
+});
 
 impl GpuProfiler {
     pub fn enable(&mut self, enabled: bool) -> &mut Self {
@@ -55,7 +37,7 @@ impl GpuProfiler {
         label: &str,
         encoder_or_pass: &'a mut P,
         device: &wgpu::Device,
-    ) -> wgpu_profiler::Scope<P>
+    ) -> wgpu_profiler::Scope<'a, P>
     where
         P: wgpu_profiler::ProfilerCommandRecorder,
     {
