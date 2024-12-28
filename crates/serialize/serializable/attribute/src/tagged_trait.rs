@@ -1,7 +1,7 @@
 use crate::{Mode, TraitArgs};
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{parse_quote, Error, Ident, ItemTrait, LitStr, TraitBoundModifier, TypeParamBound};
+use syn::{parse_quote, Error, ItemTrait, LitStr, TraitBoundModifier, TypeParamBound};
 
 pub(crate) fn expand(args: TraitArgs, mut input: ItemTrait, mode: Mode) -> TokenStream {
     if mode.de && !input.generics.params.is_empty() {
@@ -79,6 +79,7 @@ pub(crate) fn expand(args: TraitArgs, mut input: ItemTrait, mode: Mode) -> Token
                 type Object = dyn #object + #inherit;
             }
 
+            #[allow(unknown_lints, non_local_definitions)] // false positive: https://github.com/rust-lang/rust/issues/121621
             impl<'de> inox_serializable::serde::Deserialize<'de> for std::boxed::Box<dyn #object + #inherit> {
                 fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
                 where
@@ -91,6 +92,7 @@ pub(crate) fn expand(args: TraitArgs, mut input: ItemTrait, mode: Mode) -> Token
 
         for marker_traits in others {
             expanded.extend(quote! {
+                #[allow(unknown_lints, non_local_definitions)] // false positive: https://github.com/rust-lang/rust/issues/121621
                 impl<'de> inox_serializable::serde::Deserialize<'de> for std::boxed::Box<dyn #object + #marker_traits> {
                     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
                     where
@@ -214,14 +216,11 @@ fn has_supertrait(input: &ItemTrait, find: &str) -> bool {
 }
 
 fn wrap_in_dummy_const(input: ItemTrait, expanded: TokenStream) -> TokenStream {
-    let dummy_const_name = format!("_{}_registry", input.ident);
-    let dummy_const = Ident::new(&dummy_const_name, Span::call_site());
-
     quote! {
         #input
 
         #[allow(non_upper_case_globals)]
-        const #dummy_const: () = {
+        const _: () = {
             #expanded
         };
     }
