@@ -96,7 +96,7 @@ fn draw_triangle_from_visibility(visibility_id: u32, pixel: vec2<u32>, dimension
 }
 
 fn draw_cube_from_min_max(min: vec3<f32>, max:vec3<f32>, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec3<f32> {  
-    let line_color = vec3<f32>(0., 0., 1.);
+    let line_color = vec3<f32>(1., 1., 0.);
     let line_size = 0.003;
     var color = vec3<f32>(0.);
     color += draw_line_3d(pixel, dimensions, vec3<f32>(min.x, min.y, min.z), vec3<f32>(max.x, min.y, min.z), line_color, line_size);
@@ -143,12 +143,35 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let visibility_pixel = vec2<u32>(pixel * visibility_scale);
         let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
         let visibility_id = visibility_value.r;
+        var meshlet_id = 0xFFFFFFFFu;
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
             let instance_id = (visibility_id >> 8u) - 1u; 
-            let meshlet_id = instances.data[instance_id].meshlet_id;
+            meshlet_id = instances.data[instance_id].meshlet_id;
             let meshlet = meshlets.data[meshlet_id];
             let meshlet_color = get_color_for_int(meshlet_id);
             out_color = vec4<f32>(meshlet_color, 1.);
+        }
+        
+        let debug_pixel = vec2<u32>(constant_data.debug_uv_coords * vec2<f32>(visibility_dimensions));
+        let debug_visibility_value = textureLoad(visibility_texture, debug_pixel, 0);
+        let debug_visibility_id = debug_visibility_value.r;
+        if (debug_visibility_id != 0u && (debug_visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
+            let debug_instance_id = (debug_visibility_id >> 8u) - 1u; 
+            let debug_instance = instances.data[debug_instance_id];
+            let debug_meshlet_id = debug_instance.meshlet_id;
+            let debug_meshlet = meshlets.data[debug_meshlet_id];
+            if(debug_meshlet_id == meshlet_id) {
+                out_color = vec4<f32>(0.2, 0.2, 0.2, 0.1);
+            }
+                
+            let transform = transforms.data[debug_instance.transform_id];
+            let orientation = transform.orientation;
+            let position = transform.position_scale_x.xyz;
+            let scale = vec3<f32>(transform.position_scale_x.w, transform.bb_min_scale_y.w, transform.bb_min_scale_y.w);
+            let min = transform_vector(debug_meshlet.aabb_min, position, orientation, scale);
+            let max = transform_vector(debug_meshlet.aabb_max, position, orientation, scale);
+
+            out_color += vec4<f32>(draw_cube_from_min_max(min, max, screen_pixel, dimensions), 1.);
         }
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_LOD_LEVEL) != 0) {

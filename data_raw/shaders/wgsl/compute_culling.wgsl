@@ -118,16 +118,17 @@ fn is_lod_visible(meshlet: Meshlet, position: vec3<f32>, orientation: vec4<f32>,
         let desired_lod_level = MAX_LOD_LEVELS - 1u - u32(constant_data.forced_lod_level);
         return meshlet.lod_level == desired_lod_level;
     }
-    let model_view = culling_data.view * transform_matrix(position, orientation, scale);
+    let model_transform = transform_matrix(position, orientation, scale);
+    let model_view = culling_data.view * model_transform;
     var projected_bounds = vec4<f32>(meshlet.bounding_sphere.xyz, max(meshlet.cluster_error, MAX_PROJECTED_ERROR));
     projected_bounds = transform_sphere(projected_bounds, model_view);
 
     var parent_projected_bounds  = vec4<f32>(meshlet.parent_bounding_sphere.xyz, max(meshlet.parent_error, MAX_PROJECTED_ERROR));
     parent_projected_bounds = transform_sphere(parent_projected_bounds, model_view);
 
-    let cluster_error: f32 = project_error_to_screen(projected_bounds, fov);
-    let parent_error: f32 = project_error_to_screen(parent_projected_bounds, fov);
-    let render: bool = cluster_error <= LOD_ERROR_THRESHOLD && parent_error > LOD_ERROR_THRESHOLD;
+    let cluster_error = project_error_to_screen(projected_bounds, fov);
+    let parent_error = project_error_to_screen(parent_projected_bounds, fov);
+    let render = cluster_error <= LOD_ERROR_THRESHOLD && parent_error > LOD_ERROR_THRESHOLD;
     return render;
 }
 
@@ -181,18 +182,17 @@ fn main(
     
     let position = transform.position_scale_x.xyz;
     let scale = vec3<f32>(transform.position_scale_x.w, transform.bb_min_scale_y.w, transform.bb_min_scale_y.w);
+
     let bb_min = transform_vector(meshlet.aabb_min, position, transform.orientation, scale);
     let bb_max = transform_vector(meshlet.aabb_max, position, transform.orientation, scale);
-    let aabb_min = min(bb_min, bb_max);
-    let aabb_max = max(bb_min, bb_max);
     
     if !is_lod_visible(meshlet, position, transform.orientation, scale, constant_data.camera_fov) {
         return;
     }
-    if(!is_box_inside_frustum(aabb_min, aabb_max, view_proj)) {
+    if(!is_box_inside_frustum(bb_min, bb_max, view_proj)) {
         return;
     }
-    if is_occluded(aabb_min, aabb_max, view_proj) {
+    if is_occluded(bb_min, bb_max, view_proj) {
         return;    
     }
 
