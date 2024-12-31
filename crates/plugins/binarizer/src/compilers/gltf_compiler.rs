@@ -384,6 +384,12 @@ impl GltfCompiler {
             let (meshlets, mut mesh_indices) =
                 compute_meshlets(&geometry_vertices, &geometry_indices, 0);
 
+            inox_log::debug_log!(
+                "LOD 0 has {} meshlets and {} triangles",
+                meshlets.len(),
+                geometry_indices.len() / 3
+            );
+
             let mut is_meshlet_tree_created = meshlets.len() <= 1;
             all_meshlets.push(meshlets.clone());
             meshlets_per_lod.push(meshlets);
@@ -407,6 +413,13 @@ impl GltfCompiler {
                     &geometry_vertices,
                     &mesh_indices,
                     level as _,
+                );
+
+                inox_log::debug_log!(
+                    "LOD {} has {} meshlets and {} triangles",
+                    level,
+                    cluster_meshlets.len(),
+                    cluster_indices.len() / 3
                 );
 
                 mesh_indices_offset += cluster_indices.len();

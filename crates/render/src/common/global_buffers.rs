@@ -125,7 +125,7 @@ impl GlobalBuffers {
                         aabb_min: meshlet_data.aabb_min.into(),
                         aabb_max: meshlet_data.aabb_max.into(),
                         parent_error: meshlet_data.parent_error,
-                        cluster_error: meshlet_data.cluster_error,
+                        group_error: meshlet_data.error,
                         bounding_sphere: meshlet_data.bounding_sphere.into(),
                         parent_bounding_sphere: meshlet_data.parent_bounding_sphere.into(),
                     };

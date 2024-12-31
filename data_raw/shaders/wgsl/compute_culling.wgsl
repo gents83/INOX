@@ -3,6 +3,7 @@
 
 struct CullingData {
     view: mat4x4<f32>,
+    inverse_view_proj: mat4x4<f32>,
     mesh_flags: u32,
     lod0_meshlets_count: u32,
     _padding1: u32,
@@ -113,23 +114,34 @@ fn project_error_to_screen(sphere: vec4<f32>, fov: f32) -> f32 {
     return projected_radius;
 }
 
+// https://github.com/zeux/meshoptimizer/blob/1e48e96c7e8059321de492865165e9ef071bffba/demo/nanite.cpp#L115
+fn compute_bounds_error(sphere: vec4<f32>, error: f32, position: vec3<f32>, orientation: vec4<f32>, scale: vec3<f32>) -> f32 {
+    let model_transform = transform_matrix(position, orientation, scale);
+    let world_scale = max(scale.x, max(scale.y, scale.z));
+    let sphere_world_space = (model_transform * vec4(sphere.xyz, 1.0)).xyz;
+    let radius_world_space = world_scale * sphere.w;
+
+    var view_pos = culling_data.inverse_view_proj * vec4<f32>(0., 0., 0.,1.);
+    view_pos /= view_pos.w;
+    let dir = sphere_world_space - view_pos.xyz;
+    let distance = length(dir) - radius_world_space;
+    let distance_clamped_to_znear = max(distance, constant_data.camera_near);
+	let proj = 1.f / tan(constant_data.camera_fov * 0.5f);
+    
+    return (error / distance_clamped_to_znear) * proj * 0.5 * constant_data.screen_height;
+}
+
 fn is_lod_visible(meshlet: Meshlet, position: vec3<f32>, orientation: vec4<f32>, scale: vec3<f32>, fov: f32) -> bool {
     if (constant_data.forced_lod_level >= 0) {
         let desired_lod_level = MAX_LOD_LEVELS - 1u - u32(constant_data.forced_lod_level);
         return meshlet.lod_level == desired_lod_level;
     }
-    let model_transform = transform_matrix(position, orientation, scale);
-    let model_view = culling_data.view * model_transform;
-    var projected_bounds = vec4<f32>(meshlet.bounding_sphere.xyz, max(meshlet.cluster_error, MAX_PROJECTED_ERROR));
-    projected_bounds = transform_sphere(projected_bounds, model_view);
-
-    var parent_projected_bounds  = vec4<f32>(meshlet.parent_bounding_sphere.xyz, max(meshlet.parent_error, MAX_PROJECTED_ERROR));
-    parent_projected_bounds = transform_sphere(parent_projected_bounds, model_view);
-
-    let cluster_error = project_error_to_screen(projected_bounds, fov);
-    let parent_error = project_error_to_screen(parent_projected_bounds, fov);
-    let render = cluster_error <= LOD_ERROR_THRESHOLD && parent_error > LOD_ERROR_THRESHOLD;
-    return render;
+    let lod_error = compute_bounds_error(meshlet.bounding_sphere, meshlet.group_error, position, orientation, scale);
+    let parent_error = compute_bounds_error(meshlet.parent_bounding_sphere, meshlet.parent_error, position, orientation, scale);
+    if (lod_error <= 1. && parent_error > 1.) {
+        return true;
+    }
+    return false;
 }
 
 fn is_occluded(aabb_min: vec3<f32>, aabb_max: vec3<f32>, view_proj: mat4x4<f32>) -> bool {

@@ -5,6 +5,9 @@ use inox_render::{MeshData, MeshletData, VertexAttributeLayout};
 use inox_resources::to_slice;
 use meshopt::DecodePosition;
 
+const MESHLET_MAX_VERTICES: usize = 192;
+const MESHLET_MAX_TRIANGLES: usize = 128;
+
 #[derive(Debug, Clone, Copy)]
 pub struct MeshVertex {
     pub pos: Vector4,
@@ -140,70 +143,110 @@ where
     let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
 
     let mut new_meshlets = Vec::new();
-    let max_vertices = 128;
-    let max_triangles = 256;
     let cone_weight = 0.5;
     let meshlets = meshopt::build_meshlets(
         indices,
         vertex_data_adapter.as_ref().unwrap(),
-        max_vertices,
-        max_triangles,
+        MESHLET_MAX_VERTICES,
+        MESHLET_MAX_TRIANGLES,
         cone_weight,
     );
     debug_assert!(!meshlets.meshlets.is_empty());
 
     let mut new_indices = Vec::new();
     for m in meshlets.iter() {
-        let index_offset = new_indices.len();
+        let mut meshlet_indices = Vec::new();
         debug_assert!(m.triangles.len() % 3 == 0);
         let mut aabb_max = Vector3::new(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY);
         let mut aabb_min = Vector3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY);
         m.triangles.iter().for_each(|&i| {
             let index = m.vertices[i as usize] as usize;
-            new_indices.push(index as u32);
+            meshlet_indices.push(index as u32);
             let pos = vertices[index].decode_position().into();
             aabb_min = aabb_min.min(pos);
             aabb_max = aabb_max.max(pos);
         });
+        let bounding_data = meshopt::compute_cluster_bounds(
+            &meshlet_indices,
+            vertex_data_adapter.as_ref().unwrap(),
+        );
+        let index_offset = new_indices.len();
+        new_indices.append(&mut meshlet_indices);
         debug_assert!(new_indices.len() % 3 == 0);
         new_meshlets.push(MeshletData {
             indices_offset: starting_offset + index_offset as u32,
             indices_count: m.triangles.len() as _,
             aabb_min,
             aabb_max,
-            cluster_error: 0.0,
+            error: 0.0,
+            bounding_sphere: Vector4::new(
+                bounding_data.center[0],
+                bounding_data.center[1],
+                bounding_data.center[2],
+                bounding_data.radius,
+            ),
             parent_error: f32::INFINITY,
+            parent_bounding_sphere: Vector4::default_zero(),
             ..Default::default()
         });
     }
     (new_meshlets, new_indices)
 }
 
-pub fn compute_clusters(
+fn compute_vertex_locks(
     groups: &[Vec<u32>],
     parent_meshlets: &mut [MeshletData],
-    parent_meshlets_offset: usize,
+    vertices: &[MeshVertex],
+    indices: &[u32],
+) -> Vec<bool> {
+    let mut vertex_meshlet_owner = vec![-1; vertices.len()];
+    let mut vertex_locks = vec![false; vertices.len()];
+    groups.iter().for_each(|meshlets_indices| {
+        meshlets_indices.iter().for_each(|&meshlet_index| {
+            let meshlet = &parent_meshlets[meshlet_index as usize];
+            let count = meshlet.indices_count;
+            for i in 0..count {
+                let global_index = indices[meshlet.indices_offset as usize + i as usize] as usize;
+
+                if vertex_meshlet_owner[global_index] == -1
+                    || vertex_meshlet_owner[global_index] == meshlet_index as i32
+                {
+                    vertex_meshlet_owner[global_index] = meshlet_index as i32;
+                } else {
+                    vertex_meshlet_owner[global_index] = -2;
+                    vertex_locks[global_index] = true;
+                }
+            }
+        });
+    });
+    vertex_locks
+}
+
+pub fn compute_clusters(
+    groups: &[Vec<u32>],
+    global_meshlets: &mut [MeshletData],
+    global_meshlets_offset: usize,
     mesh_indices_offset: usize,
     vertices: &[MeshVertex],
     indices: &[u32],
-    lod_level: i32,
+    _lod_level: i32,
 ) -> (Vec<u32>, Vec<MeshletData>) {
-    //println!("Start cluster");
     let mut indices_offset = mesh_indices_offset;
     let mut cluster_indices = Vec::new();
     let mut cluster_meshlets = Vec::new();
+
+    let vertex_locks = compute_vertex_locks(groups, global_meshlets, vertices, indices);
+
     groups.iter().for_each(|meshlets_indices| {
         let mut group_indices = Vec::new();
         let mut group_vertices = Vec::new();
-        let mut aabb_max = Vector3::new(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY);
-        let mut aabb_min = Vector3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY);
-        let mut children_error = 0.0f32;
+        let num_meshlet_per_group = meshlets_indices.len();
 
-        //println!("Group: {:?}", _group_i);
-        //print!("\tChildren meshlets: ");
+        let mut weight = 0.0_f32;
+        let mut center = Vector3::default_zero();
+
         meshlets_indices.iter().for_each(|&meshlet_index| {
-            //print!("{} ", parent_meshlets_offset + meshlet_index as usize);
-            let meshlet = &parent_meshlets[meshlet_index as usize];
+            let meshlet = &global_meshlets[meshlet_index as usize];
             let count = meshlet.indices_count;
             for i in 0..count {
                 let global_index = indices[meshlet.indices_offset as usize + i as usize] as usize;
@@ -220,11 +263,21 @@ pub fn compute_clusters(
                 };
                 group_indices.push(group_index as u32);
             }
-            aabb_max = aabb_max.max(meshlet.aabb_max);
-            aabb_min = aabb_min.min(meshlet.aabb_min);
-            children_error = children_error.max(meshlet.cluster_error);
+
+            center += meshlet.bounding_sphere.xyz() * meshlet.bounding_sphere.z;
+            weight += meshlet.bounding_sphere.z;
         });
-        //println!();
+        if weight > 0.0 {
+            center /= weight;
+        }
+        let mut radius = 0.0_f32;
+        let mut max_error = 0.0_f32;
+        meshlets_indices.iter().for_each(|&meshlet_index| {
+            let meshlet = &global_meshlets[meshlet_index as usize];
+            let d = meshlet.bounding_sphere.xyz() - center;
+            radius = radius.max(meshlet.bounding_sphere.z + d.length());
+            max_error = max_error.max(meshlet.error);
+        });
 
         let vertices_bytes = to_slice(&group_vertices);
         let vertex_stride = size_of::<MeshVertex>();
@@ -234,28 +287,29 @@ pub fn compute_clusters(
         );
         let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
 
-        let local_scale = meshopt::simplify_scale(vertex_data_adapter.as_ref().unwrap());
+        let mut target_count = ((num_meshlet_per_group + 1) / 2) * MESHLET_MAX_TRIANGLES * 3;
+        if target_count >= group_indices.len() {
+            target_count = group_indices.len() / 2;
+        }
 
-        let target_count = (group_indices.len() as f32 * 0.5) as usize;
-        let target_error = 0.1 * lod_level as f32 + 0.01 * (1 - lod_level) as f32;
         let mut simplification_error = 0.0;
 
-        let mut simplified_indices = meshopt::simplify(
+        let mut simplified_indices = meshopt::simplify_with_locks(
             &group_indices,
             vertex_data_adapter.as_ref().unwrap(),
+            &vertex_locks,
             target_count,
-            target_error,
-            meshopt::SimplifyOptions::LockBorder
-                | meshopt::SimplifyOptions::Sparse
-                | meshopt::SimplifyOptions::ErrorAbsolute,
+            f32::MAX,
+            meshopt::SimplifyOptions::Sparse | meshopt::SimplifyOptions::ErrorAbsolute,
             Some(&mut simplification_error),
         );
+        max_error += simplification_error;
 
-        let mesh_error = simplification_error * local_scale + children_error;
-        let half_length = (aabb_max - aabb_min) * 0.5;
-        let center = aabb_min + half_length;
-        let radius = half_length.length();
-
+        meshlets_indices.iter().for_each(|&meshlet_index| {
+            let meshlet = &mut global_meshlets[meshlet_index as usize];
+            meshlet.parent_bounding_sphere = Vector4::new(center.x, center.y, center.z, radius);
+            meshlet.parent_error = max_error;
+        });
         //if simplified_indices.len() >= group_indices.len() {
         //    inox_log::debug_log!(
         //        "No simplification happened [from {} to {}]",
@@ -263,46 +317,32 @@ pub fn compute_clusters(
         //        simplified_indices.len(),
         //    );
         //}
-
         if simplified_indices.is_empty() {
             simplified_indices = group_indices;
         }
 
-        //println!("\tCluster error: {}", mesh_error);
-        //println!(
-        //    "\tBounding Sphere: {:?}",
-        //    Vector4::new(center.x, center.y, center.z, radius)
-        //);
-        //println!("\tComputing new inner meshlets for group: {:?}", group_i);
-
-        let (mut meshlets, group_indices) =
+        let (mut new_meshlets, group_indices) =
             compute_meshlets(&group_vertices, &simplified_indices, indices_offset as u32);
 
         let mut global_group_indices = Vec::with_capacity(group_indices.len());
         group_indices.iter().for_each(|&i| {
             global_group_indices.push(group_vertices[i as usize].pos.w as u32);
         });
-        let lod_level_meshlet_starting_index = parent_meshlets_offset + parent_meshlets.len();
-        let _cluster_starting_index = lod_level_meshlet_starting_index + cluster_meshlets.len();
-        //print!("\tParent meshlets: ");
-        meshlets.iter_mut().for_each(|m| {
-            //print!("{} ", _cluster_starting_index + _i);
-            m.cluster_error = mesh_error;
+
+        new_meshlets.iter_mut().for_each(|m| {
+            m.error = max_error;
             m.bounding_sphere = Vector4::new(center.x, center.y, center.z, radius);
+
             meshlets_indices.iter().for_each(|&meshlet_index| {
                 m.child_meshlets
-                    .push(parent_meshlets_offset as u32 + meshlet_index);
-                parent_meshlets[meshlet_index as usize].parent_error = m.cluster_error;
-                parent_meshlets[meshlet_index as usize].parent_bounding_sphere = m.bounding_sphere;
+                    .push(global_meshlets_offset as u32 + meshlet_index);
             });
         });
-        //println!();
+
         indices_offset += global_group_indices.len();
 
         cluster_indices.append(&mut global_group_indices);
-        cluster_meshlets.append(&mut meshlets);
+        cluster_meshlets.append(&mut new_meshlets);
     });
-
-    //println!("End cluster");
     (cluster_indices, cluster_meshlets)
 }

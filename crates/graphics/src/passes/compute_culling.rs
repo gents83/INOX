@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use inox_bvh::GPUBVHNode;
+use inox_math::{matrix4_to_array, Mat4Ops, Matrix4};
 use inox_render::{
     AsBinding, BindingData, BindingFlags, BindingInfo, BufferRef, CommandBuffer, ComputePass,
     ComputePassData, ConstantDataRw, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMeshlet,
@@ -54,6 +55,7 @@ impl CullingEvent {
 #[derive(Default)]
 struct CullingData {
     view: [[f32; 4]; 4],
+    inverse_view_proj: [[f32; 4]; 4],
     mesh_flags: u32,
     lod0_meshlets_count: u32,
     _padding1: u32,
@@ -66,6 +68,7 @@ impl AsBinding for CullingData {
     }
     fn size(&self) -> u64 {
         std::mem::size_of_val(&self.view) as u64
+            + std::mem::size_of_val(&self.inverse_view_proj) as u64
             + std::mem::size_of_val(&self.mesh_flags) as u64
             + std::mem::size_of_val(&self.lod0_meshlets_count) as u64
             + std::mem::size_of_val(&self._padding1) as u64
@@ -73,6 +76,7 @@ impl AsBinding for CullingData {
     }
     fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut BufferRef) {
         buffer.add_to_gpu_buffer(render_context, &[self.view]);
+        buffer.add_to_gpu_buffer(render_context, &[self.inverse_view_proj]);
         buffer.add_to_gpu_buffer(render_context, &[self.mesh_flags]);
         buffer.add_to_gpu_buffer(render_context, &[self.lod0_meshlets_count]);
         buffer.add_to_gpu_buffer(render_context, &[self._padding1]);
@@ -178,6 +182,9 @@ impl Pass for CullingPass {
             let view = self.constant_data.read().unwrap().view();
             if self.culling_data.view != view {
                 self.culling_data.view = view;
+                let view: Matrix4 = view.into();
+                let proj: Matrix4 = self.constant_data.read().unwrap().proj().into();
+                self.culling_data.inverse_view_proj = matrix4_to_array((proj * view).inverse());
                 self.culling_data.mark_as_dirty(render_context);
             }
         }

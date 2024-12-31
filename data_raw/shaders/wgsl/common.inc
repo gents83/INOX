@@ -6,7 +6,7 @@ const MAX_NUM_LIGHTS: u32 = 512u;
 const MAX_NUM_TEXTURES: u32 = 65536u;
 const MAX_NUM_MATERIALS: u32 = 65536u;
 const MAX_PROJECTED_ERROR: f32 = 10e-10;
-const LOD_ERROR_THRESHOLD: f32 = 1.;
+const LOD_ERROR_THRESHOLD: f32 = 2e-3f; // 24 pixels at 1080p
 
 const CONSTANT_DATA_FLAGS_NONE: u32 = 0u;
 const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1u;
@@ -176,7 +176,7 @@ struct Meshlet {
     aabb_min: vec3<f32>,
     parent_error: f32,
     aabb_max: vec3<f32>,
-    cluster_error: f32,
+    group_error: f32,
     bounding_sphere: vec4<f32>,
     parent_bounding_sphere: vec4<f32>,
 };

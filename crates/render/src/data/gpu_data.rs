@@ -7,8 +7,6 @@ use crate::{
 };
 
 pub const MAX_LOD_LEVELS: usize = 8;
-pub const MESHLETS_GROUP_SIZE: usize = 4;
-pub const HALF_MESHLETS_GROUP_SIZE: usize = MESHLETS_GROUP_SIZE / 2;
 
 // Pipeline has a list of meshes to process
 // Meshes can switch pipeline at runtime
@@ -88,7 +86,7 @@ pub struct GPUMeshlet {
     pub aabb_min: [f32; 3],
     pub parent_error: f32,
     pub aabb_max: [f32; 3],
-    pub cluster_error: f32,
+    pub group_error: f32,
     pub bounding_sphere: [f32; 4],
     pub parent_bounding_sphere: [f32; 4],
 }

@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
 use inox_math::{compute_hash_position, Vector3};
-use inox_render::{MeshletData, HALF_MESHLETS_GROUP_SIZE, MESHLETS_GROUP_SIZE};
+use inox_render::MeshletData;
 use meshopt::DecodePosition;
+
+pub const MESHLETS_GROUP_SIZE: usize = 4;
+pub const HALF_MESHLETS_GROUP_SIZE: usize = MESHLETS_GROUP_SIZE / 2;
 
 #[derive(Default, Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Clone)]
 struct Edge {
@@ -216,7 +219,6 @@ fn fill_with_info_and_adjacency(
     }
 }
 
-#[allow(dead_code)]
 pub fn group_meshlets_with_metis(meshlets_info: &[MeshletAdjacency]) -> Vec<Vec<u32>> {
     let mut xadj = Vec::new();
     let mut adjncy = Vec::new();
@@ -232,13 +234,17 @@ pub fn group_meshlets_with_metis(meshlets_info: &[MeshletAdjacency]) -> Vec<Vec<
     });
     xadj.push(adjncy.len() as i32);
 
-    let num_groups =
-        (meshlets_info.len() as f32 / (MESHLETS_GROUP_SIZE - 1) as f32).ceil() as usize;
+    let num_groups = meshlets_info.len().div_ceil(MESHLETS_GROUP_SIZE);
     let mut meshlets_groups = Vec::new();
     if let Ok(graph) = metis::Graph::new(1, num_groups as _, &xadj, &adjncy) {
         let mut part = vec![0; meshlets_info.len()];
 
-        if let Ok(_result) = graph.set_adjwgt(&adjwgt).part_kway(&mut part) {
+        if let Ok(_result) = graph
+            .set_option(metis::option::Seed(12))
+            .set_option(metis::option::UFactor(100))
+            .set_adjwgt(&adjwgt)
+            .part_kway(&mut part)
+        {
             for group_index in 0..num_groups {
                 let mut group = Vec::new();
                 part.iter().enumerate().for_each(|(i, &v)| {
