@@ -423,6 +423,7 @@ impl RenderPass {
         render_pass
     }
 
+    #[allow(unused_variables)]
     pub fn draw_indexed(
         &self,
         render_context: &RenderContext,
@@ -445,6 +446,8 @@ impl RenderPass {
             );
         });
     }
+
+    #[allow(unused_mut)]
     pub fn indirect_draw(
         &self,
         render_context: &RenderContext,
@@ -517,6 +520,7 @@ impl RenderPass {
             });
     }
 
+    #[allow(unused_variables, unused_mut)]
     pub fn draw(
         &self,
         render_context: &RenderContext,

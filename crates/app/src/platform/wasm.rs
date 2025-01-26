@@ -78,11 +78,11 @@ pub fn main_update(launcher: Arc<Launcher>) {
     }
 }
 
-fn hook(info: &std::panic::PanicInfo) {
+fn hook(info: &std::panic::PanicHookInfo) {
     hook_impl(info);
 }
 
-fn hook_impl(info: &std::panic::PanicInfo) {
+fn hook_impl(info: &std::panic::PanicHookInfo) {
     let mut msg = info.to_string();
     msg.push_str("\n\nStack:\n\n");
     let e = Error::new();

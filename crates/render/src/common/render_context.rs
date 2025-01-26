@@ -153,7 +153,7 @@ impl RenderContext {
             } else {
                 wgpu::Backends::all()
             };
-            #[allow(unused_assignments)]
+            #[allow(unused_assignments, unused_mut)]
             let mut flags = wgpu::InstanceFlags::empty();
             #[cfg(not(target_arch = "wasm32"))]
             #[cfg(debug_assertions)]
@@ -358,6 +358,7 @@ impl RenderContext {
 
     pub fn submit_command_buffer(&self) {
         inox_profiler::scoped_profile!("renderer::submit_command_buffer");
+        #[allow(unused_mut)]
         if let Some(mut command_buffer) = self.command_buffer.write().unwrap().take() {
             {
                 inox_profiler::gpu_profiler_pre_submit!(&mut command_buffer.encoder);

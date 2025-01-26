@@ -1,6 +1,7 @@
 #[macro_export]
 macro_rules! gpu_profiler_pre_submit {
     ($encoder: expr) => {
+        #[allow(unused_assignments, unused_mut)]
         #[cfg(not(target_arch = "wasm32"))]
         {
             $crate::gpu_profiler::GLOBAL_GPU_PROFILER
@@ -24,6 +25,7 @@ macro_rules! gpu_profiler_pre_submit {
 #[macro_export]
 macro_rules! gpu_scoped_profile {
     ($encoder_or_pass:expr, $device:expr, $($t:tt)*) => {
+        #[allow(unused_assignments, unused_mut)]
         #[cfg(not(target_arch = "wasm32"))]
         {
             let gpu_profiler = $crate::gpu_profiler::GLOBAL_GPU_PROFILER.as_ref().read().unwrap();

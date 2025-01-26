@@ -109,6 +109,7 @@ impl Pass for BlitPass {
             surface_view,
             command_buffer,
         };
+        #[allow(unused_mut)]
         let mut render_pass = pass.begin(&mut self.binding_data, &pipeline, render_pass_begin_data);
         {
             inox_profiler::gpu_scoped_profile!(
