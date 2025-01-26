@@ -168,10 +168,10 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
             let orientation = transform.orientation;
             let position = transform.position_scale_x.xyz;
             let scale = vec3<f32>(transform.position_scale_x.w, transform.bb_min_scale_y.w, transform.bb_min_scale_y.w);
-            let min = transform_vector(debug_meshlet.aabb_min, position, orientation, scale);
-            let max = transform_vector(debug_meshlet.aabb_max, position, orientation, scale);
+            let cube_min = transform_vector(debug_meshlet.aabb_min, position, orientation, scale);
+            let cube_max = transform_vector(debug_meshlet.aabb_max, position, orientation, scale);
 
-            out_color += vec4<f32>(draw_cube_from_min_max(min, max, screen_pixel, dimensions), 1.);
+            out_color += vec4<f32>(draw_cube_from_min_max(cube_min, cube_max, screen_pixel, dimensions), 1.);
         }
     } 
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_LOD_LEVEL) != 0) {

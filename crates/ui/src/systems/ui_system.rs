@@ -254,12 +254,18 @@ impl UISystem {
         output: PlatformOutput,
         textures_delta: TexturesDelta,
     ) -> &mut Self {
-        if let Some(open) = output.open_url {
-            debug_log!("Trying to open url: {:?}", open.url);
-        }
-
-        if !output.copied_text.is_empty() {
-            self.ui_clipboard = Some(output.copied_text);
+        for command in output.commands {
+            match command {
+                egui::OutputCommand::CopyText(text) => {
+                    self.ui_clipboard = Some(text);
+                }
+                egui::OutputCommand::CopyImage(_image) => {
+                    debug_log!("Trying to copy image - not handled");
+                }
+                egui::OutputCommand::OpenUrl(open_url) => {
+                    debug_log!("Trying to open url: {:?}", open_url.url);
+                }
+            }
         }
 
         for (egui_texture_id, image_delta) in textures_delta.set {

@@ -285,6 +285,9 @@ struct BVH {
     data: array<BVHNode>,
 };
 
+struct Frustum {
+    planes: array<vec4<f32>, 6>,
+};
 
 struct Ray {
     origin: vec3<f32>,

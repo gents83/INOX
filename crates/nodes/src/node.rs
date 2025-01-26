@@ -249,7 +249,7 @@ impl Node {
     {
         self.inputs
             .get(pin_id)
-            .map_or(false, |i| i.as_any().downcast_ref::<V>().is_some())
+            .is_some_and(|i| i.as_any().downcast_ref::<V>().is_some())
     }
     pub fn is_output<V>(&self, pin_id: &PinId) -> bool
     where
@@ -257,7 +257,7 @@ impl Node {
     {
         self.outputs
             .get(pin_id)
-            .map_or(false, |o| o.as_any().downcast_ref::<V>().is_some())
+            .is_some_and(|o| o.as_any().downcast_ref::<V>().is_some())
     }
     pub fn pass_value<V>(&mut self, input_name: &str, output_name: &str)
     where

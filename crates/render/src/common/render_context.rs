@@ -160,11 +160,12 @@ impl RenderContext {
             {
                 flags = wgpu::InstanceFlags::debugging();
             }
-            let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            let instance_descriptor = wgpu::InstanceDescriptor {
                 backends,
                 flags,
                 ..Default::default()
-            });
+            };
+            let instance = wgpu::Instance::new(&instance_descriptor);
             let surface = Self::create_surface(&instance, handle.clone());
 
             #[cfg(not(target_arch = "wasm32"))]
