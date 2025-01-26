@@ -45,6 +45,7 @@ downcast-rs = { git = "https://github.com/marcianx/downcast-rs" }
 egui = { git = "https://github.com/emilk/egui" }
 image = { git = "https://github.com/image-rs/image", version = "0.25.0", default-features = false, features = [ "default-formats"] }
 pyo3 = { git = "https://github.com/PyO3/pyo3", features = ["macros", "extension-module", "auto-initialize", "abi3-py310", "generate-import-lib"] }
+getrandom = { version = "0.3", features = ["wasm_js"] }
 rand = { git = "https://github.com/rust-random/rand", features = ["std"] }
 serde_json = { git = "https://github.com/serde-rs/json"}
 flexbuffers = { version = "2.0.0"}

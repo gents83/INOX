@@ -8,7 +8,7 @@
 jobs = 8  
 # whether or not to enable incremental compilation
 incremental = true           
-rustflags = ["-C","split-debuginfo=unpacked"]
+rustflags = ["-C","split-debuginfo=unpacked","--cfg","getrandom_backend=\"wasm_js\""]
 
 [env]
 RUST_BACKTRACE = "full" 
@@ -47,7 +47,7 @@ rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 rustflags = ["-C", "link-arg=-fuse-ld=/opt/homebrew/opt/llvm/bin/ld64.lld"]
 
 [target.wasm32-unknown-unknown]
-rustflags = ["--cfg=web_sys_unstable_apis"]
+rustflags = ["--cfg=web_sys_unstable_apis --cfg getrandom_backend=\"wasm_js\""]
 
 [target.x86_64-pc-windows-msvc]
 rustflags = ["-C", "link-arg=-fuse-ld=lld"]
