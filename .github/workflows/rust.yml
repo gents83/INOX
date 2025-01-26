@@ -2,11 +2,11 @@ name: "Rust"
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, instancing_rework ]
     tags:
       - 'v*.*.*'
   pull_request:
-    branches: [ master ]
+    branches: [ master, instancing_rework ]
     tags:
       - 'v*.*.*'
     

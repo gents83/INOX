@@ -3,7 +3,7 @@ name: "Deploy on Github Pages"
 on:
   workflow_run:
     workflows: ["Rust"]
-    branches: [master]
+    branches: [master, instancing_rework]
     types:
       - completed
 
