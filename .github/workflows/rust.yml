@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: "Checkout repository and submodules"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
@@ -51,7 +51,7 @@ jobs:
           mkdir -p "./output/INOX/bin/data_raw/"
           
       - name: "Enable use of cache"
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/bin/
@@ -147,7 +147,7 @@ jobs:
              cp -r -Force "./data/web/" "./output/web/data/"
           
       - name: "Upload artifacts"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: output-binaries
           path: output/
