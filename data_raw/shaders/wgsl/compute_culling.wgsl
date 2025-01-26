@@ -39,54 +39,24 @@ var default_sampler: sampler;
 #import "matrix_utils.inc"
 #import "geom_utils.inc"
 
-fn is_box_inside_frustum(aabb_min: vec3<f32>, aabb_max: vec3<f32>, view_proj: mat4x4<f32>) -> bool {
-    // Calculate AABB center and half-extents
-    let center = (aabb_min + aabb_max) * 0.5;
-    let extents = (aabb_max - aabb_min) * 0.5;
+fn obb_vs_frustum(obb_min: vec3<f32>, obb_max: vec3<f32>, proj: mat4x4<f32>, view: mat4x4<f32>) -> bool {
+    let planes = extract_frustum_planes(proj, view);
+    for (var i = 0u; i < 6u; i++) {
+        let plane = planes[i];
+        let normal = plane.xyz;
+        let distance = plane.w;
 
-    // Transform the center point into clip space
-    var clip_center = view_proj * vec4(center, 1.0);
+        // Optimized positive vertex calculation
+        let positive_x = select(obb_max.x, obb_min.x, normal.x < 0.0);
+        let positive_y = select(obb_max.y, obb_min.y, normal.y < 0.0);
+        let positive_z = select(obb_max.z, obb_min.z, normal.z < 0.0);
+        let positive_vertex = vec3<f32>(positive_x, positive_y, positive_z);
 
-    // Early out: if the center is inside the frustum, we consider the AABB visible
-    if (all(abs(clip_center.xyz) <= clip_center.www)) {
-        return true;
+        if (dot(positive_vertex, normal) + distance < 0.0) {
+            return false;
+        }
     }
-
-    // Handle the reversed depth in WebGPU
-    clip_center.z = -clip_center.z;
-
-    // Calculate the sum of the absolute values of the extents projected onto each axis
-    let abs_extents_x = abs(extents.x * view_proj[0][0]) + abs(extents.y * view_proj[1][0]) + abs(extents.z * view_proj[2][0]);
-    let abs_extents_y = abs(extents.x * view_proj[0][1]) + abs(extents.y * view_proj[1][1]) + abs(extents.z * view_proj[2][1]);
-    let abs_extents_z = abs(extents.x * view_proj[0][2]) + abs(extents.y * view_proj[1][2]) + abs(extents.z * view_proj[2][2]);
-
-    // Check against each pair of symmetric planes
-    if (abs(clip_center.x) > abs_extents_x + clip_center.w) {
-        return false; // Outside left/right planes
-    }
-    if (abs(clip_center.y) > abs_extents_y + clip_center.w) {
-        return false; // Outside top/bottom planes
-    }
-    if (abs(clip_center.z) > abs_extents_z + clip_center.w) {
-        return false; // Outside near/far planes
-    }
-
-    return true; // Inside or intersecting all planes
-}
-
-fn is_sphere_inside_frustum(min: vec3<f32>, max: vec3<f32>, position: vec3<f32>, orientation: vec4<f32>, scale: vec3<f32>, frustum: vec4<f32>, znear: f32, zfar: f32) -> bool {
-    var center = (min + max) * 0.5;
-    center = (culling_data.view * vec4<f32>(center, 1.0)).xyz;
-    let radius = length(max - min) * 0.5;
-    let v = -(center.z + radius * 0.5);
-
-    // Frustum plane checks
-    var visible = true;
-    visible &= v * frustum.y < -abs(center.x) * frustum.x;
-    visible &= v * frustum.w < -abs(center.y) * frustum.z;
-    visible &= v > znear && v < zfar;
-    
-    return visible;
+    return true;
 }
 
 fn transform_sphere(sphere: vec4<f32>, transform: mat4x4<f32>) -> vec4<f32> {
@@ -186,7 +156,6 @@ fn main(
         return;
     }
      
-    let view_proj = constant_data.proj * culling_data.view;
     let instance = active_instances.data[instance_id];
     let transform = transforms.data[instance.transform_id];
     let meshlet_id = instance.meshlet_id;
@@ -194,17 +163,21 @@ fn main(
     
     let position = transform.position_scale_x.xyz;
     let scale = vec3<f32>(transform.position_scale_x.w, transform.bb_min_scale_y.w, transform.bb_min_scale_y.w);
-
-    let bb_min = transform_vector(meshlet.aabb_min, position, transform.orientation, scale);
-    let bb_max = transform_vector(meshlet.aabb_max, position, transform.orientation, scale);
     
     if !is_lod_visible(meshlet, position, transform.orientation, scale, constant_data.camera_fov) {
         return;
     }
-    if(!is_box_inside_frustum(bb_min, bb_max, view_proj)) {
+
+    let bb_min = transform_vector(meshlet.aabb_min, position, transform.orientation, scale);
+    let bb_max = transform_vector(meshlet.aabb_max, position, transform.orientation, scale);
+    let min_obb = min(bb_min, bb_max);
+    let max_obb = max(bb_min, bb_max);
+    if(!obb_vs_frustum(min_obb, max_obb, constant_data.proj, culling_data.view)) {
         return;
     }
-    if is_occluded(bb_min, bb_max, view_proj) {
+
+    let view_proj = constant_data.proj * culling_data.view;
+    if is_occluded(min_obb, max_obb, view_proj) {
         return;    
     }
 

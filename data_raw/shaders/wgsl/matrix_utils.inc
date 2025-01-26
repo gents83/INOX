@@ -24,67 +24,6 @@ fn extract_rotation(mat: mat4x4<f32>) -> mat4x4<f32> {
     );
 }
 
-
-fn extract_frustum(view_proj: mat4x4<f32>) -> Frustum {
-    var frustum: Frustum;
-
-    // Left plane: row 3 + row 0
-    frustum.planes[0] = vec4<f32>(
-        view_proj[3][0] + view_proj[0][0],
-        view_proj[3][1] + view_proj[0][1],
-        view_proj[3][2] + view_proj[0][2],
-        view_proj[3][3] + view_proj[0][3]
-    );
-
-    // Right plane: row 3 - row 0
-    frustum.planes[1] = vec4<f32>(
-        view_proj[3][0] - view_proj[0][0],
-        view_proj[3][1] - view_proj[0][1],
-        view_proj[3][2] - view_proj[0][2],
-        view_proj[3][3] - view_proj[0][3]
-    );
-
-    // Bottom plane: row 3 + row 1
-    frustum.planes[2] = vec4<f32>(
-        view_proj[3][0] + view_proj[1][0],
-        view_proj[3][1] + view_proj[1][1],
-        view_proj[3][2] + view_proj[1][2],
-        view_proj[3][3] + view_proj[1][3]
-    );
-
-    // Top plane: row 3 - row 1
-    frustum.planes[3] = vec4<f32>(
-        view_proj[3][0] - view_proj[1][0],
-        view_proj[3][1] - view_proj[1][1],
-        view_proj[3][2] - view_proj[1][2],
-        view_proj[3][3] - view_proj[1][3]
-    );
-
-    // Near plane: row 3 + row 2
-    frustum.planes[4] = vec4<f32>(
-        view_proj[3][0] + view_proj[2][0],
-        view_proj[3][1] + view_proj[2][1],
-        view_proj[3][2] + view_proj[2][2],
-        view_proj[3][3] + view_proj[2][3]
-    );
-
-    // Far plane: row 3 - row 2
-    frustum.planes[5] = vec4<f32>(
-        view_proj[3][0] - view_proj[2][0],
-        view_proj[3][1] - view_proj[2][1],
-        view_proj[3][2] - view_proj[2][2],
-        view_proj[3][3] - view_proj[2][3]
-    );
-
-    // Optional: Normalize planes for more precise culling
-    for (var i = 0u; i < 6u; i++) {
-        let length = length(frustum.planes[i].xyz);
-        frustum.planes[i] /= length;
-    }
-
-    return frustum;
-}
-
 fn matrix_row(m: mat4x4<f32>, row: u32) -> vec4<f32> 
 {
     if (row == 1u) {
@@ -96,6 +35,33 @@ fn matrix_row(m: mat4x4<f32>, row: u32) -> vec4<f32>
     } else {        
         return vec4<f32>(m[0].x, m[1].x, m[2].x, m[3].x);
     }
+}
+
+
+fn extract_frustum_planes(proj: mat4x4<f32>, view: mat4x4<f32>) -> array<vec4<f32>, 6> {
+    let view_proj = proj * view;
+    var planes: array<vec4<f32>, 6>;
+
+    // Left
+    planes[0] = vec4<f32>(view_proj[0][3] + view_proj[0][0], view_proj[1][3] + view_proj[1][0], view_proj[2][3] + view_proj[2][0], view_proj[3][3] + view_proj[3][0]);
+    // Right
+    planes[1] = vec4<f32>(view_proj[0][3] - view_proj[0][0], view_proj[1][3] - view_proj[1][0], view_proj[2][3] - view_proj[2][0], view_proj[3][3] - view_proj[3][0]);
+    // Bottom
+    planes[2] = vec4<f32>(view_proj[0][3] + view_proj[0][1], view_proj[1][3] + view_proj[1][1], view_proj[2][3] + view_proj[2][1], view_proj[3][3] + view_proj[3][1]);
+    // Top
+    planes[3] = vec4<f32>(view_proj[0][3] - view_proj[0][1], view_proj[1][3] - view_proj[1][1], view_proj[2][3] - view_proj[2][1], view_proj[3][3] - view_proj[3][1]);
+    // Near
+    planes[4] = vec4<f32>(view_proj[0][2], view_proj[1][2], view_proj[2][2], view_proj[3][2]);
+    // Far
+    planes[5] = vec4<f32>(view_proj[0][3] - view_proj[0][2], view_proj[1][3] - view_proj[1][2], view_proj[2][3] - view_proj[2][2], view_proj[3][3] - view_proj[3][2]);
+
+    // Normalize planes
+    for (var i = 0u; i < 6u; i++) {
+        let length = length(planes[i].xyz);
+        planes[i] = planes[i] / vec4<f32>(length, length, length, length);
+    }
+
+    return planes;
 }
 
 fn normalize_plane(plane: vec4<f32>) -> vec4<f32> 
