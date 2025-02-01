@@ -27,6 +27,9 @@ jobs:
           #- ubuntu-latest
 
     steps:
+      - name: "Add rustflags to env"
+        run: echo RUSTFLAGS=${RUSTFLAGS} >> $GITHUB_ENV
+
       - name: "Checkout repository and submodules"
         uses: actions/checkout@v4
         with:

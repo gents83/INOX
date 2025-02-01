@@ -70,10 +70,10 @@ erased-serde = { version = "0.4.5" }
 rspirv = { version = "0.11" }
 
 # wasm32
-js-sys = "0.3.76"
-wasm-bindgen = "0.2.100"
-wasm-bindgen-futures = "0.4.49"
-wasm-bindgen-test = "0.3.49"
+js-sys = { version = "0.3.76" }
+wasm-bindgen = { version = "0.2.100" }
+wasm-bindgen-futures = { version = "0.4.49" }
+wasm-bindgen-test = { version = "0.3.49" }
 web-sys = { version = "0.3.76", features = [
     "Request", 
     "Response", 
@@ -87,7 +87,7 @@ web-sys = { version = "0.3.76", features = [
     "Window",
     "Performance", 
     "PerformanceTiming"
-] }
+]}
 
 #[patch."https://github.com/gwihlidal/meshopt-rs"]
 #meshopt = { git = "https://github.com/gents83/meshopt-rs", branch = "traverse_breda_vertex_lock" }
