@@ -6,8 +6,7 @@ use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
     SharedDataRc,
 };
-use inox_serialize::{read_from_file, SerializationType, SerializeFile,
-};
+use inox_serialize::{read_from_file, SerializationType, SerializeFile};
 
 use crate::{
     BindingData, BlendFactor, RenderContext, RenderPipelineData, Shader, TextureFormat,
@@ -70,10 +69,7 @@ impl SerializableResource for RenderPipeline {
         RenderPipelineData::extension()
     }
 
-    fn deserialize_data(
-        path: &std::path::Path,
-        f: Box<dyn FnMut(Self::DataType) + 'static>,
-    ) {
+    fn deserialize_data(path: &std::path::Path, f: Box<dyn FnMut(Self::DataType) + 'static>) {
         read_from_file::<Self::DataType>(path, SerializationType::Json, f);
     }
 }

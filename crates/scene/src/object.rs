@@ -11,8 +11,7 @@ use inox_resources::{
     DataTypeResource, GenericResource, Handle, OnCreateData, Resource, ResourceCastTo,
     ResourceEvent, ResourceId, ResourceTrait, SerializableResource, SharedDataRc,
 };
-use inox_serialize::{read_from_file, SerializationType, SerializeFile,
-};
+use inox_serialize::{read_from_file, SerializationType, SerializeFile};
 use inox_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 use inox_uid::generate_random_uid;
 

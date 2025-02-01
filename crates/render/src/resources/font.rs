@@ -87,10 +87,7 @@ impl SerializableResource for Font {
     fn extension() -> &'static str {
         "ttf"
     }
-    fn deserialize_data(
-        path: &Path,
-        mut f: Box<dyn FnMut(Self::DataType) + 'static>,
-    ) {
+    fn deserialize_data(path: &Path, mut f: Box<dyn FnMut(Self::DataType) + 'static>) {
         f(FontData::new(path));
     }
 }
