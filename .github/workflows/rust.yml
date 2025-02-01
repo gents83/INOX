@@ -72,6 +72,12 @@ jobs:
       - name: "Add rust target wasm32"
         run: rustup target add wasm32-unknown-unknown
           
+      - name: "Update repos"
+        run: |
+          cd crates
+          cargo update
+          cd ..
+          
       - name: "Install wasm bindgen"
         run: cargo install -f wasm-bindgen-cli
            
