@@ -73,7 +73,7 @@ jobs:
         run: rustup target add wasm32-unknown-unknown
           
       - name: "Install wasm bindgen"
-        run: cargo install wasm-bindgen-cli --force
+        run: cargo install wasm-bindgen-cli --force -- --cfg getrandom_backend="wasm_js"
           
       - name: "Run cargo clippy check"
         uses: actions-rs/cargo@v1
