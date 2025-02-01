@@ -16,9 +16,14 @@ pub fn shader_preprocessor_defs<const PLATFORM_TYPE: PlatformType>() -> Vec<Stri
         vec![
             "FEATURES_TEXTURE_BINDING_ARRAY".to_string(),
             "FEATURES_MULTISAMPLING".to_string(),
+            "FEATURES_PRIMITIVE_INDEX".to_string(),
         ]
     } else {
-        vec![]
+        vec![
+            "NO_FEATURES_TEXTURE_BINDING_ARRAY".to_string(),
+            "NO_FEATURES_MULTISAMPLING".to_string(),
+            "NO_FEATURES_PRIMITIVE_INDEX".to_string(),
+        ]
     }
 }
 

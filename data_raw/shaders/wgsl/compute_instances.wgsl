@@ -32,7 +32,7 @@ fn main(
     }
     atomicStore(&commands.count, arrayLength(&commands_data));
     if (id < arrayLength(&commands.data)) {
-        meshlet_counts[id] = 0u;
+        atomicStore(&meshlet_counts[id], 0u);
 
         commands.data[id].base_instance = 0u;
         commands.data[id].base_index = 0u;

@@ -1,10 +1,11 @@
 use std::path::PathBuf;
 
 use inox_render::{
-    BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DrawIndexedCommand,
-    GPUBuffer, GPUInstance, GPUTransform, GPUVector, GPUVertexIndices, GPUVertexPosition, Pass,
-    RenderContext, RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
-    ShaderStage, StoreOperation, Texture, TextureView, VextexBindingType,
+    platform::has_primitive_index_support, BindingData, BindingFlags, BindingInfo, CommandBuffer,
+    ConstantDataRw, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh, GPUPrimitiveIndices,
+    GPUTransform, GPUVector, GPUVertexIndices, GPUVertexPosition, Pass, RenderContext,
+    RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage,
+    StoreOperation, Texture, TextureView, VextexBindingType,
 };
 
 use inox_core::ContextRc;
@@ -21,6 +22,8 @@ pub struct VisibilityBufferPass {
     binding_data: BindingData,
     constant_data: ConstantDataRw,
     indices: GPUBuffer<GPUVertexIndices>,
+    primitive_indices: GPUBuffer<GPUPrimitiveIndices>,
+    meshes: GPUBuffer<GPUMesh>,
     transforms: GPUVector<GPUTransform>,
     instances: GPUVector<GPUInstance>,
     commands: GPUVector<DrawIndexedCommand>,
@@ -68,6 +71,10 @@ impl Pass for VisibilityBufferPass {
                 .global_buffers()
                 .buffer::<GPUVertexPosition>(),
             indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
+            primitive_indices: render_context
+                .global_buffers()
+                .buffer::<GPUPrimitiveIndices>(),
+            meshes: render_context.global_buffers().buffer::<GPUMesh>(),
             transforms: render_context.global_buffers().vector::<GPUTransform>(),
             instances: render_context
                 .global_buffers()
@@ -109,12 +116,23 @@ impl Pass for VisibilityBufferPass {
                     flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
-            )
-            .set_vertex_buffer(
+            );
+
+        if has_primitive_index_support() {
+            self.binding_data.set_vertex_buffer(
                 VextexBindingType::Vertex,
                 &mut *self.vertices_position.write().unwrap(),
                 Some("Vertices Position"),
-            )
+            );
+        } else {
+            self.binding_data.set_vertex_buffer(
+                VextexBindingType::Vertex,
+                &mut *self.primitive_indices.write().unwrap(),
+                Some("Primitive Indices"),
+            );
+        }
+
+        self.binding_data
             .set_vertex_buffer(
                 VextexBindingType::Instance,
                 &mut *self.instances.write().unwrap(),
@@ -132,6 +150,31 @@ impl Pass for VisibilityBufferPass {
                     count: Some(commands_count),
                 },
             );
+        if !has_primitive_index_support() {
+            self.binding_data
+                .add_buffer(
+                    &mut *self.vertices_position.write().unwrap(),
+                    Some("Vertices Position"),
+                    BindingInfo {
+                        group_index: 0,
+                        binding_index: 3,
+                        stage: ShaderStage::Vertex,
+                        flags: BindingFlags::Storage | BindingFlags::Read,
+                        ..Default::default()
+                    },
+                )
+                .add_buffer(
+                    &mut *self.meshes.write().unwrap(),
+                    Some("Meshes"),
+                    BindingInfo {
+                        group_index: 0,
+                        binding_index: 4,
+                        stage: ShaderStage::Vertex,
+                        flags: BindingFlags::Storage | BindingFlags::Read,
+                        ..Default::default()
+                    },
+                );
+        }
 
         let vertex_layout = GPUVertexPosition::descriptor(0);
         let instance_layout = GPUInstance::descriptor(vertex_layout.location());

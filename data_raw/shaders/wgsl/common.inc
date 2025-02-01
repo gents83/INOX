@@ -273,6 +273,10 @@ struct Indices {
     data: array<u32>,
 };
 
+struct PrimitiveIndices {
+    data: array<u32>,
+};
+
 struct VerticesPositions {
     data: array<u32>,
 };

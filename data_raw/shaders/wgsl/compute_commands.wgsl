@@ -4,8 +4,8 @@
 struct DrawPreparationResults {
     draw_vertices_count: u32,
     active_instances_count: u32,
-    _count: u32,
-    _count: u32,
+    _empty1: u32,
+    _empty2: u32,
 }
 
 

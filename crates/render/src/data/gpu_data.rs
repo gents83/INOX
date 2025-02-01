@@ -145,6 +145,9 @@ pub struct GPUVertexPosition(pub u32);
 #[repr(C)]
 #[derive(Default, PartialEq, Clone, Copy, Debug)]
 pub struct GPUVertexAttributes(pub u32);
+#[repr(C)]
+#[derive(Default, PartialEq, Clone, Copy, Debug)]
+pub struct GPUPrimitiveIndices(pub u32);
 
 impl GPUVertexPosition {
     pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {

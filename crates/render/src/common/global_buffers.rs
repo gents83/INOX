@@ -12,10 +12,11 @@ use inox_resources::{to_slice, Buffer, ResourceId};
 use inox_uid::{generate_static_uid_from_string, generate_uid_from_type, Uid};
 
 use crate::{
-    AsBinding, ConstantDataRw, GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture,
-    GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, Light, LightId, Material,
-    MaterialData, MaterialFlags, MaterialId, Mesh, MeshData, MeshFlags, MeshId, RenderContext,
-    TextureId, TextureType, INVALID_INDEX, MAX_LOD_LEVELS,
+    platform::has_primitive_index_support, AsBinding, ConstantDataRw, GPULight, GPUMaterial,
+    GPUMesh, GPUMeshlet, GPUPrimitiveIndices, GPUTexture, GPUVertexAttributes, GPUVertexIndices,
+    GPUVertexPosition, Light, LightId, Material, MaterialData, MaterialFlags, MaterialId, Mesh,
+    MeshData, MeshFlags, MeshId, RenderContext, TextureId, TextureType, INVALID_INDEX,
+    MAX_LOD_LEVELS,
 };
 
 pub const TLAS_UID: ResourceId = generate_static_uid_from_string("TLAS");
@@ -243,6 +244,20 @@ impl GlobalBuffers {
             .write()
             .unwrap()
             .mark_as_dirty(render_context);
+        if !has_primitive_index_support() {
+            let mut primitive_indices = Vec::with_capacity(mesh_data.indices.len());
+            for (new_index, _i) in mesh_data.indices.iter().enumerate() {
+                primitive_indices.push(GPUPrimitiveIndices((new_index / 3) as _));
+            }
+            self.buffer::<GPUPrimitiveIndices>()
+                .write()
+                .unwrap()
+                .allocate(mesh_id, &primitive_indices);
+            self.buffer::<GPUPrimitiveIndices>()
+                .write()
+                .unwrap()
+                .mark_as_dirty(render_context);
+        }
         (
             vertex_offset as _,
             indices_offset as _,
