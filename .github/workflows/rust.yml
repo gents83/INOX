@@ -79,9 +79,6 @@ jobs:
           cd crates
           cargo update
           cd ..
-          
-      - name: "Install wasm bindgen"
-        run: cargo install -f wasm-bindgen-cli --git https://github.com/rustwasm/wasm-bindgen.git
            
       - name: "Run cargo clippy check"
         uses: actions-rs/cargo@v1
@@ -123,13 +120,16 @@ jobs:
           
       - name: "Copy .exes in output"
         run: cp -Force ./crates/target/release/*.exe ./output/INOX/bin/
-
+      
       - name: "Run cargo build workspace release wasm32"
         uses: actions-rs/cargo@v1
         with:
           command: build 
           args: --manifest-path ./crates/Cargo.toml --release --target wasm32-unknown-unknown
-      
+    
+      - name: "Install wasm bindgen"
+        run: cargo install -f wasm-bindgen-cli
+        
       - name: "Run wasm bindgen"
         run: wasm-bindgen ./crates/target/wasm32-unknown-unknown/release/inox_launcher.wasm --out-dir ./output/web/ --target web --no-typescript --no-demangle --keep-lld-exports --split-linked-modules
 
