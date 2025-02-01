@@ -81,7 +81,7 @@ jobs:
           cd ..
           
       - name: "Install wasm bindgen"
-        run: cargo install -f wasm-bindgen-cli
+        run: cargo install -f wasm-bindgen-cli --git https://github.com/rustwasm/wasm-bindgen.git
            
       - name: "Run cargo clippy check"
         uses: actions-rs/cargo@v1
