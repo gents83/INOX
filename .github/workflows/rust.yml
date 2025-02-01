@@ -12,7 +12,8 @@ on:
     
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: "--cfg=web_sys_unstable_apis --cfg getrandom_backend=\"wasm_js\"" # required for wasmbindgen to work
+  CARGO_TARGET_DIR: ./crates/target
+  RUSTFLAGS: '--cfg getrandom_backend="wasm_js" --cfg=web_sys_unstable_apis' # required for wasmbindgen to work
 
 jobs:
   check:
@@ -44,6 +45,7 @@ jobs:
 
       - name: "Creating folders"
         run: |
+          mkdir -p "./crates/target/"
           mkdir -p "./output/"
           mkdir -p "./output/web/"
           mkdir -p "./output/INOX/"
