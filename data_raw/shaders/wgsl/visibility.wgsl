@@ -26,6 +26,8 @@ var<storage, read> vertices_positions: VerticesPositions;
 var<storage, read> indices: Indices;
 @group(0) @binding(5)
 var<storage, read> meshes: Meshes;
+@group(0) @binding(6)
+var<storage, read> meshlets: Meshlets;
 #endif
 
 @vertex
@@ -54,7 +56,8 @@ fn vs_main(
     vertex_out.clip_position = constant_data.view_proj * vec4<f32>(v, 1.);
     vertex_out.instance_id = instance_id + 1u;    
 #ifdef NO_FEATURES_PRIMITIVE_INDEX
-    vertex_out.primitive_index = (vertex_id) / 3u;
+    let meshlet = meshlets.data[instance.meshlet_id];
+    vertex_out.primitive_index = (vertex_id - meshlet.indices_offset) / 3u;
 #endif
 
     return vertex_out;

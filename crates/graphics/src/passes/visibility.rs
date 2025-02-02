@@ -2,10 +2,10 @@ use std::path::PathBuf;
 
 use inox_render::{
     platform::has_primitive_index_support, BindingData, BindingFlags, BindingInfo, CommandBuffer,
-    ConstantDataRw, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh, GPUPrimitiveIndices,
-    GPUTransform, GPUVector, GPUVertexIndices, GPUVertexPosition, Pass, RenderContext,
-    RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage,
-    StoreOperation, Texture, TextureView, VextexBindingType,
+    ConstantDataRw, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet,
+    GPUPrimitiveIndices, GPUTransform, GPUVector, GPUVertexIndices, GPUVertexPosition, Pass,
+    RenderContext, RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
+    ShaderStage, StoreOperation, Texture, TextureView, VextexBindingType,
 };
 
 use inox_core::ContextRc;
@@ -24,6 +24,7 @@ pub struct VisibilityBufferPass {
     indices: GPUBuffer<GPUVertexIndices>,
     primitive_indices: GPUBuffer<GPUPrimitiveIndices>,
     meshes: GPUBuffer<GPUMesh>,
+    meshlets: GPUBuffer<GPUMeshlet>,
     transforms: GPUVector<GPUTransform>,
     instances: GPUVector<GPUInstance>,
     commands: GPUVector<DrawIndexedCommand>,
@@ -75,6 +76,7 @@ impl Pass for VisibilityBufferPass {
                 .global_buffers()
                 .buffer::<GPUPrimitiveIndices>(),
             meshes: render_context.global_buffers().buffer::<GPUMesh>(),
+            meshlets: render_context.global_buffers().buffer::<GPUMeshlet>(),
             transforms: render_context.global_buffers().vector::<GPUTransform>(),
             instances: render_context
                 .global_buffers()
@@ -176,6 +178,17 @@ impl Pass for VisibilityBufferPass {
                     BindingInfo {
                         group_index: 0,
                         binding_index: 5,
+                        stage: ShaderStage::Vertex,
+                        flags: BindingFlags::Storage | BindingFlags::Read,
+                        ..Default::default()
+                    },
+                )
+                .add_buffer(
+                    &mut *self.meshlets.write().unwrap(),
+                    Some("Meshlets"),
+                    BindingInfo {
+                        group_index: 0,
+                        binding_index: 6,
                         stage: ShaderStage::Vertex,
                         flags: BindingFlags::Storage | BindingFlags::Read,
                         ..Default::default()
