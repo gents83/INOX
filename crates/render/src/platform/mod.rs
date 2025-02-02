@@ -17,12 +17,14 @@ pub fn shader_preprocessor_defs<const PLATFORM_TYPE: PlatformType>() -> Vec<Stri
             "FEATURES_TEXTURE_BINDING_ARRAY".to_string(),
             "FEATURES_MULTISAMPLING".to_string(),
             "FEATURES_PRIMITIVE_INDEX".to_string(),
+            "FEATURES_MULTI_DRAW_INDIRECT_COUNT".to_string(),
         ]
     } else {
         vec![
             "NO_FEATURES_TEXTURE_BINDING_ARRAY".to_string(),
             "NO_FEATURES_MULTISAMPLING".to_string(),
             "NO_FEATURES_PRIMITIVE_INDEX".to_string(),
+            "NO_FEATURES_MULTI_DRAW_INDIRECT_COUNT".to_string(),
         ]
     }
 }
@@ -33,8 +35,8 @@ pub fn has_wireframe_support() -> bool {
 pub fn has_primitive_index_support() -> bool {
     required_gpu_features().contains(wgpu::Features::SHADER_PRIMITIVE_INDEX)
 }
-pub fn is_indirect_mode_enabled() -> bool {
-    required_gpu_features().contains(wgpu::Features::MULTI_DRAW_INDIRECT)
+pub fn is_indirect_mode_count_enabled() -> bool {
+    required_gpu_features().contains(wgpu::Features::MULTI_DRAW_INDIRECT_COUNT)
 }
 pub fn has_timestamp_queries() -> bool {
     required_gpu_features().contains(wgpu::Features::TIMESTAMP_QUERY)

@@ -57,7 +57,11 @@ fn vs_main(
     vertex_out.instance_id = instance_id + 1u;    
 #ifdef NO_FEATURES_PRIMITIVE_INDEX
     let meshlet = meshlets.data[instance.meshlet_id];
-    vertex_out.primitive_index = (vertex_id - meshlet.indices_offset) / 3u;
+    if(vertex_id > meshlet.indices_offset) {
+        vertex_out.primitive_index = (vertex_id - meshlet.indices_offset) / 3u;
+    } else {
+        vertex_out.primitive_index = (vertex_id) / 3u;
+    }
 #endif
 
     return vertex_out;
