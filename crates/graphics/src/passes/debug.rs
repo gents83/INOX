@@ -2,19 +2,17 @@ use std::path::PathBuf;
 
 use inox_render::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, GPUBuffer, GPUInstance,
-    GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture, GPUTransform, GPUVector,
-    GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, LoadOperation, Pass, RenderContext,
-    RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType,
-    ShaderStage, StoreOperation, TextureId, TextureView,
+    GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture, GPUTransform, GPUVector, GPUVertexAttributes,
+    GPUVertexIndices, GPUVertexPosition, LoadOperation, Pass, RenderContext, RenderContextRc,
+    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType, ShaderStage,
+    StoreOperation, TextureId, TextureView,
 };
 
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::{generate_random_uid, INVALID_UID};
 
-use crate::{
-    DebugPackedData, RadiancePackedData, RayPackedData, ThroughputPackedData, INSTANCE_DATA_ID,
-};
+use crate::INSTANCE_DATA_ID;
 
 pub const DEBUG_PIPELINE: &str = "pipelines/Debug.render_pipeline";
 pub const DEBUG_PASS_NAME: &str = "DebugPass";
@@ -32,14 +30,9 @@ pub struct DebugPass {
     vertices_attributes: GPUBuffer<GPUVertexAttributes>,
     textures: GPUBuffer<GPUTexture>,
     materials: GPUBuffer<GPUMaterial>,
-    lights: GPUBuffer<GPULight>,
     finalize_texture: TextureId,
     visibility_texture: TextureId,
     depth_texture: TextureId,
-    data_buffer_0: GPUVector<RayPackedData>,
-    data_buffer_1: GPUVector<RadiancePackedData>,
-    data_buffer_2: GPUVector<ThroughputPackedData>,
-    data_buffer_debug: GPUVector<DebugPackedData>,
 }
 unsafe impl Send for DebugPass {}
 unsafe impl Sync for DebugPass {}
@@ -89,7 +82,6 @@ impl Pass for DebugPass {
                 .vector_with_id::<GPUInstance>(INSTANCE_DATA_ID),
             textures: render_context.global_buffers().buffer::<GPUTexture>(),
             materials: render_context.global_buffers().buffer::<GPUMaterial>(),
-            lights: render_context.global_buffers().buffer::<GPULight>(),
             indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
             vertices_position: render_context
                 .global_buffers()
@@ -97,14 +89,6 @@ impl Pass for DebugPass {
             vertices_attributes: render_context
                 .global_buffers()
                 .buffer::<GPUVertexAttributes>(),
-            data_buffer_0: render_context.global_buffers().vector::<RayPackedData>(),
-            data_buffer_1: render_context
-                .global_buffers()
-                .vector::<RadiancePackedData>(),
-            data_buffer_2: render_context
-                .global_buffers()
-                .vector::<ThroughputPackedData>(),
-            data_buffer_debug: render_context.global_buffers().vector::<DebugPackedData>(),
             finalize_texture: INVALID_UID,
             visibility_texture: INVALID_UID,
             depth_texture: INVALID_UID,
@@ -235,23 +219,12 @@ impl Pass for DebugPass {
                     ..Default::default()
                 },
             )
-            .add_buffer(
-                &mut *self.lights.write().unwrap(),
-                Some("Lights"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 2,
-                    stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Uniform | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
             .add_texture(
                 &self.visibility_texture,
                 0,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 3,
+                    binding_index: 2,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
@@ -261,7 +234,7 @@ impl Pass for DebugPass {
                 0,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 4,
+                    binding_index: 3,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
@@ -283,51 +256,6 @@ impl Pass for DebugPass {
                 stage: ShaderStage::Fragment,
                 ..Default::default()
             });
-        self.binding_data
-            .add_buffer(
-                &mut *self.data_buffer_0.write().unwrap(),
-                Some("DataBuffer_0"),
-                BindingInfo {
-                    group_index: 3,
-                    binding_index: 0,
-                    stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.data_buffer_1.write().unwrap(),
-                Some("DataBuffer_1"),
-                BindingInfo {
-                    group_index: 3,
-                    binding_index: 1,
-                    stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.data_buffer_2.write().unwrap(),
-                Some("DataBuffer_2"),
-                BindingInfo {
-                    group_index: 3,
-                    binding_index: 2,
-                    stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.data_buffer_debug.write().unwrap(),
-                Some("DataBuffer_Debug"),
-                BindingInfo {
-                    group_index: 3,
-                    binding_index: 3,
-                    stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            );
         pass.init(render_context, &mut self.binding_data, None, None);
     }
     fn update(

@@ -23,6 +23,8 @@ var<storage, read> transforms: Transforms;
 @group(0) @binding(3)
 var<storage, read> vertices_positions: VerticesPositions;
 @group(0) @binding(4)
+var<storage, read> indices: Indices;
+@group(0) @binding(5)
 var<storage, read> meshes: Meshes;
 #endif
 
@@ -33,18 +35,16 @@ fn vs_main(
     @location(0) vertex_position: u32,
 #else
     @builtin(vertex_index) vertex_id: u32, 
-    @location(0) primitive_index: u32,
 #endif
     instance: Instance,
 ) -> VertexOutput {
-    
     let transform = transforms.data[instance.transform_id];
     let min = transform.bb_min_scale_y.xyz;
     let size = abs(transform.bb_max_scale_z.xyz - min);   
 #ifdef NO_FEATURES_PRIMITIVE_INDEX
     let mesh = meshes.data[instance.mesh_id];
-    let offset_index = mesh.indices_offset + vertex_id;
-    let vertex_position = vertices_positions.data[offset_index];
+    let real_index = indices.data[mesh.indices_offset + vertex_id];
+    let vertex_position = vertices_positions.data[mesh.vertices_position_offset + real_index];
 #endif
     let p = min + unpack_unorm_to_3_f32(vertex_position) * size;
     let scale = vec3<f32>(transform.position_scale_x.w, transform.bb_min_scale_y.w, transform.bb_min_scale_y.w);
@@ -54,7 +54,7 @@ fn vs_main(
     vertex_out.clip_position = constant_data.view_proj * vec4<f32>(v, 1.);
     vertex_out.instance_id = instance_id + 1u;    
 #ifdef NO_FEATURES_PRIMITIVE_INDEX
-    vertex_out.primitive_index = primitive_index;
+    vertex_out.primitive_index = (vertex_id) / 3u;
 #endif
 
     return vertex_out;

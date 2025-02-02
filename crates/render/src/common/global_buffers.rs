@@ -247,7 +247,7 @@ impl GlobalBuffers {
         if !has_primitive_index_support() {
             let mut primitive_indices = Vec::with_capacity(mesh_data.indices.len());
             for (new_index, _i) in mesh_data.indices.iter().enumerate() {
-                primitive_indices.push(GPUPrimitiveIndices((new_index / 3) as _));
+                primitive_indices.push(GPUPrimitiveIndices(new_index as _));
             }
             self.buffer::<GPUPrimitiveIndices>()
                 .write()

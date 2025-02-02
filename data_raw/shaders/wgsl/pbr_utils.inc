@@ -669,7 +669,7 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
     f_specular = vec3<f32>(0.0);
     f_sheen = vec3<f32>(0.0);
     f_clearcoat = vec3<f32>(0.0);
-   
+    /*
     let i = hash(constant_data.frame_index) % constant_data.num_lights;
     
     var light = lights.data[i];
@@ -712,11 +712,11 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
                 albedo_sheen_scaling = min(1.0 - c * albedo_sheen_scaling_LUT(NdotV, material_info.sheen_color_and_roughness_factor.w),
                     1.0 - c * albedo_sheen_scaling_LUT(NdotL, material_info.sheen_color_and_roughness_factor.w));
             }
+        }
             
-            if((material.flags & MATERIAL_FLAGS_CLEARCOAT) != 0u) {
-                f_clearcoat += intensity * get_punctual_radiance_clearcoat(material_info.clear_coat_normal, v, l, h, VdotH,
-                    material_info.clear_coat_f0, material_info.clear_coat_f90, material_info.clear_coat_roughness_factor);
-            }
+        if((material.flags & MATERIAL_FLAGS_CLEARCOAT) != 0u) {
+            f_clearcoat += intensity * get_punctual_radiance_clearcoat(material_info.clear_coat_normal, v, l, h, VdotH,
+                material_info.clear_coat_f0, material_info.clear_coat_f90, material_info.clear_coat_roughness_factor);
         }
         
         // BDTF
@@ -738,12 +738,12 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
             f_transmission += transmitted_light;
         }
     }
-    
+    */
     f_emissive = material.emissive_color.rgb * material.emissive_strength;
     if (has_texture(&material, TEXTURE_TYPE_EMISSIVE)) {  
-      let uv = material_texture_uv(&material, pixel_data, TEXTURE_TYPE_EMISSIVE);
-      let texture_color = sample_texture(uv);
-      f_emissive *= texture_color.rgb;
+        let uv = material_texture_uv(&material, pixel_data, TEXTURE_TYPE_EMISSIVE);
+        let texture_color = sample_texture(uv);
+        f_emissive *= texture_color.rgb;
     }
 
     //Layer blending

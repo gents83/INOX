@@ -53,7 +53,11 @@ fn main(
     //same for everyone
     commands.data[command_id].vertex_count = meshlet.indices_count;
     commands.data[command_id].base_index = meshlet.indices_offset;
+#ifdef FEATURES_PRIMITIVE_INDEX
     commands.data[command_id].vertex_offset = i32(mesh.vertices_position_offset);
+#else
+    commands.data[command_id].vertex_offset = 0;
+#endif
     //we need to find first instance
     commands.data[command_id].base_instance = first_instance;
     //we need to pack instances of same meshlet

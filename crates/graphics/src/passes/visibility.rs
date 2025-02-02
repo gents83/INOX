@@ -116,29 +116,17 @@ impl Pass for VisibilityBufferPass {
                     flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
-            );
-
-        if has_primitive_index_support() {
-            self.binding_data.set_vertex_buffer(
+            )
+            .set_vertex_buffer(
                 VextexBindingType::Vertex,
                 &mut *self.vertices_position.write().unwrap(),
                 Some("Vertices Position"),
-            );
-        } else {
-            self.binding_data.set_vertex_buffer(
-                VextexBindingType::Vertex,
-                &mut *self.primitive_indices.write().unwrap(),
-                Some("Primitive Indices"),
-            );
-        }
-
-        self.binding_data
+            )
             .set_vertex_buffer(
                 VextexBindingType::Instance,
                 &mut *self.instances.write().unwrap(),
                 Some("Instances"),
             )
-            .set_index_buffer(&mut *self.indices.write().unwrap(), Some("Indices"))
             .add_buffer(
                 &mut *self.commands.write().unwrap(),
                 Some("Commands"),
@@ -150,8 +138,16 @@ impl Pass for VisibilityBufferPass {
                     count: Some(commands_count),
                 },
             );
-        if !has_primitive_index_support() {
+
+        if has_primitive_index_support() {
             self.binding_data
+                .set_index_buffer(&mut *self.indices.write().unwrap(), Some("Indices"));
+        } else {
+            self.binding_data
+                .set_index_buffer(
+                    &mut *self.primitive_indices.write().unwrap(),
+                    Some("Primitive Indices"),
+                )
                 .add_buffer(
                     &mut *self.vertices_position.write().unwrap(),
                     Some("Vertices Position"),
@@ -164,11 +160,22 @@ impl Pass for VisibilityBufferPass {
                     },
                 )
                 .add_buffer(
+                    &mut *self.indices.write().unwrap(),
+                    Some("Indices"),
+                    BindingInfo {
+                        group_index: 0,
+                        binding_index: 4,
+                        stage: ShaderStage::Vertex,
+                        flags: BindingFlags::Storage | BindingFlags::Read,
+                        ..Default::default()
+                    },
+                )
+                .add_buffer(
                     &mut *self.meshes.write().unwrap(),
                     Some("Meshes"),
                     BindingInfo {
                         group_index: 0,
-                        binding_index: 4,
+                        binding_index: 5,
                         stage: ShaderStage::Vertex,
                         flags: BindingFlags::Storage | BindingFlags::Read,
                         ..Default::default()

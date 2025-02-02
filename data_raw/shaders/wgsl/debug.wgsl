@@ -33,20 +33,9 @@ var<storage, read> materials: Materials;
 @group(1) @binding(1)
 var<storage, read> textures: Textures;
 @group(1) @binding(2)
-var<uniform> lights: Lights;
-@group(1) @binding(3)
 var visibility_texture: texture_2d<u32>;
-@group(1) @binding(4)
+@group(1) @binding(3)
 var depth_texture: texture_depth_2d;
-
-@group(3) @binding(0)
-var<storage, read> data_buffer_0: array<f32>;
-@group(3) @binding(1)
-var<storage, read> data_buffer_1: array<f32>;
-@group(3) @binding(2)
-var<storage, read> data_buffer_2: array<f32>;
-@group(3) @binding(3)
-var<storage, read> data_buffer_debug: array<f32>;
 
 #import "texture_utils.inc"
 #import "geom_utils.inc"
@@ -401,6 +390,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
             out_color = vec4<f32>(vec3<f32>(material_info.perceptual_roughness), 1.);
         }
     } 
+    /*
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER) != 0) {
         let data_dimensions = vec2<u32>(DEFAULT_WIDTH, DEFAULT_HEIGHT);
         let data_scale = vec2<f32>(data_dimensions) / vec2<f32>(dimensions);
@@ -409,6 +399,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let radiance = vec3<f32>(data_buffer_1[data_index], data_buffer_1[data_index + 1u], data_buffer_1[data_index + 2u]);
         out_color = vec4<f32>(radiance, 1.);
     } 
+    */
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER) != 0) {
         let depth_dimensions = textureDimensions(depth_texture);
         let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
