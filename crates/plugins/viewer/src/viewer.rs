@@ -4,7 +4,7 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
     BlitPass, CommandsPass, ComputeInstancesPass, ComputePathTracingDirectPass, CullingPass,
-    DebugPass, DepthPyramidPass, FinalizePass, VisibilityBufferPass, WireframePass,
+    DebugPass, DepthFirstPass, DepthPyramidPass, FinalizePass, VisibilityBufferPass, WireframePass,
     WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
@@ -310,6 +310,12 @@ impl Viewer {
         render_context.add_pass(blit_pass, true);
     }
     fn create_depth_pyramid_pass(context: &ContextRc, render_context: &RenderContextRc) {
+        let mut depth_first_pass = DepthFirstPass::create(context, render_context);
+        depth_first_pass
+            .set_depth_texture(render_context.render_target(RenderTargetType::Depth as usize))
+            .set_hzb_texture(render_context.render_target(RenderTargetType::HiZ as usize));
+        render_context.add_pass(depth_first_pass, true);
+
         let mut depth_pyramid_pass = DepthPyramidPass::create(context, render_context);
         depth_pyramid_pass
             .set_depth_texture(render_context.render_target(RenderTargetType::Depth as usize))

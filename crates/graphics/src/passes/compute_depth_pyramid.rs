@@ -20,7 +20,7 @@ pub struct DepthPyramidPass {
     render_context: RenderContextRc,
     binding_data: Vec<BindingData>,
     constant_data: ConstantDataRw,
-    depth_texture: Handle<Texture>,
+    dimensions: (u32, u32),
     hzb_texture: Handle<Texture>,
     mip_levels: Vec<u32>,
     listener: Listener,
@@ -61,7 +61,7 @@ impl Pass for DepthPyramidPass {
             constant_data: render_context.global_buffers().constant_data.clone(),
             binding_data: Vec::new(),
             mip_levels: Vec::new(),
-            depth_texture: None,
+            dimensions: (0, 0),
             hzb_texture: None,
             listener,
             update_pyramid: true,
@@ -70,13 +70,8 @@ impl Pass for DepthPyramidPass {
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("compute_depth_pyramid_pass::init");
 
-        if self.depth_texture.is_none() || self.hzb_texture.is_none() {
+        if self.hzb_texture.is_none() {
             return;
-        }
-        if let Some(depth_texture) = self.depth_texture.as_ref() {
-            if depth_texture.get().texture_index() < 0 {
-                return;
-            }
         }
 
         self.process_messages();
@@ -101,19 +96,20 @@ impl Pass for DepthPyramidPass {
                             ..Default::default()
                         },
                     )
-                    .add_texture(
-                        self.depth_texture.as_ref().unwrap().id(),
-                        0,
+                    .add_buffer(
+                        &mut self.mip_levels[i],
+                        Some("MipLevel"),
                         BindingInfo {
                             group_index: 0,
                             binding_index: 1,
                             stage: ShaderStage::Compute,
+                            flags: BindingFlags::Uniform | BindingFlags::Read,
                             ..Default::default()
                         },
                     )
                     .add_texture(
                         self.hzb_texture.as_ref().unwrap().id(),
-                        if i == 0 { 0 } else { i as u32 - 1 },
+                        i as u32,
                         BindingInfo {
                             group_index: 0,
                             binding_index: 2,
@@ -124,23 +120,12 @@ impl Pass for DepthPyramidPass {
                     )
                     .add_texture(
                         self.hzb_texture.as_ref().unwrap().id(),
-                        i as _,
+                        (i + 1) as u32,
                         BindingInfo {
                             group_index: 0,
                             binding_index: 3,
                             stage: ShaderStage::Compute,
                             flags: BindingFlags::Storage | BindingFlags::ReadWrite,
-                            ..Default::default()
-                        },
-                    )
-                    .add_buffer(
-                        &mut self.mip_levels[i],
-                        Some("MipLevel"),
-                        BindingInfo {
-                            group_index: 0,
-                            binding_index: 4,
-                            stage: ShaderStage::Compute,
-                            flags: BindingFlags::Uniform | BindingFlags::Read,
                             ..Default::default()
                         },
                     );
@@ -158,27 +143,20 @@ impl Pass for DepthPyramidPass {
     ) {
         inox_profiler::scoped_profile!("compute_depth_pyramid_pass::update");
 
-        if self.depth_texture.is_none() || self.hzb_texture.is_none() {
+        if self.hzb_texture.is_none() {
             return;
-        }
-        if let Some(depth_texture) = self.depth_texture.as_ref() {
-            if depth_texture.get().texture_index() < 0 {
-                return;
-            }
         }
 
         if !self.update_pyramid {
             return;
         }
 
-        let dimensions = self.depth_texture.as_ref().unwrap().get().dimensions();
-
         self.binding_data
             .iter_mut()
             .enumerate()
             .for_each(|(mip_level, binding_data)| {
-                let work_group_count_x = ((dimensions.0 / (1 << mip_level)) + 7) / 8;
-                let work_group_count_y = ((dimensions.1 / (1 << mip_level)) + 7) / 8;
+                let work_group_count_x = ((self.dimensions.0 / (1 << (mip_level + 1))) + 7) / 8;
+                let work_group_count_y = ((self.dimensions.1 / (1 << (mip_level + 1))) + 7) / 8;
 
                 let pass = self.compute_pass.get();
                 pass.dispatch(
@@ -195,13 +173,12 @@ impl Pass for DepthPyramidPass {
 
 impl DepthPyramidPass {
     pub fn set_depth_texture(&mut self, texture: Resource<Texture>) -> &mut Self {
-        let dimensions = texture.get().dimensions();
-        self.depth_texture = Some(texture);
-        let hzb_size = dimensions.0.max(dimensions.1).next_power_of_two();
+        self.dimensions = texture.get().dimensions();
+        let hzb_size = self.dimensions.0.max(self.dimensions.1).next_power_of_two();
         let mip_count = (f32::log2(hzb_size as f32) as u32).max(1);
         self.binding_data.clear();
         self.mip_levels.clear();
-        for i in 0..mip_count {
+        for i in 1..mip_count {
             let binding_data = BindingData::new(
                 &self.render_context,
                 format!("{DEPTH_PYRAMID_PASS_NAME}_mip{i}").as_str(),

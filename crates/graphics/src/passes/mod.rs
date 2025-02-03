@@ -1,6 +1,7 @@
 pub use self::blit::*;
 pub use self::compute_commands::*;
 pub use self::compute_culling::*;
+pub use self::compute_depth_first::*;
 pub use self::compute_depth_pyramid::*;
 pub use self::compute_instances::*;
 pub use self::compute_pathtracing_direct::*;
@@ -13,6 +14,7 @@ pub use self::wireframe::*;
 pub mod blit;
 pub mod compute_commands;
 pub mod compute_culling;
+pub mod compute_depth_first;
 pub mod compute_depth_pyramid;
 pub mod compute_instances;
 pub mod compute_pathtracing_direct;
