@@ -80,8 +80,11 @@ web-sys = { version = "0.3.76", features = [
     "Element",
     "HtmlCanvasElement",
     "HtmlElement",
+    "HtmlTimeElement",
     "MouseEvent",
     "KeyboardEvent",
+    "TimeEvent",
+    "TimeRanges",
     "Window",
     "Performance", 
     "PerformanceTiming"
