@@ -1,5 +1,7 @@
 fn has_texture(material: ptr<function, Material>, texture_type: u32) -> bool {
-    let texture_index = (*material).textures_index_and_coord_set[texture_type] & 0x0FFFFFFFu;
+    let i = texture_type & 3;  // Equivalent to index % 4 (faster than modulo on power of 2)
+    let j = texture_type >> 2; // Equivalent to index / 4 (faster than division by power of 2)
+    let texture_index = bitcast<u32>((*material).textures_index_and_coord_set[j][i]) & 0x0FFFFFFFu;
     if (texture_index > 0) {
         return true;
     }
@@ -7,12 +9,16 @@ fn has_texture(material: ptr<function, Material>, texture_type: u32) -> bool {
 }
 
 fn material_texture_index(material: ptr<function, Material>, texture_type: u32) -> u32 {
-    let texture_index = (*material).textures_index_and_coord_set[texture_type] & 0x0FFFFFFFu;
+    let i = texture_type & 3;  // Equivalent to index % 4 (faster than modulo on power of 2)
+    let j = texture_type >> 2; // Equivalent to index / 4 (faster than division by power of 2)
+    let texture_index = bitcast<u32>((*material).textures_index_and_coord_set[j][i]) & 0x0FFFFFFFu;
     return max(0u, texture_index - 1u);
 }
 
 fn material_texture_coord_set(material: ptr<function, Material>, texture_type: u32) -> u32 {
-    return ((*material).textures_index_and_coord_set[texture_type] & 0xF0000000u) >> 28;
+    let i = texture_type & 3;  // Equivalent to index % 4 (faster than modulo on power of 2)
+    let j = texture_type >> 2; // Equivalent to index / 4 (faster than division by power of 2)
+    return (bitcast<u32>((*material).textures_index_and_coord_set[j][i]) & 0xF0000000u) >> 28;
 }
 
 fn material_texture_uv(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, texture_type: u32) -> vec3<f32> {

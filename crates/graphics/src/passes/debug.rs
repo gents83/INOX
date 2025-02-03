@@ -204,7 +204,7 @@ impl Pass for DebugPass {
                     group_index: 1,
                     binding_index: 0,
                     stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
                 },
             )
@@ -215,7 +215,7 @@ impl Pass for DebugPass {
                     group_index: 1,
                     binding_index: 1,
                     stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
                 },
             )

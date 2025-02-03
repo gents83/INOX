@@ -19,9 +19,9 @@ var<storage, read> meshes: Meshes;
 var<storage, read> meshlets: Meshlets;
 
 @group(1) @binding(0)
-var<storage, read> materials: Materials;
+var<uniform> materials: Materials;
 @group(1) @binding(1)
-var<storage, read> textures: Textures;
+var<uniform> textures: Textures;
 @group(1) @binding(2)
 var<uniform> lights: Lights;
 @group(1) @binding(3)

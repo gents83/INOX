@@ -23,8 +23,8 @@ use crate::{config::Config, systems::viewer_system::ViewerSystem};
 const ADD_UI_PASS: bool = true;
 
 const MAX_NUM_LIGHTS: usize = 512;
-const MAX_NUM_TEXTURES: usize = 65536;
-const MAX_NUM_MATERIALS: usize = 65536;
+const MAX_NUM_TEXTURES: usize = 2048;
+const MAX_NUM_MATERIALS: usize = 256;
 
 enum RenderTargetType {
     Visibility = 0,

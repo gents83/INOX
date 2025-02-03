@@ -12,9 +12,9 @@ var<storage, read> meshes: Meshes;
 @group(0) @binding(4)
 var<storage, read> meshlets: Meshlets;
 @group(0) @binding(5)
-var<storage, read> materials: Materials;
+var<uniform> materials: Materials;
 @group(0) @binding(6)
-var<storage, read> textures: Textures;
+var<uniform> textures: Textures;
 @group(0) @binding(7)
 var<uniform> lights: Lights;
 

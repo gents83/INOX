@@ -35,7 +35,7 @@ var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
 var<uniform> ui_pass_data: UIPassData;
 @group(1) @binding(0)
-var<storage, read> textures: Textures;
+var<uniform> textures: Textures;
 
 #import "texture_utils.inc"
 #import "color_utils.inc"

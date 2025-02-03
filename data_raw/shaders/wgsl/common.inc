@@ -3,8 +3,8 @@ const DEFAULT_HEIGHT: u32 = 1080u;
 const SIZE_OF_DATA_BUFFER_ELEMENT: u32 = 4u;
 const MAX_LOD_LEVELS: u32 = 8u;
 const MAX_NUM_LIGHTS: u32 = 512u;
-const MAX_NUM_TEXTURES: u32 = 65536u;
-const MAX_NUM_MATERIALS: u32 = 65536u;
+const MAX_NUM_TEXTURES: u32 = 2048u;
+const MAX_NUM_MATERIALS: u32 = 256u;
 const MAX_PROJECTED_ERROR: f32 = 10e-10;
 const LOD_ERROR_THRESHOLD: f32 = 2e-3f; // 24 pixels at 1080p
 
@@ -210,6 +210,7 @@ struct TextureData {
 };
 
 struct Material {
+    textures_index_and_coord_set: mat4x4<f32>,
     roughness_factor: f32,
     metallic_factor: f32,
     ior: f32,
@@ -225,7 +226,6 @@ struct Material {
     normal_scale_and_alpha_cutoff: u32,
     occlusion_strength: f32,
     flags: u32,
-    textures_index_and_coord_set: array<u32, TEXTURE_TYPE_COUNT>,
 };
 
 
@@ -234,11 +234,11 @@ struct Lights {
 };
 
 struct Textures {
-    data: array<TextureData>,
+    data: array<TextureData, MAX_NUM_TEXTURES>,
 };
 
 struct Materials {
-    data: array<Material>,
+    data: array<Material, MAX_NUM_MATERIALS>,
 };
 
 struct DrawCommands {

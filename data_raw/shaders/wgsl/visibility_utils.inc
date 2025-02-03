@@ -1,4 +1,4 @@
-// Need constant_data, transforms, meshlets, meshes, indices, vertices_positions, vertices_attributes
+// Need constant_data, transforms, meshlets, meshes, instances, indices, vertices_positions, vertices_attributes
 
 fn visibility_to_gbuffer(visibility_id: u32, hit_point: vec3<f32>) -> PixelData 
 {     

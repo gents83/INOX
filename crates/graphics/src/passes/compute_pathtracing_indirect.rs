@@ -173,7 +173,7 @@ impl Pass for ComputePathTracingIndirectPass {
                     group_index: 0,
                     binding_index: 5,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
                 },
             )
@@ -184,7 +184,7 @@ impl Pass for ComputePathTracingIndirectPass {
                     group_index: 0,
                     binding_index: 6,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
                 },
             )

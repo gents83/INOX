@@ -29,9 +29,9 @@ var<storage, read> instances: Instances;
 var<storage, read> transforms: Transforms;
 
 @group(1) @binding(0)
-var<storage, read> materials: Materials;
+var<uniform> materials: Materials;
 @group(1) @binding(1)
-var<storage, read> textures: Textures;
+var<uniform> textures: Textures;
 @group(1) @binding(2)
 var visibility_texture: texture_2d<u32>;
 @group(1) @binding(3)

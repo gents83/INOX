@@ -1,9 +1,9 @@
 use inox_bitmask::bitmask;
-use inox_math::quantize_half;
+use inox_math::{quantize_half, MatBase, Matrix4};
 
 use crate::{
-    AsBinding, BufferRef, MaterialFlags, RenderContext, TextureType, VertexBufferLayoutBuilder,
-    VertexFormat, INVALID_INDEX,
+    AsBinding, BufferRef, MaterialFlags, RenderContext, VertexBufferLayoutBuilder, VertexFormat,
+    INVALID_INDEX,
 };
 
 pub const MAX_LOD_LEVELS: usize = 8;
@@ -94,6 +94,7 @@ pub struct GPUMeshlet {
 #[repr(C)]
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub struct GPUMaterial {
+    pub textures_index_and_coord_set: Matrix4,
     pub roughness_factor: f32,
     pub metallic_factor: f32,
     pub ior: f32,
@@ -109,13 +110,12 @@ pub struct GPUMaterial {
     pub normal_scale_and_alpha_cutoff: u32,
     pub occlusion_strength: f32,
     pub flags: u32,
-    pub textures_index_and_coord_set: [u32; TextureType::Count as _],
 }
 
 impl Default for GPUMaterial {
     fn default() -> Self {
         Self {
-            textures_index_and_coord_set: [0; TextureType::Count as _],
+            textures_index_and_coord_set: Matrix4::default_zero(),
             roughness_factor: 1.0,
             metallic_factor: 1.0,
             ior: 1.5,

@@ -25,9 +25,6 @@ pub const LUT_PBR_GGX_UID: ResourceId = generate_static_uid_from_string("LUT_PBR
 pub const ENV_MAP_UID: ResourceId = generate_static_uid_from_string("ENV_MAP_UID");
 
 pub const ATOMIC_SIZE: u32 = 32;
-pub const MAX_NUM_LIGHTS: usize = 1024;
-pub const MAX_NUM_TEXTURES: usize = 65536;
-pub const MAX_NUM_MATERIALS: usize = 65536;
 pub const NUM_FRAMES_OF_HISTORY: usize = 2;
 
 pub type AtomicCounter = Arc<RwLock<AtomicU32>>;
@@ -475,18 +472,19 @@ impl GlobalBuffers {
         let materials = self.buffer::<GPUMaterial>();
         let mut materials = materials.write().unwrap();
         if let Some(m) = materials.get_first_mut(material_id) {
-            m.textures_index_and_coord_set = textures_index_and_coord_set;
+            for (v, item) in textures_index_and_coord_set.iter().enumerate() {
+                let i = v & 3; // Equivalent to index % 4 (faster than modulo on power of 2)
+                let j = v >> 2; // Equivalent to index / 4 (faster than division by power of 2)
+                m.textures_index_and_coord_set[j][i] = f32::from_bits(*item);
+            }
         } else {
-            let index = materials
-                .push(
-                    material_id,
-                    GPUMaterial {
-                        textures_index_and_coord_set,
-                        ..Default::default()
-                    },
-                )
-                .1
-                .start;
+            let mut m = GPUMaterial::default();
+            for (v, item) in textures_index_and_coord_set.iter().enumerate() {
+                let i = v & 3; // Equivalent to index % 4 (faster than modulo on power of 2)
+                let j = v >> 2; // Equivalent to index / 4 (faster than division by power of 2)
+                m.textures_index_and_coord_set[j][i] = f32::from_bits(*item);
+            }
+            let index = materials.push(material_id, m).1.start;
             material.set_material_index(index as _);
         }
         materials.mark_as_dirty(render_context);
@@ -501,8 +499,12 @@ impl GlobalBuffers {
         let materials = self.buffer::<GPUMaterial>();
         let mut materials = materials.write().unwrap();
         if let Some(material) = materials.get_first_mut(material_id) {
-            for (i, t) in material_data.texcoords_set.iter().enumerate() {
-                material.textures_index_and_coord_set[i] |= (*t << 28) as u32;
+            for (v, t) in material_data.texcoords_set.iter().enumerate() {
+                let i = v & 3; // Equivalent to index % 4 (faster than modulo on power of 2)
+                let j = v >> 2; // Equivalent to index / 4 (faster than division by power of 2)
+                let mut v = f32::to_bits(material.textures_index_and_coord_set[j][i]);
+                v |= (*t << 28) as u32;
+                material.textures_index_and_coord_set[j][i] = f32::from_bits(v);
             }
             material.roughness_factor = material_data.roughness_factor;
             material.metallic_factor = material_data.metallic_factor;
