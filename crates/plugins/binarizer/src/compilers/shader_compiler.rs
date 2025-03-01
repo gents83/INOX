@@ -332,7 +332,7 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
                     }
                 }
             }
-            if !should_skip {
+            if !should_skip && !line.is_empty() {
                 string.push_str(line);
                 string.push('\n');
             }
