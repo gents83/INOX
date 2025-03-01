@@ -77,7 +77,6 @@
                 //"models/MetalRoughSpheresNoTextures/MetalRoughSpheresNoTextures.scene"
                 //"models/NormalTangent/NormalTangent.scene"
                 //"models/DamagedHelmet/DamagedHelmet.scene"
-                //"models/DamagedHelmetInstances/DamagedHelmetInstances.scene"
                 //"models/craftman/craftman.scene"
                 //"models/stanford_bunny/stanford_bunny.scene"
                 //"models/bunnies/bunnies.scene"
@@ -98,6 +97,24 @@
                     "value": "debug",
                 },
             ],
+            "stopAtEntry": false,
+            "requireExactSource": false,
+            "preLaunchTask": "COMPILE DEBUG",
+            "postDebugTask": "CLEANUP",
+            "console": "integratedTerminal",
+            "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/",
+        },
+        {
+            "name": "RUN BINARIZER SHADER PREPROCESSOR DEBUG",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
+            "args": [
+                "-plugin inox_binarizer",
+                "-preprocess_shader",
+                "shaders/wgsl/compute_pathtracing_direct.wgsl"
+            ],
+            "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
             "requireExactSource": false,
             "preLaunchTask": "COMPILE DEBUG",

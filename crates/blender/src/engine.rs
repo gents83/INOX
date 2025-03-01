@@ -3,7 +3,7 @@ use inox_resources::Singleton;
 use pyo3::prelude::PyAnyMethods;
 use pyo3::{pyclass, pymethods, PyResult, Python};
 
-use inox_binarizer::Binarizer;
+use inox_binarizer::{Binarizer, BinarizerParameters};
 use inox_core::App;
 use inox_filesystem::EXE_PATH;
 use inox_nodes::{LogicNodeRegistry, NodeType};
@@ -63,10 +63,16 @@ impl INOXEngine {
 
         let mut app = App::default();
 
+        let info = BinarizerParameters {
+            should_end_on_completion: AtomicBool::new(true),
+            optimize_meshes: AtomicBool::new(true),
+            ..Default::default()
+        };
         let mut binarizer = Binarizer::new(
             app.context(),
             working_dir.join(DATA_RAW_FOLDER),
             working_dir.join(DATA_FOLDER),
+            &info,
         );
         binarizer.stop();
 

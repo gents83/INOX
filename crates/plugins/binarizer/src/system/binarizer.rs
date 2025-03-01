@@ -21,9 +21,11 @@ use crate::{
     ShaderCompiler,
 };
 
-struct Info {
-    should_end_on_completion: AtomicBool,
-    optimize_meshes: AtomicBool,
+#[derive(Default)]
+pub struct BinarizerParameters {
+    pub should_end_on_completion: AtomicBool,
+    pub optimize_meshes: AtomicBool,
+    pub preprocess_shaders_paths: Vec<String>,
 }
 
 pub struct Binarizer<const PLATFORM_TYPE: PlatformType> {
@@ -35,7 +37,7 @@ pub struct Binarizer<const PLATFORM_TYPE: PlatformType> {
     thread_handle: Option<JoinHandle<bool>>,
     is_running: Arc<AtomicBool>,
     is_ready: Arc<AtomicBool>,
-    info: Arc<Info>,
+    info: Arc<BinarizerParameters>,
 }
 
 impl<const PLATFORM_TYPE: PlatformType> Binarizer<PLATFORM_TYPE> {
@@ -43,6 +45,7 @@ impl<const PLATFORM_TYPE: PlatformType> Binarizer<PLATFORM_TYPE> {
         app_context: &ContextRc,
         mut data_raw_folder: PathBuf,
         mut data_folder: PathBuf,
+        info: &BinarizerParameters,
     ) -> Self {
         if !data_raw_folder.exists() {
             let result = create_dir_all(data_raw_folder.as_path());
@@ -66,9 +69,12 @@ impl<const PLATFORM_TYPE: PlatformType> Binarizer<PLATFORM_TYPE> {
             data_folder,
             thread_handle: None,
             is_running: Arc::new(AtomicBool::new(false)),
-            info: Arc::new(Info {
-                should_end_on_completion: AtomicBool::new(true),
-                optimize_meshes: AtomicBool::new(true),
+            info: Arc::new(BinarizerParameters {
+                should_end_on_completion: AtomicBool::new(
+                    info.should_end_on_completion.load(Ordering::SeqCst),
+                ),
+                optimize_meshes: AtomicBool::new(info.optimize_meshes.load(Ordering::SeqCst)),
+                preprocess_shaders_paths: info.preprocess_shaders_paths.clone(),
             }),
             is_ready: Arc::new(AtomicBool::new(false)),
         }
@@ -84,7 +90,7 @@ impl<const PLATFORM_TYPE: PlatformType> Binarizer<PLATFORM_TYPE> {
         message_hub: &MessageHubRc,
         data_raw_folder: &Path,
         data_folder: &Path,
-        _info: &Info,
+        info: &BinarizerParameters,
     ) -> DataWatcher {
         let shader_compiler = ShaderCompiler::<PLATFORM_TYPE>::new(
             shared_data.clone(),
@@ -92,50 +98,50 @@ impl<const PLATFORM_TYPE: PlatformType> Binarizer<PLATFORM_TYPE> {
             data_raw_folder,
             data_folder,
         );
-        let font_compiler = FontCompiler::new(message_hub.clone(), data_raw_folder, data_folder);
-        let image_compiler = ImageCompiler::new(message_hub.clone(), data_raw_folder, data_folder);
-        let gltf_compiler = GltfCompiler::new(data_raw_folder, data_folder);
-        binarizer.add_handler(shader_compiler);
-        binarizer.add_handler(font_compiler);
-        binarizer.add_handler(image_compiler);
-        binarizer.add_handler(gltf_compiler);
+        if info.preprocess_shaders_paths.is_empty() {
+            let font_compiler =
+                FontCompiler::new(message_hub.clone(), data_raw_folder, data_folder);
+            let image_compiler =
+                ImageCompiler::new(message_hub.clone(), data_raw_folder, data_folder);
+            let gltf_compiler = GltfCompiler::new(data_raw_folder, data_folder);
+            let config_compiler =
+                CopyCompiler::new(message_hub.clone(), data_raw_folder, data_folder);
+            binarizer.add_handler(config_compiler);
+            binarizer.add_handler(font_compiler);
+            binarizer.add_handler(image_compiler);
+            binarizer.add_handler(gltf_compiler);
+            binarizer.add_handler(shader_compiler);
+        } else {
+            for path in info.preprocess_shaders_paths.iter() {
+                shader_compiler.preprocess_shader(Path::new(path));
+            }
+        }
         binarizer
     }
 
     pub fn start(&mut self) {
-        inox_log::debug_log!("Starting data binarizer");
-        let mut binarizer = DataWatcher::new(self.data_raw_folder.clone());
-        let config_compiler = CopyCompiler::new(
-            self.message_hub.clone(),
-            self.data_raw_folder.as_path(),
-            self.data_folder.as_path(),
+        let binarizer = DataWatcher::new(self.data_raw_folder.clone());
+        let mut binarizer = Self::init_binarizer(
+            binarizer,
+            &self.shared_data,
+            &self.message_hub,
+            &self.data_raw_folder,
+            &self.data_folder,
+            &self.info,
         );
-        binarizer.add_handler(config_compiler);
+
+        if !self.info.preprocess_shaders_paths.is_empty() {
+            return;
+        }
+        inox_log::debug_log!("Starting data binarizer");
 
         self.is_running.store(true, Ordering::SeqCst);
         let can_continue = self.is_running.clone();
-        let is_ready = self.is_ready.clone();
         let info = self.info.clone();
         let builder = thread::Builder::new().name("Data Binarizer".to_string());
-        let shared_data = self.shared_data.clone();
-        let message_hub = self.message_hub.clone();
-        let data_raw_folder = self.data_raw_folder.clone();
-        let data_folder = self.data_folder.clone();
 
         let t = builder
             .spawn(move || -> bool {
-                binarizer.binarize_all();
-                while !is_ready.load(Ordering::SeqCst) {
-                    thread::yield_now();
-                }
-                let mut binarizer = Self::init_binarizer(
-                    binarizer,
-                    &shared_data,
-                    &message_hub,
-                    &data_raw_folder,
-                    &data_folder,
-                    &info,
-                );
                 binarizer.binarize_all();
 
                 loop {

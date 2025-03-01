@@ -1,3 +1,5 @@
+use std::sync::atomic::AtomicBool;
+
 use inox_commands::CommandParser;
 use inox_core::{define_plugin, ContextRc, Plugin, SystemId, SystemUID};
 use inox_platform::{
@@ -6,7 +8,7 @@ use inox_platform::{
 };
 use inox_resources::{PC_FOLDER, WEB_FOLDER};
 
-use crate::Binarizer;
+use crate::{Binarizer, BinarizerParameters};
 
 #[repr(C)]
 #[derive(Default)]
@@ -29,6 +31,22 @@ impl Plugin for BinarizerPlugin {
         if platform.is_empty() {
             platform.push(PLATFORM_TYPE_PC_NAME.to_string());
         }
+        let mut shader_paths = Vec::new();
+        if command_parser.has("preprocess_shader") {
+            let values = command_parser.get_values_of::<String>("preprocess_shader");
+            if !values.is_empty() {
+                shader_paths = values[0]
+                    .as_str()
+                    .split(',')
+                    .map(|s| s.to_string())
+                    .collect();
+            }
+        }
+        let info = BinarizerParameters {
+            should_end_on_completion: AtomicBool::new(true),
+            optimize_meshes: AtomicBool::new(true),
+            preprocess_shaders_paths: shader_paths,
+        };
         for name in platform.iter() {
             let name = name.as_str();
             match name {
@@ -37,6 +55,7 @@ impl Plugin for BinarizerPlugin {
                         context,
                         inox_resources::Data::data_raw_folder(),
                         inox_resources::Data::data_folder().join(PC_FOLDER),
+                        &info,
                     );
                     self.pc_id = Binarizer::<PLATFORM_TYPE_PC>::system_id();
                     context.add_system(inox_core::Phases::PreUpdate, system, None);
@@ -46,6 +65,7 @@ impl Plugin for BinarizerPlugin {
                         context,
                         inox_resources::Data::data_raw_folder(),
                         inox_resources::Data::data_folder().join(WEB_FOLDER),
+                        &info,
                     );
                     self.web_id = Binarizer::<PLATFORM_TYPE_WEB>::system_id();
                     context.add_system(inox_core::Phases::PreUpdate, system, None);

@@ -9,7 +9,7 @@ use std::{
 };
 
 use crate::{need_to_binarize, send_reloaded_event, ExtensionHandler};
-use inox_filesystem::delete_file;
+use inox_filesystem::{convert_from_local_path, delete_file};
 use inox_log::debug_log;
 use inox_messenger::MessageHubRc;
 use inox_platform::PlatformType;
@@ -25,6 +25,7 @@ const DEBUG_SHADER_GENERATED_CODE: bool = false;
 
 const SHADERS_FOLDER_NAME: &str = "shaders";
 
+const PREPROCESSED_SHADER_EXTENSION: &str = "preprocessed_shader";
 const WGSL_EXTENSION: &str = "wgsl";
 const SPV_EXTENSION: &str = "spv";
 const VERTEX_SHADER_EXTENSION: &str = "vert";
@@ -163,6 +164,106 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
         }
         true
     }
+
+    pub fn preprocess_shader(&self, local_path: &Path) {
+        let path = convert_from_local_path(self.data_raw_folder.as_path(), local_path);
+        debug_log!("Preproces shader {:?}", path);
+
+        let extension = path.extension().unwrap().to_str().unwrap();
+        let source_ext = format!(".{extension}");
+        let destination_ext = format!(".{PREPROCESSED_SHADER_EXTENSION}");
+        let mut from_source_to_preprocessed = path.to_str().unwrap().to_string();
+        from_source_to_preprocessed =
+            from_source_to_preprocessed.replace(source_ext.as_str(), destination_ext.as_str());
+        let new_path = PathBuf::from(from_source_to_preprocessed);
+
+        let mut file = std::fs::File::open(path.to_str().unwrap()).unwrap();
+        let mut data = Vec::new();
+        file.read_to_end(&mut data).unwrap();
+        let shader_code = String::from_utf8(data).unwrap();
+        let preprocessed_code = Self::preprocess_code(&path, shader_code);
+
+        if self.validate_shader(&preprocessed_code, &path, &new_path) {
+            debug_log!("into shader {:?}", new_path);
+            std::fs::write(&new_path, preprocessed_code).unwrap();
+        }
+    }
+
+    fn validate_shader(&self, preprocessed_code: &str, path: &Path, new_path: &Path) -> bool {
+        let mut validated = false;
+
+        let result = naga::front::wgsl::parse_str(preprocessed_code);
+        match result {
+            Ok(module) => {
+                match naga::valid::Validator::new(
+                    naga::valid::ValidationFlags::default(),
+                    naga::valid::Capabilities::all(),
+                )
+                .validate(&module)
+                {
+                    Ok(info) => {
+                        if DEBUG_SHADER_GENERATED_CODE {
+                            use naga::back::spv;
+                            use rspirv::binary::Disassemble;
+
+                            let mut flags = spv::WriterFlags::LABEL_VARYINGS;
+                            flags.set(spv::WriterFlags::DEBUG, true);
+
+                            let options = spv::Options {
+                                lang_version: (1, 1),
+                                flags,
+                                ..spv::Options::default()
+                            };
+
+                            module.entry_points.iter().for_each(|ep| {
+                                let pipeline_options = spv::PipelineOptions {
+                                    entry_point: ep.name.clone(),
+                                    shader_stage: ep.stage,
+                                };
+                                let spv = spv::write_vec(
+                                    &module,
+                                    &info,
+                                    &options,
+                                    Some(&pipeline_options),
+                                )
+                                .unwrap();
+                                let dis = rspirv::dr::load_words(spv)
+                                    .expect("Produced invalid SPIR-V")
+                                    .disassemble();
+                                let spv_path =
+                                    new_path.parent().unwrap().parent().unwrap().join("spv");
+                                std::fs::create_dir_all(spv_path.as_path()).ok();
+                                let spv_path = spv_path.join(format!(
+                                    "{}_{}.spv",
+                                    new_path.file_stem().unwrap().to_str().unwrap(),
+                                    ep.name
+                                ));
+                                std::fs::write(spv_path.as_path(), dis).unwrap();
+                            });
+                        }
+
+                        validated = true;
+                    }
+                    Err(e) => {
+                        println!(
+                            "Unable to compile shader {path:?} with error: \n{}",
+                            e.emit_to_string(preprocessed_code),
+                        );
+                    }
+                };
+            }
+            Err(ref e) => {
+                println!(
+                    "Unable to compile shader {path:?} with error: \n{}\n{}",
+                    e.message(),
+                    e.emit_to_string(preprocessed_code),
+                );
+            }
+        }
+
+        validated
+    }
+
     fn create_wgsl_shader_data(&self, path: &Path) {
         let extension = path.extension().unwrap().to_str().unwrap();
         let source_ext = format!(".{extension}");
@@ -188,78 +289,13 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
             let shader_code = String::from_utf8(data).unwrap();
             let preprocessed_code = Self::preprocess_code(path, shader_code);
 
-            let result = naga::front::wgsl::parse_str(&preprocessed_code);
-            match result {
-                Ok(module) => {
-                    match naga::valid::Validator::new(
-                        naga::valid::ValidationFlags::default(),
-                        naga::valid::Capabilities::all(),
-                    )
-                    .validate(&module)
-                    {
-                        Ok(info) => {
-                            if DEBUG_SHADER_GENERATED_CODE {
-                                use naga::back::spv;
-                                use rspirv::binary::Disassemble;
-
-                                let mut flags = spv::WriterFlags::LABEL_VARYINGS;
-                                flags.set(spv::WriterFlags::DEBUG, true);
-
-                                let options = spv::Options {
-                                    lang_version: (1, 1),
-                                    flags,
-                                    ..spv::Options::default()
-                                };
-
-                                module.entry_points.iter().for_each(|ep| {
-                                    let pipeline_options = spv::PipelineOptions {
-                                        entry_point: ep.name.clone(),
-                                        shader_stage: ep.stage,
-                                    };
-                                    let spv = spv::write_vec(
-                                        &module,
-                                        &info,
-                                        &options,
-                                        Some(&pipeline_options),
-                                    )
-                                    .unwrap();
-                                    let dis = rspirv::dr::load_words(spv)
-                                        .expect("Produced invalid SPIR-V")
-                                        .disassemble();
-                                    let spv_path =
-                                        new_path.parent().unwrap().parent().unwrap().join("spv");
-                                    std::fs::create_dir_all(spv_path.as_path()).ok();
-                                    let spv_path = spv_path.join(format!(
-                                        "{}_{}.spv",
-                                        new_path.file_stem().unwrap().to_str().unwrap(),
-                                        ep.name
-                                    ));
-                                    std::fs::write(spv_path.as_path(), dis).unwrap();
-                                });
-                            }
-
-                            let shader_data = ShaderData {
-                                wgsl_code: preprocessed_code,
-                                ..Default::default()
-                            };
-                            shader_data.save_to_file(new_path.as_path(), SerializationType::Binary);
-                            send_reloaded_event(&self.message_hub, new_path.as_path());
-                        }
-                        Err(e) => {
-                            println!(
-                                "Unable to compile shader {path:?} with error: \n{}",
-                                e.emit_to_string(&preprocessed_code),
-                            );
-                        }
-                    };
-                }
-                Err(ref e) => {
-                    println!(
-                        "Unable to compile shader {path:?} with error: \n{}\n{}",
-                        e.message(),
-                        e.emit_to_string(&preprocessed_code),
-                    );
-                }
+            if self.validate_shader(&preprocessed_code, path, &new_path) {
+                let shader_data = ShaderData {
+                    wgsl_code: preprocessed_code,
+                    ..Default::default()
+                };
+                shader_data.save_to_file(new_path.as_path(), SerializationType::Binary);
+                send_reloaded_event(&self.message_hub, new_path.as_path());
             }
         }
     }
