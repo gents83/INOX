@@ -191,13 +191,11 @@ impl GlobalBuffers {
 
         debug_assert!(
             mesh_data.vertex_count() > 0,
-            "No vertices for mesh {:?}",
-            mesh_id
+            "No vertices for mesh {mesh_id:?}"
         );
         debug_assert!(
             !mesh_data.indices.is_empty(),
-            "No indices for mesh {:?}",
-            mesh_id
+            "No indices for mesh {mesh_id:?}"
         );
 
         let vertex_offset = self
@@ -309,7 +307,7 @@ impl GlobalBuffers {
                     if i < lod_meshlets_starting_offset.len()
                         && i < lod_meshlets_ending_offsets.len()
                     {
-                        *c = ((lod_meshlets_starting_offset[i]) << 16
+                        *c = (((lod_meshlets_starting_offset[i]) << 16)
                             | (lod_meshlets_ending_offsets[i])) as _;
                     }
                 });
@@ -520,7 +518,7 @@ impl GlobalBuffers {
             material.thickness_factor = material_data.thickness_factor;
             material.normal_scale_and_alpha_cutoff = quantize_half(material_data.normal_scale)
                 as u32
-                | (quantize_half(material_data.alpha_cutoff) as u32) << 16;
+                | ((quantize_half(material_data.alpha_cutoff) as u32) << 16);
             material.emissive_strength = material_data.emissive_strength;
             material.flags = material_data.flags.into();
             materials.mark_as_dirty(render_context);

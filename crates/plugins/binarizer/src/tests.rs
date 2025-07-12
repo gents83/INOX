@@ -47,7 +47,7 @@ fn simplify_test() {
     }];
     let test_bytes: &[u8] = to_slice(&test);
     println!("test_bytes ({}): {:?}", test_bytes.len(), test_bytes);
-    println!("vertex_stride: {}", vertex_stride);
+    println!("vertex_stride: {vertex_stride}");
 
     let vertices_bytes = to_slice(&vertices);
     let vertex_stride = size_of::<MeshVertex>();
@@ -133,14 +133,12 @@ fn partition_test() {
                 groups.push(group);
             }
             groups.sort();
-            println!("Result[{}] = {:?}", result, groups);
+            println!("Result[{result}] = {groups:?}");
         }
     }
     debug_assert!(
         groups == expected,
-        "\nExpecting: {:?}\nResult: {:?}",
-        expected,
-        groups
+        "\nExpecting: {expected:?}\nResult: {groups:?}"
     );
 }
 
@@ -215,14 +213,12 @@ fn weighted_partition_test() {
                 groups.push(group);
             }
             groups.sort();
-            println!("Result[{}] = {:?}", result, groups);
+            println!("Result[{result}] = {groups:?}");
         }
     }
     debug_assert!(
         groups == expected_without_weights,
-        "\nExpecting: {:?}\nResult: {:?}",
-        expected_without_weights,
-        expected_without_weights
+        "\nExpecting: {expected_without_weights:?}\nResult: {expected_without_weights:?}"
     );
     groups.clear();
 
@@ -240,14 +236,12 @@ fn weighted_partition_test() {
                 groups.push(group);
             }
             groups.sort();
-            println!("Result[{}] = {:?}", result, groups);
+            println!("Result[{result}] = {groups:?}");
         }
     }
     debug_assert!(
         groups == expected_with_weights,
-        "\nExpecting: {:?}\nResult: {:?}",
-        expected_with_weights,
-        expected_with_weights
+        "\nExpecting: {expected_with_weights:?}\nResult: {expected_with_weights:?}"
     );
 }
 

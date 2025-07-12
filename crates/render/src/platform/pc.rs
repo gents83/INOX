@@ -9,8 +9,9 @@ pub fn required_gpu_features() -> wgpu::Features {
         | wgpu::Features::MULTI_DRAW_INDIRECT_COUNT
         | wgpu::Features::TEXTURE_BINDING_ARRAY
         | wgpu::Features::BUFFER_BINDING_ARRAY
+        | wgpu::Features::STORAGE_RESOURCE_BINDING_ARRAY
         | wgpu::Features::SAMPLED_TEXTURE_AND_STORAGE_BUFFER_ARRAY_NON_UNIFORM_INDEXING
-        | wgpu::Features::UNIFORM_BUFFER_AND_STORAGE_TEXTURE_ARRAY_NON_UNIFORM_INDEXING
+        | wgpu::Features::STORAGE_TEXTURE_ARRAY_NON_UNIFORM_INDEXING
         | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
         | wgpu::Features::SHADER_PRIMITIVE_INDEX
         | wgpu::Features::PIPELINE_STATISTICS_QUERY
@@ -24,7 +25,10 @@ pub fn required_gpu_features() -> wgpu::Features {
 }
 
 pub fn platform_limits() -> wgpu::Limits {
-    wgpu::Limits::default()
+    wgpu::Limits {
+        max_binding_array_elements_per_shader_stage: 256,
+        ..Default::default()
+    }
 }
 
 pub fn setup_env() {

@@ -344,6 +344,7 @@ impl RenderPass {
                         .map(|&render_target| {
                             Some(wgpu::RenderPassColorAttachment {
                                 view: render_target,
+                                depth_slice: None,
                                 resolve_target: None,
                                 ops: color_operations,
                             })

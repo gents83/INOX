@@ -142,8 +142,8 @@ impl Pass for DepthFirstPass {
 
         let dimensions = self.depth_texture.as_ref().unwrap().get().dimensions();
 
-        let work_group_count_x = ((dimensions.0) + 7) / 8;
-        let work_group_count_y = ((dimensions.1) + 7) / 8;
+        let work_group_count_x = (dimensions.0).div_ceil(8);
+        let work_group_count_y = (dimensions.1).div_ceil(8);
 
         let pass = self.compute_pass.get();
         pass.dispatch(

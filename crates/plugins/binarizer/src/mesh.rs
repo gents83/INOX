@@ -287,7 +287,7 @@ pub fn compute_clusters(
         );
         let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
 
-        let mut target_count = ((num_meshlet_per_group + 1) / 2) * MESHLET_MAX_TRIANGLES * 3;
+        let mut target_count = num_meshlet_per_group.div_ceil(2) * MESHLET_MAX_TRIANGLES * 3;
         if target_count >= group_indices.len() {
             target_count = group_indices.len() / 2;
         }

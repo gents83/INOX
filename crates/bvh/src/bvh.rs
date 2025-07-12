@@ -303,7 +303,7 @@ fn test_bvh_quad() {
         AABB::create(min_v2, max_v2, 1),
     ];
     let bvh = BVHTree::new(&aabbs);
-    println!("{:?}", bvh);
+    println!("{bvh:?}");
 
     debug_assert!(bvh.nodes().len() == 3);
 
@@ -362,7 +362,7 @@ fn test_bvh_cube() {
         aabbs.push(AABB::create(t_min, t_max, ((i - 1) / 3) as _));
     }
     let bvh = BVHTree::new(&aabbs);
-    println!("{:?}", bvh);
+    println!("{bvh:?}");
 }
 
 #[test]

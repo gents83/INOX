@@ -176,21 +176,18 @@ impl RenderContext {
                     .await
                     .expect("No suitable GPU adapters found on the system!");
             let (device, queue) = adapter
-                .request_device(
-                    &wgpu::DeviceDescriptor {
-                        label: None,
-                        required_features: required_gpu_features(),
-                        required_limits: platform_limits(),
-                        memory_hints: wgpu::MemoryHints::Performance,
-                    },
-                    // Some(&std::path::Path::new("trace")), // Trace path
-                    None,
-                )
+                .request_device(&wgpu::DeviceDescriptor {
+                    label: None,
+                    required_features: required_gpu_features(),
+                    required_limits: platform_limits(),
+                    memory_hints: wgpu::MemoryHints::Performance,
+                    trace: wgpu::Trace::Off,
+                })
                 .await
                 .unwrap();
 
             device.on_uncaptured_error(Box::new(|e| {
-                println!("WGPU Error :{}", e);
+                println!("WGPU Error :{e}");
             }));
             (instance, surface, adapter, device, queue)
         };

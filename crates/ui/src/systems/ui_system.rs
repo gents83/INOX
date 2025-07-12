@@ -278,7 +278,6 @@ impl UISystem {
                     );
                     Cow::Borrowed(&image.pixels)
                 }
-                egui::ImageData::Font(image) => Cow::Owned(image.srgba_pixels(None).collect()),
             };
             let pixels: &[u8] = to_slice(color32.as_slice());
             if let Some(pos) = image_delta.pos {

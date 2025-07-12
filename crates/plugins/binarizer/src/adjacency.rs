@@ -168,7 +168,7 @@ where
                         other.border_edges.iter().for_each(|e| {
                             edge_meshlets_map[e].iter().for_each(|v| {
                                 if *v == info.meshlet_index as usize {
-                                    println!("Shared edge for {} is {:?}", i, e);
+                                    println!("Shared edge for {i} is {e:?}");
                                 }
                             });
                         });

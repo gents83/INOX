@@ -112,7 +112,7 @@ impl MeshData {
         let vx = quantize_unorm(v.x, 10);
         let vy = quantize_unorm(v.y, 10);
         let vz = quantize_unorm(v.z, 10);
-        let new_p = vx << 20 | vy << 10 | vz;
+        let new_p = (vx << 20) | (vy << 10) | vz;
         self.vertex_positions.push(new_p);
     }
 
@@ -120,7 +120,7 @@ impl MeshData {
         let nx = quantize_snorm(n.x, 10);
         let ny = quantize_snorm(n.y, 10);
         let nz = quantize_snorm(n.z, 10);
-        self.vertex_attributes.push(nx << 20 | ny << 10 | nz);
+        self.vertex_attributes.push((nx << 20) | (ny << 10) | nz);
     }
 
     pub fn insert_tangent(&mut self, t: Vector4) {
@@ -133,7 +133,8 @@ impl MeshData {
         let g = quantize_unorm(c.y, 8);
         let b = quantize_unorm(c.z, 8);
         let a = quantize_unorm(c.w, 8);
-        self.vertex_attributes.push(r << 24 | g << 16 | b << 8 | a);
+        self.vertex_attributes
+            .push((r << 24) | (g << 16) | (b << 8) | a);
     }
 
     pub fn insert_uv(&mut self, uv: Vector2) {
@@ -268,7 +269,7 @@ impl MeshData {
         let g = quantize_unorm(color.y, 8);
         let b = quantize_unorm(color.z, 8);
         let a = quantize_unorm(color.w, 8);
-        let c = r << 24 | g << 16 | b << 8 | a;
+        let c = (r << 24) | (g << 16) | (b << 8) | a;
 
         let stride_in_count = self.vertex_layout.stride_in_count()
             + self.vertex_layout.offset(VertexAttributeLayout::HasColor);

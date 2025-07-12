@@ -8,7 +8,7 @@ use std::{
     process::Command,
 };
 
-use crate::{need_to_binarize, send_reloaded_event, ExtensionHandler};
+use crate::{clean_unused_definitions, need_to_binarize, send_reloaded_event, ExtensionHandler};
 use inox_filesystem::{convert_from_local_path, delete_file};
 use inox_log::debug_log;
 use inox_messenger::MessageHubRc;
@@ -183,9 +183,14 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
         let shader_code = String::from_utf8(data).unwrap();
         let preprocessed_code = Self::preprocess_code(&path, shader_code);
 
+        let preprocessed_code = Self::remove_comments(&preprocessed_code);
+        let preprocessed_code = clean_unused_definitions(&preprocessed_code).unwrap();
+
+        debug_log!("into shader {:?}", new_path);
+        std::fs::write(&new_path, &preprocessed_code).unwrap();
+
         if self.validate_shader(&preprocessed_code, &path, &new_path) {
-            debug_log!("into shader {:?}", new_path);
-            std::fs::write(&new_path, preprocessed_code).unwrap();
+            debug_log!("and it's validated as well");
         }
     }
 
@@ -300,6 +305,19 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
         }
     }
 
+    fn remove_comments(code: &str) -> String {
+        let single_line_comment = Regex::new(r"//.*").unwrap();
+        let multi_line_comment = Regex::new(r"/\*.*?\*/").unwrap();
+        let code = single_line_comment.replace_all(code, "");
+        let code = multi_line_comment.replace_all(&code, "");
+
+        code.lines()
+            .filter(|line| !line.trim().is_empty())
+            .map(|line| line.trim())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
     fn preprocess_code(path: &Path, code: String) -> String {
         let available_defs = shader_preprocessor_defs::<PLATFORM_TYPE>();
         let mut string = String::new();
@@ -327,12 +345,14 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
                         let import_path = import_path.canonicalize().unwrap();
                         let shader_code = std::fs::read_to_string(import_path).unwrap();
                         let import_code = Self::preprocess_code(path, shader_code);
-                        string.push_str(&import_code);
+                        if !import_code.trim().is_empty() {
+                            string.push_str(&import_code);
+                        }
                         continue;
                     }
                 }
             }
-            if !should_skip && !line.is_empty() {
+            if !should_skip && !line.trim().is_empty() {
                 string.push_str(line);
                 string.push('\n');
             }

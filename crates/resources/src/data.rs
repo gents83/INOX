@@ -59,7 +59,10 @@ pub trait DataTypeResource: ResourceTrait {
     }
 }
 
-pub trait SerializableResource: DataTypeResource + Sized + Clone {
+pub trait SerializableResource: DataTypeResource + Sized + Clone
+where
+    Self: 'static,
+{
     fn set_path(&mut self, path: &Path) -> &mut Self;
     fn path(&self) -> &Path;
     fn extension() -> &'static str;
@@ -85,14 +88,15 @@ pub trait SerializableResource: DataTypeResource + Sized + Clone {
             .to_string()
     }
     #[inline]
-    fn create_from_file(
-        shared_data: &SharedDataRc,
-        message_hub: &MessageHubRc,
-        filepath: &Path,
+    fn create_from_file<'a>(
+        shared_data: &'a SharedDataRc,
+        message_hub: &'a MessageHubRc,
+        filepath: &'a Path,
         mut on_create_data: Option<OnCreateData<Self>>,
     ) where
-        Self: Sized + DataTypeResource + 'static,
+        Self: Sized + DataTypeResource,
         <Self as DataTypeResource>::DataType: Send + Sync,
+        Self: 'a,
     {
         let path = convert_from_local_path(Data::platform_data_folder().as_path(), filepath);
         if !File::new(path.as_path()).exists() {

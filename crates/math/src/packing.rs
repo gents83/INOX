@@ -223,23 +223,17 @@ fn encode_decode_test() {
         let cv3 = decode_unorm(c, 10);
         debug_assert!(
             v1 >= (cv1 - epsilon) && v1 <= (cv1 + epsilon),
-            "decode a: {} != {}",
-            v1,
-            cv1
+            "decode a: {v1} != {cv1}"
         );
         debug_assert!(
             v2 >= (cv2 - epsilon) && v2 <= (cv2 + epsilon),
-            "decode b: {} != {}",
-            v2,
-            cv2
+            "decode b: {v2} != {cv2}"
         );
         debug_assert!(
             v3 >= (cv3 - epsilon) && v3 <= (cv3 + epsilon),
-            "decode c: {} != {}",
-            v3,
-            cv3
+            "decode c: {v3} != {cv3}"
         );
-        let composite = a << 20 | b << 10 | c;
+        let composite = (a << 20) | (b << 10) | c;
         let ca = (composite >> 20) & 0x000003FF;
         let cb = (composite >> 10) & 0x000003FF;
         let cc = composite & 0x000003FF;
@@ -248,21 +242,15 @@ fn encode_decode_test() {
         let cv3 = decode_unorm(cc, 10);
         debug_assert!(
             v1 >= (cv1 - epsilon) && v1 <= (cv1 + epsilon),
-            "composite decode a: {} != {}",
-            v1,
-            cv1
+            "composite decode a: {v1} != {cv1}"
         );
         debug_assert!(
             v2 >= (cv2 - epsilon) && v2 <= (cv2 + epsilon),
-            "composite decode b: {} != {}",
-            v2,
-            cv2
+            "composite decode b: {v2} != {cv2}"
         );
         debug_assert!(
             v3 >= (cv3 - epsilon) && v3 <= (cv3 + epsilon),
-            "composite decode c: {} != {}",
-            v3,
-            cv3
+            "composite decode c: {v3} != {cv3}"
         );
     }
 }
@@ -281,15 +269,11 @@ fn encode_decode_f16_test() {
         let nb = decode_snorm(cb & 0x0000FFFF, 16);
         debug_assert!(
             a >= (na - epsilon) && a <= (na + epsilon),
-            "composite decode a: {} != {}",
-            a,
-            na
+            "composite decode a: {a} != {na}"
         );
         debug_assert!(
             b >= (nb - epsilon) && b <= (nb + epsilon),
-            "composite decode b: {} != {}",
-            b,
-            nb
+            "composite decode b: {b} != {nb}"
         );
     }
 }

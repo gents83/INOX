@@ -60,6 +60,7 @@ impl SharedData {
         None
     }
     #[inline]
+    #[allow(clippy::mut_from_ref)]
     pub fn get_singleton_mut<T>(&self) -> Option<&mut T>
     where
         T: Singleton,

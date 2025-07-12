@@ -48,7 +48,7 @@ where
     ) {
         Ok(data) => Some(data),
         Err(e) => {
-            eprintln!("Error {} - Unable to deserialize", e,);
+            eprintln!("Error {e} - Unable to deserialize",);
             None
         }
     }
@@ -75,11 +75,11 @@ where
                 return Some(data);
             }
             Err(e) => {
-                eprintln!("Error {} - Unable to deserialize", e,);
+                eprintln!("Error {e} - Unable to deserialize",);
             }
         },
         Err(e) => {
-            eprintln!("Error {} - Unable to deserialize", e,);
+            eprintln!("Error {e} - Unable to deserialize",);
         }
     };
     None

@@ -13,4 +13,4 @@ mod mesh;
 pub mod plugin;
 mod system;
 mod tests;
-pub mod utils;
+mod utils;

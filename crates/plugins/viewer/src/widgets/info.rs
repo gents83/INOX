@@ -719,7 +719,7 @@ impl Info {
                                 num_lights += 1;
                                 let mut is_changed = false;
                                 ui.horizontal(|ui| {
-                                    let light_name = format!("Light[{}]: ", i);
+                                    let light_name = format!("Light[{i}]: ");
                                     ui.label(&light_name);
                                     let old_l = *l;
                                     ui.vertical(|ui| {
@@ -792,7 +792,7 @@ impl Info {
                                 });
                                 is_changed
                             });
-                            let lights_label = format!("Total Num Lights: {}", num_lights);
+                            let lights_label = format!("Total Num Lights: {num_lights}");
                             ui.label(&lights_label);
                         });
                     })

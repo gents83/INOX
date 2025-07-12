@@ -129,7 +129,7 @@ impl Default for GPUMaterial {
             attenuation_color_and_distance: [1., 1., 1., 0.],
             thickness_factor: 0.,
             normal_scale_and_alpha_cutoff: quantize_half(1.) as u32
-                | (quantize_half(1.) as u32) << 16,
+                | ((quantize_half(1.) as u32) << 16),
             occlusion_strength: 0.0,
             flags: MaterialFlags::Unlit.into(),
         }
