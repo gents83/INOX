@@ -7,11 +7,12 @@ repository.workspace = true
 keywords.workspace = true
 license.workspace = true
 
-[lib]
-crate-type = ["bin"]
+[[bin]]
+name = "inox_launcher"
+path = "src/lib.rs"
 
 [features]
-dhat-heap = []    # if you are doing heap profiling
+dhat-heap = [] # if you are doing heap profiling
 
 [dependencies]
 inox_resources = { path = "../resources" }

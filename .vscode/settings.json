@@ -1,3 +1,13 @@
 {
-    "cmake.configureOnOpen": false
+  "lldb.launch.sourceLanguages": [
+    "rust"
+  ],
+  "lldb.launch.preRunCommands": [
+    "script lldb.debugger.HandleCommand('settings set target.source-map /rustc/{} \"{}/lib/rustlib/src/rust\"'.format(os.popen('rustc --version --verbose').read().split('commit-hash: ')[1].split('\\n')[0].strip(), os.popen('rustc --print sysroot').readline().strip()))",
+    "breakpoint list --verbose"
+  ],
+  "lldb.launch.sourceMap": {
+    "/rustc/*/": "C:\\Users\\gents\\.rustup\\toolchains\\stable-x86_64-pc-windows-msvc\\lib\\rustlib\\src\\rust"
+  },
+  "lldb.script.lang.rust.sysroot": "C:\\Users\\gents\\.rustup\\toolchains\\stable-x86_64-pc-windows-msvc\\lib\\rustlib\\src\\rust"
 }

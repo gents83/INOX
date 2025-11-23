@@ -61,7 +61,7 @@ where
     let vertices_bytes = to_slice(vertices);
     let vertex_stride = size_of::<T>();
     debug_assert!(
-        vertex_stride % size_of::<f32>() == 0,
+        vertex_stride.is_multiple_of(size_of::<f32>()),
         "Vertex size is not a multiple of f32 - meshopt will fail"
     );
     let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
@@ -137,7 +137,7 @@ where
     let vertices_bytes = to_slice(vertices);
     let vertex_stride = size_of::<T>();
     debug_assert!(
-        vertex_stride % size_of::<f32>() == 0,
+        vertex_stride.is_multiple_of(size_of::<f32>()),
         "Vertex size is not a multiple of f32 - meshopt will fail"
     );
     let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
@@ -282,7 +282,7 @@ pub fn compute_clusters(
         let vertices_bytes = to_slice(&group_vertices);
         let vertex_stride = size_of::<MeshVertex>();
         debug_assert!(
-            vertex_stride % size_of::<f32>() == 0,
+            vertex_stride.is_multiple_of(size_of::<f32>()),
             "Vertex size is not a multiple of f32 - meshopt will fail"
         );
         let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);

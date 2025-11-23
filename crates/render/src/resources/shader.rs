@@ -38,7 +38,7 @@ pub fn read_spirv_from_bytes<Data: ::std::io::Read + ::std::io::Seek>(
     data: &mut Data,
 ) -> ::std::vec::Vec<u32> {
     let size = data.seek(::std::io::SeekFrom::End(0)).unwrap();
-    if size % 4 != 0 {
+    if !size.is_multiple_of(4) {
         panic!("Input data length not divisible by 4");
     }
     if size > usize::MAX as u64 {

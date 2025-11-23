@@ -243,11 +243,11 @@ impl RenderContext {
         (config.width, config.height)
     }
 
-    pub fn buffers(&self) -> RwLockReadGuard<HashMap<BufferId, BufferRef>> {
+    pub fn buffers(&'_ self) -> RwLockReadGuard<'_, HashMap<BufferId, BufferRef>> {
         self.binding_data_buffer.buffers.read().unwrap()
     }
 
-    pub fn buffers_mut(&self) -> RwLockWriteGuard<HashMap<BufferId, BufferRef>> {
+    pub fn buffers_mut(&'_ self) -> RwLockWriteGuard<'_, HashMap<BufferId, BufferRef>> {
         self.binding_data_buffer.buffers.write().unwrap()
     }
 
@@ -468,7 +468,7 @@ impl RenderContext {
             }
         }
     }
-    pub fn passes(&self) -> RwLockReadGuard<Vec<(Box<dyn Pass>, bool)>> {
+    pub fn passes(&'_ self) -> RwLockReadGuard<'_, Vec<(Box<dyn Pass>, bool)>> {
         self.passes.read().unwrap()
     }
 

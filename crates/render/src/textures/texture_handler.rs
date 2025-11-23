@@ -82,10 +82,10 @@ impl TextureHandler {
         &self.samplers[t as usize]
     }
 
-    pub fn textures_atlas(&self) -> RwLockReadGuard<Vec<TextureAtlas>> {
+    pub fn textures_atlas(&'_ self) -> RwLockReadGuard<'_, Vec<TextureAtlas>> {
         self.texture_atlas.read().unwrap()
     }
-    pub fn render_targets(&self) -> RwLockReadGuard<Vec<TextureRef>> {
+    pub fn render_targets(&'_ self) -> RwLockReadGuard<'_, Vec<TextureRef>> {
         self.render_targets.read().unwrap()
     }
 
