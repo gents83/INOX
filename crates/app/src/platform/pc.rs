@@ -8,13 +8,21 @@ use crate::launcher::Launcher;
 
 pub fn setup_env() {
     #[cfg(debug_assertions)]
-    std::env::set_var("RUST_BACKTRACE", "1");
+    if std::env::var("RUST_BACKTRACE").is_err() {
+        std::env::set_var("RUST_BACKTRACE", "full");
+    }
+    #[cfg(debug_assertions)]
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "debug");
+    }
 
     std::env::set_var(
         inox_filesystem::EXE_PATH,
         std::env::current_exe().unwrap().parent().unwrap(),
     );
     std::env::set_current_dir(".").ok();
+
+    env_logger::init();
 }
 
 pub fn load_plugins(launcher: &Arc<Launcher>) {

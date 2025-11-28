@@ -22,13 +22,13 @@ impl Context {
     pub fn message_hub(&self) -> &MessageHubRc {
         &self.message_hub
     }
-    pub fn global_timer(&self) -> RwLockReadGuard<Timer> {
+    pub fn global_timer(&self) -> RwLockReadGuard<'_, Timer> {
         self.global_timer.read().unwrap()
     }
-    pub fn global_timer_mut(&self) -> RwLockWriteGuard<Timer> {
+    pub fn global_timer_mut(&self) -> RwLockWriteGuard<'_, Timer> {
         self.global_timer.write().unwrap()
     }
-    pub(crate) fn scheduler_mut(&self) -> RwLockWriteGuard<Scheduler> {
+    pub(crate) fn scheduler_mut(&self) -> RwLockWriteGuard<'_, Scheduler> {
         self.scheduler.write().unwrap()
     }
     pub fn job_handler(&self) -> &JobHandlerRw {

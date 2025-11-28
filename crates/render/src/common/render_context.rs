@@ -121,23 +121,28 @@ impl RenderContext {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn log_adapters(instance: &wgpu::Instance, backends: &wgpu::Backends) {
+    async fn log_adapters(instance: &wgpu::Instance, backends: &wgpu::Backends) {
         use wgpu::Adapter;
 
-        let all_adapters = instance.enumerate_adapters(*backends);
+        let all_adapters = instance.enumerate_adapters(*backends).await;
         let mut available_adapters: Vec<Adapter> = Vec::new();
-        all_adapters.into_iter().for_each(|a| {
+        for a in all_adapters {
             if !available_adapters
                 .iter()
                 .any(|ad| ad.get_info().name == a.get_info().name)
             {
                 available_adapters.push(a);
             }
-        });
+        }
         inox_log::debug_log!("Available adapters:");
         available_adapters.into_iter().for_each(|a| {
             inox_log::debug_log!("{}", a.get_info().name);
         });
+    }
+
+    fn default_error_handler(err: wgpu::Error) {
+        println!("Handling wgpu errors as fatal by default");
+        panic!("wgpu error: {err}\n");
     }
 
     pub async fn create_render_context(handle: Handle, context: &ContextRc) -> Self {
@@ -163,13 +168,15 @@ impl RenderContext {
             let instance_descriptor = wgpu::InstanceDescriptor {
                 backends,
                 flags,
+                backend_options: wgpu::BackendOptions::from_env_or_default(),
                 ..Default::default()
             };
             let instance = wgpu::Instance::new(&instance_descriptor);
             let surface = Self::create_surface(&instance, handle.clone());
 
             #[cfg(not(target_arch = "wasm32"))]
-            Self::log_adapters(&instance, &backends);
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::log_adapters(&instance, &backends).await;
 
             let adapter =
                 wgpu::util::initialize_adapter_from_env_or_default(&instance, Some(&surface))
@@ -182,19 +189,17 @@ impl RenderContext {
                     required_limits: platform_limits(),
                     memory_hints: wgpu::MemoryHints::Performance,
                     trace: wgpu::Trace::Off,
+                    experimental_features: wgpu::ExperimentalFeatures::default(),
                 })
                 .await
                 .unwrap();
 
-            device.on_uncaptured_error(Box::new(|e| {
-                println!("WGPU Error :{e}");
-            }));
+            device.on_uncaptured_error(Arc::new(Self::default_error_handler));
             (instance, surface, adapter, device, queue)
         };
 
         inox_log::debug_log!("Using {:?}", adapter.get_info());
 
-        let capabilities = surface.get_capabilities(&adapter);
         let format = wgpu::TextureFormat::Bgra8Unorm;
 
         inox_log::debug_log!("Format {:?}", format);
@@ -206,7 +211,7 @@ impl RenderContext {
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
             present_mode: wgpu::PresentMode::AutoNoVsync,
-            alpha_mode: *capabilities.alpha_modes.first().unwrap(),
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
             desired_maximum_frame_latency: 2,
         };
 
@@ -243,11 +248,11 @@ impl RenderContext {
         (config.width, config.height)
     }
 
-    pub fn buffers(&self) -> RwLockReadGuard<HashMap<BufferId, BufferRef>> {
+    pub fn buffers(&self) -> RwLockReadGuard<'_, HashMap<BufferId, BufferRef>> {
         self.binding_data_buffer.buffers.read().unwrap()
     }
 
-    pub fn buffers_mut(&self) -> RwLockWriteGuard<HashMap<BufferId, BufferRef>> {
+    pub fn buffers_mut(&self) -> RwLockWriteGuard<'_, HashMap<BufferId, BufferRef>> {
         self.binding_data_buffer.buffers.write().unwrap()
     }
 
@@ -468,7 +473,7 @@ impl RenderContext {
             }
         }
     }
-    pub fn passes(&self) -> RwLockReadGuard<Vec<(Box<dyn Pass>, bool)>> {
+    pub fn passes(&self) -> RwLockReadGuard<'_, Vec<(Box<dyn Pass>, bool)>> {
         self.passes.read().unwrap()
     }
 
