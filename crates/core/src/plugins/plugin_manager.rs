@@ -87,26 +87,22 @@ impl PluginManager {
 
     fn compute_dynamic_name(&mut self, lib_path: &Path) -> PathBuf {
         let (path, filename) = library::compute_folder_and_filename(lib_path);
-        let mut in_use_filename = format!(
-            "{}__{}_{}_",
-            IN_USE_PREFIX,
-            process::id(),
-            self.unique_lib_index.load(Ordering::SeqCst)
-        );
-        in_use_filename.push_str(filename.to_str().unwrap());
-        self.unique_lib_index.fetch_add(1, Ordering::SeqCst);
-        let in_use_path = path.join(IN_USE_PREFIX);
-        if !in_use_path.exists() {
-            let res = std::fs::create_dir_all(in_use_path.clone());
-            if res.is_err() {
+        let unique_index = self.unique_lib_index.fetch_add(1, Ordering::SeqCst);
+        let in_use_dir =
+            path.join(IN_USE_PREFIX)
+                .join(format!("{}_{}", process::id(), unique_index));
+
+        if !in_use_dir.exists() {
+            let res = std::fs::create_dir_all(&in_use_dir);
+            if let Err(e) = res {
                 eprintln!(
                     "Folder creation failed {:?} - unable to create in_use folder {}",
-                    res.err(),
-                    in_use_path.to_str().unwrap(),
+                    e,
+                    in_use_dir.to_str().unwrap(),
                 );
             }
         }
-        in_use_path.join(in_use_filename)
+        in_use_dir.join(filename)
     }
 
     fn load_dynamic_plugin(
@@ -152,6 +148,12 @@ impl PluginManager {
                 fullpath.to_str().unwrap(),
             );
             in_use_fullpath.clone_from(&fullpath);
+        } else {
+            let pdb_path = fullpath.with_extension("pdb");
+            if pdb_path.exists() {
+                let in_use_pdb_path = in_use_fullpath.with_extension("pdb");
+                let _ = std::fs::copy(pdb_path, in_use_pdb_path);
+            }
         }
 
         let (lib, plugin_holder) =
@@ -213,7 +215,14 @@ impl PluginManager {
         );
         */
 
-        delete_file(in_use_path);
+        let in_use_pdb_path = in_use_path.with_extension("pdb");
+        if in_use_pdb_path.exists() {
+            delete_file(in_use_pdb_path);
+        }
+        delete_file(in_use_path.clone());
+        if let Some(parent) = in_use_path.parent() {
+            let _ = std::fs::remove_dir(parent);
+        }
     }
 
     pub fn update(&mut self) -> Vec<PluginId> {
