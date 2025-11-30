@@ -71,8 +71,9 @@ pyo3 = { git = "https://github.com/PyO3/pyo3", features = [
     "abi3-py310",
     "generate-import-lib",
 ] }
+rand = { git = "https://github.com/rust-random/rand", features = ["std"] }
 serde_json = { git = "https://github.com/serde-rs/json" }
-flexbuffers = { version = "2.0.0" }
+flexbuffers = { git = "https://github.com/google/flatbuffers" }
 ttf-parser = { git = "https://github.com/RazrFalcon/ttf-parser" }
 superluminal-perf = { git = "https://github.com/EmbarkStudios/superluminal-perf-rs" }
 uuid = { git = "https://github.com/uuid-rs/uuid", features = [
@@ -85,9 +86,12 @@ uuid = { git = "https://github.com/uuid-rs/uuid", features = [
 wgpu = { git = "https://github.com/gfx-rs/wgpu", features = [
     "spirv",
     "glsl",
+    "metal",
     "wgsl",
-    "webgpu",
     "webgl",
+    "vulkan",
+    "gles",
+    "webgpu",
     "fragile-send-sync-non-atomic-wasm",
 ] }
 naga = { git = "https://github.com/gfx-rs/wgpu", features = [
@@ -116,6 +120,8 @@ gltf = { git = "https://github.com/gltf-rs/gltf", features = [
 mikktspace = { git = "https://github.com/gltf-rs/mikktspace" }
 meshopt = { git = "https://github.com/gwihlidal/meshopt-rs" }
 metis = { git = "https://github.com/LIHPC-Computational-Geometry/metis-rs" }
+env_logger = "0.11"
+tracing = { version = "0.1", features = ["log"] }
 
 futures = { git = "https://github.com/rust-lang/futures-rs", features = [
     "std",
@@ -128,11 +134,11 @@ erased-serde = { version = "0.4.5" }
 rspirv = { version = "0.11" }
 
 # wasm32
-js-sys = { version = "0.3.76" }
+js-sys = { version = "0.3.82" }
 wasm-bindgen = { version = "0.2.100" }
 wasm-bindgen-futures = { version = "0.4.49" }
 wasm-bindgen-test = { version = "0.3.49" }
-web-sys = { version = "0.3.76", features = [
+web-sys = { version = "0.3.82", features = [
     "Request",
     "Response",
     "Document",

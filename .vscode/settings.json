@@ -1,13 +1,16 @@
 {
-  "lldb.launch.sourceLanguages": [
-    "rust"
-  ],
+  "cmake.configureOnOpen": false,
+  "lldb.launch.env": {
+    "RUST_BACKTRACE": "full",
+    "RUST_LOG": "debug"
+  },
   "lldb.launch.preRunCommands": [
     "script lldb.debugger.HandleCommand('settings set target.source-map /rustc/{} \"{}/lib/rustlib/src/rust\"'.format(os.popen('rustc --version --verbose').read().split('commit-hash: ')[1].split('\\n')[0].strip(), os.popen('rustc --print sysroot').readline().strip()))",
-    "breakpoint list --verbose"
   ],
-  "lldb.launch.sourceMap": {
-    "/rustc/*/": "C:\\Users\\gents\\.rustup\\toolchains\\stable-x86_64-pc-windows-msvc\\lib\\rustlib\\src\\rust"
-  },
-  "lldb.script.lang.rust.sysroot": "C:\\Users\\gents\\.rustup\\toolchains\\stable-x86_64-pc-windows-msvc\\lib\\rustlib\\src\\rust"
+  "lldb.launch.initCommands": [
+    "settings set target.inline-breakpoint-strategy always",
+    "settings append target.debug-file-search-paths \"${workspaceFolder}/crates/target/debug/\"",
+    "settings append target.debug-file-search-paths \"${workspaceFolder}/crates/target/debug/in_use/\"",
+    "settings append target.debug-file-search-paths \"${workspaceFolder}/crates/target/debug/in_use/deps/\""
+  ]
 }

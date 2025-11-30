@@ -108,7 +108,13 @@ impl BufferRef {
                 slice.map_async(wgpu::MapMode::Write, move |_v| {
                     is_ready_clone.store(true, std::sync::atomic::Ordering::SeqCst);
                 });
-                render_core_context.device.poll(wgpu::PollType::Wait).ok();
+                render_core_context
+                    .device
+                    .poll(wgpu::PollType::Wait {
+                        submission_index: None,
+                        timeout: Some(std::time::Duration::from_secs(60)),
+                    })
+                    .ok();
                 while !is_ready.load(std::sync::atomic::Ordering::SeqCst) {
                     std::thread::sleep(std::time::Duration::from_millis(1));
                 }
@@ -199,7 +205,13 @@ impl BufferRef {
                 slice.map_async(wgpu::MapMode::Read, move |_v| {
                     is_ready_clone.store(true, std::sync::atomic::Ordering::SeqCst);
                 });
-                render_core_context.device.poll(wgpu::PollType::Wait).ok();
+                render_core_context
+                    .device
+                    .poll(wgpu::PollType::Wait {
+                        submission_index: None,
+                        timeout: Some(std::time::Duration::from_secs(60)),
+                    })
+                    .ok();
                 while !is_ready.load(std::sync::atomic::Ordering::SeqCst) {
                     std::thread::sleep(std::time::Duration::from_millis(1));
                 }

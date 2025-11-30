@@ -44,7 +44,7 @@ impl TextureHandler {
             address_mode_w: wgpu::AddressMode::Repeat,
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::MipmapFilterMode::Linear,
             ..Default::default()
         });
         let unfiltered_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
@@ -54,7 +54,7 @@ impl TextureHandler {
             address_mode_w: wgpu::AddressMode::ClampToEdge,
             mag_filter: wgpu::FilterMode::Nearest,
             min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::MipmapFilterMode::Nearest,
             lod_min_clamp: 0.0,
             lod_max_clamp: f32::MAX,
             ..Default::default()
@@ -66,7 +66,7 @@ impl TextureHandler {
             address_mode_w: wgpu::AddressMode::ClampToEdge,
             mag_filter: wgpu::FilterMode::Nearest,
             min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::MipmapFilterMode::Nearest,
             lod_min_clamp: 0.0,
             lod_max_clamp: f32::MAX,
             compare: Some(wgpu::CompareFunction::Less),
@@ -82,10 +82,10 @@ impl TextureHandler {
         &self.samplers[t as usize]
     }
 
-    pub fn textures_atlas(&'_ self) -> RwLockReadGuard<'_, Vec<TextureAtlas>> {
+    pub fn textures_atlas(&self) -> RwLockReadGuard<'_, Vec<TextureAtlas>> {
         self.texture_atlas.read().unwrap()
     }
-    pub fn render_targets(&'_ self) -> RwLockReadGuard<'_, Vec<TextureRef>> {
+    pub fn render_targets(&self) -> RwLockReadGuard<'_, Vec<TextureRef>> {
         self.render_targets.read().unwrap()
     }
 

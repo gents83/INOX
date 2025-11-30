@@ -5,14 +5,14 @@
 
 [build]
 # number of parallel jobs, defaults to # of CPUs
-jobs = 8  
+jobs = 8
 # whether or not to enable incremental compilation
-incremental = true           
-rustflags = ["-C","split-debuginfo=unpacked"]
+incremental = true
+rustflags = ["-C", "split-debuginfo=unpacked"]
 
 [env]
-RUST_BACKTRACE = "full" 
-RUST_LOG = "info"
+RUST_BACKTRACE = "full"
+RUST_LOG = "debug"
 
 [profile.dev]
 # Optional: Uncommenting the following improves compile times, but reduces the amount of debug info to 'line number tables only'
@@ -47,10 +47,13 @@ rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 rustflags = ["-C", "link-arg=-fuse-ld=/opt/homebrew/opt/llvm/bin/ld64.lld"]
 
 [target.wasm32-unknown-unknown]
-rustflags = ['--cfg=web_sys_unstable_apis','--cfg', 'getrandom_backend="wasm_js"']
+rustflags = [
+    '--cfg=web_sys_unstable_apis',
+    '--cfg',
+    'getrandom_backend="wasm_js"',
+]
 
 [target.x86_64-pc-windows-msvc]
 rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 [target.x86_64-pc-windows-gnu]
 rustflags = ["-C", "link-arg=-fuse-ld=lld"]
-

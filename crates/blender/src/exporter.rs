@@ -6,8 +6,8 @@ use std::{
 
 use pyo3::{
     prelude::PyAnyMethods,
-    types::{PyDict, PyList},
-    IntoPyObjectExt, PyObject, PyResult, Python,
+    types::{PyDict, PyDictMethods, PyList},
+    IntoPyObjectExt, Py, PyAny, PyResult, Python,
 };
 
 use inox_nodes::LogicData;
@@ -73,10 +73,10 @@ impl Exporter {
 
         // For every Blender scene
         let scenes = data.getattr("scenes")?.call_method("values", (), None)?;
-        let scenes = scenes.downcast::<PyList>()?;
+        let scenes = scenes.cast::<PyList>()?;
         if let Ok(scene) = scenes.try_iter() {
             let objects = scene.getattr("objects")?.call_method("values", (), None)?;
-            let objects = objects.downcast::<PyList>()?;
+            let objects = objects.cast::<PyList>()?;
             if let Ok(object) = objects.try_iter() {
                 self.process_object_properties(py, &object.into_py_any(py)?, export_dir)?;
             }
@@ -87,7 +87,7 @@ impl Exporter {
     fn process_object_properties(
         &self,
         py: Python,
-        object: &PyObject,
+        object: &Py<PyAny>,
         path: &Path,
     ) -> PyResult<bool> {
         if let Ok(properties) = object.getattr(py, "inox_properties") {
@@ -98,7 +98,7 @@ impl Exporter {
         Ok(true)
     }
 
-    fn export_logic(&self, py: Python, logic: &PyObject, path: &Path) -> PyResult<bool> {
+    fn export_logic(&self, py: Python, logic: &Py<PyAny>, path: &Path) -> PyResult<bool> {
         let export_dir = path.join(LogicData::extension());
         if !logic.is_none(py) && create_dir_all(export_dir.as_path()).is_ok() {
             let mut data: String = logic.call_method(py, "serialize", (), None)?.extract(py)?;

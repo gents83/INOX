@@ -16,7 +16,7 @@ pub struct HandleImpl {
 }
 
 impl HandleImpl {
-    pub fn as_window_handle(&'_ self) -> WindowHandle<'_> {
+    pub fn as_window_handle(&self) -> WindowHandle<'_> {
         let mut handle = Win32WindowHandle::new(NonZeroIsize::new(self.hwnd as _).unwrap());
         // Optionally set the GWLP_HINSTANCE.
         let hinstance = NonZeroIsize::new(self.hinstance as _).unwrap();
@@ -24,7 +24,7 @@ impl HandleImpl {
         unsafe { WindowHandle::borrow_raw(RawWindowHandle::Win32(handle)) }
     }
     #[inline]
-    pub fn as_display_handle(&'_ self) -> DisplayHandle<'_> {
+    pub fn as_display_handle(&self) -> DisplayHandle<'_> {
         unsafe { DisplayHandle::borrow_raw(RawDisplayHandle::Windows(WindowsDisplayHandle::new())) }
     }
 }
