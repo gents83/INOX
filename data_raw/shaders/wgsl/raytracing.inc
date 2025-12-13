@@ -7,6 +7,7 @@ struct Result {
     distance: f32,
     visibility_id: u32,
     instance_id: u32,
+    steps: u32,
 }
 
 fn intersect_aabb(origin: vec3<f32>, direction: vec3<f32>, max_distance: f32, aabb_min: vec3<f32>, aabb_max: vec3<f32>) -> f32 {
@@ -52,83 +53,177 @@ fn intersect_triangle(origin: vec3<f32>, direction: vec3<f32>, max_distance: f32
 }
 
 //starting index = tlas_starting_index
-fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tlas_starting_index: u32) -> Result {
-    var origin = world_ray_origin;
-    var direction = world_ray_direction;
-    var max_distance = MAX_TRACING_DISTANCE;
-    var node_index = i32(tlas_starting_index) + 1;
+//starting index = tlas_starting_index
+// traverse_blas removed as it was replaced by traverse_blas_stack
+
+// Rewriting above because I need World Ray for triangle intersection.
+
+fn traverse_blas_stack(
+    world_ray_origin: vec3<f32>,
+    world_ray_direction: vec3<f32>,
+    local_ray_origin: vec3<f32>, 
+    local_ray_direction: vec3<f32>, 
+    blas_index: i32, 
+    min_dist: f32,
+    instance_id: u32,
+    hit_size: vec3<f32>,
+    position: vec3<f32>,
+    orientation: vec4<f32>,
+    scale: vec3<f32>,
+    meshlets_offset: u32,
+    vertices_position_offset: u32,
+    bb_min: vec3<f32>
+) -> Result {
+    var max_distance = min_dist;
     var visibility_id = 0u;
-    var instance_id = 0u;
-    var hit_type = HIT_DATA_TLAS;
-    var meshlets_offset = 0u;
-    var vertices_position_offset = 0u;
-    var tlas_sibling = 0;
+    var result_instance_id = 0u;
+
+    var stack: array<i32, 64>;
+    var stack_ptr = 0;
     
-    var node = bvh.data[u32(node_index)]; 
-    while(node_index >= 0)
-    {
-        node = bvh.data[u32(node_index)]; 
-        if(node.reference < 0) {
-            node_index = node_index + 1;
-            continue;
-        }
-        let intersection = intersect_aabb(origin, direction, max_distance, node.min, node.max);        
+    stack[stack_ptr] = blas_index;
+    stack_ptr++;
+
+    var loop_count = 0u;
+
+    while(stack_ptr > 0 && loop_count < 256u) {
+        loop_count++;
+        stack_ptr--;
+        let node_index = stack[stack_ptr];
+        
+        let node = bvh.data[u32(node_index)];
+        // Use LOCAL RAY for AABB
+        let intersection = intersect_aabb(local_ray_origin, local_ray_direction, max_distance, node.min, node.max);
+        
         if(intersection < max_distance) {
-            let reference = u32(node.reference);  
-            //leaf node
-            if(hit_type == HIT_DATA_BLAS) {  
-                let meshlet_id = meshlets_offset + reference;              
+            if(node.reference < 0) {
+                let left_index = node_index + 1;
+                let left_node = bvh.data[u32(left_index)];
+                let right_index = left_node.miss;
+
+                // Stack Check
+                if(stack_ptr < 62) {
+                    if(right_index >= 0) {
+                        stack[stack_ptr] = right_index;
+                        stack_ptr++;
+                    }
+                    if(left_index >= 0) {
+                        stack[stack_ptr] = left_index;
+                        stack_ptr++;
+                    }
+                }
+            } else {
+                let meshlet_id = meshlets_offset + u32(node.reference);
                 let meshlet = meshlets.data[meshlet_id];
                 let triangle_count = meshlet.indices_count / 3u;
-                for(var i = 0u; i < triangle_count; i++)
-                {
-                    let index_offset = meshlet.indices_offset + (i * 3u);
-                    //TODO: use instances and convert to real positions like:
-                    //let size = instance.mesh_local_bb_max - instance.mesh_local_bb_min;
-                    //let p = instance.mesh_local_bb_min + unpack_unorm_to_3_f32(vertex_position) * size;
-                    //let v = transform_vector(p, instance.position, instance.orientation, instance.scale);
 
-                    let v1 = unpack_unorm_to_3_f32(vertices_positions.data[vertices_position_offset + indices.data[index_offset]]);
-                    let v2 = unpack_unorm_to_3_f32(vertices_positions.data[vertices_position_offset + indices.data[index_offset + 1u]]);
-                    let v3 = unpack_unorm_to_3_f32(vertices_positions.data[vertices_position_offset + indices.data[index_offset + 2u]]);
+                for(var i = 0u; i < triangle_count; i++) {
+                    let index_offset = meshlet.indices_offset + (i * 3u);
+                    
+                    let p1 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vertices_position_offset + indices.data[index_offset]]) * hit_size;
+                    let p2 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vertices_position_offset + indices.data[index_offset + 1u]]) * hit_size;
+                    let p3 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vertices_position_offset + indices.data[index_offset + 2u]]) * hit_size;
+
+                    let v1 = transform_vector(p1, position, orientation, scale);
+                    let v2 = transform_vector(p2, position, orientation, scale);
+                    let v3 = transform_vector(p3, position, orientation, scale);
+                    
+                    // Use WORLD RAY for Triangle
                     let distance = intersect_triangle(world_ray_origin, world_ray_direction, max_distance, v1, v2, v3);
                     if(distance < max_distance) {
-                        visibility_id = ((meshlet_id + 1u) << 8u)  | reference;
+                        visibility_id = ((instance_id + 1u) << 8u) | i;
+                        result_instance_id = instance_id;
                         max_distance = distance;
                     }
                 }
-                node_index = node.miss;
-                let should_go_to_tlas = node_index < 0;
-                hit_type = select(hit_type, HIT_DATA_TLAS, should_go_to_tlas);
-                node_index = select(node_index, tlas_sibling, should_go_to_tlas);
-                origin = select(origin, world_ray_origin, should_go_to_tlas);
-                direction = select(direction, world_ray_direction, should_go_to_tlas);
-            }
-            else {  
-                hit_type = HIT_DATA_BLAS;
-                tlas_sibling = node.miss;
-                let mesh = &meshes.data[reference];  
-                meshlets_offset = (*mesh).meshlets_offset;
-                vertices_position_offset = (*mesh).vertices_position_offset;
-                node_index = i32((*mesh).blas_index) + 1;  //We add 1 here to avoid checking same aabb 
-
-                //TODO: use instances to retrieve matrix
-                //let matrix = transform_matrix((*mesh).position, (*mesh).orientation, (*mesh).scale);    
-                //let inverse_matrix = matrix_inverse(matrix);
-                //let local_ray_origin = inverse_matrix * vec4<f32>(world_ray_origin, 1.);
-                //let local_ray_direction = inverse_matrix * vec4<f32>(world_ray_direction, 0.);
-                //origin = local_ray_origin.xyz;
-                //direction = local_ray_direction.xyz;
             }
         }
-        else {
-            node_index = node.miss;
-            let should_go_to_tlas = hit_type == HIT_DATA_BLAS && node_index < 0;
-            hit_type = select(hit_type, HIT_DATA_TLAS, should_go_to_tlas);
-            node_index = select(node_index, tlas_sibling, should_go_to_tlas);
-            origin = select(origin, world_ray_origin, hit_type == HIT_DATA_TLAS);
-            direction = select(direction, world_ray_direction, hit_type == HIT_DATA_TLAS);
-        }         
     }
-    return Result(max_distance, visibility_id, instance_id);
+    return Result(max_distance, visibility_id, result_instance_id, loop_count);
+}
+
+
+fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tlas_starting_index: u32) -> Result {
+    var max_distance = MAX_TRACING_DISTANCE;
+    var visibility_id = 0u;
+    var instance_id = 0u;
+
+    var stack: array<i32, 64>;
+    var stack_ptr = 0;
+    
+    stack[stack_ptr] = i32(tlas_starting_index);
+    stack_ptr++;
+
+    var loop_count = 0u;
+
+    while(stack_ptr > 0 && loop_count < 256u) {
+        loop_count++;
+        stack_ptr--;
+        let node_index = stack[stack_ptr];
+        
+        // Skip invalid nodes
+        if(node_index < 0) { continue; }
+
+        let node = bvh.data[u32(node_index)];
+        let intersection = intersect_aabb(world_ray_origin, world_ray_direction, max_distance, node.min, node.max);
+        
+        if(intersection < max_distance) {
+            if(node.reference < 0) {
+                // Internal TLAS Node
+                let left_index = node_index + 1;
+                let left_node = bvh.data[u32(left_index)];
+                let right_index = left_node.miss;
+
+                if(stack_ptr < 62) {
+                    if(right_index >= 0) {
+                        stack[stack_ptr] = right_index;
+                        stack_ptr++;
+                    }
+                    if(left_index >= 0) {
+                        stack[stack_ptr] = left_index;
+                        stack_ptr++;
+                    }
+                }
+            } else {
+                // Instance Hit
+                let current_instance_id = u32(node.reference);
+                let instance = instances.data[current_instance_id];
+                let mesh = &meshes.data[instance.mesh_id];
+                let transform = transforms.data[instance.transform_id];
+                
+                let position = transform.position_scale_x.xyz;
+                let scale = vec3<f32>(transform.position_scale_x.w, transform.bb_min_scale_y.w, transform.bb_max_scale_z.w);
+                let orientation = transform.orientation;
+                let matrix = transform_matrix(position, orientation, scale);    
+                let inverse_matrix = matrix_inverse(matrix);
+                
+                let local_ray_origin = (inverse_matrix * vec4<f32>(world_ray_origin, 1.)).xyz;
+                let local_ray_direction = (inverse_matrix * vec4<f32>(world_ray_direction, 0.)).xyz;
+                
+                let bb_min = transform.bb_min_scale_y.xyz;
+                let bb_max = transform.bb_max_scale_z.xyz;
+                let hit_size = bb_max - bb_min;
+
+                let blas_index = i32((*mesh).blas_index);
+
+                let blas_result = traverse_blas_stack(
+                    world_ray_origin, world_ray_direction,
+                    local_ray_origin, local_ray_direction,
+                    blas_index, max_distance, current_instance_id,
+                    hit_size, position, orientation, scale,
+                    (*mesh).meshlets_offset, (*mesh).vertices_position_offset, bb_min
+                );
+
+                // Add BLAS steps to total
+                loop_count += blas_result.steps;
+
+                if(blas_result.distance < max_distance) {
+                    max_distance = blas_result.distance;
+                    visibility_id = blas_result.visibility_id;
+                    instance_id = blas_result.instance_id;
+                }
+            }
+        }
+    }
+    return Result(max_distance, visibility_id, instance_id, loop_count);
 }

@@ -7,17 +7,19 @@ use std::{
 };
 
 use inox_bvh::{create_linearized_bvh, BVHTree, GPUBVHNode, AABB};
-use inox_math::{quantize_half, Mat4Ops, MatBase, Matrix4, VecBase, Vector2};
+use inox_math::{quantize_half, Mat4Ops, Matrix4, VecBase, Vector2, Vector3};
 use inox_resources::{to_slice, Buffer, ResourceId};
 use inox_uid::{generate_static_uid_from_string, generate_uid_from_type, Uid};
 
 use crate::{
-    platform::has_primitive_index_support, AsBinding, ConstantDataRw, GPULight, GPUMaterial,
-    GPUMesh, GPUMeshlet, GPUPrimitiveIndices, GPUTexture, GPUVertexAttributes, GPUVertexIndices,
-    GPUVertexPosition, Light, LightId, Material, MaterialData, MaterialFlags, MaterialId, Mesh,
-    MeshData, MeshFlags, MeshId, RenderContext, TextureId, TextureType, INVALID_INDEX,
-    MAX_LOD_LEVELS,
+    platform::has_primitive_index_support, AsBinding, ConstantDataRw, GPUInstance, GPULight,
+    GPUMaterial, GPUMesh, GPUMeshlet, GPUPrimitiveIndices, GPUTexture, GPUTransform,
+    GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, Light, LightId, Material,
+    MaterialData, MaterialFlags, MaterialId, Mesh, MeshData, MeshFlags, MeshId, RenderContext,
+    TextureId, TextureType, INVALID_INDEX, MAX_LOD_LEVELS,
 };
+
+pub const INSTANCE_DATA_ID: Uid = generate_static_uid_from_string("INSTANCE_DATA_ID");
 
 pub const TLAS_UID: ResourceId = generate_static_uid_from_string("TLAS");
 pub const LUT_PBR_CHARLIE_UID: ResourceId = generate_static_uid_from_string("LUT_PBR_CHARLIE_UID");
@@ -323,25 +325,37 @@ impl GlobalBuffers {
         inox_profiler::scoped_profile!("render_buffers::recreate_tlas");
         let mut meshes_aabbs = Vec::new();
         {
+            let instances = self.vector_with_id::<GPUInstance>(INSTANCE_DATA_ID);
+            let instances = instances.read().unwrap();
             let meshes = self.buffer::<GPUMesh>();
             let meshes = meshes.read().unwrap();
+            let transforms = self.vector::<GPUTransform>();
+            let transforms = transforms.read().unwrap();
             let bvh = self.buffer::<GPUBVHNode>();
             let bvh = bvh.read().unwrap();
-            let bvh = bvh.data();
-            meshes.for_each_data(|i, _id, mesh| {
-                let node = &bvh[mesh.blas_index as usize];
-                //let matrix = Matrix4::from_translation_orientation_scale(
-                //    mesh.position.into(),
-                //    mesh.orientation.into(),
-                //    mesh.scale.into(),
-                //);
-                let matrix = Matrix4::default_identity();
+            let bvh_data = bvh.data();
+            instances.iter().enumerate().for_each(|(i, instance)| {
+                let mesh = &meshes.data()[instance.mesh_id as usize];
+                let node = &bvh_data[mesh.blas_index as usize];
+                let transform = &transforms[instance.transform_id as usize];
+                let p = inox_math::Vector4::from(transform.position_scale_x);
+                let s_y = inox_math::Vector4::from(transform.bb_min_scale_y);
+                let s_z = inox_math::Vector4::from(transform.bb_max_scale_z);
+                let matrix = Matrix4::from_translation_orientation_scale(
+                    p.xyz(),
+                    transform.orientation.into(),
+                    Vector3::new(p.w, s_y.w, s_z.w),
+                );
                 let min = matrix.rotate_point(node.min.into());
                 let max = matrix.rotate_point(node.max.into());
                 let aabb = AABB::create(min.min(max), max.max(min), i as _);
                 meshes_aabbs.push(aabb);
             });
         }
+        if meshes_aabbs.is_empty() {
+            return;
+        }
+        //inox_log::debug_log!("recreate_tlas with {} instances", meshes_aabbs.len());
         let bvh = BVHTree::new(&meshes_aabbs);
         let linearized_bvh = create_linearized_bvh(&bvh);
         let bvh = self.buffer::<GPUBVHNode>();
@@ -358,8 +372,6 @@ impl GlobalBuffers {
             }
         });
         bvh.mark_as_dirty(render_context);
-        //println!("\n\nTLAS: {}", tlas_starting_index);
-        //print_bvh(bvh.data());
     }
     pub fn change_mesh(&self, render_context: &RenderContext, mesh_id: &MeshId, mesh: &mut Mesh) {
         inox_profiler::scoped_profile!("render_buffers::change_mesh");

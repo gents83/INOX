@@ -5,14 +5,12 @@ use inox_render::{
     ConstantDataRw, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet,
     GPUPrimitiveIndices, GPUTransform, GPUVector, GPUVertexIndices, GPUVertexPosition, Pass,
     RenderContext, RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
-    ShaderStage, StoreOperation, Texture, TextureView, VextexBindingType,
+    ShaderStage, StoreOperation, Texture, TextureView, VextexBindingType, INSTANCE_DATA_ID,
 };
 
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::generate_random_uid;
-
-use crate::INSTANCE_DATA_ID;
 
 pub const VISIBILITY_BUFFER_PIPELINE: &str = "pipelines/VisibilityBuffer.render_pipeline";
 pub const VISIBILITY_BUFFER_PASS_NAME: &str = "VisibilityBufferPass";

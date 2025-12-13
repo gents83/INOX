@@ -33,7 +33,7 @@ var<storage, read_write> data_buffer_2: array<f32>;
 @group(1) @binding(6)
 var<storage, read_write> data_buffer_debug: array<f32>;
 @group(1) @binding(7)
-var<storage, read_write> transforms: Transforms;
+var<storage, read> transforms: Transforms;
 
 #import "texture_utils.inc"
 #import "matrix_utils.inc"
@@ -53,12 +53,13 @@ fn main(
     @builtin(workgroup_id) workgroup_id: vec3<u32>,
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
 ) {
+
     let dimensions = vec2<u32>(DEFAULT_WIDTH, DEFAULT_HEIGHT);
     
     let pixel = vec2<u32>(global_invocation_id.x, global_invocation_id.y);
     if (pixel.x >= dimensions.x || pixel.y >= dimensions.y) {
         return;
-    } 
+    }     
 
     var debug_index = 1u;
     var is_pixel_to_debug = (constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE) != 0;
@@ -76,6 +77,7 @@ fn main(
     var radiance = vec3<f32>(data_buffer_1[data_index], data_buffer_1[data_index + 1u], data_buffer_1[data_index + 2u]);
     var visibility_id = u32(data_buffer_1[data_index + 3u]);
     
+
     var throughput_weight = vec3<f32>(data_buffer_2[data_index], data_buffer_2[data_index + 1u], data_buffer_2[data_index + 2u]);
 
     if (is_pixel_to_debug) {
@@ -87,12 +89,16 @@ fn main(
         data_buffer_debug[debug_index + 5u] = direction.y;
         data_buffer_debug[debug_index + 6u] = direction.z;
         debug_index = debug_index + 7u;
+    }   
+    
+    var should_skip = (visibility_id == 0u || (visibility_id & 0xFFFFFFFFu) == 0xFF000000u);
+    if (should_skip) {
+        return;
     }
-
-    var should_skip = visibility_id == 0u;
     var seed = (pixel * dimensions) ^ vec2<u32>(constant_data.frame_index << 16u);
     var bounce = 0u;
-    for(bounce = 0u; !should_skip && bounce < constant_data.indirect_light_num_bounces; bounce++)
+    
+    while(bounce < constant_data.indirect_light_num_bounces)
     {
         let result = traverse_bvh(origin, direction, constant_data.tlas_starting_index);  
         should_skip = result.visibility_id == 0u || (result.visibility_id & 0xFFFFFFFFu) == 0xFF000000u;
@@ -103,7 +109,7 @@ fn main(
         }  
         let hit_point = origin + (direction * result.distance);
             
-        let radiance_data = compute_radiance_from_visibility(result.instance_id, hit_point, get_random_numbers(&seed), radiance, throughput_weight); 
+        let radiance_data = compute_radiance_from_visibility(result.visibility_id, hit_point, get_random_numbers(&seed), radiance, throughput_weight); 
         origin = hit_point + radiance_data.direction * HIT_EPSILON;
         direction = radiance_data.direction;
         radiance += radiance_data.radiance;
@@ -119,7 +125,9 @@ fn main(
             data_buffer_debug[debug_index + 6u] = direction.z;
             debug_index = debug_index + 7u;
         }
+         bounce += 1u;
     }
+    
     if (is_pixel_to_debug) {
         data_buffer_debug[0u] = f32(debug_index);
     } 

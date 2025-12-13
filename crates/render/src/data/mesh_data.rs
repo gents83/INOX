@@ -233,7 +233,7 @@ impl MeshData {
             .for_each(|i| self.indices.push(*i + vertex_offset));
 
         let mut meshlets_aabbs = Vec::new();
-        meshlets_aabbs.resize_with(self.meshlets.len(), AABB::empty);
+        meshlets_aabbs.resize_with(self.meshlets[lod_level].len(), AABB::empty);
         self.meshlets[lod_level]
             .iter()
             .enumerate()

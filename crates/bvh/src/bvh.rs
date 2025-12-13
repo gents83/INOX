@@ -201,6 +201,9 @@ impl BVHTree {
     }
 
     pub fn reverse(tree: Self) -> Self {
+        if tree.nodes.is_empty() {
+            return tree;
+        }
         let mut index_map = vec![0; tree.nodes.len()];
         let mut new_bvh = BVHTree::default();
         let mut nodes_to_visit = [tree.nodes.len() - 1].to_vec();

@@ -36,6 +36,10 @@ var<uniform> textures: Textures;
 var visibility_texture: texture_2d<u32>;
 @group(1) @binding(3)
 var depth_texture: texture_depth_2d;
+@group(1) @binding(4)
+var<storage, read_write> data_buffer_1: array<f32>;
+@group(1) @binding(5)
+var<storage, read_write> data_buffer_debug: array<f32>;
 
 #import "texture_utils.inc"
 #import "geom_utils.inc"
@@ -408,7 +412,6 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let v = vec3<f32>(1. - depth) * 10.;
         out_color = vec4<f32>(v, 1.);
     } 
-    /*
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE) != 0) {
         var origin = vec3<f32>(0.);
         var direction = vec3<f32>(0.);
@@ -455,7 +458,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
             color += draw_line_3d(screen_pixel, dimensions, origin, origin + direction * 5., line_color, line_size);
             out_color = vec4<f32>(color, 1.);
         }
-    }*/
+    }
     
     return select(vec4<f32>(0.), out_color, out_color.a > 0.);
 }

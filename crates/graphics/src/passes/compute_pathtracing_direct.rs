@@ -1,18 +1,12 @@
 use std::path::PathBuf;
 
 use inox_render::{
-    BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, GPUBuffer, GPUInstance, GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture,
-    GPUTransform, GPUVector, GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, Pass,
-    RenderContext, RenderContextRc, SamplerType, ShaderStage, TextureId, TextureView,
-    DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData, ConstantDataRw, DEFAULT_HEIGHT, DEFAULT_WIDTH, GPUBuffer, GPUInstance, GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture, GPUTransform, GPUVector, GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, INSTANCE_DATA_ID, Pass, RenderContext, RenderContextRc, SamplerType, ShaderStage, TextureId, TextureView
 };
 
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::{generate_random_uid, INVALID_UID};
-
-use crate::INSTANCE_DATA_ID;
 
 pub const COMPUTE_PATHTRACING_DIRECT_PIPELINE: &str =
     "pipelines/ComputePathtracingDirect.compute_pipeline";

@@ -2,17 +2,17 @@ use std::path::PathBuf;
 
 use inox_bvh::GPUBVHNode;
 use inox_render::{
-    BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, GPUBuffer, GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture, GPUVector,
-    GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, Pass, RenderContext, RenderContextRc,
-    SamplerType, ShaderStage, TextureView, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData, ConstantDataRw, DEFAULT_HEIGHT, DEFAULT_WIDTH, GPUBuffer, GPUInstance, GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture, GPUTransform, GPUVector, GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, INSTANCE_DATA_ID, Pass, RenderContext, RenderContextRc, SamplerType, ShaderStage, TextureView
 };
 
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
 
-use crate::{RadiancePackedData, RayPackedData, ThroughputPackedData, SIZE_OF_DATA_BUFFER_ELEMENT};
+use crate::{
+    RadiancePackedData, RayPackedData, ThroughputPackedData,
+    SIZE_OF_DATA_BUFFER_ELEMENT,
+};
 
 pub const COMPUTE_PATHTRACING_INDIRECT_PIPELINE: &str =
     "pipelines/ComputePathTracingIndirect.compute_pipeline";
@@ -35,6 +35,8 @@ pub struct ComputePathTracingIndirectPass {
     textures: GPUBuffer<GPUTexture>,
     materials: GPUBuffer<GPUMaterial>,
     lights: GPUBuffer<GPULight>,
+    transforms: GPUVector<GPUTransform>,
+    instances: GPUVector<GPUInstance>,
     data_buffer_0: GPUVector<RayPackedData>,
     data_buffer_1: GPUVector<RadiancePackedData>,
     data_buffer_2: GPUVector<ThroughputPackedData>,
@@ -91,6 +93,10 @@ impl Pass for ComputePathTracingIndirectPass {
             textures: render_context.global_buffers().buffer::<GPUTexture>(),
             materials: render_context.global_buffers().buffer::<GPUMaterial>(),
             lights: render_context.global_buffers().buffer::<GPULight>(),
+            transforms: render_context.global_buffers().vector::<GPUTransform>(),
+            instances: render_context
+                .global_buffers()
+                .vector_with_id::<GPUInstance>(INSTANCE_DATA_ID),
             data_buffer_0: render_context.global_buffers().vector::<RayPackedData>(),
             data_buffer_1: render_context
                 .global_buffers()
@@ -211,11 +217,22 @@ impl Pass for ComputePathTracingIndirectPass {
                 },
             )
             .add_buffer(
+                &mut *self.instances.write().unwrap(),
+                Some("Instances"),
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 1,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
+                    ..Default::default()
+                },
+            )
+            .add_buffer(
                 &mut *self.bvh.write().unwrap(),
                 Some("BVH"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 1,
+                    binding_index: 2,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
@@ -226,7 +243,7 @@ impl Pass for ComputePathTracingIndirectPass {
                 Some("DataBuffer_0"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 2,
+                    binding_index: 3,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                     ..Default::default()
@@ -237,7 +254,7 @@ impl Pass for ComputePathTracingIndirectPass {
                 Some("DataBuffer_1"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 3,
+                    binding_index: 4,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                     ..Default::default()
@@ -248,7 +265,7 @@ impl Pass for ComputePathTracingIndirectPass {
                 Some("DataBuffer_2"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 4,
+                    binding_index: 5,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                     ..Default::default()
@@ -259,9 +276,20 @@ impl Pass for ComputePathTracingIndirectPass {
                 Some("DataBuffer_Debug"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 5,
+                    binding_index: 6,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                    ..Default::default()
+                },
+            )
+            .add_buffer(
+                &mut *self.transforms.write().unwrap(),
+                Some("Transforms"),
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 7,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             );

@@ -3,10 +3,7 @@ use std::path::PathBuf;
 use inox_bvh::GPUBVHNode;
 use inox_math::{matrix4_to_array, Mat4Ops, Matrix4};
 use inox_render::{
-    AsBinding, BindingData, BindingFlags, BindingInfo, BufferRef, CommandBuffer, ComputePass,
-    ComputePassData, ConstantDataRw, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMeshlet,
-    GPUTransform, GPUVector, MeshFlags, Pass, RenderContext, RenderContextRc, ShaderStage, Texture,
-    TextureView,
+    AsBinding, BindingData, BindingFlags, BindingInfo, BufferRef, CommandBuffer, ComputePass, ComputePassData, ConstantDataRw, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMeshlet, GPUTransform, GPUVector, INSTANCE_DATA_ID, MeshFlags, Pass, RenderContext, RenderContextRc, ShaderStage, Texture, TextureView
 };
 
 use inox_commands::CommandParser;
@@ -16,9 +13,7 @@ use inox_messenger::{implement_message, Listener};
 use inox_resources::{DataTypeResource, Handle, Resource};
 use inox_uid::generate_random_uid;
 
-use crate::{
-    CommandsData, ACTIVE_INSTANCE_DATA_ID, COMMANDS_DATA_ID, INSTANCE_DATA_ID, MESHLETS_COUNT_ID,
-};
+use crate::{CommandsData, ACTIVE_INSTANCE_DATA_ID, COMMANDS_DATA_ID, MESHLETS_COUNT_ID};
 
 pub const CULLING_PIPELINE: &str = "pipelines/ComputeCulling.compute_pipeline";
 pub const CULLING_PASS_NAME: &str = "CullingPass";

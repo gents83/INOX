@@ -3,9 +3,9 @@ use std::path::PathBuf;
 use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
-    BlitPass, CommandsPass, ComputeInstancesPass, ComputePathTracingDirectPass, CullingPass,
-    DebugPass, DepthFirstPass, DepthPyramidPass, FinalizePass, VisibilityBufferPass, WireframePass,
-    WIREFRAME_PASS_NAME,
+    BlitPass, CommandsPass, ComputeInstancesPass, ComputePathTracingDirectPass,
+    ComputePathTracingIndirectPass, CullingPass, DebugPass, DepthFirstPass, DepthPyramidPass,
+    FinalizePass, VisibilityBufferPass, WireframePass, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_render::{
@@ -238,11 +238,11 @@ impl Viewer {
 
         Self::create_visibility_pass(context, render_context);
         Self::create_compute_pathtracing_direct_pass(context, render_context);
-        //Self::create_compute_pathtracing_indirect_pass(context, render_context);
+        Self::create_compute_pathtracing_indirect_pass(context, render_context);
         Self::create_finalize_pass(context, render_context);
         Self::create_blit_pass(context, render_context);
 
-        Self::create_debug_pass(context, render_context);
+        //Self::create_debug_pass(context, render_context);
         Self::create_wireframe_pass(context, render_context, has_wireframe_support());
         Self::create_ui_pass(context, render_context, ADD_UI_PASS);
     }
@@ -280,7 +280,6 @@ impl Viewer {
             .set_depth_texture(&render_context.render_target_id(RenderTargetType::Depth as usize));
         render_context.add_pass(compute_pathtracing_direct_pass, true);
     }
-    /*
     fn create_compute_pathtracing_indirect_pass(
         context: &ContextRc,
         render_context: &RenderContextRc,
@@ -292,7 +291,6 @@ impl Viewer {
         compute_pathtracing_indirect_pass.set_dimensions(visibility_texture.get().dimensions());
         render_context.add_pass(compute_pathtracing_indirect_pass, true);
     }
-    */
     fn create_finalize_pass(context: &ContextRc, render_context: &RenderContextRc) {
         let mut finalize_pass = FinalizePass::create(context, render_context);
         finalize_pass.set_frame_textures([

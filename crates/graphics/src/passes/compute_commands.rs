@@ -1,9 +1,7 @@
 use std::path::PathBuf;
 
 use inox_render::{
-    declare_as_binding, BindingData, BindingFlags, BindingInfo, BufferId, CommandBuffer,
-    ComputePass, ComputePassData, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet,
-    GPUVector, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView,
+    BindingData, BindingFlags, BindingInfo, BufferId, CommandBuffer, ComputePass, ComputePassData, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet, GPUVector, INSTANCE_DATA_ID, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView, declare_as_binding
 };
 
 use inox_core::ContextRc;
@@ -11,9 +9,7 @@ use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
-use crate::{
-    CommandsData, ACTIVE_INSTANCE_DATA_ID, COMMANDS_DATA_ID, INSTANCE_DATA_ID, MESHLETS_COUNT_ID,
-};
+use crate::{CommandsData, ACTIVE_INSTANCE_DATA_ID, COMMANDS_DATA_ID, MESHLETS_COUNT_ID};
 
 pub const COMMANDS_PIPELINE: &str = "pipelines/ComputeCommands.compute_pipeline";
 pub const COMMANDS_PASS_NAME: &str = "CommandsPass";

@@ -5,14 +5,15 @@ use inox_render::{
     GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture, GPUTransform, GPUVector, GPUVertexAttributes,
     GPUVertexIndices, GPUVertexPosition, LoadOperation, Pass, RenderContext, RenderContextRc,
     RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType, ShaderStage,
-    StoreOperation, TextureId, TextureView,
+    StoreOperation, TextureId, TextureView, DEFAULT_HEIGHT, DEFAULT_WIDTH, INSTANCE_DATA_ID,
 };
 
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::{generate_random_uid, INVALID_UID};
 
-use crate::INSTANCE_DATA_ID;
+use super::compute_pathtracing_indirect::DebugPackedData;
+use crate::{RadiancePackedData, SIZE_OF_DATA_BUFFER_ELEMENT};
 
 pub const DEBUG_PIPELINE: &str = "pipelines/Debug.render_pipeline";
 pub const DEBUG_PASS_NAME: &str = "DebugPass";
@@ -33,6 +34,8 @@ pub struct DebugPass {
     finalize_texture: TextureId,
     visibility_texture: TextureId,
     depth_texture: TextureId,
+    data_buffer_1: GPUVector<RadiancePackedData>,
+    data_buffer_debug: GPUVector<DebugPackedData>,
 }
 unsafe impl Send for DebugPass {}
 unsafe impl Sync for DebugPass {}
@@ -64,6 +67,19 @@ impl Pass for DebugPass {
             ..Default::default()
         };
 
+        let data_buffer_debug = render_context.global_buffers().vector::<DebugPackedData>();
+        data_buffer_debug.write().unwrap().resize(
+            SIZE_OF_DATA_BUFFER_ELEMENT * (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
+            DebugPackedData(0.),
+        );
+        let data_buffer_1 = render_context
+            .global_buffers()
+            .vector::<RadiancePackedData>();
+        data_buffer_1.write().unwrap().resize(
+            SIZE_OF_DATA_BUFFER_ELEMENT * (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
+            RadiancePackedData(0.),
+        );
+
         Self {
             render_pass: RenderPass::new_resource(
                 context.shared_data(),
@@ -72,6 +88,10 @@ impl Pass for DebugPass {
                 &data,
                 None,
             ),
+            data_buffer_1: render_context
+                .global_buffers()
+                .vector::<RadiancePackedData>(),
+            data_buffer_debug: render_context.global_buffers().vector::<DebugPackedData>(),
             binding_data: BindingData::new(render_context, DEBUG_PASS_NAME),
             constant_data: render_context.global_buffers().constant_data.clone(),
             meshes: render_context.global_buffers().buffer::<GPUMesh>(),
@@ -236,6 +256,28 @@ impl Pass for DebugPass {
                     group_index: 1,
                     binding_index: 3,
                     stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
+            )
+            .add_buffer(
+                &mut *self.data_buffer_1.write().unwrap(),
+                Some("DataBuffer_1"),
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 4,
+                    stage: ShaderStage::Fragment,
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                    ..Default::default()
+                },
+            )
+            .add_buffer(
+                &mut *self.data_buffer_debug.write().unwrap(),
+                Some("DataBuffer_Debug"),
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 5,
+                    stage: ShaderStage::Fragment,
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                     ..Default::default()
                 },
             );

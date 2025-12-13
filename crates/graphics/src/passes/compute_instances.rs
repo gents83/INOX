@@ -3,9 +3,7 @@ use std::{collections::HashMap, path::PathBuf};
 use inox_math::{Mat4Ops, Vector4};
 use inox_messenger::Listener;
 use inox_render::{
-    AsBinding, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet, GPUTransform, GPUVector, Mesh,
-    MeshId, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView,
+    AsBinding, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet, GPUTransform, GPUVector, INSTANCE_DATA_ID, Mesh, MeshId, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView
 };
 
 use inox_core::ContextRc;
@@ -16,7 +14,6 @@ use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 pub const COMPUTE_INSTANCES_PIPELINE: &str = "pipelines/ComputeInstances.compute_pipeline";
 pub const COMPUTE_INSTANCES_NAME: &str = "ComputeInstancesPass";
 
-pub const INSTANCE_DATA_ID: Uid = generate_static_uid_from_string("INSTANCE_DATA_ID");
 pub const ACTIVE_INSTANCE_DATA_ID: Uid = generate_static_uid_from_string("ACTIVE_INSTANCE_DATA_ID");
 pub const COMMANDS_DATA_ID: Uid = generate_static_uid_from_string("COMMANDS_DATA_ID");
 pub const MESHLETS_COUNT_ID: Uid = generate_static_uid_from_string("MESHLETS_COUNT_ID");
