@@ -96,7 +96,7 @@ impl UIProperties for Degrees {
             let drag = DragValue::new(&mut value)
                 .suffix("°")
                 .prefix("degrees: ")
-                .clamp_range(0.0..=360.0)
+                .range(0.0..=360.0)
                 .fixed_decimals(3);
             drag.ui(ui);
             self.0 = value;

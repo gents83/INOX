@@ -5,7 +5,7 @@ use inox_messenger::MessageHubRc;
 use inox_resources::{Resource, SharedData, SharedDataRc};
 use inox_ui::{
     implement_widget_data, load::SizedTexture, CentralPanel, Image, LayerId, Sense,
-    TextureId as eguiTextureId, UIWidget, Widget,
+    TextureId as eguiTextureId, UIWidget, UiBuilder, Widget,
 };
 
 #[derive(Clone)]
@@ -54,16 +54,17 @@ impl View3D {
                     let texture_uniform_index =
                         Self::get_render_pass_texture_index(&data.shared_data, 0, BLIT_PASS_NAME);
 
-                    let response = ui.with_layer_id(LayerId::background(), |ui| {
-                        let response = Image::from_texture(SizedTexture::new(
-                            eguiTextureId::User(texture_uniform_index as _),
-                            [view_width as _, view_height as _],
-                        ))
-                        .sense(Sense::click_and_drag())
-                        .ui(ui);
-                        data.is_interacting = response.is_pointer_button_down_on();
-                        response
-                    });
+                    let response =
+                        ui.scope_builder(UiBuilder::new().layer_id(LayerId::background()), |ui| {
+                            let response = Image::from_texture(SizedTexture::new(
+                                eguiTextureId::User(texture_uniform_index as _),
+                                [view_width as _, view_height as _],
+                            ))
+                            .sense(Sense::click_and_drag())
+                            .ui(ui);
+                            data.is_interacting = response.is_pointer_button_down_on();
+                            response
+                        });
                     data.is_interacting |= response.response.is_pointer_button_down_on();
                     response
                 });

@@ -4,9 +4,7 @@ use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, Resource, ResourceId, ResourceTrait, SerializableResource, SharedDataRc,
 };
-use inox_serialize::{
-    inox_serializable::SerializableRegistryRc, read_from_file, SerializationType, SerializeFile,
-};
+use inox_serialize::{read_from_file, SerializationType, SerializeFile};
 use inox_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 use crate::{Camera, Object, SceneData};
@@ -56,12 +54,8 @@ impl SerializableResource for Scene {
         SceneData::extension()
     }
 
-    fn deserialize_data(
-        path: &std::path::Path,
-        registry: SerializableRegistryRc,
-        f: Box<dyn FnMut(Self::DataType) + 'static>,
-    ) {
-        read_from_file::<Self::DataType>(path, registry, SerializationType::Binary, f);
+    fn deserialize_data(path: &std::path::Path, f: Box<dyn FnMut(Self::DataType) + 'static>) {
+        read_from_file::<Self::DataType>(path, SerializationType::Binary, f);
     }
 }
 

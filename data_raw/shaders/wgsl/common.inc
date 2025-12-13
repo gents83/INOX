@@ -2,14 +2,16 @@ const DEFAULT_WIDTH: u32 = 1920u;
 const DEFAULT_HEIGHT: u32 = 1080u;
 const SIZE_OF_DATA_BUFFER_ELEMENT: u32 = 4u;
 const MAX_LOD_LEVELS: u32 = 8u;
-const MAX_NUM_LIGHTS: u32 = 1024u;
-const MAX_NUM_TEXTURES: u32 = 65536u;
-const MAX_NUM_MATERIALS: u32 = 65536u;
+const MAX_NUM_LIGHTS: u32 = 512u;
+const MAX_NUM_TEXTURES: u32 = 2048u;
+const MAX_NUM_MATERIALS: u32 = 256u;
+const MAX_PROJECTED_ERROR: f32 = 10e-10;
+const LOD_ERROR_THRESHOLD: f32 = 2e-3f; // 24 pixels at 1080p
 
 const CONSTANT_DATA_FLAGS_NONE: u32 = 0u;
 const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1u;
 const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 1u << 1u;
-const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 1u << 2u;
+const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_LOD_LEVEL: u32 = 1u << 2u;
 const CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER: u32 = 1u << 3u;
 const CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER: u32 = 1u << 4u;
 const CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE: u32 = 1u << 5u;
@@ -116,13 +118,22 @@ struct ConstantData {
     forced_lod_level: i32,
     camera_near: f32,
     camera_far: f32,
-    _empty3: u32,
+    camera_fov: f32,
 };
 
-struct RuntimeVertexData {
-    @location(0) world_pos: vec3<f32>,
-    @location(1) @interpolate(flat) mesh_index: u32,
-};
+struct Instance {
+    @location(1) transform_id: u32,
+    @location(2) mesh_id: u32,
+    @location(3) meshlet_id: u32,
+    @location(4) command_id: i32,
+}
+
+struct Transform {
+    orientation: vec4<f32>,
+    position_scale_x: vec4<f32>,
+    bb_min_scale_y: vec4<f32>,
+    bb_max_scale_z: vec4<f32>,
+}
 
 struct DrawCommand {
     vertex_count: u32,
@@ -133,7 +144,7 @@ struct DrawCommand {
 
 struct DrawIndexedCommand {
     vertex_count: u32,
-    instance_count: u32,
+    instance_count: atomic<u32>,
     base_index: u32,
     vertex_offset: i32,
     base_instance: u32,
@@ -150,23 +161,27 @@ struct Mesh {
     vertices_attribute_offset: u32,
     flags_and_vertices_attribute_layout: u32,
     material_index: i32,
-    orientation: vec4<f32>,
-    position: vec3<f32>,
     meshlets_offset: u32,
-    scale: vec3<f32>,
     blas_index: u32,
+    indices_offset: u32,
+    indices_count: u32,
     lods_meshlets_offset: array<u32, MAX_LOD_LEVELS>,
 };
 
 struct Meshlet {
-    @location(5) mesh_index_and_lod_level: u32, // 29 mesh + 3 lod bits
-    @location(6) indices_offset: u32,
-    @location(7) indices_count: u32,
-    @location(8) bvh_offset: u32,
-    @location(9) child_meshlets: vec4<i32>,
+    mesh_index: u32,
+    indices_offset: u32,
+    indices_count: u32,
+    lod_level: u32,
+    aabb_min: vec3<f32>,
+    parent_error: f32,
+    aabb_max: vec3<f32>,
+    group_error: f32,
+    bounding_sphere: vec4<f32>,
+    parent_bounding_sphere: vec4<f32>,
 };
 
-struct BHVNode {
+struct BVHNode {
     min: vec3<f32>,
     miss: i32,
     max: vec3<f32>,
@@ -195,6 +210,7 @@ struct TextureData {
 };
 
 struct Material {
+    textures_index_and_coord_set: mat4x4<f32>,
     roughness_factor: f32,
     metallic_factor: f32,
     ior: f32,
@@ -210,7 +226,6 @@ struct Material {
     normal_scale_and_alpha_cutoff: u32,
     occlusion_strength: f32,
     flags: u32,
-    textures_index_and_coord_set: array<u32, TEXTURE_TYPE_COUNT>,
 };
 
 
@@ -219,11 +234,11 @@ struct Lights {
 };
 
 struct Textures {
-    data: array<TextureData>,
+    data: array<TextureData, MAX_NUM_TEXTURES>,
 };
 
 struct Materials {
-    data: array<Material>,
+    data: array<Material, MAX_NUM_MATERIALS>,
 };
 
 struct DrawCommands {
@@ -231,7 +246,19 @@ struct DrawCommands {
 };
 
 struct DrawIndexedCommands {
+    count: atomic<u32>,
+    _padding0: u32,
+    _padding1: u32,
+    _padding2: u32,
     data: array<DrawIndexedCommand>,
+};
+
+struct Transforms {
+    data: array<Transform>,
+};
+
+struct Instances {
+    data: array<Instance>,
 };
 
 struct Meshes {
@@ -246,8 +273,8 @@ struct Indices {
     data: array<u32>,
 };
 
-struct RuntimeVertices {
-    data: array<RuntimeVertexData>,
+struct PrimitiveIndices {
+    data: array<u32>,
 };
 
 struct VerticesPositions {
@@ -258,10 +285,13 @@ struct VerticesAttributes {
     data: array<u32>,
 };
 
-struct BHV {
-    data: array<BHVNode>,
+struct BVH {
+    data: array<BVHNode>,
 };
 
+struct Frustum {
+    planes: array<vec4<f32>, 6>,
+};
 
 struct Ray {
     origin: vec3<f32>,
@@ -275,7 +305,7 @@ struct PixelData {
     material_id: u32,
     color: vec4<f32>,
     normal: vec3<f32>,
-    mesh_id: u32, 
+    instance_id: u32, 
     tangent: vec4<f32>,
     uv_set: array<vec4<f32>, 4>,
 };

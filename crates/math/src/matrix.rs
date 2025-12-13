@@ -2,13 +2,14 @@ use crate::angle::NewAngle;
 use crate::vector::{VecBaseFloat, Vector3, Vector4};
 use crate::Degrees;
 use crate::{Quat, Quaternion};
-use cgmath::{Deg, InnerSpace, SquareMatrix, Transform};
+use cgmath::{Deg, InnerSpace, SquareMatrix, Transform, Zero};
 
 pub type Matrix3 = cgmath::Matrix3<f32>;
 pub type Matrix4 = cgmath::Matrix4<f32>;
 
 pub trait MatBase {
     fn default_identity() -> Self;
+    fn default_zero() -> Self;
 }
 
 macro_rules! implement_matrix_base {
@@ -16,6 +17,9 @@ macro_rules! implement_matrix_base {
         impl MatBase for $MatrixN {
             fn default_identity() -> Self {
                 Self::identity()
+            }
+            fn default_zero() -> Self {
+                Self::zero()
             }
         }
     };

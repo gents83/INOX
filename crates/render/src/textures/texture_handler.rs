@@ -17,6 +17,16 @@ pub enum SamplerType {
     Count = 3,
 }
 
+impl From<SamplerType> for wgpu::SamplerBindingType {
+    fn from(sampler_type: SamplerType) -> Self {
+        match sampler_type {
+            SamplerType::Unfiltered => wgpu::SamplerBindingType::NonFiltering,
+            SamplerType::Depth => wgpu::SamplerBindingType::Comparison,
+            _ => wgpu::SamplerBindingType::Filtering,
+        }
+    }
+}
+
 pub struct TextureHandler {
     texture_atlas: RwLock<Vec<TextureAtlas>>,
     render_targets: RwLock<Vec<TextureRef>>,
@@ -28,30 +38,37 @@ pub type TextureHandlerRc = Arc<TextureHandler>;
 impl TextureHandler {
     pub fn create(device: &wgpu::Device) -> Self {
         let default_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("Default Sampler"),
             address_mode_u: wgpu::AddressMode::Repeat,
             address_mode_v: wgpu::AddressMode::Repeat,
             address_mode_w: wgpu::AddressMode::Repeat,
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::MipmapFilterMode::Linear,
             ..Default::default()
         });
         let unfiltered_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("Unfiltered Sampler"),
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Linear,
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::MipmapFilterMode::Nearest,
+            lod_min_clamp: 0.0,
+            lod_max_clamp: f32::MAX,
             ..Default::default()
         });
         let depth_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("Depth Sampler"),
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Linear,
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::MipmapFilterMode::Nearest,
+            lod_min_clamp: 0.0,
+            lod_max_clamp: f32::MAX,
             compare: Some(wgpu::CompareFunction::Less),
             ..Default::default()
         });
@@ -65,10 +82,10 @@ impl TextureHandler {
         &self.samplers[t as usize]
     }
 
-    pub fn textures_atlas(&self) -> RwLockReadGuard<Vec<TextureAtlas>> {
+    pub fn textures_atlas(&self) -> RwLockReadGuard<'_, Vec<TextureAtlas>> {
         self.texture_atlas.read().unwrap()
     }
-    pub fn render_targets(&self) -> RwLockReadGuard<Vec<TextureRef>> {
+    pub fn render_targets(&self) -> RwLockReadGuard<'_, Vec<TextureRef>> {
         self.render_targets.read().unwrap()
     }
 
@@ -106,29 +123,29 @@ impl TextureHandler {
         &self,
         device: &wgpu::Device,
         id: &TextureId,
-        dimensions: (u32, u32),
+        texture_data: (u32, u32, u32, u32),
         format: TextureFormat,
         usage: TextureUsage,
-        sample_count: u32,
     ) -> usize {
         let texture = TextureRef::create(
             device,
             *id,
             (
-                dimensions.0,
-                dimensions.1,
+                texture_data.0,
+                texture_data.1,
                 1,
-                sample_count,
+                texture_data.2,
                 format,
                 usage.into(),
+                texture_data.3,
             ),
         );
         if DEBUG_TEXTURES {
             inox_log::debug_log!(
                 "Adding new render target {} {:?}x{:?} with format {:?}",
                 id,
-                dimensions.0,
-                dimensions.1,
+                texture_data.0,
+                texture_data.1,
                 format
             );
         }

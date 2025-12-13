@@ -6,9 +6,7 @@ use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
     SharedDataRc,
 };
-use inox_serialize::{
-    inox_serializable::SerializableRegistryRc, read_from_file, SerializationType, SerializeFile,
-};
+use inox_serialize::{read_from_file, SerializationType, SerializeFile};
 
 use crate::{BindingData, ComputePipelineData, RenderContext, Shader, SHADER_ENTRY_POINT};
 
@@ -56,12 +54,8 @@ impl SerializableResource for ComputePipeline {
     fn extension() -> &'static str {
         ComputePipelineData::extension()
     }
-    fn deserialize_data(
-        path: &std::path::Path,
-        registry: SerializableRegistryRc,
-        f: Box<dyn FnMut(Self::DataType) + 'static>,
-    ) {
-        read_from_file::<Self::DataType>(path, registry, SerializationType::Json, f);
+    fn deserialize_data(path: &std::path::Path, f: Box<dyn FnMut(Self::DataType) + 'static>) {
+        read_from_file::<Self::DataType>(path, SerializationType::Json, f);
     }
 }
 
@@ -106,7 +100,12 @@ impl ComputePipeline {
     ) -> Resource<Shader> {
         Shader::request_load(shared_data, message_hub, data.shader.as_path(), None)
     }
-    pub fn init(&mut self, context: &RenderContext, binding_data: &BindingData) -> bool {
+    pub fn init(
+        &mut self,
+        context: &RenderContext,
+        binding_data: &BindingData,
+        entry_point_name: Option<&str>,
+    ) -> bool {
         inox_profiler::scoped_profile!("compute_pipeline::init");
         if self.shader.is_none() {
             return false;
@@ -154,9 +153,10 @@ impl ComputePipeline {
                         .as_str(),
                     ),
                     layout: Some(&compute_pipeline_layout),
-
+                    cache: None,
                     module: self.shader.as_ref().unwrap().get().module(),
-                    entry_point: SHADER_ENTRY_POINT,
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    entry_point: Some(entry_point_name.unwrap_or(SHADER_ENTRY_POINT)),
                 })
         };
         self.compute_pipeline = Some(compute_pipeline);

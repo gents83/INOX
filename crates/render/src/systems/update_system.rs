@@ -146,7 +146,9 @@ impl UpdateSystem {
                     }
                 }
                 ResourceEvent::Destroyed(id) => {
-                    self.render_context.global_buffers().remove_material(id);
+                    self.render_context
+                        .global_buffers()
+                        .remove_material(&self.render_context, id);
                 }
             })
             .process_messages(|e: &DataTypeResourceEvent<Material>| {
@@ -159,9 +161,14 @@ impl UpdateSystem {
             })
             .process_messages(|e: &DataTypeResourceEvent<Mesh>| {
                 let DataTypeResourceEvent::Loaded(id, mesh_data) = e;
-                self.render_context
-                    .global_buffers()
-                    .add_mesh(&self.render_context, id, mesh_data);
+                let mesh_index = self.render_context.global_buffers().add_mesh(
+                    &self.render_context,
+                    id,
+                    mesh_data,
+                );
+                if let Some(mesh) = self.shared_data.get_resource::<Mesh>(id) {
+                    mesh.get_mut().set_mesh_index(mesh_index);
+                }
             })
             .process_messages(|e: &ResourceEvent<Mesh>| match e {
                 ResourceEvent::Changed(id) => {
@@ -246,6 +253,7 @@ impl System for UpdateSystem {
                     self.view.get().proj(),
                     self.view.get().near(),
                     self.view.get().far(),
+                    self.view.get().fov_in_radians().0,
                 ),
                 screen_size,
                 self.mouse_coords,

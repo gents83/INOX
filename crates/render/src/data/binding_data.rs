@@ -3,8 +3,8 @@ use std::num::NonZeroU32;
 use inox_bitmask::bitmask;
 
 use crate::{
-    platform::required_gpu_features, AsBinding, BufferId, RenderCommandsPerType, RenderContextRc,
-    SamplerType, ShaderStage, TextureId, MAX_TEXTURE_ATLAS_COUNT,
+    platform::required_gpu_features, AsBinding, BufferId, RenderContextRc, SamplerType,
+    ShaderStage, TextureId, MAX_TEXTURE_ATLAS_COUNT,
 };
 
 const DEBUG_BINDINGS: bool = false;
@@ -26,10 +26,10 @@ impl From<BindingFlags> for wgpu::BufferUsages {
     fn from(val: BindingFlags) -> Self {
         let mut usage = wgpu::BufferUsages::empty();
         if val.intersects(BindingFlags::Read) || val.intersects(BindingFlags::ReadWrite) {
-            usage |= wgpu::BufferUsages::COPY_SRC;
+            usage |= wgpu::BufferUsages::COPY_DST;
         }
         if val.intersects(BindingFlags::Write) || val.intersects(BindingFlags::ReadWrite) {
-            usage |= wgpu::BufferUsages::COPY_DST;
+            usage |= wgpu::BufferUsages::COPY_SRC;
         }
         if val.intersects(BindingFlags::CPURead) {
             usage |= wgpu::BufferUsages::MAP_READ;
@@ -61,6 +61,7 @@ pub struct BindingInfo {
     pub binding_index: usize,
     pub stage: ShaderStage,
     pub flags: BindingFlags,
+    pub count: Option<usize>,
 }
 
 impl Default for BindingInfo {
@@ -70,6 +71,7 @@ impl Default for BindingInfo {
             binding_index: 0,
             stage: ShaderStage::VertexAndFragment,
             flags: BindingFlags::Read,
+            count: None,
         }
     }
 }
@@ -84,7 +86,7 @@ pub enum VextexBindingType {
 enum BindingType {
     Buffer(usize, BufferId),
     DefaultSampler(usize, SamplerType),
-    Texture(usize, TextureId),
+    Texture(usize, TextureId, u32),
     TextureArray(usize, Box<[TextureId; MAX_TEXTURE_ATLAS_COUNT as usize]>),
 }
 
@@ -131,36 +133,6 @@ impl BindingData {
                 .resize(group_index + 1, Default::default());
         }
     }
-    pub fn bind_render_commands(
-        &mut self,
-        data: &mut RenderCommandsPerType,
-        label: Option<&str>,
-    ) -> &mut Self {
-        inox_profiler::scoped_profile!("binding_data::bind_render_commands");
-
-        data.bind(&self.render_context, label);
-
-        self
-    }
-    pub fn bind_buffer<T>(&mut self, data: &mut T, label: Option<&str>) -> &mut Self
-    where
-        T: AsBinding,
-    {
-        inox_profiler::scoped_profile!("binding_data::bind_buffer");
-
-        let usage = wgpu::BufferUsages::STORAGE
-            | wgpu::BufferUsages::COPY_SRC
-            | wgpu::BufferUsages::COPY_DST
-            | wgpu::BufferUsages::INDIRECT;
-        self.render_context.binding_data_buffer().bind_buffer(
-            label,
-            data,
-            usage,
-            &self.render_context,
-        );
-
-        self
-    }
     pub fn set_vertex_buffer<T>(
         &mut self,
         binding_type: VextexBindingType,
@@ -180,6 +152,7 @@ impl BindingData {
         let is_changed = self.render_context.binding_data_buffer().bind_buffer(
             label,
             data,
+            None,
             usage,
             &self.render_context,
         );
@@ -207,6 +180,7 @@ impl BindingData {
         let is_changed = self.render_context.binding_data_buffer().bind_buffer(
             label,
             data,
+            None,
             usage,
             &self.render_context,
         );
@@ -229,7 +203,76 @@ impl BindingData {
         &self.index_buffer
     }
 
-    pub fn add_uniform_buffer<T>(
+    pub fn add_buffer_with_id<T>(
+        &mut self,
+        id: BufferId,
+        data: &mut T,
+        label: Option<&str>,
+        info: BindingInfo,
+    ) -> &mut Self
+    where
+        T: AsBinding,
+    {
+        inox_profiler::scoped_profile!("binding_data::add_buffer");
+
+        if data.size() == 0 {
+            return self;
+        }
+        #[cfg(debug_assertions)]
+        {
+            if (info.flags.intersects(BindingFlags::Storage)
+                && data.size()
+                    > self
+                        .render_context
+                        .webgpu
+                        .device
+                        .limits()
+                        .max_storage_buffer_binding_size as _)
+                || (info.flags.intersects(BindingFlags::Uniform)
+                    && data.size()
+                        > self
+                            .render_context
+                            .webgpu
+                            .device
+                            .limits()
+                            .max_uniform_buffer_binding_size as _)
+            {
+                inox_log::debug_log!(
+                    "Trying to bind buffer {} with size {} greater than maximum allowed [{}]",
+                    label.unwrap_or_default(),
+                    data.size(),
+                    self.render_context.webgpu.device.limits().max_buffer_size
+                );
+            }
+        }
+
+        let usage = info.flags.into();
+        let is_changed = self
+            .render_context
+            .binding_data_buffer()
+            .bind_buffer_with_id(id, label, data, info.count, usage, &self.render_context);
+        self.is_data_changed |= is_changed;
+
+        if DEBUG_BINDINGS {
+            inox_log::debug_log!(
+                "Add Buffer[{}][{}] with {:?} - Changed {:?}",
+                info.group_index,
+                info.binding_index,
+                id,
+                is_changed
+            );
+        }
+
+        if info.flags.intersects(BindingFlags::Storage)
+            || info.flags.intersects(BindingFlags::Uniform)
+        {
+            return self.bind_buffer(id, info);
+        }
+
+        self
+    }
+
+    pub fn add_buffer<T>(
         &mut self,
         data: &mut T,
         label: Option<&str>,
@@ -238,56 +281,11 @@ impl BindingData {
     where
         T: AsBinding,
     {
-        inox_profiler::scoped_profile!("binding_data::add_uniform_buffer");
-
-        if data.size() == 0 {
-            return self;
-        }
-        #[cfg(debug_assertions)]
-        {
-            if data.size()
-                > self
-                    .render_context
-                    .webgpu
-                    .device
-                    .limits()
-                    .max_uniform_buffer_binding_size as _
-            {
-                inox_log::debug_log!(
-                    "Trying to bind uniform buffer {} with size {} greater than maximum allowed [{}]",
-                    label.unwrap_or_default(),
-                    data.size(),
-                    self.render_context.webgpu
-                        .device
-                        .limits()
-                        .max_uniform_buffer_binding_size
-                );
-            }
-        }
-        let usage = wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST;
-        let is_changed = self.render_context.binding_data_buffer().bind_buffer(
-            label,
-            data,
-            usage,
-            &self.render_context,
-        );
-        self.is_data_changed |= is_changed;
-
-        if DEBUG_BINDINGS {
-            inox_log::debug_log!(
-                "Add UniformBuffer[{}][{}] with {:?} - Changed {:?}",
-                info.group_index,
-                info.binding_index,
-                data.buffer_id(),
-                is_changed
-            );
-        }
-        self.bind_uniform_buffer(data.buffer_id(), info);
-        self
+        self.add_buffer_with_id(data.buffer_id(), data, label, info)
     }
 
-    fn bind_uniform_buffer(&mut self, data_id: BufferId, info: BindingInfo) -> &mut Self {
-        inox_profiler::scoped_profile!("binding_data::bind_uniform_buffer");
+    fn bind_buffer(&mut self, data_id: BufferId, info: BindingInfo) -> &mut Self {
+        inox_profiler::scoped_profile!("binding_data::bind_buffer");
 
         self.create_group_and_binding_index(info.group_index);
 
@@ -296,102 +294,12 @@ impl BindingData {
                 binding: info.binding_index as _,
                 visibility: info.stage.into(),
                 ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            };
-            self.bind_group_layout_entries[info.group_index].push(layout_entry);
-            self.is_layout_changed = true;
-        }
-
-        if info.binding_index >= self.binding_types[info.group_index].len() {
-            self.binding_types[info.group_index]
-                .push(BindingType::Buffer(info.binding_index, data_id));
-            self.is_data_changed = true;
-        } else if let BindingType::Buffer(_, old_data_id) =
-            &mut self.binding_types[info.group_index][info.binding_index]
-        {
-            if *old_data_id != data_id {
-                *old_data_id = data_id;
-                self.is_data_changed = true;
-            }
-        }
-        self
-    }
-
-    pub fn add_storage_buffer<T>(
-        &mut self,
-        data: &mut T,
-        label: Option<&str>,
-        info: BindingInfo,
-    ) -> &mut Self
-    where
-        T: AsBinding,
-    {
-        inox_profiler::scoped_profile!("binding_data::add_storage_buffer");
-
-        if data.size() == 0 {
-            return self;
-        }
-        #[cfg(debug_assertions)]
-        {
-            if data.size()
-                > self
-                    .render_context
-                    .webgpu
-                    .device
-                    .limits()
-                    .max_storage_buffer_binding_size as _
-            {
-                inox_log::debug_log!(
-                    "Trying to bind storage buffer {} with size {} greater than maximum allowed [{}]",
-                    label.unwrap_or_default(),
-                    data.size(),
-                    self.render_context.webgpu
-                        .device
-                        .limits()
-                        .max_storage_buffer_binding_size
-                );
-            }
-        }
-
-        let usage = wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | info.flags.into();
-        let is_changed = self.render_context.binding_data_buffer().bind_buffer(
-            label,
-            data,
-            usage,
-            &self.render_context,
-        );
-        self.is_data_changed |= is_changed;
-
-        if DEBUG_BINDINGS {
-            inox_log::debug_log!(
-                "Add StorageBuffer[{}][{}] with {:?} - Changed {:?}",
-                info.group_index,
-                info.binding_index,
-                data.buffer_id(),
-                is_changed
-            );
-        }
-        self.bind_storage_buffer(data.buffer_id(), info);
-
-        self
-    }
-
-    fn bind_storage_buffer(&mut self, data_id: BufferId, info: BindingInfo) -> &mut Self {
-        inox_profiler::scoped_profile!("binding_data::bind_storage_buffer");
-
-        self.create_group_and_binding_index(info.group_index);
-
-        if info.binding_index >= self.bind_group_layout_entries[info.group_index].len() {
-            let layout_entry = wgpu::BindGroupLayoutEntry {
-                binding: info.binding_index as _,
-                visibility: info.stage.into(),
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage {
-                        read_only: info.flags.intersects(BindingFlags::Read),
+                    ty: if info.flags.intersects(BindingFlags::Uniform) {
+                        wgpu::BufferBindingType::Uniform
+                    } else {
+                        wgpu::BufferBindingType::Storage {
+                            read_only: info.flags.intersects(BindingFlags::Read),
+                        }
                     },
                     has_dynamic_offset: false,
                     min_binding_size: None,
@@ -426,16 +334,20 @@ impl BindingData {
 
         self.create_group_and_binding_index(info.group_index);
 
-        if self.bind_group_layout_entries[info.group_index].is_empty() {
+        if self.bind_group_layout_entries[info.group_index].is_empty()
+            || info.binding_index >= self.bind_group_layout_entries[info.group_index].len()
+        {
             self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
                 binding: info.binding_index as _,
                 visibility: info.stage.into(),
-                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                ty: wgpu::BindingType::Sampler(sampler_type.into()),
                 count: None,
             });
             self.is_layout_changed = true;
         }
-        if self.binding_types[info.group_index].is_empty() {
+        if self.binding_types[info.group_index].is_empty()
+            || info.binding_index >= self.binding_types[info.group_index].len()
+        {
             self.binding_types[info.group_index].push(BindingType::DefaultSampler(
                 info.binding_index,
                 sampler_type,
@@ -530,7 +442,12 @@ impl BindingData {
         self
     }
 
-    pub fn add_texture(&mut self, texture_id: &TextureId, info: BindingInfo) -> &mut Self {
+    pub fn add_texture(
+        &mut self,
+        texture_id: &TextureId,
+        view_index: u32,
+        info: BindingInfo,
+    ) -> &mut Self {
         inox_profiler::scoped_profile!("binding_data::add_texture");
 
         self.create_group_and_binding_index(info.group_index);
@@ -580,18 +497,21 @@ impl BindingData {
             }
 
             if self.binding_types[info.group_index].len() <= info.binding_index {
-                self.binding_types[info.group_index]
-                    .push(BindingType::Texture(info.binding_index, *texture_id));
+                self.binding_types[info.group_index].push(BindingType::Texture(
+                    info.binding_index,
+                    *texture_id,
+                    view_index,
+                ));
                 self.is_data_changed = true;
             }
         }
         if self.binding_types[info.group_index].len() > info.binding_index {
-            if let BindingType::Texture(_, id) =
+            if let BindingType::Texture(_, id, view) =
                 &self.binding_types[info.group_index][info.binding_index]
             {
-                if id != texture_id {
+                if id != texture_id || view != &view_index {
                     self.binding_types[info.group_index][info.binding_index] =
-                        BindingType::Texture(info.binding_index, *texture_id);
+                        BindingType::Texture(info.binding_index, *texture_id, view_index);
                     self.is_data_changed = true;
                 }
             }
@@ -648,19 +568,16 @@ impl BindingData {
         }
 
         if !self.is_data_changed {
-            self.binding_types
-                .iter()
-                .enumerate()
-                .for_each(|(_, binding_type_array)| {
-                    binding_type_array.iter().for_each(|binding_type| {
-                        if let BindingType::Buffer(_, buffer_id) = binding_type {
-                            self.is_data_changed |= self
-                                .render_context
-                                .binding_data_buffer()
-                                .is_buffer_changed(*buffer_id);
-                        }
-                    });
+            self.binding_types.iter().for_each(|binding_type_array| {
+                binding_type_array.iter().for_each(|binding_type| {
+                    if let BindingType::Buffer(_, buffer_id) = binding_type {
+                        self.is_data_changed |= self
+                            .render_context
+                            .binding_data_buffer()
+                            .is_buffer_changed(*buffer_id);
+                    }
                 });
+            });
         }
 
         if self.is_data_changed {
@@ -680,11 +597,11 @@ impl BindingData {
                                 if let Some(texture) =
                                     texture_atlas.iter().find(|t| t.texture_id() == id)
                                 {
-                                    textures_view.push(texture.texture_view().as_ref());
+                                    textures_view.push(texture.texture_view(0).as_ref());
                                 }
                                 if let Some(texture) = render_targets.iter().find(|t| t.id() == id)
                                 {
-                                    textures_view.push(texture.view().as_ref());
+                                    textures_view.push(texture.view(0).as_ref());
                                 }
                             });
                         }
@@ -752,7 +669,7 @@ impl BindingData {
                                     ),
                                 });
                             }
-                            BindingType::Texture(binding_index, id) => {
+                            BindingType::Texture(binding_index, id, view_index) => {
                                 if DEBUG_BINDINGS {
                                     inox_log::debug_log!(
                                         "Binding Texture[{}][{}] with id {:?}",
@@ -766,7 +683,7 @@ impl BindingData {
                                     bind_group.push(wgpu::BindGroupEntry {
                                         binding: *binding_index as _,
                                         resource: wgpu::BindingResource::TextureView(
-                                            texture.view().as_ref(),
+                                            texture.view(*view_index as usize).as_ref(),
                                         ),
                                     });
                                 }

@@ -166,6 +166,54 @@ fn blue_noise(in: vec2<f32>) -> f32 {
     return (iq_hash(in) - v + .5);
 }
 
+fn hsl_to_rgb(h: f32, s: f32, l: f32) -> vec3<f32> {
+    let c = (1.0 - abs(2.0 * l - 1.0)) * s;
+    let x = c * (1.0 - abs((h / 60.0) % 2.0 - 1.0));
+    let m = l - c / 2.0;
+
+    var r: f32;
+    var g: f32;
+    var b: f32;
+
+    if (0.0 <= h && h < 60.0) {
+        r = c;
+        g = x;
+        b = 0.0;
+    } else if (60.0 <= h && h < 120.0) {
+        r = x;
+        g = c;
+        b = 0.0;
+    } else if (120.0 <= h && h < 180.0) {
+        r = 0.0;
+        g = c;
+        b = x;
+    } else if (180.0 <= h && h < 240.0) {
+        r = 0.0;
+        g = x;
+        b = c;
+    } else if (240.0 <= h && h < 300.0) {
+        r = x;
+        g = 0.0;
+        b = c;
+    } else {
+        r = c;
+        g = 0.0;
+        b = x;
+    }
+
+    return vec3<f32>(r + m, g + m, b + m);
+}
+
+fn get_color_for_int(i: u32) -> vec3<f32> {
+    // Using the golden ratio to distribute hues
+    let golden_ratio_conjugate = 0.618033988749895;
+    let hue = fract(f32(i) * golden_ratio_conjugate) * 360.0; // Hue angle in degrees
+    let saturation = 0.65; // Keeping a good saturation
+    let lightness = 0.5; // Middle lightness for visibility
+
+    return hsl_to_rgb(hue, saturation, lightness);
+}
+
 // A single iteration of Bob Jenkins' One-At-A-Time hashing algorithm.
 fn hash( x: u32 ) -> u32 {
     var v = x;

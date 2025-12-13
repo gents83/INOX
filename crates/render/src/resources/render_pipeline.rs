@@ -6,9 +6,7 @@ use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
     SharedDataRc,
 };
-use inox_serialize::{
-    inox_serializable::SerializableRegistryRc, read_from_file, SerializationType, SerializeFile,
-};
+use inox_serialize::{read_from_file, SerializationType, SerializeFile};
 
 use crate::{
     BindingData, BlendFactor, RenderContext, RenderPipelineData, Shader, TextureFormat,
@@ -71,12 +69,8 @@ impl SerializableResource for RenderPipeline {
         RenderPipelineData::extension()
     }
 
-    fn deserialize_data(
-        path: &std::path::Path,
-        registry: SerializableRegistryRc,
-        f: Box<dyn FnMut(Self::DataType) + 'static>,
-    ) {
-        read_from_file::<Self::DataType>(path, registry, SerializationType::Json, f);
+    fn deserialize_data(path: &std::path::Path, f: Box<dyn FnMut(Self::DataType) + 'static>) {
+        read_from_file::<Self::DataType>(path, SerializationType::Json, f);
     }
 }
 
@@ -241,22 +235,25 @@ impl RenderPipeline {
                         )
                         .as_str(),
                     ),
+                    cache: None,
                     layout: Some(&render_pipeline_layout),
                     vertex: wgpu::VertexState {
                         module: self.vertex_shader.as_ref().unwrap().get().module(),
+                        compilation_options: wgpu::PipelineCompilationOptions::default(),
                         entry_point: if self.data.vertex_shader == self.data.fragment_shader {
-                            VERTEX_SHADER_ENTRY_POINT
+                            Some(VERTEX_SHADER_ENTRY_POINT)
                         } else {
-                            SHADER_ENTRY_POINT
+                            Some(SHADER_ENTRY_POINT)
                         },
                         buffers: vertex_state_buffers.as_slice(),
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: self.fragment_shader.as_ref().unwrap().get().module(),
+                        compilation_options: wgpu::PipelineCompilationOptions::default(),
                         entry_point: if self.data.vertex_shader == self.data.fragment_shader {
-                            FRAGMENT_SHADER_ENTRY_POINT
+                            Some(FRAGMENT_SHADER_ENTRY_POINT)
                         } else {
-                            SHADER_ENTRY_POINT
+                            Some(SHADER_ENTRY_POINT)
                         },
                         targets: pipeline_render_formats
                             .iter()
@@ -312,7 +309,7 @@ impl RenderPipeline {
                     },
                     // If the pipeline will be used with a multiview render pass, this
                     // indicates how many array layers the attachments will have.
-                    multiview: None,
+                    multiview_mask: None,
                 })
         };
         self.formats = pipeline_render_formats.iter().map(|&f| f.into()).collect();

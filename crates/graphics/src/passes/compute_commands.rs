@@ -1,28 +1,43 @@
 use std::path::PathBuf;
 
 use inox_render::{
-    AsBinding, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    DrawCommandType, DrawCommandsBuffer, GPUMesh, GPUMeshlet, GPUVector, MeshFlags, MeshesBuffer,
-    MeshletsBuffer, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView,
+    BindingData, BindingFlags, BindingInfo, BufferId, CommandBuffer, ComputePass, ComputePassData, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet, GPUVector, INSTANCE_DATA_ID, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView, declare_as_binding
 };
 
 use inox_core::ContextRc;
 
 use inox_resources::{DataTypeResource, Resource};
-use inox_uid::generate_random_uid;
+use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
-use crate::MeshletLodLevel;
+use crate::{CommandsData, ACTIVE_INSTANCE_DATA_ID, COMMANDS_DATA_ID, MESHLETS_COUNT_ID};
 
 pub const COMMANDS_PIPELINE: &str = "pipelines/ComputeCommands.compute_pipeline";
 pub const COMMANDS_PASS_NAME: &str = "CommandsPass";
+pub const DRAW_PREPARATION_RESULT_ID: Uid =
+    generate_static_uid_from_string("DRAW_PREPARATION_RESULT_ID");
+pub const DRAW_PREPARATION_RESULT_BUFFER_ID: BufferId =
+    DRAW_PREPARATION_RESULT_ID.as_u64_pair().0 ^ DRAW_PREPARATION_RESULT_ID.as_u64_pair().1;
+
+#[derive(Default, Debug, Clone)]
+pub struct DrawPreparationResults {
+    pub draw_vertices_count: u32,
+    pub active_instances_count: u32,
+    pub commands_count: u32,
+    pub instances_count: u32,
+}
+declare_as_binding!(DrawPreparationResults);
 
 pub struct CommandsPass {
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
-    commands: DrawCommandsBuffer,
-    meshes: MeshesBuffer,
-    meshlets: MeshletsBuffer,
-    meshlets_lod_level: GPUVector<MeshletLodLevel>,
+    meshes: GPUBuffer<GPUMesh>,
+    meshlets: GPUBuffer<GPUMeshlet>,
+    instances: GPUVector<GPUInstance>,
+    active_instances: GPUVector<GPUInstance>,
+    commands_data: GPUVector<CommandsData>,
+    meshlets_count: GPUVector<u32>,
+    draw_preparation_results: DrawPreparationResults,
+    commands: GPUVector<DrawIndexedCommand>,
 }
 unsafe impl Send for CommandsPass {}
 unsafe impl Sync for CommandsPass {}
@@ -34,14 +49,8 @@ impl Pass for CommandsPass {
     fn static_name() -> &'static str {
         COMMANDS_PASS_NAME
     }
-    fn is_active(&self, render_context: &RenderContext) -> bool {
-        render_context.has_commands(&self.draw_commands_type(), &self.mesh_flags())
-    }
-    fn mesh_flags(&self) -> MeshFlags {
-        MeshFlags::Visible | MeshFlags::Opaque
-    }
-    fn draw_commands_type(&self) -> DrawCommandType {
-        DrawCommandType::PerMeshlet
+    fn is_active(&self, _render_context: &RenderContext) -> bool {
+        true
     }
     fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where
@@ -60,86 +69,131 @@ impl Pass for CommandsPass {
                 &compute_data,
                 None,
             ),
-            commands: render_context.global_buffers().draw_commands.clone(),
+            commands: render_context
+                .global_buffers()
+                .vector::<DrawIndexedCommand>(),
             meshes: render_context.global_buffers().buffer::<GPUMesh>(),
             meshlets: render_context.global_buffers().buffer::<GPUMeshlet>(),
-            meshlets_lod_level: render_context.global_buffers().vector::<MeshletLodLevel>(),
+            instances: render_context
+                .global_buffers()
+                .vector_with_id::<GPUInstance>(INSTANCE_DATA_ID),
+            active_instances: render_context
+                .global_buffers()
+                .vector_with_id::<GPUInstance>(ACTIVE_INSTANCE_DATA_ID),
+            meshlets_count: render_context
+                .global_buffers()
+                .vector_with_id::<u32>(MESHLETS_COUNT_ID),
+            commands_data: render_context
+                .global_buffers()
+                .vector_with_id::<CommandsData>(COMMANDS_DATA_ID),
+            draw_preparation_results: DrawPreparationResults::default(),
             binding_data: BindingData::new(render_context, COMMANDS_PASS_NAME),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("compute_commands_pass::init");
 
-        if self.meshlets_lod_level.read().unwrap().is_empty() {
+        let commands_count = self.commands_data.read().unwrap().len();
+        if self.instances.read().unwrap().is_empty() || commands_count == 0 {
             return;
         }
 
-        let draw_command_type = self.draw_commands_type();
-        let mesh_flags = self.mesh_flags();
+        self.draw_preparation_results = DrawPreparationResults::default();
+        render_context.mark_as_dirty(DRAW_PREPARATION_RESULT_BUFFER_ID);
 
-        if let Some(commands) = self.commands.write().unwrap().get_mut(&mesh_flags) {
-            let commands = commands.map.get_mut(&draw_command_type).unwrap();
-            if commands.commands.is_empty() {
-                return;
-            }
-            commands.counter = 0;
-            commands.counter.mark_as_dirty(render_context);
+        self.binding_data
+            .add_buffer(
+                &mut *self.meshlets.write().unwrap(),
+                Some("Meshlets"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 0,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
+                    ..Default::default()
+                },
+            )
+            .add_buffer(
+                &mut *self.meshes.write().unwrap(),
+                Some("Meshes"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 1,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
+                    ..Default::default()
+                },
+            )
+            .add_buffer(
+                &mut *self.instances.write().unwrap(),
+                Some("Instances"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 2,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                    ..Default::default()
+                },
+            )
+            .add_buffer(
+                &mut *self.active_instances.write().unwrap(),
+                Some("ActiveInstances"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 3,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
+                    ..Default::default()
+                },
+            )
+            .add_buffer(
+                &mut *self.meshlets_count.write().unwrap(),
+                Some("MeshletsCount"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 4,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
+                    ..Default::default()
+                },
+            )
+            .add_buffer(
+                &mut *self.commands_data.write().unwrap(),
+                Some("CommandsData"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 5,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
+                    ..Default::default()
+                },
+            )
+            .add_buffer(
+                &mut *self.commands.write().unwrap(),
+                Some("Commands"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 6,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                    count: Some(commands_count),
+                },
+            )
+            .add_buffer_with_id(
+                DRAW_PREPARATION_RESULT_BUFFER_ID,
+                &mut self.draw_preparation_results,
+                Some("DrawPreparationResult"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 7,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                    ..Default::default()
+                },
+            );
 
-            self.binding_data
-                .add_storage_buffer(
-                    &mut *self.meshlets.write().unwrap(),
-                    Some("Meshlets"),
-                    BindingInfo {
-                        group_index: 0,
-                        binding_index: 0,
-                        stage: ShaderStage::Compute,
-                        ..Default::default()
-                    },
-                )
-                .add_storage_buffer(
-                    &mut *self.meshes.write().unwrap(),
-                    Some("Meshes"),
-                    BindingInfo {
-                        group_index: 0,
-                        binding_index: 1,
-                        stage: ShaderStage::Compute,
-                        ..Default::default()
-                    },
-                )
-                .add_storage_buffer(
-                    &mut commands.counter,
-                    Some("Counter"),
-                    BindingInfo {
-                        group_index: 0,
-                        binding_index: 2,
-                        stage: ShaderStage::Compute,
-                        flags: BindingFlags::ReadWrite | BindingFlags::Indirect,
-                    },
-                )
-                .add_storage_buffer(
-                    &mut commands.commands,
-                    Some("Commands"),
-                    BindingInfo {
-                        group_index: 0,
-                        binding_index: 3,
-                        stage: ShaderStage::Compute,
-                        flags: BindingFlags::ReadWrite | BindingFlags::Indirect,
-                    },
-                )
-                .add_storage_buffer(
-                    &mut *self.meshlets_lod_level.write().unwrap(),
-                    Some("Meshlets Lod level"),
-                    BindingInfo {
-                        group_index: 0,
-                        binding_index: 4,
-                        stage: ShaderStage::Compute,
-                        flags: BindingFlags::Read,
-                    },
-                );
-
-            let mut pass = self.compute_pass.get_mut();
-            pass.init(render_context, &mut self.binding_data);
-        }
+        let mut pass = self.compute_pass.get_mut();
+        pass.init(render_context, &mut self.binding_data, None);
     }
 
     fn update(
@@ -150,19 +204,17 @@ impl Pass for CommandsPass {
     ) {
         inox_profiler::scoped_profile!("compute_commands_pass::update");
 
-        if self.meshlets_lod_level.read().unwrap().is_empty() {
+        if self.active_instances.read().unwrap().is_empty() {
             return;
         }
 
-        let num_meshlets = self.meshlets.read().unwrap().item_count();
-        if num_meshlets == 0 {
+        let num = self.active_instances.read().unwrap().len();
+        if num == 0 {
             return;
         }
 
         let workgroup_max_size = 256;
-        let workgroup_size = (workgroup_max_size
-            * ((num_meshlets + workgroup_max_size - 1) / workgroup_max_size))
-            / workgroup_max_size;
+        let workgroup_size = num.div_ceil(workgroup_max_size);
 
         let pass = self.compute_pass.get();
         pass.dispatch(

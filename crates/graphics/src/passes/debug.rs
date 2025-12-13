@@ -1,20 +1,19 @@
 use std::path::PathBuf;
 
 use inox_render::{
-    BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType,
-    GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPURuntimeVertexData, GPUTexture, GPUVector,
-    GPUVertexAttributes, GPUVertexIndices, IndicesBuffer, LightsBuffer, LoadOperation,
-    MaterialsBuffer, MeshFlags, MeshesBuffer, MeshletsBuffer, Pass, RenderContext, RenderContextRc,
-    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, RuntimeVerticesBuffer,
-    SamplerType, ShaderStage, StoreOperation, TextureId, TextureView, TexturesBuffer,
-    VertexAttributesBuffer,
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, GPUBuffer, GPUInstance,
+    GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture, GPUTransform, GPUVector, GPUVertexAttributes,
+    GPUVertexIndices, GPUVertexPosition, LoadOperation, Pass, RenderContext, RenderContextRc,
+    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType, ShaderStage,
+    StoreOperation, TextureId, TextureView, DEFAULT_HEIGHT, DEFAULT_WIDTH, INSTANCE_DATA_ID,
 };
 
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::{generate_random_uid, INVALID_UID};
 
-use crate::{DebugPackedData, RadiancePackedData, RayPackedData, ThroughputPackedData};
+use super::compute_pathtracing_indirect::DebugPackedData;
+use crate::{RadiancePackedData, SIZE_OF_DATA_BUFFER_ELEMENT};
 
 pub const DEBUG_PIPELINE: &str = "pipelines/Debug.render_pipeline";
 pub const DEBUG_PASS_NAME: &str = "DebugPass";
@@ -23,20 +22,19 @@ pub struct DebugPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    meshes: MeshesBuffer,
-    meshlets: MeshletsBuffer,
-    indices: IndicesBuffer,
-    runtime_vertices: RuntimeVerticesBuffer,
-    vertices_attributes: VertexAttributesBuffer,
-    textures: TexturesBuffer,
-    materials: MaterialsBuffer,
-    lights: LightsBuffer,
+    meshes: GPUBuffer<GPUMesh>,
+    meshlets: GPUBuffer<GPUMeshlet>,
+    indices: GPUBuffer<GPUVertexIndices>,
+    instances: GPUVector<GPUInstance>,
+    transforms: GPUVector<GPUTransform>,
+    vertices_position: GPUBuffer<GPUVertexPosition>,
+    vertices_attributes: GPUBuffer<GPUVertexAttributes>,
+    textures: GPUBuffer<GPUTexture>,
+    materials: GPUBuffer<GPUMaterial>,
     finalize_texture: TextureId,
     visibility_texture: TextureId,
     depth_texture: TextureId,
-    data_buffer_0: GPUVector<RayPackedData>,
     data_buffer_1: GPUVector<RadiancePackedData>,
-    data_buffer_2: GPUVector<ThroughputPackedData>,
     data_buffer_debug: GPUVector<DebugPackedData>,
 }
 unsafe impl Send for DebugPass {}
@@ -51,12 +49,6 @@ impl Pass for DebugPass {
     }
     fn is_active(&self, _render_context: &RenderContext) -> bool {
         true
-    }
-    fn mesh_flags(&self) -> MeshFlags {
-        MeshFlags::None
-    }
-    fn draw_commands_type(&self) -> DrawCommandType {
-        DrawCommandType::PerMeshlet
     }
     fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where
@@ -75,6 +67,19 @@ impl Pass for DebugPass {
             ..Default::default()
         };
 
+        let data_buffer_debug = render_context.global_buffers().vector::<DebugPackedData>();
+        data_buffer_debug.write().unwrap().resize(
+            SIZE_OF_DATA_BUFFER_ELEMENT * (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
+            DebugPackedData(0.),
+        );
+        let data_buffer_1 = render_context
+            .global_buffers()
+            .vector::<RadiancePackedData>();
+        data_buffer_1.write().unwrap().resize(
+            SIZE_OF_DATA_BUFFER_ELEMENT * (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
+            RadiancePackedData(0.),
+        );
+
         Self {
             render_pass: RenderPass::new_resource(
                 context.shared_data(),
@@ -83,28 +88,27 @@ impl Pass for DebugPass {
                 &data,
                 None,
             ),
+            data_buffer_1: render_context
+                .global_buffers()
+                .vector::<RadiancePackedData>(),
+            data_buffer_debug: render_context.global_buffers().vector::<DebugPackedData>(),
             binding_data: BindingData::new(render_context, DEBUG_PASS_NAME),
             constant_data: render_context.global_buffers().constant_data.clone(),
             meshes: render_context.global_buffers().buffer::<GPUMesh>(),
             meshlets: render_context.global_buffers().buffer::<GPUMeshlet>(),
+            transforms: render_context.global_buffers().vector::<GPUTransform>(),
+            instances: render_context
+                .global_buffers()
+                .vector_with_id::<GPUInstance>(INSTANCE_DATA_ID),
             textures: render_context.global_buffers().buffer::<GPUTexture>(),
             materials: render_context.global_buffers().buffer::<GPUMaterial>(),
-            lights: render_context.global_buffers().buffer::<GPULight>(),
             indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
-            runtime_vertices: render_context
+            vertices_position: render_context
                 .global_buffers()
-                .buffer::<GPURuntimeVertexData>(),
+                .buffer::<GPUVertexPosition>(),
             vertices_attributes: render_context
                 .global_buffers()
                 .buffer::<GPUVertexAttributes>(),
-            data_buffer_0: render_context.global_buffers().vector::<RayPackedData>(),
-            data_buffer_1: render_context
-                .global_buffers()
-                .vector::<RadiancePackedData>(),
-            data_buffer_2: render_context
-                .global_buffers()
-                .vector::<ThroughputPackedData>(),
-            data_buffer_debug: render_context.global_buffers().vector::<DebugPackedData>(),
             finalize_texture: INVALID_UID,
             visibility_texture: INVALID_UID,
             depth_texture: INVALID_UID,
@@ -116,6 +120,8 @@ impl Pass for DebugPass {
         if self.indices.read().unwrap().is_empty()
             || self.meshes.read().unwrap().is_empty()
             || self.meshlets.read().unwrap().is_empty()
+            || self.instances.read().unwrap().is_empty()
+            || self.visibility_texture.is_nil()
         {
             return;
         }
@@ -123,89 +129,119 @@ impl Pass for DebugPass {
         let mut pass = self.render_pass.get_mut();
 
         self.binding_data
-            .add_uniform_buffer(
+            .add_buffer(
                 &mut *self.constant_data.write().unwrap(),
                 Some("ConstantData"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 0,
                     stage: ShaderStage::Fragment,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.indices.write().unwrap(),
                 Some("Indices"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,
                     stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Read | BindingFlags::Index,
+                    flags: BindingFlags::Storage | BindingFlags::Read | BindingFlags::Index,
+                    ..Default::default()
                 },
             )
-            .add_storage_buffer(
-                &mut *self.runtime_vertices.write().unwrap(),
-                Some("Runtime Vertices"),
+            .add_buffer(
+                &mut *self.vertices_position.write().unwrap(),
+                Some("Vertices Position"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,
                     stage: ShaderStage::Fragment,
+                    flags: BindingFlags::Storage | BindingFlags::Read | BindingFlags::Vertex,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.vertices_attributes.write().unwrap(),
                 Some("Vertices Attributes"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 3,
                     stage: ShaderStage::Fragment,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.meshes.write().unwrap(),
                 Some("Meshes"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 4,
                     stage: ShaderStage::Fragment,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.meshlets.write().unwrap(),
                 Some("Meshlets"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 5,
                     stage: ShaderStage::Fragment,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
+                &mut *self.instances.write().unwrap(),
+                Some("Instances"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 6,
+                    stage: ShaderStage::Fragment,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
+                    ..Default::default()
+                },
+            )
+            .add_buffer(
+                &mut *self.transforms.write().unwrap(),
+                Some("Transforms"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 7,
+                    stage: ShaderStage::Fragment,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
+                    ..Default::default()
+                },
+            )
+            .add_buffer(
                 &mut *self.materials.write().unwrap(),
                 Some("Materials"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 0,
                     stage: ShaderStage::Fragment,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.textures.write().unwrap(),
                 Some("Textures"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 1,
                     stage: ShaderStage::Fragment,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_uniform_buffer(
-                &mut *self.lights.write().unwrap(),
-                Some("Lights"),
+            .add_texture(
+                &self.visibility_texture,
+                0,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 2,
@@ -214,7 +250,8 @@ impl Pass for DebugPass {
                 },
             )
             .add_texture(
-                &self.visibility_texture,
+                &self.depth_texture,
+                0,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 3,
@@ -222,12 +259,25 @@ impl Pass for DebugPass {
                     ..Default::default()
                 },
             )
-            .add_texture(
-                &self.depth_texture,
+            .add_buffer(
+                &mut *self.data_buffer_1.write().unwrap(),
+                Some("DataBuffer_1"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 4,
                     stage: ShaderStage::Fragment,
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                    ..Default::default()
+                },
+            )
+            .add_buffer(
+                &mut *self.data_buffer_debug.write().unwrap(),
+                Some("DataBuffer_Debug"),
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 5,
+                    stage: ShaderStage::Fragment,
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                     ..Default::default()
                 },
             );
@@ -248,47 +298,6 @@ impl Pass for DebugPass {
                 stage: ShaderStage::Fragment,
                 ..Default::default()
             });
-        self.binding_data
-            .add_storage_buffer(
-                &mut *self.data_buffer_0.write().unwrap(),
-                Some("DataBuffer_0"),
-                BindingInfo {
-                    group_index: 3,
-                    binding_index: 0,
-                    stage: ShaderStage::Fragment,
-                    ..Default::default()
-                },
-            )
-            .add_storage_buffer(
-                &mut *self.data_buffer_1.write().unwrap(),
-                Some("DataBuffer_1"),
-                BindingInfo {
-                    group_index: 3,
-                    binding_index: 1,
-                    stage: ShaderStage::Fragment,
-                    ..Default::default()
-                },
-            )
-            .add_storage_buffer(
-                &mut *self.data_buffer_2.write().unwrap(),
-                Some("DataBuffer_2"),
-                BindingInfo {
-                    group_index: 3,
-                    binding_index: 2,
-                    stage: ShaderStage::Fragment,
-                    ..Default::default()
-                },
-            )
-            .add_storage_buffer(
-                &mut *self.data_buffer_debug.write().unwrap(),
-                Some("DataBuffer_Debug"),
-                BindingInfo {
-                    group_index: 3,
-                    binding_index: 3,
-                    stage: ShaderStage::Fragment,
-                    ..Default::default()
-                },
-            );
         pass.init(render_context, &mut self.binding_data, None, None);
     }
     fn update(
@@ -304,6 +313,16 @@ impl Pass for DebugPass {
         if !pipeline.is_initialized() {
             return;
         }
+
+        if self.indices.read().unwrap().is_empty()
+            || self.meshes.read().unwrap().is_empty()
+            || self.meshlets.read().unwrap().is_empty()
+            || self.instances.read().unwrap().is_empty()
+            || self.visibility_texture.is_nil()
+        {
+            return;
+        }
+
         let buffers = render_context.buffers();
         let render_targets = render_context.texture_handler().render_targets();
 
@@ -314,6 +333,7 @@ impl Pass for DebugPass {
             surface_view,
             command_buffer,
         };
+        #[allow(unused_mut)]
         let mut render_pass = pass.begin(&mut self.binding_data, &pipeline, render_pass_begin_data);
         {
             inox_profiler::gpu_scoped_profile!(

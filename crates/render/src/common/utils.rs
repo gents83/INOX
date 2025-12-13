@@ -12,5 +12,5 @@ pub fn compute_color_from_id(id: u32) -> Vector4 {
 #[inline]
 pub fn compute_id_from_color(color: Vector4) -> u32 {
     let color = color * 255.;
-    (color.x as u32) | (color.y as u32) << 8 | (color.z as u32) << 16 | (color.w as u32) << 24
+    (color.x as u32) | ((color.y as u32) << 8) | ((color.z as u32) << 16) | ((color.w as u32) << 24)
 }

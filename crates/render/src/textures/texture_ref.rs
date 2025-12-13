@@ -38,7 +38,7 @@ impl Deref for TextureView {
 pub struct TextureRef {
     id: TextureId,
     texture: wgpu::Texture,
-    view: TextureView,
+    views: Vec<TextureView>,
     width: u32,
     height: u32,
     layers_count: u32,
@@ -50,7 +50,7 @@ impl TextureRef {
     pub fn create(
         device: &wgpu::Device,
         id: TextureId,
-        texture_params: (u32, u32, u32, u32, TextureFormat, wgpu::TextureUsages),
+        texture_params: (u32, u32, u32, u32, TextureFormat, wgpu::TextureUsages, u32),
     ) -> Self {
         let width = texture_params.0;
         let height = texture_params.1;
@@ -67,43 +67,60 @@ impl TextureRef {
             height,
             depth_or_array_layers: layers_count,
         };
+        let mips_count = texture_params.6;
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some(format!("Texture[{id}]").as_str()),
             size,
-            mip_level_count: 1,
+            mip_level_count: mips_count,
             sample_count,
             dimension: wgpu::TextureDimension::D2,
             format: format.into(),
             usage,
             view_formats: &[format.into()],
         });
-        let view = texture.create_view(&wgpu::TextureViewDescriptor {
-            label: Some(format!("TextureView[{id}]").as_str()),
-            format: Some(format.into()),
-            dimension: if layers_count > 1 {
-                Some(wgpu::TextureViewDimension::D2Array)
-            } else {
-                Some(wgpu::TextureViewDimension::D2)
-            },
-            aspect: format.aspect(),
-            base_mip_level: 0,
-            mip_level_count: Some(1),
-            base_array_layer: 0,
-            array_layer_count: Some(layers_count),
-        });
-        Self {
+        let dimension = if layers_count > 1 {
+            Some(wgpu::TextureViewDimension::D2Array)
+        } else {
+            Some(wgpu::TextureViewDimension::D2)
+        };
+        let mut texture = Self {
             id,
             texture,
-            view: view.into(),
+            views: Vec::new(),
             width,
             height,
             layers_count,
             sample_count,
             format,
+        };
+        //create_mips
+        for _ in 0..mips_count {
+            texture.add_view(format, Some(usage), dimension.unwrap(), layers_count);
         }
+        texture
     }
-    pub fn view(&self) -> &TextureView {
-        &self.view
+    fn add_view(
+        &mut self,
+        format: TextureFormat,
+        usage: Option<wgpu::TextureUsages>,
+        dimension: wgpu::TextureViewDimension,
+        layers_count: u32,
+    ) {
+        let view = self.texture.create_view(&wgpu::TextureViewDescriptor {
+            label: Some(format!("TextureView[{}]_mip[{}]", self.id, self.views.len()).as_str()),
+            format: Some(format.into()),
+            dimension: Some(dimension),
+            aspect: format.aspect(),
+            usage,
+            base_mip_level: self.views.len() as _,
+            mip_level_count: Some(1),
+            base_array_layer: 0,
+            array_layer_count: Some(layers_count),
+        });
+        self.views.push(view.into());
+    }
+    pub fn view(&self, index: usize) -> &TextureView {
+        &self.views[index]
     }
     pub fn format(&self) -> &TextureFormat {
         &self.format
@@ -163,15 +180,15 @@ impl TextureRef {
 
         inox_profiler::gpu_scoped_profile!(encoder, device, "encoder::copy_buffer_to_texture");
         encoder.copy_buffer_to_texture(
-            wgpu::ImageCopyBuffer {
+            wgpu::TexelCopyBufferInfo {
                 buffer: &buffer,
-                layout: wgpu::ImageDataLayout {
+                layout: wgpu::TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(bytes_per_row as _),
                     rows_per_image: Some(area_height),
                 },
             },
-            wgpu::ImageCopyTexture {
+            wgpu::TexelCopyTextureInfo {
                 texture: &self.texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d {

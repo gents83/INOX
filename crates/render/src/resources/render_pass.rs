@@ -7,12 +7,12 @@ use inox_resources::{
 };
 
 use crate::{
-    platform::{has_multisampling_support, is_indirect_mode_enabled},
+    platform::{has_multisampling_support, is_indirect_mode_count_enabled, WGPU_FIXED_ALIGNMENT},
     texture_ref::TextureRef,
-    AsBinding, BindingData, BufferId, BufferRef, CommandBuffer, DrawCommandType,
-    DrawIndexedCommand, GPUMesh, GPUMeshlet, LoadOperation, MeshFlags, RenderContext, RenderMode,
-    RenderPassData, RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId, TextureUsage,
-    TextureView, VertexBufferLayoutBuilder, WebGpuContextRc,
+    AsBinding, BindingData, BufferId, BufferRef, CommandBuffer, DrawIndexedCommand, GPUMesh,
+    GPUMeshlet, GPUVector, LoadOperation, MeshFlags, RenderContext, RenderMode, RenderPassData,
+    RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId, TextureUsage, TextureView,
+    VertexBufferLayoutBuilder, WebGpuContextRc,
 };
 
 pub type RenderPassId = ResourceId;
@@ -118,19 +118,18 @@ impl RenderPass {
             height,
             format,
             sample_count,
+            mips_count,
         } = render_target
         {
             let texture = Texture::create_from_format(
                 &self.shared_data,
                 &self.message_hub,
-                width,
-                height,
+                (width, height, sample_count, 1, mips_count),
                 format,
                 TextureUsage::TextureBinding
                     | TextureUsage::CopySrc
                     | TextureUsage::CopyDst
                     | TextureUsage::RenderTarget,
-                sample_count,
             );
             self.render_textures.push(texture)
         }
@@ -156,18 +155,17 @@ impl RenderPass {
                 height,
                 format,
                 sample_count,
+                mips_count,
             } => {
                 let texture = Texture::create_from_format(
                     &self.shared_data,
                     &self.message_hub,
-                    width,
-                    height,
+                    (width, height, sample_count, 1, mips_count),
                     format,
                     TextureUsage::TextureBinding
                         | TextureUsage::CopySrc
                         | TextureUsage::CopyDst
                         | TextureUsage::RenderTarget,
-                    sample_count,
                 );
                 Some(texture)
             }
@@ -232,6 +230,7 @@ impl RenderPass {
             }
         }
         let mut sample_count = 0;
+        let mips_count = 1;
         if let Some(pipeline) = &self.pipeline {
             binding_data.set_bind_group_layout();
             let mut pipeline = pipeline.get_mut();
@@ -255,6 +254,7 @@ impl RenderPass {
                 height: render_context.webgpu.config.read().unwrap().height,
                 format: render_context.webgpu.config.read().unwrap().format.into(),
                 sample_count,
+                mips_count,
             });
         }
     }
@@ -310,7 +310,7 @@ impl RenderPass {
                     .iter()
                     .find(|t| t.id() == id)
                 {
-                    render_targets_views.push(texture.view().as_ref());
+                    render_targets_views.push(texture.view(0).as_ref());
                 }
             });
         }
@@ -320,7 +320,7 @@ impl RenderPass {
                 .iter()
                 .find(|t| t.id() == texture.id())
             {
-                depth_target_view = Some(texture.view().as_ref());
+                depth_target_view = Some(texture.view(0).as_ref());
             }
         }
 
@@ -344,6 +344,7 @@ impl RenderPass {
                         .map(|&render_target| {
                             Some(wgpu::RenderPassColorAttachment {
                                 view: render_target,
+                                depth_slice: None,
                                 resolve_target: None,
                                 ops: color_operations,
                             })
@@ -387,7 +388,7 @@ impl RenderPass {
                         &render_pass_begin_data.render_core_context.device,
                         "render_pass::bind_groups",
                     );
-                    render_pass.set_bind_group(index as _, bind_group, &[]);
+                    render_pass.set_bind_group(index as _, Some(bind_group), &[]);
                 });
         }
 
@@ -423,6 +424,7 @@ impl RenderPass {
         render_pass
     }
 
+    #[allow(unused_variables)]
     pub fn draw_indexed(
         &self,
         render_context: &RenderContext,
@@ -445,37 +447,42 @@ impl RenderPass {
             );
         });
     }
+
+    #[allow(unused_mut)]
     pub fn indirect_draw(
         &self,
         render_context: &RenderContext,
-        instances: &Vec<DrawIndexedCommand>,
-        instance_count: &usize,
+        commands: &GPUVector<DrawIndexedCommand>,
         mut render_pass: wgpu::RenderPass,
     ) {
         inox_profiler::scoped_profile!("render_pass::indirect_draw");
 
-        if is_indirect_mode_enabled() && self.render_mode == RenderMode::Indirect {
-            inox_profiler::gpu_scoped_profile!(
-                &mut render_pass,
-                &render_context.webgpu.device,
-                "render_pass::multi_draw_indexed_indirect_count",
-            );
-            let buffers = render_context.buffers();
-            let indirect_buffer = buffers.get(&(instances.buffer_id())).unwrap();
-            let count_buffer = buffers.get(&instance_count.buffer_id()).unwrap();
-            let mut render_pass = render_pass;
+        inox_profiler::gpu_scoped_profile!(
+            &mut render_pass,
+            &render_context.webgpu.device,
+            "render_pass::multi_draw_indexed_indirect_count",
+        );
+        let mut render_pass = render_pass;
+        let buffers = render_context.buffers();
+        let count = commands.read().unwrap().len() as u32;
+        let indirect_buffer = buffers
+            .get(&(commands.read().unwrap().buffer_id()))
+            .unwrap();
+        if is_indirect_mode_count_enabled() {
             render_pass.multi_draw_indexed_indirect_count(
                 indirect_buffer.gpu_buffer().unwrap(),
+                WGPU_FIXED_ALIGNMENT,
+                indirect_buffer.gpu_buffer().unwrap(),
                 0,
-                count_buffer.gpu_buffer().unwrap(),
-                0,
-                instances.len() as _,
+                count,
             );
-            return;
+        } else {
+            render_pass.multi_draw_indexed_indirect(
+                indirect_buffer.gpu_buffer().unwrap(),
+                WGPU_FIXED_ALIGNMENT,
+                count,
+            );
         }
-        //TODO: use debug_log_once
-        //inox_log::debug_log!("Unable to use indirect_draw - using normal draw_indexed");
-        self.draw_indexed(render_context, render_pass, instances);
     }
 
     pub fn draw_meshlets(&self, render_context: &RenderContext, mut render_pass: wgpu::RenderPass) {
@@ -515,55 +522,7 @@ impl RenderPass {
             });
     }
 
-    pub fn indirect_indexed_draw(
-        &self,
-        render_context: &RenderContext,
-        draw_commands_type: DrawCommandType,
-        mut render_pass: wgpu::RenderPass,
-    ) {
-        inox_profiler::scoped_profile!("render_pass::indirect_draw");
-
-        if is_indirect_mode_enabled() && self.render_mode == RenderMode::Indirect {
-            let mesh_flags = self.pipeline().get().data().mesh_flags;
-            if let Some(commands) = render_context
-                .global_buffers()
-                .draw_commands
-                .read()
-                .unwrap()
-                .get(&mesh_flags)
-            {
-                if let Some(commands) = commands.map.get(&draw_commands_type) {
-                    if !commands.commands.is_empty() {
-                        let commands_id = commands.commands.buffer_id();
-                        let buffers = render_context.buffers();
-                        if let Some(commands_buffer) = buffers.get(&commands_id) {
-                            let count_id = commands.counter.buffer_id();
-                            if let Some(count_buffer) = buffers.get(&count_id) {
-                                inox_profiler::gpu_scoped_profile!(
-                                    &mut render_pass,
-                                    &render_context.webgpu.device,
-                                    "render_pass::multi_draw_indexed_indirect_count",
-                                );
-                                let mut render_pass = render_pass;
-                                render_pass.multi_draw_indexed_indirect_count(
-                                    commands_buffer.gpu_buffer().unwrap(),
-                                    0,
-                                    count_buffer.gpu_buffer().unwrap(),
-                                    0,
-                                    commands.commands.item_count() as _,
-                                );
-                                return;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        //TODO: use debug_log_once
-        //inox_log::debug_log!("Unable to use indirect_draw - using normal draw_indexed");
-        self.draw_meshlets(render_context, render_pass);
-    }
-
+    #[allow(unused_variables, unused_mut)]
     pub fn draw(
         &self,
         render_context: &RenderContext,

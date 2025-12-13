@@ -83,6 +83,15 @@ where
     data: Arc<RwLock<T>>,
 }
 
+impl<T> PartialEq for ResourceHandle<T>
+where
+    T: ResourceTrait,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
 impl<T> ResourceHandle<T>
 where
     T: ResourceTrait,

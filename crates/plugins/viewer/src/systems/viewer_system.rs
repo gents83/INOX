@@ -1,7 +1,8 @@
+use inox_bvh::GPUBVHNode;
 use inox_commands::CommandParser;
 use inox_core::{implement_unique_system_uid, ContextRc, System};
 use inox_log::debug_log;
-use inox_math::{Mat4Ops, Matrix4, VecBase, Vector2, Vector3};
+use inox_math::{Mat4Ops, Matrix4, VecBase, VecBaseFloat, Vector2, Vector3, Vector3u};
 use inox_messenger::Listener;
 use inox_platform::{InputState, Key, KeyEvent, MouseEvent, MouseState, WindowEvent};
 use inox_render::{
@@ -19,6 +20,15 @@ use crate::{
     widgets::{Gfx, Hierarchy, Info, InfoParams, View3D},
 };
 
+#[allow(dead_code)]
+enum TestType {
+    Default,
+    Culling,
+    Occlusion,
+}
+const CULLING_MESH_PATH: &str = "models/stanford_bunny/mesh/Object_0_Primitive_0.mesh";
+const START_TEST: TestType = TestType::Default;
+
 pub struct ViewerSystem {
     context: ContextRc,
     render_context: RenderContextRc,
@@ -32,10 +42,10 @@ pub struct ViewerSystem {
     graphics: Option<Gfx>,
     last_frame: u64,
     camera_index: u32,
+    camera_speed: f32,
 }
 
 const FORCE_USE_DEFAULT_CAMERA: bool = false;
-const CAMERA_SPEED: f32 = 100.;
 const CAMERA_ROTATION_SPEED: f32 = 400.;
 
 impl Drop for ViewerSystem {
@@ -79,6 +89,25 @@ impl System for ViewerSystem {
         }
 
         let timer = self.context.global_timer();
+
+        {
+            let bvh = self.render_context.global_buffers().buffer::<GPUBVHNode>();
+            let bvh = bvh.read().unwrap();
+            let tlas_index = self
+                .render_context
+                .global_buffers()
+                .constant_data
+                .read()
+                .unwrap()
+                .tlas_starting_index();
+            if tlas_index < bvh.total_len() as u32 {
+                let max: Vector3 = bvh.data()[tlas_index as usize].max.into();
+                let min: Vector3 = bvh.data()[tlas_index as usize].min.into();
+                let length = (max - min).length();
+                self.camera_speed = length * 1000. * timer.dt().as_secs_f32();
+            }
+        }
+
         let current_frame = timer.current_frame();
         debug_assert!(self.last_frame != current_frame);
         self.last_frame = current_frame;
@@ -138,6 +167,7 @@ impl ViewerSystem {
             scene,
             camera_index: 0,
             last_mouse_pos: Vector2::default_zero(),
+            camera_speed: 1.,
         }
     }
 
@@ -152,24 +182,83 @@ impl ViewerSystem {
             }
         }
         if !loaded {
-            self.create_default_scene();
+            self.create_default_scene(START_TEST);
         }
 
         self
     }
 
-    fn create_default_scene(&mut self) {
-        let default_object = {
-            let object_id = generate_random_uid();
-            let object = self.context.shared_data().add_resource(
-                self.context.message_hub(),
-                object_id,
-                Object::new(
-                    object_id,
-                    self.context.shared_data(),
-                    self.context.message_hub(),
-                ),
-            );
+    fn create_culling_scene(&mut self) {
+        let mesh = Mesh::request_load(
+            self.context.shared_data(),
+            self.context.message_hub(),
+            &PathBuf::from(CULLING_MESH_PATH),
+            None,
+        );
+        const MIN: Vector3 = Vector3::new(-2., -2., -5.);
+        const MAX: Vector3 = Vector3::new(2., 2., 2.);
+        const OBJECT_PER_AXIS: Vector3u = Vector3u::new(10, 10, 20);
+        for i in 0..OBJECT_PER_AXIS.x {
+            for j in 0..OBJECT_PER_AXIS.y {
+                for k in 0..OBJECT_PER_AXIS.z {
+                    let object = {
+                        let object_id = generate_random_uid();
+                        let object = self.context.shared_data().add_resource(
+                            self.context.message_hub(),
+                            object_id,
+                            Object::new(
+                                object_id,
+                                self.context.shared_data(),
+                                self.context.message_hub(),
+                            ),
+                        );
+                        object.get_mut().add_component(mesh.clone());
+                        let offset = Vector3::new(
+                            i as f32 / OBJECT_PER_AXIS.x as f32,
+                            j as f32 / OBJECT_PER_AXIS.y as f32,
+                            k as f32 / OBJECT_PER_AXIS.z as f32,
+                        )
+                        .mul(MAX - MIN);
+                        object.get_mut().set_position(MIN + offset);
+                        object
+                    };
+                    self.scene.get_mut().add_object(object);
+                }
+            }
+        }
+    }
+
+    fn create_textured_quads(
+        &mut self,
+        camera_object: &Resource<Object>,
+        pos_1: Vector3,
+        pos_2: Vector3,
+    ) {
+        let mut mesh_data = MeshData {
+            vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
+            ..Default::default()
+        };
+        let quad = create_quad([-10., -10., 10., 10.].into(), 0.);
+        mesh_data.append_mesh_data(quad, 0, false);
+
+        let material = Material::new_resource(
+            self.context.shared_data(),
+            self.context.message_hub(),
+            generate_random_uid(),
+            &MaterialData::default(),
+            None,
+        );
+        let texture = Texture::request_load(
+            self.context.shared_data(),
+            self.context.message_hub(),
+            PathBuf::from("textures\\Test.png").as_path(),
+            None,
+        );
+        material
+            .get_mut()
+            .set_texture(inox_render::TextureType::BaseColor, &texture);
+
+        let left_mesh = {
             let mesh_id = generate_random_uid();
 
             let mesh = self.context.shared_data().add_resource(
@@ -181,42 +270,15 @@ impl ViewerSystem {
                     self.context.message_hub(),
                 ),
             );
-            let material = Material::new_resource(
-                self.context.shared_data(),
-                self.context.message_hub(),
-                generate_random_uid(),
-                &MaterialData::default(),
-                None,
-            );
-            let texture = Texture::request_load(
-                self.context.shared_data(),
-                self.context.message_hub(),
-                PathBuf::from("textures\\Test.png").as_path(),
-                None,
-            );
-            material
-                .get_mut()
-                .set_texture(inox_render::TextureType::BaseColor, &texture);
-            mesh.get_mut()
-                .set_material(material)
-                .set_flags(MeshFlags::Visible | MeshFlags::Opaque);
 
-            let mut mesh_data = MeshData {
-                vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
-                ..Default::default()
-            };
-            let quad = create_quad([-10., -10., 10., 10.].into(), 0.);
-            mesh_data.append_mesh_data(quad, 0, false);
             mesh_data.set_vertex_color([0.0, 0.0, 1.0, 1.0].into());
-
-            //println!("Quad Mesh {:?}", mesh.id());
-
-            mesh.get_mut().set_mesh_data(mesh_data);
-            object.get_mut().add_component(mesh);
-            object.get_mut().set_position([-20., 0., 0.].into());
-            object
+            mesh.get_mut().set_mesh_data(mesh_data.clone());
+            mesh.get_mut()
+                .set_material(material.clone())
+                .set_flags(MeshFlags::Visible | MeshFlags::Opaque);
+            mesh
         };
-        let flat_object = {
+        let left_quad = {
             let object_id = generate_random_uid();
             let object = self.context.shared_data().add_resource(
                 self.context.message_hub(),
@@ -227,9 +289,13 @@ impl ViewerSystem {
                     self.context.message_hub(),
                 ),
             );
+            object.get_mut().add_component(left_mesh.clone());
+            object.get_mut().set_position(pos_1);
+            object
+        };
+        let right_mesh = {
             let mesh_id = generate_random_uid();
-
-            let flat_mesh = self.context.shared_data().add_resource(
+            let mesh = self.context.shared_data().add_resource(
                 self.context.message_hub(),
                 mesh_id,
                 Mesh::new(
@@ -238,36 +304,39 @@ impl ViewerSystem {
                     self.context.message_hub(),
                 ),
             );
-            let flat_material = Material::new_resource(
-                self.context.shared_data(),
-                self.context.message_hub(),
-                generate_random_uid(),
-                &MaterialData::default(),
-                None,
-            );
-            flat_mesh
-                .get_mut()
-                .set_material(flat_material)
-                .set_flags(MeshFlags::Visible | MeshFlags::Opaque);
-
-            let mut mesh_data = MeshData {
-                vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
-                ..Default::default()
-            };
-            let quad = create_quad([-10., -10., 10., 10.].into(), 0.);
-            mesh_data.append_mesh_data(quad, 0, false);
             mesh_data.set_vertex_color([1.0, 1.0, 0.0, 1.0].into());
-
-            //println!("Flat Mesh {:?}", mesh.id());
-
-            flat_mesh.get_mut().set_mesh_data(mesh_data);
-            object.get_mut().add_component(flat_mesh);
-            object.get_mut().set_position([20., 0., 0.].into());
+            mesh.get_mut().set_mesh_data(mesh_data);
+            mesh.get_mut()
+                .set_material(material)
+                .set_flags(MeshFlags::Visible | MeshFlags::Opaque);
+            mesh
+        };
+        let right_quad = {
+            let object_id = generate_random_uid();
+            let object = self.context.shared_data().add_resource(
+                self.context.message_hub(),
+                object_id,
+                Object::new(
+                    object_id,
+                    self.context.shared_data(),
+                    self.context.message_hub(),
+                ),
+            );
+            object.get_mut().add_component(right_mesh);
+            object
+                .get_mut()
+                .set_position(pos_2)
+                .scale([0.5, 0.5, 0.5].into());
             object
         };
-        self.scene.get_mut().add_object(default_object);
-        self.scene.get_mut().add_object(flat_object);
+        self.scene.get_mut().add_object(left_quad);
+        self.scene.get_mut().add_object(right_quad);
+        camera_object
+            .get_mut()
+            .set_position(Vector3::new(0.0, 0.0, -50.0));
+    }
 
+    fn create_default_scene(&mut self, test_type: TestType) {
         let camera_id = generate_random_uid();
         let camera_object = self.context.shared_data().add_resource::<Object>(
             self.context.message_hub(),
@@ -278,9 +347,27 @@ impl ViewerSystem {
                 self.context.message_hub(),
             ),
         );
-        camera_object
-            .get_mut()
-            .set_position(Vector3::new(0.0, 0.0, -50.0));
+
+        match test_type {
+            TestType::Culling => {
+                self.create_culling_scene();
+            }
+            TestType::Occlusion => {
+                self.create_textured_quads(
+                    &camera_object,
+                    [0., 0., 0.].into(),
+                    [0., 0., -20.].into(),
+                );
+            }
+            _ => {
+                self.create_textured_quads(
+                    &camera_object,
+                    [-20., 0., 0.].into(),
+                    [20., 0., 0.].into(),
+                );
+            }
+        }
+
         camera_object
             .get_mut()
             .look_towards(Vector3::new(0.0, 0.0, -1.0));
@@ -425,17 +512,17 @@ impl ViewerSystem {
 
             let mut movement = Vector3::default_zero();
             if event.code == Key::W {
-                movement.z += CAMERA_SPEED;
+                movement.z += self.camera_speed;
             } else if event.code == Key::S {
-                movement.z -= CAMERA_SPEED;
+                movement.z -= self.camera_speed;
             } else if event.code == Key::A {
-                movement.x += CAMERA_SPEED;
+                movement.x += self.camera_speed;
             } else if event.code == Key::D {
-                movement.x -= CAMERA_SPEED;
+                movement.x -= self.camera_speed;
             } else if event.code == Key::Q {
-                movement.y += CAMERA_SPEED;
+                movement.y += self.camera_speed;
             } else if event.code == Key::E {
-                movement.y -= CAMERA_SPEED;
+                movement.y -= self.camera_speed;
             }
             movement *= self.context.global_timer().dt().as_secs_f32();
             if movement != Vector3::default_zero() {

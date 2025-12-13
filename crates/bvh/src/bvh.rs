@@ -201,13 +201,16 @@ impl BVHTree {
     }
 
     pub fn reverse(tree: Self) -> Self {
+        if tree.nodes.is_empty() {
+            return tree;
+        }
         let mut index_map = vec![0; tree.nodes.len()];
-        let mut new_bhv = BVHTree::default();
+        let mut new_bvh = BVHTree::default();
         let mut nodes_to_visit = [tree.nodes.len() - 1].to_vec();
         while !nodes_to_visit.is_empty() {
             let old_index = nodes_to_visit.remove(0);
-            index_map[old_index] = new_bhv.nodes.len();
-            new_bhv.nodes.push(tree.nodes[old_index]);
+            index_map[old_index] = new_bvh.nodes.len();
+            new_bvh.nodes.push(tree.nodes[old_index]);
             if !tree.nodes[old_index].is_leaf() {
                 nodes_to_visit.insert(0, tree.nodes[old_index].right() as _);
                 nodes_to_visit.insert(0, tree.nodes[old_index].left() as _);
@@ -217,7 +220,7 @@ impl BVHTree {
         let mut left_modified = vec![false; entries_count];
         let mut right_modified = vec![false; entries_count];
         let mut parent_modified = vec![false; entries_count];
-        new_bhv.nodes.iter_mut().enumerate().for_each(|(i, node)| {
+        new_bvh.nodes.iter_mut().enumerate().for_each(|(i, node)| {
             (0..index_map.len()).for_each(|old_index| {
                 if !left_modified[i] && node.left == old_index as i32 {
                     node.left = index_map[old_index] as i32;
@@ -234,14 +237,14 @@ impl BVHTree {
             });
         });
         Self {
-            nodes: new_bhv.nodes,
+            nodes: new_bvh.nodes,
         }
     }
 }
 
 impl Debug for BVHTree {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("BHV:\n").ok();
+        f.write_str("BVH:\n").ok();
         self.nodes.iter().enumerate().for_each(|(i, n)| {
             f.write_fmt(format_args!("  Node[{i}]:\n")).ok();
             f.write_fmt(format_args!("      Left -> {}\n", n.left)).ok();
@@ -302,31 +305,31 @@ fn test_bvh_quad() {
         AABB::create(min_v1, max_v1, 0),
         AABB::create(min_v2, max_v2, 1),
     ];
-    let bhv = BVHTree::new(&aabbs);
-    println!("{:?}", bhv);
+    let bvh = BVHTree::new(&aabbs);
+    println!("{bvh:?}");
 
-    debug_assert!(bhv.nodes().len() == 3);
+    debug_assert!(bvh.nodes().len() == 3);
 
-    debug_assert!(bhv.nodes()[0].min() == min_v1.min(min_v2));
-    debug_assert!(bhv.nodes()[0].max() == max_v1.max(max_v2));
-    debug_assert!(bhv.nodes()[0].parent() == -1);
-    debug_assert!(bhv.nodes()[0].aabb_index() == -1);
-    debug_assert!(bhv.nodes()[0].left() == 1);
-    debug_assert!(bhv.nodes()[0].right() == 2);
+    debug_assert!(bvh.nodes()[0].min() == min_v1.min(min_v2));
+    debug_assert!(bvh.nodes()[0].max() == max_v1.max(max_v2));
+    debug_assert!(bvh.nodes()[0].parent() == -1);
+    debug_assert!(bvh.nodes()[0].aabb_index() == -1);
+    debug_assert!(bvh.nodes()[0].left() == 1);
+    debug_assert!(bvh.nodes()[0].right() == 2);
 
-    debug_assert!(bhv.nodes()[1].min() == min_v1);
-    debug_assert!(bhv.nodes()[1].max() == max_v1);
-    debug_assert!(bhv.nodes()[1].parent() == 0);
-    debug_assert!(bhv.nodes()[1].aabb_index() == 0);
-    debug_assert!(bhv.nodes()[1].left() == -1);
-    debug_assert!(bhv.nodes()[1].right() == -1);
+    debug_assert!(bvh.nodes()[1].min() == min_v1);
+    debug_assert!(bvh.nodes()[1].max() == max_v1);
+    debug_assert!(bvh.nodes()[1].parent() == 0);
+    debug_assert!(bvh.nodes()[1].aabb_index() == 0);
+    debug_assert!(bvh.nodes()[1].left() == -1);
+    debug_assert!(bvh.nodes()[1].right() == -1);
 
-    debug_assert!(bhv.nodes()[2].min() == min_v2);
-    debug_assert!(bhv.nodes()[2].max() == max_v2);
-    debug_assert!(bhv.nodes()[2].parent() == 0);
-    debug_assert!(bhv.nodes()[2].aabb_index() == 1);
-    debug_assert!(bhv.nodes()[2].left() == -1);
-    debug_assert!(bhv.nodes()[2].right() == -1);
+    debug_assert!(bvh.nodes()[2].min() == min_v2);
+    debug_assert!(bvh.nodes()[2].max() == max_v2);
+    debug_assert!(bvh.nodes()[2].parent() == 0);
+    debug_assert!(bvh.nodes()[2].aabb_index() == 1);
+    debug_assert!(bvh.nodes()[2].left() == -1);
+    debug_assert!(bvh.nodes()[2].right() == -1);
 }
 
 fn test_bvh_cube() {
@@ -361,8 +364,8 @@ fn test_bvh_cube() {
         let t_max = v1.max(v2.max(v3));
         aabbs.push(AABB::create(t_min, t_max, ((i - 1) / 3) as _));
     }
-    let bhv = BVHTree::new(&aabbs);
-    println!("{:?}", bhv);
+    let bvh = BVHTree::new(&aabbs);
+    println!("{bvh:?}");
 }
 
 #[test]

@@ -8,7 +8,6 @@ use inox_resources::{
     DataTypeResource, Handle, ResourceId, ResourceTrait, SerializableResource, SharedData,
     SharedDataRc,
 };
-use inox_serialize::inox_serializable::SerializableRegistryRc;
 use inox_uid::{generate_random_uid, INVALID_UID};
 use std::path::{Path, PathBuf};
 
@@ -59,7 +58,9 @@ impl DataTypeResource for Font {
             format: TextureFormat::Rgba8Unorm,
             usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
             sample_count: 1,
+            layer_count: 1,
             is_LUT: false,
+            mips_count: 1,
         };
         let texture = Texture::new_resource(
             shared_data,
@@ -86,11 +87,7 @@ impl SerializableResource for Font {
     fn extension() -> &'static str {
         "ttf"
     }
-    fn deserialize_data(
-        path: &Path,
-        _registry: SerializableRegistryRc,
-        mut f: Box<dyn FnMut(Self::DataType) + 'static>,
-    ) {
+    fn deserialize_data(path: &Path, mut f: Box<dyn FnMut(Self::DataType) + 'static>) {
         f(FontData::new(path));
     }
 }

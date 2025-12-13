@@ -1,3 +1,5 @@
+#![cfg(not(target_arch = "wasm32"))]
+
 pub use std::os::raw::c_char;
 pub use std::os::raw::c_double;
 pub use std::os::raw::c_float;

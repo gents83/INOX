@@ -28,6 +28,8 @@ pub struct TextureData {
     pub format: TextureFormat,
     pub usage: TextureUsage,
     pub sample_count: u32,
+    pub layer_count: u32,
+    pub mips_count: u32,
     pub is_LUT: bool,
     pub data: Option<Vec<u8>>,
 }
@@ -269,6 +271,7 @@ pub enum TextureFormat {
     Rg16Unorm,
     Rg16Snorm,
     Rg16Float,
+    R64Uint,
     Rgba8Unorm,
     Rgba8UnormSrgb,
     Rgba8Snorm,
@@ -278,7 +281,7 @@ pub enum TextureFormat {
     Bgra8UnormSrgb,
     Rgb10a2Uint,
     Rgb10a2Unorm,
-    Rg11b10Float,
+    Rg11b10Ufloat,
     Rg32Uint,
     Rg32Sint,
     Rg32Float,
@@ -326,6 +329,7 @@ pub enum TextureFormat {
         block: AstcBlock,
         channel: AstcChannel,
     },
+    P010,
 }
 
 impl TextureFormat {
@@ -365,6 +369,7 @@ impl From<TextureFormat> for wgpu::TextureFormat {
             crate::TextureFormat::Rg16Unorm => wgpu::TextureFormat::Rg16Unorm,
             crate::TextureFormat::Rg16Snorm => wgpu::TextureFormat::Rg16Snorm,
             crate::TextureFormat::Rg16Float => wgpu::TextureFormat::Rg16Float,
+            crate::TextureFormat::R64Uint => wgpu::TextureFormat::R64Uint,
             crate::TextureFormat::Rgba8Unorm => wgpu::TextureFormat::Rgba8Unorm,
             crate::TextureFormat::Rgba8UnormSrgb => wgpu::TextureFormat::Rgba8UnormSrgb,
             crate::TextureFormat::Rgba8Snorm => wgpu::TextureFormat::Rgba8Snorm,
@@ -374,7 +379,7 @@ impl From<TextureFormat> for wgpu::TextureFormat {
             crate::TextureFormat::Bgra8UnormSrgb => wgpu::TextureFormat::Bgra8UnormSrgb,
             crate::TextureFormat::Rgb10a2Uint => wgpu::TextureFormat::Rgb10a2Uint,
             crate::TextureFormat::Rgb10a2Unorm => wgpu::TextureFormat::Rgb10a2Unorm,
-            crate::TextureFormat::Rg11b10Float => wgpu::TextureFormat::Rg11b10Float,
+            crate::TextureFormat::Rg11b10Ufloat => wgpu::TextureFormat::Rg11b10Ufloat,
             crate::TextureFormat::Rg32Uint => wgpu::TextureFormat::Rg32Uint,
             crate::TextureFormat::Rg32Sint => wgpu::TextureFormat::Rg32Sint,
             crate::TextureFormat::Rg32Float => wgpu::TextureFormat::Rg32Float,
@@ -425,6 +430,7 @@ impl From<TextureFormat> for wgpu::TextureFormat {
                 block: b.into(),
                 channel: c.into(),
             },
+            crate::TextureFormat::P010 => wgpu::TextureFormat::P010,
         }
     }
 }
@@ -453,6 +459,7 @@ impl From<wgpu::TextureFormat> for crate::TextureFormat {
             wgpu::TextureFormat::Rg16Unorm => crate::TextureFormat::Rg16Unorm,
             wgpu::TextureFormat::Rg16Snorm => crate::TextureFormat::Rg16Snorm,
             wgpu::TextureFormat::Rg16Float => crate::TextureFormat::Rg16Float,
+            wgpu::TextureFormat::R64Uint => crate::TextureFormat::R64Uint,
             wgpu::TextureFormat::Rgba8Unorm => crate::TextureFormat::Rgba8Unorm,
             wgpu::TextureFormat::Rgba8UnormSrgb => crate::TextureFormat::Rgba8UnormSrgb,
             wgpu::TextureFormat::Rgba8Snorm => crate::TextureFormat::Rgba8Snorm,
@@ -462,7 +469,7 @@ impl From<wgpu::TextureFormat> for crate::TextureFormat {
             wgpu::TextureFormat::Bgra8UnormSrgb => crate::TextureFormat::Bgra8UnormSrgb,
             wgpu::TextureFormat::Rgb10a2Uint => crate::TextureFormat::Rgb10a2Uint,
             wgpu::TextureFormat::Rgb10a2Unorm => crate::TextureFormat::Rgb10a2Unorm,
-            wgpu::TextureFormat::Rg11b10Float => crate::TextureFormat::Rg11b10Float,
+            wgpu::TextureFormat::Rg11b10Ufloat => crate::TextureFormat::Rg11b10Ufloat,
             wgpu::TextureFormat::Rg32Uint => crate::TextureFormat::Rg32Uint,
             wgpu::TextureFormat::Rg32Sint => crate::TextureFormat::Rg32Sint,
             wgpu::TextureFormat::Rg32Float => crate::TextureFormat::Rg32Float,
@@ -514,6 +521,7 @@ impl From<wgpu::TextureFormat> for crate::TextureFormat {
                 block: b.into(),
                 channel: c.into(),
             },
+            wgpu::TextureFormat::P010 => crate::TextureFormat::P010,
         }
     }
 }

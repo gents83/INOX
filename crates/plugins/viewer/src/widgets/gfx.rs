@@ -1,5 +1,8 @@
 use inox_core::ContextRc;
-use inox_render::{GPUMesh, GPUMeshlet, GPUVertexIndices, GPUVertexPosition, RenderContextRc};
+use inox_graphics::{DrawPreparationResults, DRAW_PREPARATION_RESULT_BUFFER_ID};
+use inox_render::{
+    GPUInstance, GPUMesh, GPUMeshlet, GPUVertexIndices, GPUVertexPosition, RenderContextRc,
+};
 
 use inox_messenger::MessageHubRc;
 use inox_resources::{Resource, SharedDataRc};
@@ -12,6 +15,8 @@ struct GfxData {
     indices_count: usize,
     meshes_count: usize,
     meshlets_count: usize,
+    draw_vertices_count: usize,
+    commands_instance_count: usize,
     passes: Vec<(String, bool)>,
 }
 implement_widget_data!(GfxData);
@@ -28,6 +33,8 @@ impl Gfx {
             indices_count: 0,
             meshes_count: 0,
             meshlets_count: 0,
+            draw_vertices_count: 0,
+            commands_instance_count: 0,
             passes: Vec::new(),
             render_context: render_context.clone(),
         };
@@ -68,6 +75,30 @@ impl Gfx {
                     .read()
                     .unwrap()
                     .item_count();
+                data.draw_vertices_count = data
+                    .render_context
+                    .global_buffers()
+                    .vector::<GPUInstance>()
+                    .read()
+                    .unwrap()
+                    .len();
+
+                let buffers = data
+                    .render_context
+                    .binding_data_buffer()
+                    .buffers
+                    .read()
+                    .unwrap();
+                let buffer_ref = buffers.get(&DRAW_PREPARATION_RESULT_BUFFER_ID).unwrap();
+                data.commands_instance_count = 0;
+                if let Some(results) = buffer_ref
+                    .read_from_gpu_as::<DrawPreparationResults>(&data.render_context.webgpu)
+                {
+                    results.iter().for_each(|r| {
+                        data.commands_instance_count = r.active_instances_count as usize;
+                        data.draw_vertices_count = r.draw_vertices_count as usize;
+                    });
+                }
             }
 
             if data.passes.is_empty() {
@@ -126,6 +157,20 @@ impl Gfx {
                             });
                         });
                         ui.separator();
+                        ui.horizontal_wrapped(|ui| {
+                            ui.horizontal_wrapped(|ui| {
+                                ui.label("Draw vertices: ");
+                                inox_ui::DragValue::new(&mut data.draw_vertices_count)
+                                    .speed(0)
+                                    .ui(ui);
+                            });
+                            ui.horizontal_wrapped(|ui| {
+                                ui.label("Draw instances: ");
+                                inox_ui::DragValue::new(&mut data.commands_instance_count)
+                                    .speed(0)
+                                    .ui(ui);
+                            });
+                        });
                         data.passes.iter_mut().for_each(|(name, is_enabled)| {
                             ui.checkbox(is_enabled, name.as_str());
                         });

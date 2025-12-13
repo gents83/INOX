@@ -5,9 +5,7 @@ use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, ResourceId, ResourceTrait, SerializableResource, SharedDataRc,
 };
-use inox_serialize::{
-    inox_serializable::SerializableRegistryRc, read_from_file, SerializationType,
-};
+use inox_serialize::{read_from_file, SerializationType};
 use wgpu::ShaderModule;
 
 use crate::{RenderContext, ShaderData, SHADER_EXTENSION};
@@ -40,10 +38,10 @@ pub fn read_spirv_from_bytes<Data: ::std::io::Read + ::std::io::Seek>(
     data: &mut Data,
 ) -> ::std::vec::Vec<u32> {
     let size = data.seek(::std::io::SeekFrom::End(0)).unwrap();
-    if size % 4 != 0 {
+    if !size.is_multiple_of(4) {
         panic!("Input data length not divisible by 4");
     }
-    if size > usize::max_value() as u64 {
+    if size > usize::MAX as u64 {
         panic!("Input data too long");
     }
     let words = (size / 4) as usize;
@@ -110,12 +108,8 @@ impl SerializableResource for Shader {
         SHADER_EXTENSION
     }
 
-    fn deserialize_data(
-        path: &std::path::Path,
-        registry: SerializableRegistryRc,
-        f: Box<dyn FnMut(Self::DataType) + 'static>,
-    ) {
-        read_from_file::<Self::DataType>(path, registry, SerializationType::Binary, f);
+    fn deserialize_data(path: &std::path::Path, f: Box<dyn FnMut(Self::DataType) + 'static>) {
+        read_from_file::<Self::DataType>(path, SerializationType::Binary, f);
     }
 }
 

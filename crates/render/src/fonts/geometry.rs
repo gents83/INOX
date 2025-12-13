@@ -42,7 +42,7 @@ impl<'a> Geometry<'a> {
     }
 }
 
-impl<'a> OutlineBuilder for Geometry<'a> {
+impl OutlineBuilder for Geometry<'_> {
     fn move_to(&mut self, x0: f32, y0: f32) {
         let next_point = Vector2::new(
             (x0 + self.offset.x) * self.scale.x,
@@ -105,7 +105,7 @@ impl<'a> OutlineBuilder for Geometry<'a> {
     }
 }
 
-impl<'a> Geometry<'a> {
+impl Geometry<'_> {
     fn draw_line(&mut self, start: Vector2, end: Vector2) {
         self.lines.push(Line { start, end });
         self.rasterizer.draw_line(start, end);

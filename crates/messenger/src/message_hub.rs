@@ -67,9 +67,6 @@ impl ListenerData {
 }
 
 trait MsgType: Send + Sync + Any {
-    fn type_id(&self) -> TypeId {
-        TypeId::of::<Self>()
-    }
     fn name(&self) -> &'static str {
         std::any::type_name::<Self>()
     }

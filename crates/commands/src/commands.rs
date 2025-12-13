@@ -13,7 +13,7 @@ pub struct CommandParser {
 
 impl CommandParser {
     pub fn from_command_line() -> Self {
-        Self::from_strings(env::args().collect())
+        Self::from_strings(env::args().skip(1).collect())
     }
     pub fn from_string(s: &str) -> Self {
         let mut strings = Vec::new();

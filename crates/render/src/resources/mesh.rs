@@ -1,17 +1,15 @@
 use std::path::{Path, PathBuf};
 
-use crate::{Material, MeshData};
+use crate::{Material, MeshData, INVALID_INDEX};
 
 use inox_bitmask::bitmask;
-use inox_math::{MatBase, Matrix4, VecBase, Vector3};
+use inox_math::{VecBase, Vector3};
 use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, DataTypeResourceEvent, Handle, Resource, ResourceEvent, ResourceId,
     ResourceTrait, SerializableResource, SharedData, SharedDataRc,
 };
-use inox_serialize::{
-    inox_serializable::SerializableRegistryRc, read_from_file, SerializationType, SerializeFile,
-};
+use inox_serialize::{read_from_file, SerializationType, SerializeFile};
 
 pub type MeshId = ResourceId;
 
@@ -30,8 +28,7 @@ pub enum MeshFlags {
 #[test]
 fn test_serialize() {
     let flags = MeshFlags::Visible | MeshFlags::Tranparent;
-    let registry = SerializableRegistryRc::default();
-    let s = inox_serialize::serialize(&flags, registry);
+    let s = inox_serialize::serialize(&flags);
     println!("{}", String::from_utf8(s).unwrap());
 }
 
@@ -41,11 +38,11 @@ pub struct Mesh {
     message_hub: MessageHubRc,
     shared_data: SharedDataRc,
     path: PathBuf,
-    matrix: Matrix4,
     material: Handle<Material>,
     flags: MeshFlags,
     min: Vector3,
     max: Vector3,
+    mesh_index: i32,
 }
 
 impl ResourceTrait for Mesh {
@@ -54,6 +51,7 @@ impl ResourceTrait for Mesh {
     }
 
     fn invalidate(&mut self) -> &mut Self {
+        self.mesh_index = INVALID_INDEX;
         self.mark_as_dirty();
         self
     }
@@ -72,12 +70,8 @@ impl SerializableResource for Mesh {
         MeshData::extension()
     }
 
-    fn deserialize_data(
-        path: &std::path::Path,
-        registry: SerializableRegistryRc,
-        f: Box<dyn FnMut(Self::DataType) + 'static>,
-    ) {
-        read_from_file::<Self::DataType>(path, registry, SerializationType::Binary, f);
+    fn deserialize_data(path: &std::path::Path, f: Box<dyn FnMut(Self::DataType) + 'static>) {
+        read_from_file::<Self::DataType>(path, SerializationType::Binary, f);
     }
 }
 
@@ -90,8 +84,8 @@ impl DataTypeResource for Mesh {
             shared_data: shared_data.clone(),
             message_hub: message_hub.clone(),
             path: PathBuf::new(),
-            matrix: Matrix4::default_identity(),
             material: None,
+            mesh_index: INVALID_INDEX,
             flags: MeshFlags::Visible | MeshFlags::Opaque,
             min: Vector3::default_zero(),
             max: Vector3::default_zero(),
@@ -107,17 +101,8 @@ impl DataTypeResource for Mesh {
     where
         Self: Sized,
     {
-        let material = if !data.material.to_str().unwrap_or_default().is_empty() {
-            let material =
-                Material::request_load(shared_data, message_hub, data.material.as_path(), None);
-            Some(material)
-        } else {
-            None
-        };
         let mut mesh = Mesh::new(id, shared_data, message_hub);
-        mesh.material = material;
-        mesh.min = data.aabb_min;
-        mesh.max = data.aabb_max;
+        mesh.set_mesh_data(data.clone());
         mesh
     }
 }
@@ -131,18 +116,18 @@ impl Mesh {
     pub fn find_from_path(shared_data: &SharedDataRc, path: &Path) -> Handle<Self> {
         SharedData::match_resource(shared_data, |m: &Mesh| m.path() == path)
     }
-    pub fn set_matrix(&mut self, transform: Matrix4) -> &mut Self {
-        if self.matrix != transform {
-            self.matrix = transform;
-            self.mark_as_dirty();
-        }
-        self
-    }
     pub fn set_material(&mut self, material: Resource<Material>) -> &mut Self {
         if self.material.is_none() || self.material.as_ref().unwrap().id() != material.id() {
             self.material = Some(material);
             self.mark_as_dirty();
         }
+        self
+    }
+    pub fn mesh_index(&self) -> i32 {
+        self.mesh_index
+    }
+    pub fn set_mesh_index(&mut self, mesh_index: usize) -> &mut Self {
+        self.mesh_index = mesh_index as _;
         self
     }
     pub fn min(&self) -> &Vector3 {
@@ -155,6 +140,17 @@ impl Mesh {
         &self.material
     }
     pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
+        if !mesh_data.material.to_str().unwrap_or_default().is_empty() {
+            let material = Material::request_load(
+                &self.shared_data,
+                &self.message_hub,
+                mesh_data.material.as_path(),
+                None,
+            );
+            self.material = Some(material);
+        }
+        self.min = mesh_data.aabb_min;
+        self.max = mesh_data.aabb_max;
         self.message_hub
             .send_event(DataTypeResourceEvent::<Self>::Loaded(self.id, mesh_data));
         self.mark_as_dirty();
@@ -191,8 +187,5 @@ impl Mesh {
             self.mark_as_dirty();
         }
         self
-    }
-    pub fn matrix(&self) -> Matrix4 {
-        self.matrix
     }
 }

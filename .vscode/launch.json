@@ -5,43 +5,22 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "RUN REMOTE ANDROID DEBUG",
-            "type": "lldb",
-            "request": "launch",
-            "cargo": {
-                "args": [
-                    "apk",
-                    "run",
-                    "-p android-build"
-                ],
-                "filter": {
-                    "name": "android-build",
-                    "kind": "lib"
-                }
-            },
-            "initCommands": [
-                "platform select remote-android", // Execute `platform list` for a list of available remote platform plugins.
-                "platform connect connect://emulator-5554:5045",
-                "settings set target.inherit-env false", // See the note below.
-            ],
-            "cwd": "${workspaceFolder}"
-        },
-        {
             "name": "RUN LAUNCHER DEBUG",
-            "type": "cppvsdbg",
+            "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
             "args": [],
             "cwd": "${workspaceFolder}",
-            "requireExactSource": false,
             "preLaunchTask": "COMPILE DEBUG",
             "postDebugTask": "CLEANUP",
             "console": "integratedTerminal",
-            "symbolSearchPath": "${workspaceFolder}/crates/target//debug/",
+            "sourceMap": {
+                "${workspaceFolder}": "${workspaceFolder}"
+            }
         },
         {
             "name": "RUN VIEWER RELEASE",
-            "type": "cppvsdbg",
+            "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe",
             "args": [
@@ -51,18 +30,21 @@
                 "-plugin inox_viewer",
                 "-load_file",
                 "models/craftman/craftman.scene"
+                //"models/sponza/sponza.scene"
+                //"models/OriginalSponza/OriginalSponza.scene"
             ],
             "cwd": "${workspaceFolder}",
-            "stopAtEntry": false,
-            "requireExactSource": false,
+            "stopOnEntry": false,
             "preLaunchTask": "COMPILE RELEASE",
             "postDebugTask": "CLEANUP",
             "console": "integratedTerminal",
-            "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/",
+            "sourceMap": {
+                "${workspaceFolder}": "${workspaceFolder}"
+            }
         },
         {
             "name": "RUN VIEWER DEBUG",
-            "type": "cppvsdbg",
+            "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
             "args": [
@@ -71,10 +53,10 @@
                 "-plugin inox_common_script",
                 "-plugin inox_viewer",
                 "-load_file",
-                //"models/cornell_box/cornell_box.scene"
+                "models/cornell_box/cornell_box.scene"
                 //"models/MetalRoughSpheresNoTextures/MetalRoughSpheresNoTextures.scene"
                 //"models/NormalTangent/NormalTangent.scene"
-                "models/DamagedHelmet/DamagedHelmet.scene"
+                //"models/DamagedHelmet/DamagedHelmet.scene"
                 //"models/craftman/craftman.scene"
                 //"models/stanford_bunny/stanford_bunny.scene"
                 //"models/bunnies/bunnies.scene"
@@ -82,60 +64,73 @@
                 //"models/suzanne/suzanne.scene"
                 //"models/OriginalSponza/OriginalSponza.scene"
                 //"models/sponza/sponza.scene"
+                //"models/sponzaFloor/sponzaFloor.scene"
             ],
             "cwd": "${workspaceFolder}",
-            "environment": [
-                {
-                    "name": "RUST_BACKTRACE",
-                    "value": "full",
-                },
-                {
-                    "name": "RUST_LOG",
-                    "value": "debug",
-                },
-            ],
-            "stopAtEntry": false,
-            "requireExactSource": false,
+            "stopOnEntry": false,
             "preLaunchTask": "COMPILE DEBUG",
             "postDebugTask": "CLEANUP",
             "console": "integratedTerminal",
-            "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/",
+            "sourceMap": {
+                "${workspaceFolder}": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "RUN BINARIZER SHADER PREPROCESSOR DEBUG",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
+            "args": [
+                "-plugin inox_binarizer",
+                "-preprocess_shader",
+                "shaders/wgsl/compute_pathtracing_direct.wgsl"
+            ],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "preLaunchTask": "COMPILE DEBUG",
+            "postDebugTask": "CLEANUP",
+            "console": "integratedTerminal",
+            "sourceMap": {
+                "${workspaceFolder}": "${workspaceFolder}"
+            }
         },
         {
             "name": "RUN BINARIZER DEBUG",
-            "type": "cppvsdbg",
+            "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
             "args": [
                 "-plugin inox_binarizer"
             ],
             "cwd": "${workspaceFolder}",
-            "stopAtEntry": false,
-            "requireExactSource": false,
+            "stopOnEntry": false,
             "preLaunchTask": "COMPILE DEBUG",
             "postDebugTask": "CLEANUP",
             "console": "integratedTerminal",
-            "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/",
+            "sourceMap": {
+                "${workspaceFolder}": "${workspaceFolder}"
+            }
         },
         {
             "name": "RUN BINARIZER RELEASE",
-            "type": "cppvsdbg",
+            "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe",
             "args": [
                 "-plugin inox_binarizer"
             ],
             "cwd": "${workspaceFolder}",
-            "stopAtEntry": false,
-            "requireExactSource": false,
+            "stopOnEntry": false,
             "preLaunchTask": "COMPILE RELEASE",
             "postDebugTask": "CLEANUP",
             "console": "integratedTerminal",
-            "symbolSearchPath": "${workspaceFolder}/crates/target/release/in_use/, ${workspaceFolder}/crates/target/release/",
+            "sourceMap": {
+                "${workspaceFolder}": "${workspaceFolder}"
+            }
         },
         {
             "name": "RUN BINARIZER RELEASE FOR WEB",
-            "type": "cppvsdbg",
+            "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe",
             "args": [
@@ -143,43 +138,27 @@
                 "-platform web"
             ],
             "cwd": "${workspaceFolder}",
-            "stopAtEntry": false,
-            "requireExactSource": false,
+            "stopOnEntry": false,
             "preLaunchTask": "COMPILE RELEASE",
             "postDebugTask": "CLEANUP",
             "console": "integratedTerminal",
-            "symbolSearchPath": "${workspaceFolder}/crates/target/release/in_use/, ${workspaceFolder}/crates/target/release/",
+            "sourceMap": {
+                "${workspaceFolder}": "${workspaceFolder}"
+            }
         },
         {
             "name": "RUN LAUNCHER RELEASE",
-            "type": "cppvsdbg",
+            "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe",
             "args": [],
             "cwd": "${workspaceFolder}",
-            "requireExactSource": false,
             "preLaunchTask": "COMPILE RELEASE",
             "postDebugTask": "CLEANUP",
             "console": "integratedTerminal",
-            "symbolSearchPath": "${workspaceFolder}/crates/target/release/",
-        },
-        /*
-        {
-            "name": "RUN NAGA DEBUG",
-            "type": "cppvsdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/extern/naga/target/debug/naga.exe",
-            "args": [
-                "./data_raw/shaders/wgsl/compute_raster.wgsl",
-                "./data_raw/shaders/wgsl/compute_raster.txt",
-            ],
-            "cwd": "${workspaceFolder}",
-            "stopAtEntry": false,
-            "requireExactSource": false,
-            "postDebugTask": "CLEANUP",
-            "console": "integratedTerminal",
-            "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/",
-        },
-        */
+            "sourceMap": {
+                "${workspaceFolder}": "${workspaceFolder}"
+            }
+        }
     ]
 }

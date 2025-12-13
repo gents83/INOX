@@ -5,7 +5,6 @@ use std::{
 };
 
 use inox_messenger::MessageHubRc;
-use inox_serialize::inox_serializable::SerializableRegistryRc;
 use inox_uid::{generate_uid_from_string, Uid};
 
 use crate::{
@@ -16,7 +15,6 @@ use crate::{
 
 #[derive(Default)]
 pub struct SharedData {
-    serialization_registry: SerializableRegistryRc,
     singletons: RwLock<Vec<RwLock<Box<dyn Singleton>>>>,
     storage: RwLock<HashMap<Uid, ResourceStorageRw>>,
     event_handlers: RwLock<HashMap<Uid, Box<dyn EventHandler>>>,
@@ -25,9 +23,6 @@ unsafe impl Send for SharedData {}
 unsafe impl Sync for SharedData {}
 
 impl SharedData {
-    pub fn serializable_registry(&self) -> SerializableRegistryRc {
-        self.serialization_registry.clone()
-    }
     #[inline]
     pub fn register_singleton<T>(&self, singleton: T)
     where
@@ -65,6 +60,7 @@ impl SharedData {
         None
     }
     #[inline]
+    #[allow(clippy::mut_from_ref)]
     pub fn get_singleton_mut<T>(&self) -> Option<&mut T>
     where
         T: Singleton,

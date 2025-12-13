@@ -6,8 +6,8 @@ use std::{
 
 use pyo3::{
     prelude::PyAnyMethods,
-    types::{PyDict, PyList},
-    PyObject, PyResult, Python, ToPyObject,
+    types::{PyDict, PyDictMethods, PyList},
+    IntoPyObjectExt, Py, PyAny, PyResult, Python,
 };
 
 use inox_nodes::LogicData;
@@ -41,14 +41,11 @@ impl Exporter {
 
             if create_dir_all(self.export_dir.as_path()).is_ok() {
                 // Blender data import
-                let export_scene = py
-                    .import_bound("bpy")?
-                    .getattr("ops")?
-                    .getattr("export_scene")?;
+                let export_scene = py.import("bpy")?.getattr("ops")?.getattr("export_scene")?;
                 let scene_path = self.export_dir.join(format!("{}.{}", scene_name, "gltf"));
                 let scene_path = scene_path.to_str().unwrap_or_default().to_string();
 
-                let kwargs = PyDict::new_bound(py);
+                let kwargs = PyDict::new(py);
                 kwargs.set_item("filepath", scene_path.clone())?;
                 kwargs.set_item("check_existing", true)?;
                 kwargs.set_item("export_format", "GLTF_SEPARATE")?;
@@ -72,16 +69,16 @@ impl Exporter {
     }
 
     fn export_custom_data(&self, py: Python, export_dir: &Path) -> PyResult<bool> {
-        let data = py.import_bound("bpy")?.getattr("data")?;
+        let data = py.import("bpy")?.getattr("data")?;
 
         // For every Blender scene
         let scenes = data.getattr("scenes")?.call_method("values", (), None)?;
-        let scenes = scenes.downcast::<PyList>()?;
-        if let Ok(scene) = scenes.iter() {
+        let scenes = scenes.cast::<PyList>()?;
+        if let Ok(scene) = scenes.try_iter() {
             let objects = scene.getattr("objects")?.call_method("values", (), None)?;
-            let objects = objects.downcast::<PyList>()?;
-            if let Ok(object) = objects.iter() {
-                self.process_object_properties(py, &object.to_object(py), export_dir)?;
+            let objects = objects.cast::<PyList>()?;
+            if let Ok(object) = objects.try_iter() {
+                self.process_object_properties(py, &object.into_py_any(py)?, export_dir)?;
             }
         }
         Ok(true)
@@ -90,7 +87,7 @@ impl Exporter {
     fn process_object_properties(
         &self,
         py: Python,
-        object: &PyObject,
+        object: &Py<PyAny>,
         path: &Path,
     ) -> PyResult<bool> {
         if let Ok(properties) = object.getattr(py, "inox_properties") {
@@ -101,12 +98,10 @@ impl Exporter {
         Ok(true)
     }
 
-    fn export_logic(&self, py: Python, logic: &PyObject, path: &Path) -> PyResult<bool> {
+    fn export_logic(&self, py: Python, logic: &Py<PyAny>, path: &Path) -> PyResult<bool> {
         let export_dir = path.join(LogicData::extension());
         if !logic.is_none(py) && create_dir_all(export_dir.as_path()).is_ok() {
-            let mut data: String = logic
-                .call_method_bound(py, "serialize", (), None)?
-                .extract(py)?;
+            let mut data: String = logic.call_method(py, "serialize", (), None)?.extract(py)?;
             data = data.replace(": ", ":");
             data = data.replace(", ", ",");
             let name: String = logic.getattr(py, "name")?.extract(py)?;

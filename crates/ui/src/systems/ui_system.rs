@@ -217,9 +217,9 @@ impl UISystem {
     }
 
     fn show_ui(
-        shared_data: SharedDataRc,
-        job_handler: JobHandlerRw,
-        context: Context,
+        shared_data: &SharedDataRc,
+        job_handler: &JobHandlerRw,
+        context: &Context,
         use_multithreading: bool,
     ) {
         inox_profiler::scoped_profile!("ui_system::show_ui");
@@ -241,7 +241,7 @@ impl UISystem {
                     },
                 );
             } else {
-                widget.execute(&context);
+                widget.execute(context);
             }
         });
         while wait_count.load(Ordering::SeqCst) > 0 {
@@ -254,12 +254,18 @@ impl UISystem {
         output: PlatformOutput,
         textures_delta: TexturesDelta,
     ) -> &mut Self {
-        if let Some(open) = output.open_url {
-            debug_log!("Trying to open url: {:?}", open.url);
-        }
-
-        if !output.copied_text.is_empty() {
-            self.ui_clipboard = Some(output.copied_text);
+        for command in output.commands {
+            match command {
+                egui::OutputCommand::CopyText(text) => {
+                    self.ui_clipboard = Some(text);
+                }
+                egui::OutputCommand::CopyImage(_image) => {
+                    debug_log!("Trying to copy image - not handled");
+                }
+                egui::OutputCommand::OpenUrl(open_url) => {
+                    debug_log!("Trying to open url: {:?}", open_url.url);
+                }
+            }
         }
 
         for (egui_texture_id, image_delta) in textures_delta.set {
@@ -272,7 +278,6 @@ impl UISystem {
                     );
                     Cow::Borrowed(&image.pixels)
                 }
-                egui::ImageData::Font(image) => Cow::Owned(image.srgba_pixels(None).collect()),
             };
             let pixels: &[u8] = to_slice(color32.as_slice());
             if let Some(pos) = image_delta.pos {
@@ -294,7 +299,9 @@ impl UISystem {
                     format: TextureFormat::Rgba8Unorm,
                     usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
                     sample_count: 1,
+                    layer_count: 1,
                     is_LUT: false,
+                    mips_count: 1,
                 };
                 let texture = Texture::new_resource(
                     &self.shared_data,
@@ -326,7 +333,6 @@ impl System for UISystem {
         let filename = self.config.get_filename().to_string();
         read_from_file(
             self.config.get_filepath(plugin_name).as_path(),
-            self.shared_data.serializable_registry(),
             SerializationType::Json,
             Box::new(move |data: Config| {
                 message_hub.send_event(ConfigEvent::Loaded(filename.clone(), data));
@@ -353,7 +359,7 @@ impl System for UISystem {
             let job_handler = self.job_handler.clone();
             let ui_context = self.ui_context.clone();
             self.ui_context.run(self.ui_input.take(), move |_| {
-                Self::show_ui(shared_data, job_handler, ui_context, false);
+                Self::show_ui(&shared_data, &job_handler, &ui_context, false);
             })
         };
         /*

@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
 use inox_math::{compute_hash_position, Vector3};
-use inox_render::{MeshletData, HALF_MESHLETS_GROUP_SIZE, MESHLETS_GROUP_SIZE};
+use inox_render::MeshletData;
 use meshopt::DecodePosition;
+
+pub const MESHLETS_GROUP_SIZE: usize = 4;
+pub const HALF_MESHLETS_GROUP_SIZE: usize = MESHLETS_GROUP_SIZE / 2;
 
 #[derive(Default, Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Clone)]
 struct Edge {
@@ -44,44 +47,6 @@ pub(crate) struct MeshletAdjacency {
     meshlet_index: u32,
     border_edges: Vec<Edge>,
     adjacent_meshlets: Vec<(u32, usize)>,
-}
-
-#[allow(dead_code)]
-pub fn find_border_vertices<T>(vertices: &[T], indices: &[u32]) -> Vec<u32>
-where
-    T: DecodePosition,
-{
-    let mut border_vertices = Vec::with_capacity(indices.len());
-    let num_triangles = indices.len() / 3;
-    let mut edges_hit_count: HashMap<Edge, u32> = HashMap::default();
-    for triangle_index in 0..num_triangles {
-        let i1 = indices[triangle_index * 3] as usize;
-        let i2 = indices[triangle_index * 3 + 1] as usize;
-        let i3 = indices[triangle_index * 3 + 2] as usize;
-        let p1: Vector3 = vertices[i1].decode_position().into();
-        let p2: Vector3 = vertices[i2].decode_position().into();
-        let p3: Vector3 = vertices[i3].decode_position().into();
-        let h1 = compute_hash_position(&p1);
-        let h2 = compute_hash_position(&p2);
-        let h3 = compute_hash_position(&p3);
-        let e1 = Edge::create(h1, h2);
-        let e2 = Edge::create(h2, h3);
-        let e3 = Edge::create(h3, h1);
-        e1.add_to_hit_count(&mut edges_hit_count);
-        e2.add_to_hit_count(&mut edges_hit_count);
-        e3.add_to_hit_count(&mut edges_hit_count);
-    }
-    for (e, count) in edges_hit_count {
-        if count == 1 {
-            if !border_vertices.contains(&e.v1) {
-                border_vertices.push(e.v1);
-            }
-            if !border_vertices.contains(&e.v2) {
-                border_vertices.push(e.v2);
-            }
-        }
-    }
-    border_vertices
 }
 
 pub fn build_meshlets_adjacency<T>(
@@ -172,11 +137,11 @@ where
             });
         }
     });
-    let num_meshlets = meshlets_info.len();
+    let _num_meshlets = meshlets_info.len();
     meshlets_info.iter_mut().for_each(|m| {
-        if num_meshlets > 1 && m.adjacent_meshlets.is_empty() {
-            println!("Meshlet {} has no adjacency", m.meshlet_index);
-        }
+        //if _num_meshlets > 1 && m.adjacent_meshlets.is_empty() {
+        //    println!("Meshlet {} has no adjacency", m.meshlet_index);
+        //}
         m.adjacent_meshlets
             .sort_by(|(_i, a), (_j, b)| b.partial_cmp(a).unwrap());
     });
@@ -203,7 +168,7 @@ where
                         other.border_edges.iter().for_each(|e| {
                             edge_meshlets_map[e].iter().for_each(|v| {
                                 if *v == info.meshlet_index as usize {
-                                    println!("Shared edge for {} is {:?}", i, e);
+                                    println!("Shared edge for {i} is {e:?}");
                                 }
                             });
                         });
@@ -254,7 +219,6 @@ fn fill_with_info_and_adjacency(
     }
 }
 
-#[allow(dead_code)]
 pub fn group_meshlets_with_metis(meshlets_info: &[MeshletAdjacency]) -> Vec<Vec<u32>> {
     let mut xadj = Vec::new();
     let mut adjncy = Vec::new();
@@ -270,13 +234,17 @@ pub fn group_meshlets_with_metis(meshlets_info: &[MeshletAdjacency]) -> Vec<Vec<
     });
     xadj.push(adjncy.len() as i32);
 
-    let num_groups =
-        (meshlets_info.len() as f32 / (MESHLETS_GROUP_SIZE - 1) as f32).ceil() as usize;
+    let num_groups = meshlets_info.len().div_ceil(MESHLETS_GROUP_SIZE);
     let mut meshlets_groups = Vec::new();
     if let Ok(graph) = metis::Graph::new(1, num_groups as _, &xadj, &adjncy) {
         let mut part = vec![0; meshlets_info.len()];
 
-        if let Ok(_result) = graph.set_adjwgt(&adjwgt).part_kway(&mut part) {
+        if let Ok(_result) = graph
+            .set_option(metis::option::Seed(12))
+            .set_option(metis::option::UFactor(100))
+            .set_adjwgt(&adjwgt)
+            .part_kway(&mut part)
+        {
             for group_index in 0..num_groups {
                 let mut group = Vec::new();
                 part.iter().enumerate().for_each(|(i, &v)| {

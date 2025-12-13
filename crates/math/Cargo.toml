@@ -13,4 +13,3 @@ crate-type = ["lib"]
 
 [dependencies]
 cgmath = { workspace = true }
-rand = { workspace = true }

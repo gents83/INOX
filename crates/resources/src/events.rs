@@ -81,7 +81,7 @@ where
 #[derive(Clone)]
 pub enum SerializableResourceEvent<T>
 where
-    T: SerializableResource + ?Sized,
+    T: SerializableResource,
 {
     Load(PathBuf, Option<OnCreateData<T>>),
 }

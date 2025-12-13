@@ -1,6 +1,7 @@
 use std::{
     path::{Path, PathBuf},
     process,
+    sync::atomic::{AtomicU32, Ordering},
 };
 
 use inox_filesystem::{delete_file, library, Library};
@@ -14,7 +15,6 @@ use crate::{
 };
 
 pub static IN_USE_PREFIX: &str = "in_use";
-static mut UNIQUE_LIB_INDEX: u32 = 0;
 
 pub struct PluginData {
     lib: Box<Library>,
@@ -31,6 +31,7 @@ unsafe impl Sync for PluginData {}
 pub struct PluginManager {
     dynamic_plugins: Vec<PluginData>,
     static_plugins: Vec<PluginHolder>,
+    unique_lib_index: AtomicU32,
 }
 
 impl PluginManager {
@@ -84,26 +85,24 @@ impl PluginManager {
         None
     }
 
-    fn compute_dynamic_name(lib_path: &Path) -> PathBuf {
-        unsafe {
-            let (path, filename) = library::compute_folder_and_filename(lib_path);
-            let mut in_use_filename =
-                format!("{}__{}_{}_", IN_USE_PREFIX, process::id(), UNIQUE_LIB_INDEX);
-            in_use_filename.push_str(filename.to_str().unwrap());
-            UNIQUE_LIB_INDEX += 1;
-            let in_use_path = path.join(IN_USE_PREFIX);
-            if !in_use_path.exists() {
-                let res = std::fs::create_dir_all(in_use_path.clone());
-                if res.is_err() {
-                    eprintln!(
-                        "Folder creation failed {:?} - unable to create in_use folder {}",
-                        res.err(),
-                        in_use_path.to_str().unwrap(),
-                    );
-                }
+    fn compute_dynamic_name(&mut self, lib_path: &Path) -> PathBuf {
+        let (path, filename) = library::compute_folder_and_filename(lib_path);
+        let unique_index = self.unique_lib_index.fetch_add(1, Ordering::SeqCst);
+        let in_use_dir =
+            path.join(IN_USE_PREFIX)
+                .join(format!("{}_{}", process::id(), unique_index));
+
+        if !in_use_dir.exists() {
+            let res = std::fs::create_dir_all(&in_use_dir);
+            if let Err(e) = res {
+                eprintln!(
+                    "Folder creation failed {:?} - unable to create in_use folder {}",
+                    e,
+                    in_use_dir.to_str().unwrap(),
+                );
             }
-            in_use_path.join(in_use_filename)
         }
+        in_use_dir.join(filename)
     }
 
     fn load_dynamic_plugin(
@@ -130,7 +129,7 @@ impl PluginManager {
         (lib, None)
     }
 
-    pub fn create_plugin_data(lib_path: &Path, context: &ContextRc) -> PluginData {
+    pub fn create_plugin_data(&mut self, lib_path: &Path, context: &ContextRc) -> PluginData {
         let (path, filename) = library::compute_folder_and_filename(lib_path);
         let fullpath = path.join(filename);
         if !fullpath.exists() && fullpath.is_file() {
@@ -139,7 +138,7 @@ impl PluginManager {
                 fullpath.to_str().unwrap()
             );
         }
-        let mut in_use_fullpath = PluginManager::compute_dynamic_name(fullpath.as_path());
+        let mut in_use_fullpath = self.compute_dynamic_name(fullpath.as_path());
         let res = std::fs::copy(fullpath.clone(), in_use_fullpath.clone());
         if res.is_err() {
             eprintln!(
@@ -148,7 +147,13 @@ impl PluginManager {
                 in_use_fullpath.to_str().unwrap(),
                 fullpath.to_str().unwrap(),
             );
-            in_use_fullpath = fullpath.clone();
+            in_use_fullpath.clone_from(&fullpath);
+        } else {
+            let pdb_path = fullpath.with_extension("pdb");
+            if pdb_path.exists() {
+                let in_use_pdb_path = in_use_fullpath.with_extension("pdb");
+                let _ = std::fs::copy(pdb_path, in_use_pdb_path);
+            }
         }
 
         let (lib, plugin_holder) =
@@ -210,7 +215,14 @@ impl PluginManager {
         );
         */
 
-        delete_file(in_use_path);
+        let in_use_pdb_path = in_use_path.with_extension("pdb");
+        if in_use_pdb_path.exists() {
+            delete_file(in_use_pdb_path);
+        }
+        delete_file(in_use_path.clone());
+        if let Some(parent) = in_use_path.parent() {
+            let _ = std::fs::remove_dir(parent);
+        }
     }
 
     pub fn update(&mut self) -> Vec<PluginId> {

@@ -1,10 +1,9 @@
 use crate::exporter::Exporter;
 use inox_resources::Singleton;
-use inox_serialize::inox_serializable::SerializableRegistryRc;
 use pyo3::prelude::PyAnyMethods;
 use pyo3::{pyclass, pymethods, PyResult, Python};
 
-use inox_binarizer::Binarizer;
+use inox_binarizer::{Binarizer, BinarizerParameters};
 use inox_core::App;
 use inox_filesystem::EXE_PATH;
 use inox_nodes::{LogicNodeRegistry, NodeType};
@@ -64,10 +63,16 @@ impl INOXEngine {
 
         let mut app = App::default();
 
+        let info = BinarizerParameters {
+            should_end_on_completion: AtomicBool::new(true),
+            optimize_meshes: AtomicBool::new(true),
+            ..Default::default()
+        };
         let mut binarizer = Binarizer::new(
             app.context(),
             working_dir.join(DATA_RAW_FOLDER),
             working_dir.join(DATA_FOLDER),
+            &info,
         );
         binarizer.stop();
 
@@ -179,25 +184,19 @@ impl INOXEngine {
 
         let registry = LogicNodeRegistry::get(data);
 
-        registry.for_each_node(|node, serializable_registry| {
-            add_node_in_blender(node, serializable_registry, py)
-        });
+        registry.for_each_node(|node| add_node_in_blender(node, py));
         Ok(true)
     }
 }
 
-fn add_node_in_blender(
-    node: &dyn NodeType,
-    serializable_registry: &SerializableRegistryRc,
-    py: Python,
-) {
+fn add_node_in_blender(node: &dyn NodeType, py: Python) {
     let node_name = node.name();
     let category = node.category();
     let base_class = "LogicNodeBase";
     let description = node.description();
-    let serialized_class = node.serialize_node(serializable_registry.clone());
+    let serialized_class = node.serialize_node();
 
-    py.import_bound("INOX")
+    py.import("INOX")
         .unwrap()
         .getattr("node_tree")
         .unwrap()

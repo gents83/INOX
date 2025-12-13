@@ -1,10 +1,11 @@
 use std::path::PathBuf;
 
 use inox_render::{
-    BindingData, BindingInfo, CommandBuffer, ConstantDataRw, DrawCommandType, DrawCommandsBuffer,
-    GPURuntimeVertexData, GPUVertexIndices, IndicesBuffer, MeshFlags, Pass, RenderContext,
-    RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
-    RuntimeVerticesBuffer, ShaderStage, StoreOperation, Texture, TextureView, VextexBindingType,
+    platform::has_primitive_index_support, BindingData, BindingFlags, BindingInfo, CommandBuffer,
+    ConstantDataRw, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet,
+    GPUPrimitiveIndices, GPUTransform, GPUVector, GPUVertexIndices, GPUVertexPosition, Pass,
+    RenderContext, RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
+    ShaderStage, StoreOperation, Texture, TextureView, VextexBindingType, INSTANCE_DATA_ID,
 };
 
 use inox_core::ContextRc;
@@ -18,9 +19,14 @@ pub struct VisibilityBufferPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    indices: IndicesBuffer,
-    commands_buffers: DrawCommandsBuffer,
-    runtime_vertices: RuntimeVerticesBuffer,
+    indices: GPUBuffer<GPUVertexIndices>,
+    primitive_indices: GPUBuffer<GPUPrimitiveIndices>,
+    meshes: GPUBuffer<GPUMesh>,
+    meshlets: GPUBuffer<GPUMeshlet>,
+    transforms: GPUVector<GPUTransform>,
+    instances: GPUVector<GPUInstance>,
+    commands: GPUVector<DrawIndexedCommand>,
+    vertices_position: GPUBuffer<GPUVertexPosition>,
 }
 unsafe impl Send for VisibilityBufferPass {}
 unsafe impl Sync for VisibilityBufferPass {}
@@ -32,14 +38,8 @@ impl Pass for VisibilityBufferPass {
     fn static_name() -> &'static str {
         VISIBILITY_BUFFER_PASS_NAME
     }
-    fn is_active(&self, render_context: &RenderContext) -> bool {
-        render_context.has_commands(&self.draw_commands_type(), &self.mesh_flags())
-    }
-    fn mesh_flags(&self) -> MeshFlags {
-        MeshFlags::Visible | MeshFlags::Opaque
-    }
-    fn draw_commands_type(&self) -> DrawCommandType {
-        DrawCommandType::PerMeshlet
+    fn is_active(&self, _render_context: &RenderContext) -> bool {
+        true
     }
     fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where
@@ -66,46 +66,141 @@ impl Pass for VisibilityBufferPass {
             ),
             binding_data: BindingData::new(render_context, VISIBILITY_BUFFER_PASS_NAME),
             constant_data: render_context.global_buffers().constant_data.clone(),
-            indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
-            commands_buffers: render_context.global_buffers().draw_commands.clone(),
-            runtime_vertices: render_context
+            vertices_position: render_context
                 .global_buffers()
-                .buffer::<GPURuntimeVertexData>(),
+                .buffer::<GPUVertexPosition>(),
+            indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
+            primitive_indices: render_context
+                .global_buffers()
+                .buffer::<GPUPrimitiveIndices>(),
+            meshes: render_context.global_buffers().buffer::<GPUMesh>(),
+            meshlets: render_context.global_buffers().buffer::<GPUMeshlet>(),
+            transforms: render_context.global_buffers().vector::<GPUTransform>(),
+            instances: render_context
+                .global_buffers()
+                .vector_with_id::<GPUInstance>(INSTANCE_DATA_ID),
+            commands: render_context
+                .global_buffers()
+                .vector::<DrawIndexedCommand>(),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("visibility_buffer_pass::init");
 
+        let commands_count = self.commands.read().unwrap().len();
+        if self.transforms.read().unwrap().is_empty() || commands_count == 0 {
+            return;
+        }
+
         let mut pass = self.render_pass.get_mut();
 
-        let mut command_buffers = self.commands_buffers.write().unwrap();
-        let commands = command_buffers.entry(self.mesh_flags()).or_default();
-
         self.binding_data
-            .add_uniform_buffer(
+            .add_buffer(
                 &mut *self.constant_data.write().unwrap(),
                 Some("ConstantData"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 0,
                     stage: ShaderStage::Vertex,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
+                    ..Default::default()
+                },
+            )
+            .add_buffer(
+                &mut *self.transforms.write().unwrap(),
+                Some("Transforms"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 1,
+                    stage: ShaderStage::Vertex,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
             .set_vertex_buffer(
                 VextexBindingType::Vertex,
-                &mut *self.runtime_vertices.write().unwrap(),
-                Some("Runtime Vertices"),
+                &mut *self.vertices_position.write().unwrap(),
+                Some("Vertices Position"),
             )
-            .set_index_buffer(&mut *self.indices.write().unwrap(), Some("Indices"))
-            .bind_render_commands(commands, Some("Commands"));
+            .set_vertex_buffer(
+                VextexBindingType::Instance,
+                &mut *self.instances.write().unwrap(),
+                Some("Instances"),
+            )
+            .add_buffer(
+                &mut *self.commands.write().unwrap(),
+                Some("Commands"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 2,
+                    stage: ShaderStage::Vertex,
+                    flags: BindingFlags::Storage | BindingFlags::Read | BindingFlags::Indirect,
+                    count: Some(commands_count),
+                },
+            );
 
-        let vertex_layout = GPURuntimeVertexData::descriptor(0);
+        if has_primitive_index_support() {
+            self.binding_data
+                .set_index_buffer(&mut *self.indices.write().unwrap(), Some("Indices"));
+        } else {
+            self.binding_data
+                .set_index_buffer(
+                    &mut *self.primitive_indices.write().unwrap(),
+                    Some("Primitive Indices"),
+                )
+                .add_buffer(
+                    &mut *self.vertices_position.write().unwrap(),
+                    Some("Vertices Position"),
+                    BindingInfo {
+                        group_index: 0,
+                        binding_index: 3,
+                        stage: ShaderStage::Vertex,
+                        flags: BindingFlags::Storage | BindingFlags::Read,
+                        ..Default::default()
+                    },
+                )
+                .add_buffer(
+                    &mut *self.indices.write().unwrap(),
+                    Some("Indices"),
+                    BindingInfo {
+                        group_index: 0,
+                        binding_index: 4,
+                        stage: ShaderStage::Vertex,
+                        flags: BindingFlags::Storage | BindingFlags::Read,
+                        ..Default::default()
+                    },
+                )
+                .add_buffer(
+                    &mut *self.meshes.write().unwrap(),
+                    Some("Meshes"),
+                    BindingInfo {
+                        group_index: 0,
+                        binding_index: 5,
+                        stage: ShaderStage::Vertex,
+                        flags: BindingFlags::Storage | BindingFlags::Read,
+                        ..Default::default()
+                    },
+                )
+                .add_buffer(
+                    &mut *self.meshlets.write().unwrap(),
+                    Some("Meshlets"),
+                    BindingInfo {
+                        group_index: 0,
+                        binding_index: 6,
+                        stage: ShaderStage::Vertex,
+                        flags: BindingFlags::Storage | BindingFlags::Read,
+                        ..Default::default()
+                    },
+                );
+        }
+
+        let vertex_layout = GPUVertexPosition::descriptor(0);
+        let instance_layout = GPUInstance::descriptor(vertex_layout.location());
         pass.init(
             render_context,
             &mut self.binding_data,
             Some(vertex_layout),
-            None,
+            Some(instance_layout),
         );
     }
     fn update(
@@ -121,9 +216,13 @@ impl Pass for VisibilityBufferPass {
         if !pipeline.is_initialized() {
             return;
         }
+
+        if self.transforms.read().unwrap().is_empty() || self.commands.read().unwrap().is_empty() {
+            return;
+        }
+
         let buffers = render_context.buffers();
         let render_targets = render_context.texture_handler().render_targets();
-        let draw_commands_type = self.draw_commands_type();
 
         let render_pass_begin_data = RenderPassBeginData {
             render_core_context: &render_context.webgpu,
@@ -132,6 +231,7 @@ impl Pass for VisibilityBufferPass {
             surface_view,
             command_buffer,
         };
+        #[allow(unused_mut)]
         let mut render_pass = pass.begin(&mut self.binding_data, &pipeline, render_pass_begin_data);
         {
             inox_profiler::gpu_scoped_profile!(
@@ -139,7 +239,7 @@ impl Pass for VisibilityBufferPass {
                 &render_context.webgpu.device,
                 "visibility_pass",
             );
-            pass.indirect_indexed_draw(render_context, draw_commands_type, render_pass);
+            pass.indirect_draw(render_context, &self.commands, render_pass);
         }
     }
 }

@@ -10,9 +10,9 @@ use inox_resources::{Resource, ResourceTrait, SharedDataRc};
 
 use crate::{
     platform::{platform_limits, required_gpu_features, setup_env},
-    BindingDataBuffer, BindingDataBufferRc, BufferId, BufferRef, ComputePipeline, DrawCommandType,
-    GlobalBuffers, Material, MeshFlags, Pass, RenderPass, RenderPipeline, Texture, TextureFormat,
-    TextureHandler, TextureHandlerRc, TextureId, TextureUsage, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    BindingDataBuffer, BindingDataBufferRc, BufferId, BufferRef, ComputePipeline, GlobalBuffers,
+    Material, Pass, RenderPass, RenderPipeline, Texture, TextureFormat, TextureHandler,
+    TextureHandlerRc, TextureId, TextureUsage, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 const USE_FORCED_VULKAN: bool = false;
@@ -116,24 +116,33 @@ impl RenderContext {
         self.webgpu.new_command_buffer()
     }
 
+    pub fn mark_as_dirty(&self, buffer_id: BufferId) {
+        self.binding_data_buffer.mark_buffer_as_changed(buffer_id);
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
-    fn log_adapters(instance: &wgpu::Instance, backends: &wgpu::Backends) {
+    async fn log_adapters(instance: &wgpu::Instance, backends: &wgpu::Backends) {
         use wgpu::Adapter;
 
-        let all_adapters = instance.enumerate_adapters(*backends);
+        let all_adapters = instance.enumerate_adapters(*backends).await;
         let mut available_adapters: Vec<Adapter> = Vec::new();
-        all_adapters.into_iter().for_each(|a| {
+        for a in all_adapters {
             if !available_adapters
                 .iter()
                 .any(|ad| ad.get_info().name == a.get_info().name)
             {
                 available_adapters.push(a);
             }
-        });
+        }
         inox_log::debug_log!("Available adapters:");
         available_adapters.into_iter().for_each(|a| {
             inox_log::debug_log!("{}", a.get_info().name);
         });
+    }
+
+    fn default_error_handler(err: wgpu::Error) {
+        println!("Handling wgpu errors as fatal by default");
+        panic!("wgpu error: {err}\n");
     }
 
     pub async fn create_render_context(handle: Handle, context: &ContextRc) -> Self {
@@ -149,49 +158,48 @@ impl RenderContext {
             } else {
                 wgpu::Backends::all()
             };
-            #[allow(unused_assignments)]
+            #[allow(unused_assignments, unused_mut)]
             let mut flags = wgpu::InstanceFlags::empty();
             #[cfg(not(target_arch = "wasm32"))]
             #[cfg(debug_assertions)]
             {
                 flags = wgpu::InstanceFlags::debugging();
             }
-            let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            let instance_descriptor = wgpu::InstanceDescriptor {
                 backends,
                 flags,
+                backend_options: wgpu::BackendOptions::from_env_or_default(),
                 ..Default::default()
-            });
+            };
+            let instance = wgpu::Instance::new(&instance_descriptor);
             let surface = Self::create_surface(&instance, handle.clone());
 
             #[cfg(not(target_arch = "wasm32"))]
-            Self::log_adapters(&instance, &backends);
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::log_adapters(&instance, &backends).await;
 
             let adapter =
                 wgpu::util::initialize_adapter_from_env_or_default(&instance, Some(&surface))
                     .await
                     .expect("No suitable GPU adapters found on the system!");
             let (device, queue) = adapter
-                .request_device(
-                    &wgpu::DeviceDescriptor {
-                        label: None,
-                        required_features: required_gpu_features(),
-                        required_limits: platform_limits(),
-                    },
-                    // Some(&std::path::Path::new("trace")), // Trace path
-                    None,
-                )
+                .request_device(&wgpu::DeviceDescriptor {
+                    label: None,
+                    required_features: required_gpu_features(),
+                    required_limits: platform_limits(),
+                    memory_hints: wgpu::MemoryHints::Performance,
+                    trace: wgpu::Trace::Off,
+                    experimental_features: wgpu::ExperimentalFeatures::default(),
+                })
                 .await
                 .unwrap();
 
-            device.on_uncaptured_error(Box::new(|e| {
-                println!("WGPU Error :{}", e);
-            }));
+            device.on_uncaptured_error(Arc::new(Self::default_error_handler));
             (instance, surface, adapter, device, queue)
         };
 
         inox_log::debug_log!("Using {:?}", adapter.get_info());
 
-        let capabilities = surface.get_capabilities(&adapter);
         let format = wgpu::TextureFormat::Bgra8Unorm;
 
         inox_log::debug_log!("Format {:?}", format);
@@ -203,15 +211,13 @@ impl RenderContext {
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
             present_mode: wgpu::PresentMode::AutoNoVsync,
-            alpha_mode: *capabilities.alpha_modes.first().unwrap(),
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
             desired_maximum_frame_latency: 2,
         };
 
         //debug_log!("Surface format: {:?}", config.format);
         surface.configure(&device, &config);
         let _ = surface.get_current_texture();
-
-        inox_profiler::create_gpu_profiler!();
 
         let webgpu = WebGpuContext {
             instance,
@@ -237,35 +243,16 @@ impl RenderContext {
         }
     }
 
-    pub fn has_commands(
-        &self,
-        draw_command_type: &DrawCommandType,
-        mesh_flags: &MeshFlags,
-    ) -> bool {
-        if let Some(commands) = self
-            .global_buffers
-            .draw_commands
-            .read()
-            .unwrap()
-            .get(mesh_flags)
-        {
-            if let Some(entry) = commands.map.get(draw_command_type) {
-                return !entry.commands.is_empty();
-            }
-        }
-        false
-    }
-
     pub fn resolution(&self) -> (u32, u32) {
         let config = self.webgpu.config.read().unwrap();
         (config.width, config.height)
     }
 
-    pub fn buffers(&self) -> RwLockReadGuard<HashMap<BufferId, BufferRef>> {
+    pub fn buffers(&self) -> RwLockReadGuard<'_, HashMap<BufferId, BufferRef>> {
         self.binding_data_buffer.buffers.read().unwrap()
     }
 
-    pub fn buffers_mut(&self) -> RwLockWriteGuard<HashMap<BufferId, BufferRef>> {
+    pub fn buffers_mut(&self) -> RwLockWriteGuard<'_, HashMap<BufferId, BufferRef>> {
         self.binding_data_buffer.buffers.write().unwrap()
     }
 
@@ -315,13 +302,13 @@ impl RenderContext {
         let format = texture.get().format();
         let usage = texture.get().usage();
         let sample_count = texture.get().sample_count();
+        let mips_count = texture.get().mips_count();
         let index = self.texture_handler.add_render_target(
             &self.webgpu.device,
             texture_id,
-            (width, height),
+            (width, height, sample_count, mips_count),
             format,
             usage,
-            sample_count,
         );
         index as _
     }
@@ -333,7 +320,9 @@ impl RenderContext {
                 && texture.get().width() > 0
                 && texture.get().height() > 0
             {
-                if texture.get().usage().contains(TextureUsage::RenderTarget) {
+                if texture.get().usage().contains(TextureUsage::RenderTarget)
+                    || texture.get().usage().contains(TextureUsage::StorageBinding)
+                {
                     let uniform_index = self.add_render_target(&texture);
                     texture.get_mut().set_texture_index(uniform_index);
                 } else if self.texture_handler.texture_info(texture_id).is_none() {
@@ -371,8 +360,8 @@ impl RenderContext {
 
     pub fn submit_command_buffer(&self) {
         inox_profiler::scoped_profile!("renderer::submit_command_buffer");
+        #[allow(unused_mut)]
         if let Some(mut command_buffer) = self.command_buffer.write().unwrap().take() {
-            self.binding_data_buffer.reset_buffers_changed();
             {
                 inox_profiler::gpu_profiler_pre_submit!(&mut command_buffer.encoder);
                 self.webgpu.submit(command_buffer);
@@ -437,20 +426,16 @@ impl RenderContext {
 
     pub fn create_render_target(
         &self,
-        width: u32,
-        height: u32,
+        texture_data: (u32, u32, u32, u32, u32),
         format: TextureFormat,
         usage: TextureUsage,
-        sample_count: u32,
     ) -> usize {
         let texture = Texture::create_from_format(
             &self.shared_data,
             &self.message_hub,
-            width,
-            height,
+            texture_data,
             format,
             usage,
-            sample_count,
         );
         let mut render_targets = self.render_targets.write().unwrap();
         render_targets.push(texture);
@@ -488,7 +473,7 @@ impl RenderContext {
             }
         }
     }
-    pub fn passes(&self) -> RwLockReadGuard<Vec<(Box<dyn Pass>, bool)>> {
+    pub fn passes(&self) -> RwLockReadGuard<'_, Vec<(Box<dyn Pass>, bool)>> {
         self.passes.read().unwrap()
     }
 
@@ -516,6 +501,7 @@ impl RenderContext {
                 }
             });
         }
+        self.binding_data_buffer().clear_buffers_changed();
         self.set_command_buffer(command_buffer);
     }
 }

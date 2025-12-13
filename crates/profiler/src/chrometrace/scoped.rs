@@ -1,4 +1,4 @@
-use crate::{get_cpu_profiler, GlobalCpuProfiler, THREAD_PROFILER};
+use crate::{GlobalCpuProfiler, GLOBAL_CPU_PROFILER, THREAD_PROFILER};
 
 pub struct ScopedProfile {
     profiler: GlobalCpuProfiler,
@@ -24,7 +24,7 @@ impl Drop for ScopedProfile {
         let time_end = self.profiler.get_elapsed_time();
         THREAD_PROFILER.with(|profiler| {
             if profiler.borrow().is_none() {
-                let thread_profiler = get_cpu_profiler().current_thread_profiler();
+                let thread_profiler = GLOBAL_CPU_PROFILER.current_thread_profiler();
                 *profiler.borrow_mut() = Some(thread_profiler);
             }
             profiler.borrow().as_ref().unwrap().push_sample(

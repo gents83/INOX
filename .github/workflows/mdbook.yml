@@ -3,7 +3,7 @@ name: "Publish documentation on Github Pages"
 on:
   workflow_run:
     workflows: ["Deploy on Github Pages"]
-    branches: [master]
+    branches: [master, instancing_rework]
     types:
       - completed
     
@@ -14,7 +14,7 @@ jobs:
       group: ${{ github.workflow }}-${{ github.ref }}
     steps:
       - name: "Checkout repository"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: "Setup mdBook"
         uses: peaceiris/actions-mdbook@v1

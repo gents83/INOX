@@ -16,7 +16,7 @@ impl<'a> Raster<'a> {
     }
 
     pub fn draw_line(&mut self, p0: Vector2, p1: Vector2) {
-        if (p0.y - p1.y).abs() <= core::f32::EPSILON {
+        if (p0.y - p1.y).abs() <= f32::EPSILON {
             return;
         }
         let (dir, p0, p1) = if p0.y < p1.y {

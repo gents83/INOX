@@ -7,11 +7,9 @@ repository.workspace = true
 keywords.workspace = true
 license.workspace = true
 
-[lib]
-crate-type = ["bin"]
 
 [features]
-dhat-heap = []    # if you are doing heap profiling
+dhat-heap = [] # if you are doing heap profiling
 
 [dependencies]
 inox_resources = { path = "../resources" }
@@ -25,6 +23,8 @@ inox_messenger = { path = "../messenger" }
 inox_platform = { path = "../platform" }
 inox_profiler = { path = "../profiler" }
 inox_serialize = { path = "../serialize" }
+env_logger = { workspace = true }
+tracing = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 dhat = "0.3.2"
@@ -33,5 +33,3 @@ dhat = "0.3.2"
 wasm-bindgen = { workspace = true }
 web-sys = { workspace = true }
 js-sys = { workspace = true }
-inox_common_script = { path = "../plugins/common_script" }
-inox_viewer = { path = "../plugins/viewer" }

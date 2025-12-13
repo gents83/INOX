@@ -3,6 +3,7 @@
 
 struct CullingData {
     view: mat4x4<f32>,
+    inverse_view_proj: mat4x4<f32>,
     mesh_flags: u32,
     lod0_meshlets_count: u32,
     _padding1: u32,
@@ -16,118 +17,174 @@ var<uniform> culling_data: CullingData;
 @group(0) @binding(2)
 var<storage, read> meshlets: Meshlets;
 @group(0) @binding(3)
-var<storage, read> meshes: Meshes;
+var<storage, read> bvh: BVH; //unused
 @group(0) @binding(4)
-var<storage, read> bhv: BHV;
+var<storage, read> transforms: Transforms;
 @group(0) @binding(5)
-var<storage, read_write> meshlets_lod_level: array<atomic<u32>>;
+var<storage, read_write> instances: Instances;
+@group(0) @binding(6)
+var<storage, read_write> commands_data: array<atomic<i32>>;
+@group(0) @binding(7)
+var<storage, read_write> commands: DrawIndexedCommands;
+
+@group(1) @binding(0)
+var<storage, read_write> active_instances: Instances;
+@group(1) @binding(1)
+var<storage, read_write> meshlet_counts: array<atomic<u32>>;
+@group(1) @binding(2) 
+var texture_hzb: texture_2d<f32>;
+@group(1) @binding(3)
+var default_sampler: sampler;
 
 #import "matrix_utils.inc"
 #import "geom_utils.inc"
 
-//ScreenSpace Frustum Culling
-fn is_box_inside_frustum(min: vec3<f32>, max: vec3<f32>, frustum: array<vec4<f32>, 4>) -> bool {
-    var visible: bool = false;    
-    var points: array<vec3<f32>, 8>;
-    points[0] = min;
-    points[1] = max;
-    points[2] = vec3<f32>(min.x, min.y, max.z);
-    points[3] = vec3<f32>(min.x, max.y, max.z);
-    points[4] = vec3<f32>(min.x, max.y, min.z);
-    points[5] = vec3<f32>(max.x, min.y, min.z);
-    points[6] = vec3<f32>(max.x, max.y, min.z);
-    points[7] = vec3<f32>(max.x, min.y, max.z);
-      
-    var f = frustum;
-    for(var i = 0; !visible && i < 4; i = i + 1) {  
-        for(var p = 0; !visible && p < 8; p = p + 1) {        
-            visible = visible || !(dot(f[i].xyz, points[p]) + f[i].w <= 0.);
+fn obb_vs_frustum(obb_min: vec3<f32>, obb_max: vec3<f32>, proj: mat4x4<f32>, view: mat4x4<f32>) -> bool {
+    let planes = extract_frustum_planes(proj, view);
+    for (var i = 0u; i < 6u; i++) {
+        let plane = planes[i];
+        let normal = plane.xyz;
+        let distance = plane.w;
+
+        // Optimized positive vertex calculation
+        let positive_x = select(obb_max.x, obb_min.x, normal.x < 0.0);
+        let positive_y = select(obb_max.y, obb_min.y, normal.y < 0.0);
+        let positive_z = select(obb_max.z, obb_min.z, normal.z < 0.0);
+        let positive_vertex = vec3<f32>(positive_x, positive_y, positive_z);
+
+        if (dot(positive_vertex, normal) + distance < 0.0) {
+            return false;
         }
-    }   
-    return visible;
+    }
+    return true;
+}
+
+fn transform_sphere(sphere: vec4<f32>, transform: mat4x4<f32>) -> vec4<f32> {
+    let center = transform * vec4<f32>(sphere.xyz, 1.);
+    let p = center.xyz / center.w;
+    let v = transform * vec4<f32>(sphere.w, 0., 0., 0.);
+    let l = length(v.xyz);
+    return vec4<f32>(p, l);
+}
+
+fn is_infinite(value: f32) -> bool {
+    let BIG_VALUE: f32 = 1e30f; // Adjust as needed
+    return abs(value) > BIG_VALUE;
+}
+
+fn project_error_to_screen(sphere: vec4<f32>, fov: f32) -> f32 {
+    // https://stackoverflow.com/questions/21648630/radius-of-projected-sphere-in-screen-space
+    if (is_infinite(sphere.w)) {
+        return sphere.w;
+    }
+    let cot_half_fov = 1. / tan(fov * 0.5);
+    let d2 = dot(sphere.xyz, sphere.xyz);
+    let r = sphere.w;
+    let projected_radius = (constant_data.screen_height * cot_half_fov * r / sqrt(d2 - r * r));
+    return projected_radius;
+}
+
+// https://github.com/zeux/meshoptimizer/blob/1e48e96c7e8059321de492865165e9ef071bffba/demo/nanite.cpp#L115
+fn compute_bounds_error(sphere: vec4<f32>, error: f32, position: vec3<f32>, orientation: vec4<f32>, scale: vec3<f32>) -> f32 {
+    let model_transform = transform_matrix(position, orientation, scale);
+    let world_scale = max(scale.x, max(scale.y, scale.z));
+    let sphere_world_space = (model_transform * vec4(sphere.xyz, 1.0)).xyz;
+    let radius_world_space = world_scale * sphere.w;
+
+    var view_pos = culling_data.inverse_view_proj * vec4<f32>(0., 0., 0.,1.);
+    view_pos /= view_pos.w;
+    let dir = sphere_world_space - view_pos.xyz;
+    let distance = length(dir) - radius_world_space;
+    let distance_clamped_to_znear = max(distance, constant_data.camera_near);
+	let proj = 1.f / tan(constant_data.camera_fov * 0.5f);
+    
+    return (error / distance_clamped_to_znear) * proj * 0.5 * constant_data.screen_height;
+}
+
+fn is_lod_visible(meshlet: Meshlet, position: vec3<f32>, orientation: vec4<f32>, scale: vec3<f32>, fov: f32) -> bool {
+    if (constant_data.forced_lod_level >= 0) {
+        let desired_lod_level = MAX_LOD_LEVELS - 1u - u32(constant_data.forced_lod_level);
+        return meshlet.lod_level == desired_lod_level;
+    }
+    let lod_error = compute_bounds_error(meshlet.bounding_sphere, meshlet.group_error, position, orientation, scale);
+    let parent_error = compute_bounds_error(meshlet.parent_bounding_sphere, meshlet.parent_error, position, orientation, scale);
+    if (lod_error <= 1. && parent_error > 1.) {
+        return true;
+    }
+    return false;
+}
+
+fn is_occluded(aabb_min: vec3<f32>, aabb_max: vec3<f32>, view_proj: mat4x4<f32>) -> bool {
+    let proj_min = view_proj * vec4<f32>(aabb_min, 1.0);
+    let proj_max = view_proj * vec4<f32>(aabb_max, 1.0);
+    var ndc_min = proj_min.xyz / proj_min.w;
+    var ndc_max = proj_max.xyz / proj_max.w;
+    ndc_min = min(ndc_min, ndc_max);
+    ndc_max = max(ndc_min, ndc_max);
+    if (ndc_max.z < 0.0 || ndc_min.z > 1.0 || 
+        any(ndc_max.xy < vec2<f32>(-1.0)) || any(ndc_min.xy > vec2<f32>(1.0))) {
+        return false; // Outside the view frustum
+    }
+
+    let clip_min = clip_to_normalized(ndc_min.xy);
+    let clip_max = clip_to_normalized(ndc_max.xy);
+    let width = (clip_max.x - clip_min.x) * constant_data.screen_width;
+    let height = (clip_max.y - clip_min.y) * constant_data.screen_height;
+    let mip_level = floor(0.5 * log2(max(width, height)));
+    var depth_values = vec4<f32>(0.);
+    depth_values.x = textureSampleLevel(texture_hzb, default_sampler, vec2<f32>(clip_min.x, clip_min.y), mip_level).r;
+    depth_values.y = textureSampleLevel(texture_hzb, default_sampler, vec2<f32>(clip_min.x, clip_max.y), mip_level).r;
+    depth_values.z = textureSampleLevel(texture_hzb, default_sampler, vec2<f32>(clip_max.x, clip_min.y), mip_level).r;
+    depth_values.w = textureSampleLevel(texture_hzb, default_sampler, vec2<f32>(clip_max.x, clip_max.y), mip_level).r;
+    let depth = max(max(depth_values.x, depth_values.y), max(depth_values.z, depth_values.w));
+    if (ndc_min.z > depth + 0.1) {
+        return true;
+    }
+    return false;
 }
 
 @compute
-@workgroup_size(32, 1, 1)
+@workgroup_size(256, 1, 1)
 fn main(
     @builtin(local_invocation_id) local_invocation_id: vec3<u32>, 
     @builtin(local_invocation_index) local_invocation_index: u32, 
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>, 
     @builtin(workgroup_id) workgroup_id: vec3<u32>
 ) {
-    let meshlet_id = global_invocation_id.x;
-    if (meshlet_id >= arrayLength(&meshlets.data)) {
+    let instance_id = global_invocation_id.x;
+    if (instance_id >= arrayLength(&active_instances.data)) {
         return;
     }
-
+     
+    let instance = active_instances.data[instance_id];
+    let transform = transforms.data[instance.transform_id];
+    let meshlet_id = instance.meshlet_id;
     let meshlet = meshlets.data[meshlet_id];
-    let mesh_id = meshlet.mesh_index_and_lod_level >> 3u;
-    let meshlet_lod_level = meshlet.mesh_index_and_lod_level & 7u;
-    var mesh = meshes.data[mesh_id];
-    let flags = (mesh.flags_and_vertices_attribute_layout & 0xFFFF0000u) >> 16u;
-    if (flags != culling_data.mesh_flags) {   
+    
+    let position = transform.position_scale_x.xyz;
+    let scale = vec3<f32>(transform.position_scale_x.w, transform.bb_min_scale_y.w, transform.bb_min_scale_y.w);
+    
+    if !is_lod_visible(meshlet, position, transform.orientation, scale, constant_data.camera_fov) {
         return;
     }
 
-    let bb_id = mesh.blas_index + meshlet.bvh_offset;
-    let bb = &bhv.data[bb_id];
-    let bb_max = transform_vector((*bb).max, mesh.position, mesh.orientation, mesh.scale);
-    let bb_min = transform_vector((*bb).min, mesh.position, mesh.orientation, mesh.scale);
-    let min = min(bb_min, bb_max);
-    let max = max(bb_min, bb_max);
-
-    let clip_mvp = constant_data.proj * culling_data.view;
-    let row0 = matrix_row(clip_mvp, 0u);
-    let row1 = matrix_row(clip_mvp, 1u);
-    let row3 = matrix_row(clip_mvp, 3u);
-    var frustum: array<vec4<f32>, 4>;
-    frustum[0] = normalize_plane(row3 + row0);
-    frustum[1] = normalize_plane(row3 - row0);
-    frustum[2] = normalize_plane(row3 + row1);
-    frustum[3] = normalize_plane(row3 - row1);
-    if !is_box_inside_frustum(min, max, frustum) {
+    let bb_min = transform_vector(meshlet.aabb_min, position, transform.orientation, scale);
+    let bb_max = transform_vector(meshlet.aabb_max, position, transform.orientation, scale);
+    let min_obb = min(bb_min, bb_max);
+    let max_obb = max(bb_min, bb_max);
+    if(!obb_vs_frustum(min_obb, max_obb, constant_data.proj, culling_data.view)) {
         return;
     }
 
-    //Evaluate screen occupancy to decide if lod is ok to use for this meshlet or to use childrens
-    var screen_lod_level = 0u;   
-    let f_max = f32(MAX_LOD_LEVELS);   
-
-    let ncd_min = clip_mvp * vec4<f32>(min, 1.);
-    let clip_min = ncd_min.xyz / ncd_min.w;
-    let screen_min = clip_to_normalized(clip_min.xy);
-    let ncd_max = clip_mvp * vec4<f32>(max, 1.);
-    let clip_max = ncd_max.xyz / ncd_max.w;
-    let screen_max = clip_to_normalized(clip_max.xy);
-    let screen_diff = max(screen_max, screen_min) - min(screen_max, screen_min);
-    let screen_occupancy = clamp(max(screen_diff.x, screen_diff.y), 0., 1.);  
-    screen_lod_level =  clamp(u32(screen_occupancy * f_max), 0u, MAX_LOD_LEVELS - 1u);
-
-    let center = min + (max-min) * 0.5;
-    let distance = length(view_pos() - center);
-    let distance_lod_level = MAX_LOD_LEVELS - 1u - clamp(u32(((distance * distance) / (constant_data.camera_far - constant_data.camera_near)) * f_max), 0u, MAX_LOD_LEVELS - 1u);
-
-    var desired_lod_level = max(distance_lod_level, screen_lod_level);
-
-    if (constant_data.forced_lod_level >= 0) {
-        desired_lod_level = MAX_LOD_LEVELS - 1u - u32(constant_data.forced_lod_level);
+    let view_proj = constant_data.proj * culling_data.view;
+    if is_occluded(min_obb, max_obb, view_proj) {
+        return;    
     }
 
-    if(meshlet_lod_level == desired_lod_level) {
-        atomicAnd(&meshlets_lod_level[meshlet_id], 0u);
-    }
-    else if(desired_lod_level == (meshlet_lod_level + 1u)) {
-        if(meshlet.child_meshlets.x >= 0) {
-            atomicAnd(&meshlets_lod_level[meshlet.child_meshlets.x], 0u);
-        }
-        if(meshlet.child_meshlets.y >= 0) {
-            atomicAnd(&meshlets_lod_level[meshlet.child_meshlets.y], 0u);
-        }
-        if(meshlet.child_meshlets.z >= 0) {
-            atomicAnd(&meshlets_lod_level[meshlet.child_meshlets.z], 0u);
-        }
-        if(meshlet.child_meshlets.w >= 0) {
-            atomicAnd(&meshlets_lod_level[meshlet.child_meshlets.w], 0u);
-        }
+    active_instances.data[instance_id].command_id = 0;
+    
+    let commands_count = arrayLength(&commands_data);
+    for(var i = meshlet_id; i < commands_count; i++) {
+        atomicAdd(&meshlet_counts[i], 1u);
     }
 }

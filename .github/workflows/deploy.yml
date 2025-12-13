@@ -3,7 +3,7 @@ name: "Deploy on Github Pages"
 on:
   workflow_run:
     workflows: ["Rust"]
-    branches: [master]
+    branches: [master, instancing_rework]
     types:
       - completed
 
@@ -16,13 +16,11 @@ jobs:
       #  uses: ahmadnassri/action-workflow-run-wait@v1
       
       - name: "Checkout repository"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       
       - name: "Download artifact"
-        uses: dawidd6/action-download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
-          workflow: rust.yml
-          workflow_conclusion: success
           name: output-binaries
           path: output/
 

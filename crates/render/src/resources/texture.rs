@@ -9,7 +9,6 @@ use inox_resources::{
     Data, DataTypeResource, Handle, Resource, ResourceEvent, ResourceId, ResourceTrait,
     SerializableResource, SharedData, SharedDataRc,
 };
-use inox_serialize::inox_serializable::SerializableRegistryRc;
 use inox_uid::{generate_random_uid, Uid, INVALID_UID};
 
 use crate::{
@@ -40,6 +39,7 @@ pub struct Texture {
     format: TextureFormat,
     usage: TextureUsage,
     sample_count: u32,
+    mips_count: u32,
     lut_id: Uid,
     update_from_gpu: bool,
 }
@@ -70,6 +70,7 @@ impl DataTypeResource for Texture {
             format: TextureFormat::Rgba8Unorm,
             usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
             sample_count: 1,
+            mips_count: 1,
             lut_id: INVALID_UID,
             update_from_gpu: false,
         }
@@ -94,6 +95,7 @@ impl DataTypeResource for Texture {
         } else {
             1
         };
+        texture.mips_count = data.mips_count;
         if let Some(image_data) = &data.data {
             texture.blocks_to_update = vec![TextureBlock {
                 x: 0,
@@ -120,11 +122,7 @@ impl SerializableResource for Texture {
         "png"
     }
 
-    fn deserialize_data(
-        path: &Path,
-        _registry: SerializableRegistryRc,
-        mut f: Box<dyn FnMut(Self::DataType) + 'static>,
-    ) {
+    fn deserialize_data(path: &Path, mut f: Box<dyn FnMut(Self::DataType) + 'static>) {
         let mut file = File::new(path);
         let filepath = path.to_path_buf();
         file.load(move |bytes| {
@@ -145,7 +143,9 @@ impl SerializableResource for Texture {
                         data: Some(image_data.into_rgba8().to_vec()),
                         usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
                         sample_count: if has_multisampling_support() { 8 } else { 1 },
+                        layer_count: 1,
                         is_LUT,
+                        mips_count: 1,
                     });
                 }
                 Err(e) => {
@@ -218,6 +218,9 @@ impl Texture {
     pub fn sample_count(&self) -> u32 {
         self.sample_count
     }
+    pub fn mips_count(&self) -> u32 {
+        self.mips_count
+    }
     #[allow(non_snake_case)]
     pub fn is_LUT(&self) -> bool {
         !self.lut_id.is_nil()
@@ -252,11 +255,9 @@ impl Texture {
     pub fn create_from_format(
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
-        width: u32,
-        height: u32,
+        texture_data: (u32, u32, u32, u32, u32),
         format: TextureFormat,
         usage: TextureUsage,
-        sample_count: u32,
     ) -> Resource<Texture> {
         let texture_id = generate_random_uid();
         let texture = Texture::create_from_data(
@@ -264,16 +265,18 @@ impl Texture {
             message_hub,
             texture_id,
             &TextureData {
-                width,
-                height,
+                width: texture_data.0,
+                height: texture_data.1,
                 format,
                 data: None,
                 usage,
                 sample_count: if has_multisampling_support() {
-                    sample_count
+                    texture_data.2
                 } else {
                     1
                 },
+                layer_count: texture_data.3,
+                mips_count: texture_data.4,
                 is_LUT: false,
             },
         );
@@ -323,7 +326,7 @@ impl Texture {
             | crate::TextureFormat::R32Sint
             | crate::TextureFormat::R32Float
             | crate::TextureFormat::Rgb10a2Unorm
-            | crate::TextureFormat::Rg11b10Float
+            | crate::TextureFormat::Rg11b10Ufloat
             | crate::TextureFormat::Depth32Float
             | crate::TextureFormat::Depth24PlusStencil8
             | crate::TextureFormat::Rgb9e5Ufloat => {

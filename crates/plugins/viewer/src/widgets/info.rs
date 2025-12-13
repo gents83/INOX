@@ -1,4 +1,4 @@
-use std::sync::atomic::Ordering;
+use std::{collections::HashMap, sync::atomic::Ordering};
 
 use inox_bvh::GPUBVHNode;
 use inox_core::ContextRc;
@@ -10,10 +10,10 @@ use inox_math::{
 use inox_messenger::Listener;
 use inox_platform::{MouseEvent, MouseState, WindowEvent};
 use inox_render::{
-    DrawEvent, GPULight, GPUMesh, Light, LightType, Mesh, MeshFlags, RenderContextRc,
+    DrawEvent, GPULight, Light, LightType, Mesh, MeshFlags, MeshId, RenderContextRc,
     CONSTANT_DATA_FLAGS_DISPLAY_BASE_COLOR, CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT,
     CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
-    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX, CONSTANT_DATA_FLAGS_DISPLAY_METALLIC,
+    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_LOD_LEVEL, CONSTANT_DATA_FLAGS_DISPLAY_METALLIC,
     CONSTANT_DATA_FLAGS_DISPLAY_NORMALS, CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE,
     CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_ROUGHNESS,
     CONSTANT_DATA_FLAGS_DISPLAY_TANGENT, CONSTANT_DATA_FLAGS_DISPLAY_UV_0,
@@ -21,7 +21,7 @@ use inox_render::{
     CONSTANT_DATA_FLAGS_DISPLAY_UV_3, CONSTANT_DATA_FLAGS_NONE, CONSTANT_DATA_FLAGS_USE_IBL,
     MAX_LOD_LEVELS,
 };
-use inox_resources::{Buffer, DataTypeResourceEvent, Resource, ResourceEvent};
+use inox_resources::{DataTypeResourceEvent, Resource, ResourceEvent};
 use inox_scene::{Camera, Object, ObjectId, Scene};
 use inox_ui::{implement_widget_data, ComboBox, DragValue, UIWidget, Window};
 use inox_uid::INVALID_UID;
@@ -30,16 +30,12 @@ use crate::events::{WidgetEvent, WidgetType};
 
 #[derive(Clone)]
 struct MeshInfo {
-    meshlets: Vec<MeshletInfo>,
-    matrix: Matrix4,
     flags: MeshFlags,
 }
 
 impl Default for MeshInfo {
     fn default() -> Self {
         Self {
-            meshlets: Vec::new(),
-            matrix: Matrix4::default_identity(),
             flags: MeshFlags::None,
         }
     }
@@ -94,13 +90,13 @@ struct Data {
     fov: Degrees,
     aspect_ratio: f32,
     selected_object_id: ObjectId,
+    meshes: HashMap<MeshId, MeshInfo>,
 }
 implement_widget_data!(Data);
 
 pub struct Info {
     ui_page: Resource<UIWidget>,
     listener: Listener,
-    meshes: Buffer<MeshInfo>,
 }
 
 impl Info {
@@ -115,7 +111,7 @@ impl Info {
         let data = Data {
             context: context.clone(),
             params,
-            use_orbit_camera: true,
+            use_orbit_camera: false,
             show_hierarchy: false,
             show_graphics: false,
             show_tlas: false,
@@ -127,6 +123,11 @@ impl Info {
             visualization_debug_selected: 0,
             visualization_debug_choices: vec![
                 (CONSTANT_DATA_FLAGS_NONE, "None"),
+                (CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS, "Meshlets"),
+                (
+                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_LOD_LEVEL,
+                    "Meshlets Lod Level",
+                ),
                 (CONSTANT_DATA_FLAGS_DISPLAY_BASE_COLOR, "Base Color"),
                 (CONSTANT_DATA_FLAGS_DISPLAY_METALLIC, "Metallic"),
                 (CONSTANT_DATA_FLAGS_DISPLAY_ROUGHNESS, "Roughness"),
@@ -137,15 +138,10 @@ impl Info {
                 (CONSTANT_DATA_FLAGS_DISPLAY_UV_1, "TexCoord UV 1"),
                 (CONSTANT_DATA_FLAGS_DISPLAY_UV_2, "TexCoord UV 2"),
                 (CONSTANT_DATA_FLAGS_DISPLAY_UV_3, "TexCoord UV 3"),
-                (CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS, "Meshlets"),
                 (CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, "DepthBuffer"),
                 (
                     CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER,
                     "RadianceBuffer",
-                ),
-                (
-                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
-                    "Meshlets BoundingBox",
                 ),
                 (CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE, "PathTrace"),
             ],
@@ -160,11 +156,11 @@ impl Info {
             fov: Degrees::new(0.),
             aspect_ratio: 1.,
             selected_object_id: INVALID_UID,
+            meshes: HashMap::new(),
         };
         Self {
             ui_page: Self::create(data),
             listener,
-            meshes: Buffer::default(),
         }
     }
 
@@ -212,27 +208,29 @@ impl Info {
                         max: meshlet.aabb_max,
                     });
                 });
-                self.meshes.push(
-                    id,
-                    MeshInfo {
-                        meshlets,
-                        ..Default::default()
-                    },
-                );
+                if let Some(data) = self.ui_page.get_mut().data_mut::<Data>() {
+                    data.meshes.insert(
+                        *id,
+                        MeshInfo {
+                            ..Default::default()
+                        },
+                    );
+                }
             })
             .process_messages(|e: &ResourceEvent<Mesh>| match e {
                 ResourceEvent::Changed(id) => {
-                    if let Some(data) = self.ui_page.get().data::<Data>() {
+                    if let Some(data) = self.ui_page.get_mut().data_mut::<Data>() {
                         if let Some(mesh) = data.context.shared_data().get_resource::<Mesh>(id) {
-                            if let Some(m) = self.meshes.get_first_mut(id) {
-                                m.matrix = mesh.get().matrix();
+                            if let Some(m) = data.meshes.get_mut(id) {
                                 m.flags = *mesh.get().flags();
                             }
                         }
                     }
                 }
                 ResourceEvent::Destroyed(id) => {
-                    self.meshes.remove(id);
+                    if let Some(data) = self.ui_page.get_mut().data_mut::<Data>() {
+                        data.meshes.remove(id);
+                    }
                 }
                 _ => {}
             })
@@ -318,13 +316,13 @@ impl Info {
                     .read()
                     .unwrap()
                     .load(Ordering::Relaxed);
-                let bhv = data
+                let bvh = data
                     .params
                     .render_context
                     .global_buffers()
                     .buffer::<GPUBVHNode>();
-                let bhv = bhv.read().unwrap();
-                bhv.for_each_data(|i, _id, n| {
+                let bvh = bvh.read().unwrap();
+                bvh.for_each_data(|i, _id, n| {
                     if i >= tlas_index as _ {
                         data.context
                             .message_hub()
@@ -337,44 +335,26 @@ impl Info {
                 });
             }
             if data.show_blas {
-                let bhv = data
-                    .params
-                    .render_context
-                    .global_buffers()
-                    .buffer::<GPUBVHNode>();
-                let bhv = bhv.read().unwrap();
-                let bhv_data = bhv.data();
-                let meshes = data
-                    .params
-                    .render_context
-                    .global_buffers()
-                    .buffer::<GPUMesh>();
-                let meshes = meshes.read().unwrap();
-                meshes.for_each_data(|_, _, mesh| {
-                    let node = &bhv_data[mesh.blas_index as usize];
-                    let matrix = Matrix4::from_translation_orientation_scale(
-                        mesh.position.into(),
-                        mesh.orientation.into(),
-                        mesh.scale.into(),
-                    );
-                    let min = matrix.rotate_point(node.min.into());
-                    let max = matrix.rotate_point(node.max.into());
-                    data.context
-                        .message_hub()
-                        .send_event(DrawEvent::BoundingBox(
-                            min,
-                            max,
-                            [1.0, 0.8, 0.2, 1.0].into(),
-                        ));
-                });
+                data.context
+                    .shared_data()
+                    .for_each_resource(|_h, object: &Object| {
+                        let meshes = object.components_of_type::<Mesh>();
+                        let matrix = object.transform();
+                        meshes.iter().for_each(|mesh| {
+                            let min = matrix.rotate_point(*mesh.get().min());
+                            let max = matrix.rotate_point(*mesh.get().max());
+                            data.context
+                                .message_hub()
+                                .send_event(DrawEvent::BoundingBox(
+                                    min,
+                                    max,
+                                    [1.0, 0.8, 0.2, 1.0].into(),
+                                ));
+                        });
+                    });
             }
             if !data.selected_object_id.is_nil() {
                 Self::show_object_in_scene(data, &data.selected_object_id);
-            }
-            if data.visualization_debug_choices[data.visualization_debug_selected].0
-                == CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX
-            {
-                Self::show_meshlets_bounding_box(data, &self.meshes);
             }
         }
     }
@@ -389,25 +369,13 @@ impl Info {
                     Self::show_object_in_scene(data, o.id());
                 });
             } else {
-                let bhv = data
-                    .params
-                    .render_context
-                    .global_buffers()
-                    .buffer::<GPUBVHNode>();
-                let bhv = bhv.read().unwrap();
+                let matrix = object.transform();
                 meshes.iter().for_each(|mesh| {
-                    if let Some(nodes) = bhv.get(mesh.id()) {
-                        nodes.iter().for_each(|n| {
-                            let matrix = mesh.get().matrix();
-                            data.context
-                                .message_hub()
-                                .send_event(DrawEvent::BoundingBox(
-                                    matrix.rotate_point(n.min.into()),
-                                    matrix.rotate_point(n.max.into()),
-                                    [1.0, 1.0, 0.0, 1.0].into(),
-                                ));
-                        });
-                    }
+                    let min = matrix.rotate_point(*mesh.get().min());
+                    let max = matrix.rotate_point(*mesh.get().max());
+                    data.context
+                        .message_hub()
+                        .send_event(DrawEvent::BoundingBox(min, max, [1.0, 1.0, 0., 1.0].into()));
                 });
             }
             let lights = object.components_of_type::<Light>();
@@ -437,22 +405,6 @@ impl Info {
                     ));
                 }
             });
-    }
-
-    fn show_meshlets_bounding_box(data: &mut Data, meshes: &Buffer<MeshInfo>) {
-        meshes.for_each_data(|_, _id, mesh_info| {
-            if mesh_info.flags.contains(MeshFlags::Visible) {
-                mesh_info.meshlets.iter().for_each(|meshlet_info| {
-                    data.context
-                        .message_hub()
-                        .send_event(DrawEvent::BoundingBox(
-                            mesh_info.matrix.rotate_point(meshlet_info.min),
-                            mesh_info.matrix.rotate_point(meshlet_info.max),
-                            [1.0, 1.0, 0.0, 1.0].into(),
-                        ));
-                });
-            }
-        });
     }
 
     fn show_frustum(data: &Data, frustum: &Frustum) {
@@ -548,25 +500,11 @@ impl Info {
                             data.mouse_coords.x / data.screen_size.x,
                             data.mouse_coords.y / data.screen_size.y
                         ));
-                        data.context
-                            .shared_data()
-                            .for_each_resource(|h, c: &Camera| {
-                                ui.horizontal(|ui| {
-                                    let p = c.transform().translation();
-                                    ui.label(format!(
-                                        "Camera [{}] position:({:.3},{:.3},{:.3})",
-                                        h.id(),
-                                        p.x,
-                                        p.y,
-                                        p.z,
-                                    ));
-                                });
-                            });
                         ui.checkbox(&mut data.show_hierarchy, "Hierarchy");
                         ui.checkbox(&mut data.show_graphics, "Graphics");
                         ui.checkbox(&mut data.show_lights, "Show Lights");
-                        ui.checkbox(&mut data.show_tlas, "Show TLAS BHV");
-                        ui.checkbox(&mut data.show_blas, "Show BLAS BHVs");
+                        ui.checkbox(&mut data.show_tlas, "Show TLAS BVH");
+                        ui.checkbox(&mut data.show_blas, "Show BLAS BVHs");
                         ui.checkbox(&mut data.show_frustum, "Show Frustum");
                         let is_freezed = data.freeze_culling_camera;
                         ui.checkbox(&mut data.use_orbit_camera, "Use orbit camera");
@@ -597,8 +535,7 @@ impl Info {
                             };
                             let is_changed = ui
                                 .add(
-                                    DragValue::new(&mut indirect_light_num_bounces)
-                                        .clamp_range(0..=1024),
+                                    DragValue::new(&mut indirect_light_num_bounces).range(0..=1024),
                                 )
                                 .changed();
                             if is_changed {
@@ -631,7 +568,7 @@ impl Info {
                             let is_changed = ui
                                 .add(
                                     DragValue::new(&mut forced_lod_level)
-                                        .clamp_range(-1..=(MAX_LOD_LEVELS as i32 - 1)),
+                                        .range(-1..=(MAX_LOD_LEVELS as i32 - 1)),
                                 )
                                 .changed();
                             if is_changed {
@@ -677,6 +614,95 @@ impl Info {
                                 }
                             }
                         });
+
+                        ui.horizontal(|ui| {
+                            ui.label("Debug mode:");
+                            let previous_debug_selected = data.visualization_debug_selected;
+                            let combo_box = ComboBox::from_id_salt("Debug mode")
+                                .selected_text(
+                                    data.visualization_debug_choices
+                                        [data.visualization_debug_selected]
+                                        .1
+                                        .to_string(),
+                                )
+                                .show_ui(ui, |ui| {
+                                    let mut is_changed = false;
+                                    data.visualization_debug_choices
+                                        .iter()
+                                        .enumerate()
+                                        .for_each(|(i, v)| {
+                                            is_changed |= ui
+                                                .selectable_value(
+                                                    &mut data.visualization_debug_selected,
+                                                    i,
+                                                    v.1,
+                                                )
+                                                .changed();
+                                        });
+                                    is_changed
+                                });
+                            if let Some(is_changed) = combo_box.inner {
+                                if is_changed {
+                                    data.params
+                                        .render_context
+                                        .global_buffers()
+                                        .constant_data
+                                        .write()
+                                        .unwrap()
+                                        .remove_flag(
+                                            &data.params.render_context,
+                                            data.visualization_debug_choices
+                                                [previous_debug_selected]
+                                                .0,
+                                        );
+                                    match data.visualization_debug_choices
+                                        [data.visualization_debug_selected]
+                                        .0
+                                    {
+                                        CONSTANT_DATA_FLAGS_NONE => {
+                                            data.params
+                                                .render_context
+                                                .global_buffers()
+                                                .constant_data
+                                                .write()
+                                                .unwrap()
+                                                .set_frame_index(&data.params.render_context, 0);
+                                        }
+                                        _ => {
+                                            data.params
+                                                .render_context
+                                                .global_buffers()
+                                                .constant_data
+                                                .write()
+                                                .unwrap()
+                                                .set_frame_index(&data.params.render_context, 0)
+                                                .add_flag(
+                                                    &data.params.render_context,
+                                                    data.visualization_debug_choices
+                                                        [data.visualization_debug_selected]
+                                                        .0,
+                                                );
+                                        }
+                                    }
+                                }
+                            }
+                        });
+
+                        data.context
+                            .shared_data()
+                            .for_each_resource(|h, c: &Camera| {
+                                ui.horizontal(|ui| {
+                                    let p = c.transform().translation();
+                                    ui.label(format!(
+                                        "Camera [{}] position:({:.3},{:.3},{:.3})",
+                                        h.id(),
+                                        p.x,
+                                        p.y,
+                                        p.z,
+                                    ));
+                                });
+                            });
+
                         ui.vertical(|ui| {
                             let lights = data
                                 .params
@@ -693,7 +719,7 @@ impl Info {
                                 num_lights += 1;
                                 let mut is_changed = false;
                                 ui.horizontal(|ui| {
-                                    let light_name = format!("Light[{}]: ", i);
+                                    let light_name = format!("Light[{i}]: ");
                                     ui.label(&light_name);
                                     let old_l = *l;
                                     ui.vertical(|ui| {
@@ -766,81 +792,8 @@ impl Info {
                                 });
                                 is_changed
                             });
-                            let lights_label = format!("Total Num Lights: {}", num_lights);
+                            let lights_label = format!("Total Num Lights: {num_lights}");
                             ui.label(&lights_label);
-                        });
-
-                        ui.horizontal(|ui| {
-                            ui.label("Debug mode:");
-                            let previous_debug_selected = data.visualization_debug_selected;
-                            let combo_box = ComboBox::from_id_source("Debug mode")
-                                .selected_text(
-                                    data.visualization_debug_choices
-                                        [data.visualization_debug_selected]
-                                        .1
-                                        .to_string(),
-                                )
-                                .show_ui(ui, |ui| {
-                                    let mut is_changed = false;
-                                    data.visualization_debug_choices
-                                        .iter()
-                                        .enumerate()
-                                        .for_each(|(i, v)| {
-                                            is_changed |= ui
-                                                .selectable_value(
-                                                    &mut data.visualization_debug_selected,
-                                                    i,
-                                                    v.1,
-                                                )
-                                                .changed();
-                                        });
-                                    is_changed
-                                });
-                            if let Some(is_changed) = combo_box.inner {
-                                if is_changed {
-                                    data.params
-                                        .render_context
-                                        .global_buffers()
-                                        .constant_data
-                                        .write()
-                                        .unwrap()
-                                        .remove_flag(
-                                            &data.params.render_context,
-                                            data.visualization_debug_choices
-                                                [previous_debug_selected]
-                                                .0,
-                                        );
-                                    match data.visualization_debug_choices
-                                        [data.visualization_debug_selected]
-                                        .0
-                                    {
-                                        CONSTANT_DATA_FLAGS_NONE => {
-                                            data.params
-                                                .render_context
-                                                .global_buffers()
-                                                .constant_data
-                                                .write()
-                                                .unwrap()
-                                                .set_frame_index(&data.params.render_context, 0);
-                                        }
-                                        _ => {
-                                            data.params
-                                                .render_context
-                                                .global_buffers()
-                                                .constant_data
-                                                .write()
-                                                .unwrap()
-                                                .set_frame_index(&data.params.render_context, 0)
-                                                .add_flag(
-                                                    &data.params.render_context,
-                                                    data.visualization_debug_choices
-                                                        [data.visualization_debug_selected]
-                                                        .0,
-                                                );
-                                        }
-                                    }
-                                }
-                            }
                         });
                     })
                 {

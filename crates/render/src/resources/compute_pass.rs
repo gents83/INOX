@@ -85,11 +85,19 @@ impl ComputePass {
         self
     }
 
-    pub fn init(&mut self, render_context: &RenderContext, binding_data: &mut BindingData) {
+    pub fn init(
+        &mut self,
+        render_context: &RenderContext,
+        binding_data: &mut BindingData,
+        entry_point_name: Option<&str>,
+    ) {
         let mut is_initialized = false;
         binding_data.set_bind_group_layout();
         self.pipelines.iter().for_each(|pipeline| {
-            is_initialized |= pipeline.get_mut().init(render_context, binding_data);
+            is_initialized |=
+                pipeline
+                    .get_mut()
+                    .init(render_context, binding_data, entry_point_name);
         });
         self.is_initialized = is_initialized;
     }
@@ -149,7 +157,7 @@ impl ComputePass {
                     &_render_context.webgpu.device,
                     "compute_pass::set_bind_group",
                 );
-                compute_pass.set_bind_group(index as _, bind_group, &[]);
+                compute_pass.set_bind_group(index as _, Some(bind_group), &[]);
             });
 
         inox_profiler::gpu_scoped_profile!(
@@ -215,7 +223,7 @@ impl ComputePass {
                     &_render_context.webgpu.device,
                     "compute_pass::set_bind_group",
                 );
-                compute_pass.set_bind_group(index as _, bind_group, &[]);
+                compute_pass.set_bind_group(index as _, Some(bind_group), &[]);
             });
 
         inox_profiler::gpu_scoped_profile!(

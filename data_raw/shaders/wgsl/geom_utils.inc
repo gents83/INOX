@@ -8,7 +8,8 @@ fn pixel_to_normalized(image_pixel: vec2<u32>, image_size: vec2<u32>) -> vec2<f3
     return ((vec2<f32>(0.5) + vec2<f32>(image_pixel)) / vec2<f32>(image_size));
 }
 fn clip_to_normalized(clip_coords: vec2<f32>) -> vec2<f32> {
-    return (clip_coords + vec2<f32>(1.)) * vec2<f32>(0.5);
+    return  vec2<f32>(clip_coords.x * 0.5 + 0.5,
+        1.0 - (clip_coords.y * 0.5 + 0.5));  // Reverse y-coordinate
 }
 
 fn pixel_to_clip(image_pixel: vec2<u32>, image_size: vec2<u32>) -> vec2<f32> {

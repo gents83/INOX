@@ -9,7 +9,7 @@ use inox_resources::Resource;
 use inox_scene::{Object, Script};
 use inox_serialize::{
     deserialize,
-    inox_serializable::{self, SerializableRegistryRc},
+    inox_serializable::{self},
     Deserialize, Serialize,
 };
 
@@ -78,9 +78,7 @@ impl RotateNode {
 
 #[allow(dead_code)]
 fn test_nodes() {
-    let serializable_registry = SerializableRegistryRc::default();
-
-    let mut registry = LogicNodeRegistry::new(serializable_registry.clone());
+    let mut registry = LogicNodeRegistry::default();
     registry.register_node::<ScriptInitNode>();
     registry.register_node::<RotateNode>();
 
@@ -97,7 +95,7 @@ fn test_nodes() {
     registry.register_pin_type::<LogicExecution>();
 
     let data = r#"{"nodes": [{"node_type": "ScriptInitNode", "node": {"name": "ScriptInitNode", "inputs": {}, "outputs": {"Execute": {"pin_type": "LogicExecution", "Type": null}}}}, {"node_type": "RotateNode", "node": {"name": "RotateNode", "inputs": {"OnImpulse": {"pin_type": "LogicExecution", "Type": null}, "Stop": {"pin_type": "LogicExecution", "Type": null}, "Start": {"pin_type": "LogicExecution", "Type": null}, "X (in degrees)": {"pin_type": "f32", "value": 0.0}, "Y (in degrees)": {"pin_type": "f32", "value": 1.0}, "Z (in degrees)": {"pin_type": "f32", "value": 0.0}}, "outputs": {}}}], "links": [{"from_node": "ScriptInitNode", "to_node": "RotateNode", "from_pin": "Execute", "to_pin": "Start"}]}"#;
-    let tree = deserialize::<NodeTree>(data.as_bytes(), serializable_registry).unwrap();
+    let tree = deserialize::<NodeTree>(data.as_bytes()).unwrap();
     assert_eq!(tree.get_nodes_count(), 2);
     assert_eq!(tree.get_links_count(), 1);
 

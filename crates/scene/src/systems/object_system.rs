@@ -56,8 +56,8 @@ impl ObjectSystem {
         inox_profiler::scoped_profile!("object_system::update_events");
         self.listener.process_messages(|e: &ResourceEvent<Object>| {
             if let ResourceEvent::Changed(id) = e {
-                if let Some(o) = self.shared_data.get_resource::<Object>(id) {
-                    let parent_transform = o
+                if let Some(object) = self.shared_data.get_resource::<Object>(id) {
+                    let parent_transform = object
                         .get()
                         .parent()
                         .map(|parent| parent.get().transform())

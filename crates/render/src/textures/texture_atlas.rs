@@ -23,7 +23,7 @@ impl TextureAtlas {
         for _i in 0..DEFAULT_LAYER_COUNT {
             allocators.push(AreaAllocator::new(DEFAULT_AREA_SIZE, DEFAULT_AREA_SIZE));
         }
-        println!("Format {:?}", format);
+        println!("Format {format:?}");
         let texture = TextureRef::create(
             device,
             generate_random_uid(),
@@ -34,6 +34,7 @@ impl TextureAtlas {
                 1,
                 format,
                 wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                1,
             ),
         );
         Self {
@@ -49,8 +50,8 @@ impl TextureAtlas {
     pub fn texture_id(&self) -> &TextureId {
         self.texture.id()
     }
-    pub fn texture_view(&self) -> &TextureView {
-        self.texture.view()
+    pub fn texture_view(&self, index: usize) -> &TextureView {
+        self.texture.view(index)
     }
     pub fn texture_format(&self) -> &TextureFormat {
         self.texture.format()
@@ -89,11 +90,11 @@ impl TextureAtlas {
                         as i32
                         * texture_index.signum(),
                     min: quantize_half(area.x as f32) as u32
-                        | (quantize_half(area.y as f32) as u32) << 16,
+                        | ((quantize_half(area.y as f32) as u32) << 16),
                     max: quantize_half(area.width as f32) as u32
-                        | (quantize_half(area.height as f32) as u32) << 16,
+                        | ((quantize_half(area.height as f32) as u32) << 16),
                     size: quantize_half(self.texture.width() as _) as u32
-                        | (quantize_half(self.texture.height() as _) as u32) << 16,
+                        | ((quantize_half(self.texture.height() as _) as u32) << 16),
                 });
             }
         }
@@ -134,11 +135,11 @@ impl TextureAtlas {
                 return Some(GPUTexture {
                     texture_and_layer_index: ((texture_index << 3) | layer_index as u32) as i32,
                     min: quantize_half(area.x as f32) as u32
-                        | (quantize_half(area.y as f32) as u32) << 16,
+                        | ((quantize_half(area.y as f32) as u32) << 16),
                     max: quantize_half(area.width as f32) as u32
-                        | (quantize_half(area.height as f32) as u32) << 16,
+                        | ((quantize_half(area.height as f32) as u32) << 16),
                     size: quantize_half(self.texture.width() as _) as u32
-                        | (quantize_half(self.texture.height() as _) as u32) << 16,
+                        | ((quantize_half(self.texture.height() as _) as u32) << 16),
                 });
             }
         }

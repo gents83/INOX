@@ -518,8 +518,8 @@ fn get_IBL_radiance_charlie(n: vec3<f32>, v: vec3<f32>, sheenRoughness: f32, she
 	return sheenLight * sheenColor * brdf;
 } 
 
-fn get_IBL_volume_refraction(n: vec3<f32>, v: vec3<f32>, perceptualRoughness: f32, baseColor: vec3<f32>, f0: vec3<f32>, f90: vec3<f32>, position: vec3<f32>, mesh_scale: f32, ior: f32, thickness: f32, attenuationColor: vec3<f32>, attenuationDistance: f32) -> vec3<f32> {
-	let transmissionRay = get_volume_transmission_ray(n, v, thickness, ior, mesh_scale);
+fn get_IBL_volume_refraction(n: vec3<f32>, v: vec3<f32>, perceptualRoughness: f32, baseColor: vec3<f32>, f0: vec3<f32>, f90: vec3<f32>, position: vec3<f32>, instance_scale: f32, ior: f32, thickness: f32, attenuationColor: vec3<f32>, attenuationDistance: f32) -> vec3<f32> {
+	let transmissionRay = get_volume_transmission_ray(n, v, thickness, ior, instance_scale);
 	let refractedRayExit = position + transmissionRay;
     
     // Project refracted vector on the framebuffer, while mapping to normalized device coordinates.
@@ -649,13 +649,14 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
             f_sheen += get_IBL_radiance_charlie(tbn.normal, v, material_info.sheen_color_and_roughness_factor.z, material_info.sheen_color_and_roughness_factor.rgb);
         }
         if((material.flags & MATERIAL_FLAGS_TRANSMISSION) != 0u) {
-            let mesh = &meshes.data[(*pixel_data).mesh_id];
-            let mesh_scale = (*mesh).scale.x;
+            let instance = &instances.data[(*pixel_data).instance_id];
+            let transform = transforms.data[(*instance).transform_id];
+            let instance_scale = max(max(transform.position_scale_x.w, transform.bb_min_scale_y.w), transform.bb_max_scale_z.w);
             f_transmission += get_IBL_volume_refraction(
                 tbn.normal, v,
                 material_info.perceptual_roughness,
                 material_info.c_diff, material_info.f0, material_info.f90,
-                (*pixel_data).world_pos, mesh_scale,
+                (*pixel_data).world_pos, instance_scale,
                 material_info.ior, material_info.thickness_factor, material_info.attenuation_color_and_distance.rgb, material_info.attenuation_color_and_distance.z);
         }
     }
@@ -668,7 +669,7 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
     f_specular = vec3<f32>(0.0);
     f_sheen = vec3<f32>(0.0);
     f_clearcoat = vec3<f32>(0.0);
-   
+    /*
     let i = hash(constant_data.frame_index) % constant_data.num_lights;
     
     var light = lights.data[i];
@@ -711,20 +712,21 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
                 albedo_sheen_scaling = min(1.0 - c * albedo_sheen_scaling_LUT(NdotV, material_info.sheen_color_and_roughness_factor.w),
                     1.0 - c * albedo_sheen_scaling_LUT(NdotL, material_info.sheen_color_and_roughness_factor.w));
             }
+        }
             
-            if((material.flags & MATERIAL_FLAGS_CLEARCOAT) != 0u) {
-                f_clearcoat += intensity * get_punctual_radiance_clearcoat(material_info.clear_coat_normal, v, l, h, VdotH,
-                    material_info.clear_coat_f0, material_info.clear_coat_f90, material_info.clear_coat_roughness_factor);
-            }
+        if((material.flags & MATERIAL_FLAGS_CLEARCOAT) != 0u) {
+            f_clearcoat += intensity * get_punctual_radiance_clearcoat(material_info.clear_coat_normal, v, l, h, VdotH,
+                material_info.clear_coat_f0, material_info.clear_coat_f90, material_info.clear_coat_roughness_factor);
         }
         
         // BDTF
         if((material.flags & MATERIAL_FLAGS_TRANSMISSION) != 0u) {
             // If the light ray travels through the geometry, use the point it exits the geometry again.
             // That will change the angle to the light source, if the material refracts the light ray.
-            let mesh = &meshes.data[(*pixel_data).mesh_id];
-            let mesh_scale = (*mesh).scale.x;
-            let transmission_ray = get_volume_transmission_ray(tbn.normal, v, material_info.thickness_factor, material_info.ior, mesh_scale);
+            let instance = &instances.data[(*pixel_data).instance_id];
+            let transform = transforms.data[(*instance).transform_id];
+            let instance_scale = max(max(transform.position_scale_x.w, transform.bb_min_scale_y.w), transform.bb_max_scale_z.w);
+            let transmission_ray = get_volume_transmission_ray(tbn.normal, v, material_info.thickness_factor, material_info.ior, instance_scale);
             pointToLight -= transmission_ray;
             l = normalize(pointToLight);
             let intensity = get_light_intensity(&light, pointToLight);
@@ -736,12 +738,12 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
             f_transmission += transmitted_light;
         }
     }
-    
+    */
     f_emissive = material.emissive_color.rgb * material.emissive_strength;
     if (has_texture(&material, TEXTURE_TYPE_EMISSIVE)) {  
-      let uv = material_texture_uv(&material, pixel_data, TEXTURE_TYPE_EMISSIVE);
-      let texture_color = sample_texture(uv);
-      f_emissive *= texture_color.rgb;
+        let uv = material_texture_uv(&material, pixel_data, TEXTURE_TYPE_EMISSIVE);
+        let texture_color = sample_texture(uv);
+        f_emissive *= texture_color.rgb;
     }
 
     //Layer blending

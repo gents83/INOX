@@ -2,18 +2,19 @@ name: "Rust"
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, instancing_rework ]
     tags:
       - 'v*.*.*'
   pull_request:
-    branches: [ master ]
+    branches: [ master, instancing_rework ]
     tags:
       - 'v*.*.*'
     
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: --cfg=web_sys_unstable_apis
-
+  CARGO_TARGET_DIR: ./crates/target
+  RUSTFLAGS: '--cfg=web_sys_unstable_apis' # required for webgpu
+  
 jobs:
   check:
     name: "Build on OS: ${{ matrix.os }}"
@@ -26,13 +27,16 @@ jobs:
           #- ubuntu-latest
 
     steps:
+      - name: "Add rustflags to env"
+        run: echo RUSTFLAGS=${RUSTFLAGS} >> $GITHUB_ENV
+
       - name: "Checkout repository and submodules"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
       - name: "Install LLVM and Clang" # required for bindgen to work, see https://github.com/rust-lang/rust-bindgen/issues/1797
-        uses: KyleMayes/install-llvm-action@v1.8.3
+        uses: KyleMayes/install-llvm-action@v2
         if: ${{ matrix.os }} == 'windows-latest'
         with:
           version: "13.0"
@@ -44,6 +48,7 @@ jobs:
 
       - name: "Creating folders"
         run: |
+          mkdir -p "./crates/target/"
           mkdir -p "./output/"
           mkdir -p "./output/web/"
           mkdir -p "./output/INOX/"
@@ -51,7 +56,7 @@ jobs:
           mkdir -p "./output/INOX/bin/data_raw/"
           
       - name: "Enable use of cache"
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/bin/
@@ -72,9 +77,12 @@ jobs:
       - name: "Add rust target wasm32"
         run: rustup target add wasm32-unknown-unknown
           
-      - name: "Install wasm bindgen"
-        run: cargo install wasm-bindgen-cli --force
-          
+      - name: "Update repos"
+        run: |
+          cd crates
+          cargo update
+          cd ..
+           
       - name: "Run cargo clippy check"
         uses: actions-rs/cargo@v1
         with:
@@ -115,15 +123,18 @@ jobs:
           
       - name: "Copy .exes in output"
         run: cp -Force ./crates/target/release/*.exe ./output/INOX/bin/
-
+      
       - name: "Run cargo build workspace release wasm32"
         uses: actions-rs/cargo@v1
         with:
           command: build 
           args: --manifest-path ./crates/Cargo.toml --release --target wasm32-unknown-unknown
-      
+    
+      - name: "Install wasm bindgen"
+        run: cargo install -f wasm-bindgen-cli
+        
       - name: "Run wasm bindgen"
-        run: wasm-bindgen ./crates/target/wasm32-unknown-unknown/release/inox_launcher.wasm --out-dir ./output/web/ --target web --no-typescript
+        run: wasm-bindgen ./crates/target/wasm32-unknown-unknown/release/inox_launcher.wasm --out-dir ./output/web/ --target web --no-typescript --no-demangle --keep-lld-exports --split-linked-modules
 
       - name: "Copy wasm in web"
         run: cp -Force "./crates/target/wasm32-unknown-unknown/release/inox_launcher.wasm" "./output/web/inox_launcher.wasm"
@@ -147,7 +158,7 @@ jobs:
              cp -r -Force "./data/web/" "./output/web/data/"
           
       - name: "Upload artifacts"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: output-binaries
           path: output/

@@ -15,28 +15,33 @@ pub fn create_quad_with_texture(rect: Vector4, z: f32, tex_coords: Vector4) -> M
         aabb_max: Vector3::new(rect.z, rect.w, z),
         ..Default::default()
     };
+    let p0: Vector3 = [rect.x, rect.y, z].into();
+    let p1: Vector3 = [rect.x, rect.w, z].into();
+    let p2: Vector3 = [rect.z, rect.w, z].into();
+    let p3: Vector3 = [rect.z, rect.y, z].into();
+
     mesh_data.add_vertex_pos_color_normal_uv(
         [rect.x, rect.y, z].into(),
         Vector4::default_one(),
-        [-1., -1., 0.].into(),
+        (p3 - p0).cross(p1 - p0).normalized(),
         [tex_coords.x, tex_coords.y].into(),
     );
     mesh_data.add_vertex_pos_color_normal_uv(
         [rect.x, rect.w, z].into(),
         Vector4::default_one(),
-        [-1., 1., 0.].into(),
+        (p0 - p1).cross(p2 - p1).normalized(),
         [tex_coords.x, tex_coords.w].into(),
     );
     mesh_data.add_vertex_pos_color_normal_uv(
         [rect.z, rect.w, z].into(),
         Vector4::default_one(),
-        [1., 1., 0.].into(),
+        (p1 - p2).cross(p3 - p2).normalized(),
         [tex_coords.z, tex_coords.w].into(),
     );
     mesh_data.add_vertex_pos_color_normal_uv(
         [rect.z, rect.y, z].into(),
         Vector4::default_one(),
-        [1., -1., 0.].into(),
+        (p2 - p3).cross(p0 - p3).normalized(),
         [tex_coords.z, tex_coords.y].into(),
     );
     mesh_data.indices = [0, 3, 2, 2, 1, 0].to_vec();

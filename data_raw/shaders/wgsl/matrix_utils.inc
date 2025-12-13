@@ -1,4 +1,6 @@
-
+fn extract_translation(mat: mat4x4<f32>) -> vec3<f32> {
+    return mat[3].xyz;
+}
 fn extract_scale(m: mat4x4<f32>) -> vec3<f32> 
 {
     let s = mat3x3<f32>(m[0].xyz, m[1].xyz, m[2].xyz);
@@ -12,6 +14,15 @@ fn extract_scale(m: mat4x4<f32>) -> vec3<f32>
     }
     return vec3<f32>(sx, sy, sz);
 }
+fn extract_rotation(mat: mat4x4<f32>) -> mat4x4<f32> {
+    let scale = extract_scale(mat);
+    return mat4x4(
+        vec4(vec3(mat[0].xyz / scale), 0.),
+        vec4(vec3(mat[1].xyz / scale), 0.),
+        vec4(vec3(mat[2].xyz / scale), 0.),
+        vec4(0., 0., 0., 1.),
+    );
+}
 
 fn matrix_row(m: mat4x4<f32>, row: u32) -> vec4<f32> 
 {
@@ -24,6 +35,33 @@ fn matrix_row(m: mat4x4<f32>, row: u32) -> vec4<f32>
     } else {        
         return vec4<f32>(m[0].x, m[1].x, m[2].x, m[3].x);
     }
+}
+
+
+fn extract_frustum_planes(proj: mat4x4<f32>, view: mat4x4<f32>) -> array<vec4<f32>, 6> {
+    let view_proj = proj * view;
+    var planes: array<vec4<f32>, 6>;
+
+    // Left
+    planes[0] = vec4<f32>(view_proj[0][3] + view_proj[0][0], view_proj[1][3] + view_proj[1][0], view_proj[2][3] + view_proj[2][0], view_proj[3][3] + view_proj[3][0]);
+    // Right
+    planes[1] = vec4<f32>(view_proj[0][3] - view_proj[0][0], view_proj[1][3] - view_proj[1][0], view_proj[2][3] - view_proj[2][0], view_proj[3][3] - view_proj[3][0]);
+    // Bottom
+    planes[2] = vec4<f32>(view_proj[0][3] + view_proj[0][1], view_proj[1][3] + view_proj[1][1], view_proj[2][3] + view_proj[2][1], view_proj[3][3] + view_proj[3][1]);
+    // Top
+    planes[3] = vec4<f32>(view_proj[0][3] - view_proj[0][1], view_proj[1][3] - view_proj[1][1], view_proj[2][3] - view_proj[2][1], view_proj[3][3] - view_proj[3][1]);
+    // Near
+    planes[4] = vec4<f32>(view_proj[0][2], view_proj[1][2], view_proj[2][2], view_proj[3][2]);
+    // Far
+    planes[5] = vec4<f32>(view_proj[0][3] - view_proj[0][2], view_proj[1][3] - view_proj[1][2], view_proj[2][3] - view_proj[2][2], view_proj[3][3] - view_proj[3][2]);
+
+    // Normalize planes
+    for (var i = 0u; i < 6u; i++) {
+        let length = length(planes[i].xyz);
+        planes[i] = planes[i] / vec4<f32>(length, length, length, length);
+    }
+
+    return planes;
 }
 
 fn normalize_plane(plane: vec4<f32>) -> vec4<f32> 
@@ -123,5 +161,19 @@ fn matrix_inverse(m: mat4x4<f32>) -> mat4x4<f32> {
         vec4<f32>((a12 * b08 - a10 * b11 - a13 * b07) * invDet, (a00 * b11 - a02 * b08 + a03 * b07) * invDet, (a32 * b02 - a30 * b05 - a33 * b01) * invDet, (a20 * b05 - a22 * b02 + a23 * b01) * invDet),
         vec4<f32>((a10 * b10 - a11 * b08 + a13 * b06) * invDet, (a01 * b08 - a00 * b10 - a03 * b06) * invDet, (a30 * b04 - a31 * b02 + a33 * b00) * invDet, (a21 * b02 - a20 * b04 - a23 * b00) * invDet),
         vec4<f32>((a11 * b07 - a10 * b09 - a12 * b06) * invDet, (a00 * b09 - a01 * b07 + a02 * b06) * invDet, (a31 * b01 - a30 * b03 - a32 * b00) * invDet, (a20 * b03 - a21 * b01 + a22 * b00) * invDet)
+    );
+}
+
+fn matrix_transpose(m: mat4x4<f32>) -> mat4x4<f32> {
+    let a00 = m[0][0]; let a01 = m[0][1]; let a02 = m[0][2]; let a03 = m[0][3];
+    let a10 = m[1][0]; let a11 = m[1][1]; let a12 = m[1][2]; let a13 = m[1][3];
+    let a20 = m[2][0]; let a21 = m[2][1]; let a22 = m[2][2]; let a23 = m[2][3];
+    let a30 = m[3][0]; let a31 = m[3][1]; let a32 = m[3][2]; let a33 = m[3][3];
+
+    return mat4x4<f32>(
+        vec4<f32>(a00, a10, a20, a30),
+        vec4<f32>(a01, a11, a21, a31),
+        vec4<f32>(a02, a12, a22, a32),
+        vec4<f32>(a03, a13, a23, a33)
     );
 }

@@ -49,7 +49,6 @@ use super::config::Config;
 ///     )
 ///     .ok();
 /// ```
-
 pub struct DebugDrawerSystem {
     config: Config,
     mesh_instance: Resource<Mesh>,
@@ -302,7 +301,6 @@ impl System for DebugDrawerSystem {
         let filename = self.config.get_filename().to_string();
         read_from_file(
             self.config.get_filepath(plugin_name).as_path(),
-            self.shared_data.serializable_registry().clone(),
             SerializationType::Json,
             Box::new(move |data: Config| {
                 message_hub.send_event(ConfigEvent::Loaded(filename.clone(), data));

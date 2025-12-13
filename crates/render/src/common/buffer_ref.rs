@@ -1,8 +1,8 @@
 use std::sync::atomic::AtomicBool;
 
-use inox_resources::to_slice;
+use inox_resources::{as_slice, to_slice};
 
-use crate::{AsBinding, RenderContext, WebGpuContext};
+use crate::{platform::WGPU_FIXED_ALIGNMENT, AsBinding, RenderContext, WebGpuContext};
 
 pub struct BufferRef {
     gpu_buffer: Option<wgpu::Buffer>,
@@ -55,7 +55,7 @@ impl BufferRef {
         inox_profiler::scoped_profile!("GpuBuffer::init({})", buffer_name);
 
         self.offset = 0;
-        if size > self.size || usage != self.usage {
+        if size > self.size || !self.usage.contains(usage) {
             let label = format!("{buffer_name} Buffer");
             self.name = label;
             self.release();
@@ -108,7 +108,13 @@ impl BufferRef {
                 slice.map_async(wgpu::MapMode::Write, move |_v| {
                     is_ready_clone.store(true, std::sync::atomic::Ordering::SeqCst);
                 });
-                render_core_context.device.poll(wgpu::Maintain::Wait);
+                render_core_context
+                    .device
+                    .poll(wgpu::PollType::Wait {
+                        submission_index: None,
+                        timeout: Some(std::time::Duration::from_secs(60)),
+                    })
+                    .ok();
                 while !is_ready.load(std::sync::atomic::Ordering::SeqCst) {
                     std::thread::sleep(std::time::Duration::from_millis(1));
                 }
@@ -127,6 +133,20 @@ impl BufferRef {
             gpu_buffer.unmap();
         }
     }
+    pub fn add_to_gpu_buffer_with_offset<T>(
+        &mut self,
+        render_context: &RenderContext,
+        data: &T,
+        offset: u64,
+    ) {
+        inox_profiler::scoped_profile!("GpuBuffer::add_to_gpu_buffer_with_offset({})", &self.name);
+        render_context.webgpu.queue.write_buffer(
+            self.gpu_buffer.as_ref().unwrap(),
+            self.offset,
+            as_slice(data),
+        );
+        self.offset += offset;
+    }
     pub fn add_to_gpu_buffer<T>(&mut self, render_context: &RenderContext, data: &[T]) {
         if data.is_empty() {
             return;
@@ -144,6 +164,7 @@ impl BufferRef {
         &mut self,
         label: Option<&str>,
         data: &mut T,
+        count: Option<usize>,
         usage: wgpu::BufferUsages,
         render_context: &RenderContext,
     ) -> bool
@@ -157,8 +178,16 @@ impl BufferRef {
             let id = data.buffer_id();
             format!("{}[{}]", std::any::type_name::<T>(), id)
         };
-        let is_changed = self.init(render_context, data.size(), usage, name.as_str());
+        let mut size = data.size();
+        if count.is_some() {
+            size += WGPU_FIXED_ALIGNMENT;
+        }
+        let is_changed = self.init(render_context, size, usage, name.as_str());
         if usage.intersects(wgpu::BufferUsages::COPY_DST) {
+            if let Some(count) = count {
+                let len = count as u64;
+                self.add_to_gpu_buffer_with_offset(render_context, &len, WGPU_FIXED_ALIGNMENT);
+            }
             data.fill_buffer(render_context, self);
         }
         is_changed
@@ -176,7 +205,13 @@ impl BufferRef {
                 slice.map_async(wgpu::MapMode::Read, move |_v| {
                     is_ready_clone.store(true, std::sync::atomic::Ordering::SeqCst);
                 });
-                render_core_context.device.poll(wgpu::Maintain::Wait);
+                render_core_context
+                    .device
+                    .poll(wgpu::PollType::Wait {
+                        submission_index: None,
+                        timeout: Some(std::time::Duration::from_secs(60)),
+                    })
+                    .ok();
                 while !is_ready.load(std::sync::atomic::Ordering::SeqCst) {
                     std::thread::sleep(std::time::Duration::from_millis(1));
                 }

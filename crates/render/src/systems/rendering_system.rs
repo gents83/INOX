@@ -55,7 +55,6 @@ impl System for RenderingSystem {
         let filename = self.config.get_filename().to_string();
         read_from_file(
             self.config.get_filepath(plugin_name).as_path(),
-            self.shared_data.serializable_registry().clone(),
             SerializationType::Json,
             Box::new(move |data: Config| {
                 message_hub.send_event(ConfigEvent::Loaded(filename.clone(), data));
@@ -119,8 +118,8 @@ impl System for RenderingSystem {
             JobPriority::High,
             move || {
                 render_context.submit_command_buffer();
-                render_context.present();
                 render_context.change_state(RendererState::Submitted);
+                render_context.present();
             },
         );
         true

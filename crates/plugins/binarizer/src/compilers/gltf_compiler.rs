@@ -23,21 +23,15 @@ use gltf::{
 
 use inox_bvh::{create_linearized_bvh, BVHTree, AABB};
 use inox_log::debug_log;
-use inox_math::{
-    Mat4Ops, Matrix4, NewAngle, Parser, Radians, VecBase, Vector2, Vector3, Vector4, Vector4h,
-};
+use inox_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4, Vector4h};
 use inox_render::{
-    GPULight, LightType, MaterialData, MaterialFlags, MeshData, TextureType, MAX_LOD_LEVELS,
-    MAX_TEXTURE_COORDS_SETS,
+    GPULight, LightType, MaterialData, MaterialFlags, MeshData, TextureType, VertexAttributeLayout,
+    MAX_LOD_LEVELS, MAX_TEXTURE_COORDS_SETS,
 };
 
 use inox_nodes::LogicData;
-use inox_resources::SharedDataRc;
 use inox_scene::{CameraData, ObjectData, SceneData};
-use inox_serialize::{
-    deserialize, inox_serializable::SerializableRegistryRc, Deserialize, SerializationType,
-    Serialize, SerializeFile,
-};
+use inox_serialize::{deserialize, Deserialize, SerializationType, Serialize, SerializeFile};
 use mikktspace::{generate_tangents, Geometry};
 
 const GLTF_EXTENSION: &str = "gltf";
@@ -85,27 +79,26 @@ impl Geometry for GltfGeometry {
     fn position(&self, face: usize, vert: usize) -> [f32; 3] {
         self.vertices[self.indices[face * 3 + vert] as usize]
             .pos
+            .xyz()
             .into()
     }
 
     fn normal(&self, face: usize, vert: usize) -> [f32; 3] {
         self.vertices[self.indices[face * 3 + vert] as usize]
             .normal
-            .unwrap_or_else(Vector3::default_zero)
+            .xyz()
             .into()
     }
 
     fn tex_coord(&self, face: usize, vert: usize) -> [f32; 2] {
         self.vertices[self.indices[face * 3 + vert] as usize]
             .uv_0
-            .unwrap_or_else(Vector2::default_zero)
             .into()
     }
 }
 
 #[derive(Default)]
 pub struct GltfCompiler {
-    shared_data: SharedDataRc,
     data_raw_folder: PathBuf,
     data_folder: PathBuf,
     node_index: usize,
@@ -114,9 +107,8 @@ pub struct GltfCompiler {
 }
 
 impl GltfCompiler {
-    pub fn new(shared_data: SharedDataRc, data_raw_folder: &Path, data_folder: &Path) -> Self {
+    pub fn new(data_raw_folder: &Path, data_folder: &Path) -> Self {
         Self {
-            shared_data,
             data_raw_folder: data_raw_folder.to_path_buf(),
             data_folder: data_folder.to_path_buf(),
             node_index: 0,
@@ -181,11 +173,7 @@ impl GltfCompiler {
         let starting_offset = view_offset + accessor_offset;
         let view_stride = view.stride().unwrap_or(0);
         let type_stride = T::size();
-        let stride = if view_stride > type_stride {
-            view_stride - type_stride
-        } else {
-            0
-        };
+        let stride = view_stride.saturating_sub(type_stride);
         let mut result = Vec::new();
         file.seek(SeekFrom::Start(starting_offset as _)).ok();
         for _i in 0..count {
@@ -218,10 +206,15 @@ impl GltfCompiler {
         indices
     }
 
-    fn extract_vertices(&mut self, path: &Path, primitive: &Primitive) -> Vec<MeshVertex> {
+    fn extract_vertices(
+        &mut self,
+        path: &Path,
+        primitive: &Primitive,
+    ) -> (VertexAttributeLayout, Vec<MeshVertex>) {
+        let mut vertex_layout = VertexAttributeLayout::default();
         let mut vertices = Vec::new();
 
-        primitive.attributes().enumerate().for_each(|(_attribute_index, (semantic, accessor))| {
+        primitive.attributes().for_each(| (semantic, accessor)| {
             //debug_log!("Attribute[{}]: {:?}", _attribute_index, semantic);
             match semantic {
                 Semantic::Positions => {
@@ -229,11 +222,12 @@ impl GltfCompiler {
                     let num_bytes = self.bytes_from_dimension(&accessor);
                     debug_assert!(num == 3 && num_bytes == 4);
                     if let Some(pos) = self.read_accessor_from_path::<Vector3>(path, &accessor) {
+                        vertex_layout |= VertexAttributeLayout::HasPosition;
                         if vertices.is_empty() {
                             vertices.resize(pos.len(), MeshVertex::default());
                         }
                         pos.iter().enumerate().for_each(|(i, v)| {
-                            vertices[i].pos = *v;
+                            vertices[i].pos = Vector4::new(v.x, v.y, v.z, 1.0);
                         });
                     }
                 }
@@ -242,11 +236,12 @@ impl GltfCompiler {
                     let num_bytes = self.bytes_from_dimension(&accessor);
                     debug_assert!(num == 3 && num_bytes == 4);
                     if let Some(norm) = self.read_accessor_from_path::<Vector3>(path, &accessor) {
+                        vertex_layout |= VertexAttributeLayout::HasNormal;
                         if vertices.is_empty() {
                             vertices.resize(norm.len(), MeshVertex::default());
                         }
                         norm.iter().enumerate().for_each(|(i, v)| {
-                            vertices[i].normal = Some(*v);
+                            vertices[i].normal = Vector4::new(v.x, v.y, v.z, 1.0);
                         });
                     }
                 }
@@ -258,20 +253,22 @@ impl GltfCompiler {
                         debug_assert!(num_bytes == 2);
                         if let Some(tan) = self.read_accessor_from_path::<Vector4h>(path, &accessor)
                         {
+                            vertex_layout |= VertexAttributeLayout::HasTangent;
                             if vertices.is_empty() {
                                 vertices.resize(tan.len(), MeshVertex::default());
                             }
                             tan.iter().enumerate().for_each(|(i, v)| {
                                 vertices[i].tangent =
-                                    Some([v.x as f32, v.y as f32, v.z as f32, v.z as f32].into());
+                                    [v.x as f32, v.y as f32, v.z as f32, v.z as f32].into();
                             });
                         }
                     } else {
                         debug_assert!(num_bytes == 4);
                         if let Some(tan) = self.read_accessor_from_path::<Vector4>(path, &accessor)
                         {
+                            vertex_layout |= VertexAttributeLayout::HasTangent;
                             tan.iter().enumerate().for_each(|(i, v)| {
-                                vertices[i].tangent = Some(*v);
+                                vertices[i].tangent = *v;
                             });
                         }
                     }
@@ -284,20 +281,22 @@ impl GltfCompiler {
                         debug_assert!(num_bytes == 2);
                         if let Some(col) = self.read_accessor_from_path::<Vector4h>(path, &accessor)
                         {
+                            vertex_layout |= VertexAttributeLayout::HasColor;
                             if vertices.is_empty() {
                                 vertices.resize(col.len(), MeshVertex::default());
                             }
                             col.iter().enumerate().for_each(|(i, v)| {
                                 vertices[i].color =
-                                    Some([v.x as f32, v.y as f32, v.z as f32, v.z as f32].into());
+                                    [v.x as f32, v.y as f32, v.z as f32, v.z as f32].into();
                             });
                         }
                     } else {
                         debug_assert!(num_bytes == 4);
                         if let Some(col) = self.read_accessor_from_path::<Vector4>(path, &accessor)
                         {
+                            vertex_layout |= VertexAttributeLayout::HasColor;
                             col.iter().enumerate().for_each(|(i, v)| {
-                                vertices[i].color = Some(*v);
+                                vertices[i].color = *v;
                             });
                         }
                     }
@@ -324,23 +323,27 @@ impl GltfCompiler {
                         }
                         match texture_index {
                             0 => {
+                                vertex_layout |= VertexAttributeLayout::HasUV1;
                                 tex.iter().enumerate().for_each(|(i, v)| {
-                                    vertices[i].uv_0 = Some(v - (max - min));
+                                    vertices[i].uv_0 = v - (max - min);
                                 });
                             }
                             1 => {
+                                vertex_layout |= VertexAttributeLayout::HasUV2;
                                 tex.iter().enumerate().for_each(|(i, v)| {
-                                    vertices[i].uv_1 = Some(v - (max - min));
+                                    vertices[i].uv_1 = v - (max - min);
                                 });
                             }
                             2 => {
+                                vertex_layout |= VertexAttributeLayout::HasUV3;
                                 tex.iter().enumerate().for_each(|(i, v)| {
-                                    vertices[i].uv_2 = Some(v - (max - min));
+                                    vertices[i].uv_2 = v - (max - min);
                                 });
                             }
                             3 => {
+                                vertex_layout |= VertexAttributeLayout::HasUV4;
                                 tex.iter().enumerate().for_each(|(i, v)| {
-                                    vertices[i].uv_3 = Some(v - (max - min));
+                                    vertices[i].uv_3 = v - (max - min);
                                 });
                             }
                             _ => {
@@ -354,7 +357,7 @@ impl GltfCompiler {
                 _ => {}
             }
         });
-        vertices
+        (vertex_layout, vertices)
     }
 
     fn process_mesh_data(
@@ -366,7 +369,7 @@ impl GltfCompiler {
     ) -> PathBuf {
         let new_path = self.compute_path_name::<MeshData>(path, mesh_name, "mesh");
         if need_to_binarize(path, new_path.as_path()) {
-            let vertices = self.extract_vertices(path, primitive);
+            let (vertex_layout, vertices) = self.extract_vertices(path, primitive);
             let indices = self.extract_indices(path, primitive);
             let mut geometry = GltfGeometry { vertices, indices };
             generate_tangents(&mut geometry);
@@ -377,14 +380,22 @@ impl GltfCompiler {
             let mut mesh_indices_offset = 0;
             let mut previous_meshlets_starting_offset = 0;
             let mut meshlets_per_lod = Vec::new();
+            let mut all_meshlets = Vec::new();
             let (meshlets, mut mesh_indices) =
                 compute_meshlets(&geometry_vertices, &geometry_indices, 0);
 
+            inox_log::debug_log!(
+                "LOD 0 has {} meshlets and {} triangles",
+                meshlets.len(),
+                geometry_indices.len() / 3
+            );
+
             let mut is_meshlet_tree_created = meshlets.len() <= 1;
+            all_meshlets.push(meshlets.clone());
             meshlets_per_lod.push(meshlets);
             mesh_indices_offset += mesh_indices.len();
 
-            let mut level = 0;
+            let mut level: usize = 0;
             while !is_meshlet_tree_created {
                 let previous_lod_meshlets = meshlets_per_lod.last_mut().unwrap();
                 let meshlets_adjacency = build_meshlets_adjacency(
@@ -393,7 +404,6 @@ impl GltfCompiler {
                     &mesh_indices,
                 );
                 let groups = group_meshlets_with_metis(&meshlets_adjacency);
-                level += 1;
 
                 let (mut cluster_indices, cluster_meshlets) = compute_clusters(
                     &groups,
@@ -402,44 +412,49 @@ impl GltfCompiler {
                     mesh_indices_offset,
                     &geometry_vertices,
                     &mesh_indices,
+                    level as _,
+                );
+
+                inox_log::debug_log!(
+                    "LOD {} has {} meshlets and {} triangles",
+                    level,
+                    cluster_meshlets.len(),
+                    cluster_indices.len() / 3
                 );
 
                 mesh_indices_offset += cluster_indices.len();
                 mesh_indices.append(&mut cluster_indices);
-                previous_meshlets_starting_offset += meshlets_per_lod[level - 1].len();
+                previous_meshlets_starting_offset += meshlets_per_lod[level].len();
+                all_meshlets.push(cluster_meshlets.clone());
                 meshlets_per_lod.push(cluster_meshlets);
+                level += 1;
 
                 is_meshlet_tree_created = groups.len() == 1 || level >= (MAX_LOD_LEVELS - 1);
             }
 
-            let mut mesh_data = create_mesh_data(&geometry_vertices, &mesh_indices);
+            let mut mesh_data = create_mesh_data(vertex_layout, &geometry_vertices, &mesh_indices);
             mesh_data.meshlets = meshlets_per_lod;
             mesh_data.meshlets_bvh.clear();
             mesh_data.material = material_path.to_path_buf();
 
-            mesh_data
-                .meshlets
-                .iter_mut()
-                .enumerate()
-                .for_each(|(_lod_level, meshlets)| {
-                    //println!("LOD {} has {} meshlets", _lod_level, meshlets.len());
+            mesh_data.meshlets.iter_mut().for_each(|meshlets| {
+                //println!("LOD {} has {} meshlets", _lod_level, meshlets.len());
 
-                    let mut meshlets_aabbs = Vec::new();
-                    meshlets_aabbs.resize_with(meshlets.len(), AABB::empty);
-                    meshlets.iter_mut().enumerate().for_each(|(i, m)| {
-                        meshlets_aabbs[i] = AABB::create(m.aabb_min, m.aabb_max, i as _);
-                        m.bhv_offset = i as _;
-                    });
-                    let bvh = BVHTree::new(&meshlets_aabbs);
-                    mesh_data.meshlets_bvh.push(create_linearized_bvh(&bvh));
+                let mut meshlets_aabbs = Vec::new();
+                meshlets_aabbs.resize_with(meshlets.len(), AABB::empty);
+                meshlets.iter_mut().enumerate().for_each(|(i, m)| {
+                    meshlets_aabbs[i] = AABB::create(m.aabb_min, m.aabb_max, i as _);
+                    m.bvh_offset = i as _;
                 });
+                let bvh = BVHTree::new(&meshlets_aabbs);
+                mesh_data.meshlets_bvh.push(create_linearized_bvh(&bvh));
+            });
 
             self.create_file(
                 path,
                 &mesh_data,
                 mesh_name,
                 "mesh",
-                self.shared_data.serializable_registry(),
                 SerializationType::Binary,
             )
         } else {
@@ -628,7 +643,6 @@ impl GltfCompiler {
                 &material_data,
                 primitive.material().name().unwrap_or(&name),
                 "material",
-                self.shared_data.serializable_registry(),
                 SerializationType::Binary,
             )
         } else {
@@ -680,10 +694,7 @@ impl GltfCompiler {
             ));
         }
         if let Some(extras) = node.extras() {
-            if let Some(extras) = deserialize::<Extras>(
-                extras.to_string().as_bytes(),
-                self.shared_data.serializable_registry(),
-            ) {
+            if let Some(extras) = deserialize::<Extras>(extras.to_string().as_bytes()) {
                 if !extras.inox_properties.logic.name.is_empty() {
                     let mut path = path
                         .parent()
@@ -741,7 +752,6 @@ impl GltfCompiler {
                 &object_data,
                 node_name,
                 "object",
-                self.shared_data.serializable_registry(),
                 SerializationType::Binary,
             ),
         )
@@ -782,14 +792,7 @@ impl GltfCompiler {
         let name = format!("Node_{}_Light_{}", self.node_index, light.index());
         (
             NodeType::Light,
-            self.create_file(
-                path,
-                &light_data,
-                &name,
-                "light",
-                self.shared_data.serializable_registry(),
-                SerializationType::Binary,
-            ),
+            self.create_file(path, &light_data, &name, "light", SerializationType::Binary),
         )
     }
 
@@ -816,7 +819,6 @@ impl GltfCompiler {
                 &camera_data,
                 &name,
                 "camera",
-                self.shared_data.serializable_registry(),
                 SerializationType::Binary,
             ),
         )
@@ -886,14 +888,7 @@ impl GltfCompiler {
                         }
                     }
 
-                    self.create_file(
-                        path,
-                        &scene_data,
-                        scene_name,
-                        "",
-                        self.shared_data.serializable_registry(),
-                        SerializationType::Binary,
-                    );
+                    self.create_file(path, &scene_data, scene_name, "", SerializationType::Binary);
                 }
             }
         }
@@ -931,7 +926,6 @@ impl GltfCompiler {
         data: &T,
         new_name: &str,
         folder: &str,
-        serializable_registry: SerializableRegistryRc,
         serialization_type: SerializationType,
     ) -> PathBuf
     where
@@ -944,11 +938,7 @@ impl GltfCompiler {
         }
         if need_to_binarize(path, new_path.as_path()) {
             debug_log!("Serializing {:?}", new_path);
-            data.save_to_file(
-                new_path.as_path(),
-                serializable_registry,
-                serialization_type,
-            );
+            data.save_to_file(new_path.as_path(), serialization_type);
         }
         new_path
     }

@@ -12,7 +12,7 @@ use std::{
 use inox_core::{implement_unique_system_uid, ContextRc, System};
 use inox_log::debug_log;
 use inox_messenger::{Listener, MessageHubRc};
-use inox_resources::{ConfigBase, ConfigEvent, SharedDataRc};
+use inox_resources::{ConfigBase, ConfigEvent};
 use inox_serialize::{read_from_file, SerializationType};
 
 use crate::config::Config;
@@ -28,7 +28,6 @@ struct ConnectorData {
 
 pub struct Connector {
     config: Config,
-    shared_data: SharedDataRc,
     message_hub: MessageHubRc,
     listener: Listener,
     can_continue: Arc<AtomicBool>,
@@ -41,7 +40,6 @@ impl Connector {
         let listener = Listener::new(context.message_hub());
         Self {
             config: Config::default(),
-            shared_data: context.shared_data().clone(),
             message_hub: context.message_hub().clone(),
             listener,
             can_continue: Arc::new(AtomicBool::new(false)),
@@ -75,7 +73,6 @@ impl System for Connector {
         let filename = self.config.get_filename().to_string();
         read_from_file(
             self.config.get_filepath(plugin_name).as_path(),
-            self.shared_data.serializable_registry(),
             SerializationType::Json,
             Box::new(move |data: Config| {
                 message_hub.send_event(ConfigEvent::Loaded(filename.clone(), data));
@@ -155,7 +152,7 @@ fn client_thread_execution(
 
     let mut buffer = [0u8; 1024];
     while is_running.load(Ordering::SeqCst) {
-        match client_stream.read(&mut buffer) {
+        match client_stream.read_exact(&mut buffer) {
             Ok(_) => {
                 let last = buffer
                     .iter()

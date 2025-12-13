@@ -40,7 +40,7 @@ struct TaggedVisitor<'a, T: ?Sized + 'static> {
     registry: &'a Registry<T>,
 }
 
-impl<'a, 'de, T: ?Sized> Visitor<'de> for TaggedVisitor<'a, T> {
+impl<'de, T: ?Sized> Visitor<'de> for TaggedVisitor<'_, T> {
     type Value = Box<T>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

@@ -16,3 +16,4 @@ dhat-heap.json
 *.spv
 *.wasm
 *.js
+*.preprocessed_shader

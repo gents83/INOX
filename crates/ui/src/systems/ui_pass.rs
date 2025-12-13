@@ -3,11 +3,10 @@ use std::path::PathBuf;
 use inox_core::ContextRc;
 use inox_messenger::Listener;
 use inox_render::{
-    declare_as_binding, AsBinding, BindingData, BindingInfo, CommandBuffer, ConstantDataRw,
-    DrawCommandType, GPUTexture, LoadOperation, MeshFlags, Pass, RenderContext, RenderContextRc,
+    declare_as_binding, AsBinding, BindingData, BindingFlags, BindingInfo, CommandBuffer,
+    ConstantDataRw, GPUBuffer, GPUTexture, LoadOperation, Pass, RenderContext, RenderContextRc,
     RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType, ShaderStage,
-    StoreOperation, TextureView, TexturesBuffer, VertexBufferLayoutBuilder, VertexFormat,
-    VextexBindingType,
+    StoreOperation, TextureView, VertexBufferLayoutBuilder, VertexFormat, VextexBindingType,
 };
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::generate_random_uid;
@@ -66,7 +65,7 @@ pub struct UIPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    textures: TexturesBuffer,
+    textures: GPUBuffer<GPUTexture>,
     custom_data: UIPassData,
     vertices: Vec<UIVertex>,
     indices: Vec<u32>,
@@ -85,12 +84,6 @@ impl Pass for UIPass {
     }
     fn is_active(&self, _render_context: &RenderContext) -> bool {
         true
-    }
-    fn mesh_flags(&self) -> MeshFlags {
-        MeshFlags::Visible | MeshFlags::Custom
-    }
-    fn draw_commands_type(&self) -> DrawCommandType {
-        DrawCommandType::PerMeshlet
     }
     fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where
@@ -143,34 +136,36 @@ impl Pass for UIPass {
         let mut pass = self.render_pass.get_mut();
 
         self.binding_data
-            .add_uniform_buffer(
+            .add_buffer(
                 &mut *self.constant_data.write().unwrap(),
                 Some("ConstantData"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 0,
                     stage: ShaderStage::Vertex,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_uniform_buffer(
+            .add_buffer(
                 &mut self.custom_data,
                 Some("UICustomData"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,
                     stage: ShaderStage::Vertex,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_storage_buffer(
+            .add_buffer(
                 &mut *self.textures.write().unwrap(),
                 Some("Textures"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 0,
                     stage: ShaderStage::Fragment,
-
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
                 },
             )
@@ -270,11 +265,11 @@ impl UIPass {
                     }
                 }
                 UIEvent::DrawData(vertices, indices, instances) => {
-                    self.vertices = vertices.clone();
+                    self.vertices.clone_from(vertices);
                     self.vertices.mark_as_dirty(render_context);
-                    self.indices = indices.clone();
+                    self.indices.clone_from(indices);
                     self.indices.mark_as_dirty(render_context);
-                    self.instances = instances.clone();
+                    self.instances.clone_from(instances);
                     self.instances.mark_as_dirty(render_context);
                 }
             });

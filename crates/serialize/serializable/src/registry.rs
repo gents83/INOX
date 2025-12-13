@@ -3,18 +3,11 @@
 use std::{
     any::{type_name, Any, TypeId},
     collections::{BTreeMap, HashMap},
-    sync::{Arc, RwLock},
+    sync::{Arc, LazyLock, RwLock},
 };
 
-pub static mut SERIALIZABLE_REGISTRY: Option<SerializableRegistryRc> = None;
-
-pub fn check_serializable_registry(registry: SerializableRegistryRc) {
-    unsafe {
-        if SERIALIZABLE_REGISTRY.is_none() {
-            SERIALIZABLE_REGISTRY.replace(registry);
-        }
-    }
-}
+pub static SERIALIZABLE_REGISTRY: LazyLock<SerializableRegistryRc> =
+    LazyLock::new(|| Arc::new(RwLock::new(SerializableRegistry::default())));
 
 pub trait TraitRegistry: Any {
     fn as_any(&self) -> &dyn Any;
