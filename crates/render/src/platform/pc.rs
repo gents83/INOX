@@ -17,7 +17,6 @@ pub fn required_gpu_features() -> wgpu::Features {
         | wgpu::Features::TIMESTAMP_QUERY
         | wgpu::Features::TIMESTAMP_QUERY_INSIDE_PASSES
         | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS
-        | wgpu::Features::PUSH_CONSTANTS
         | wgpu::Features::DEPTH32FLOAT_STENCIL8
         | wgpu::Features::VERTEX_WRITABLE_STORAGE
         | wgpu::Features::CLEAR_TEXTURE
@@ -33,7 +32,9 @@ pub fn platform_limits() -> wgpu::Limits {
 pub fn setup_env() {
     let wgpu_power_pref = std::env::var("WGPU_POWER_PREF");
     if wgpu_power_pref.is_err() {
-        std::env::set_var("WGPU_POWER_PREF", "high");
+        unsafe {
+            std::env::set_var("WGPU_POWER_PREF", "high");
+        }
     }
 }
 

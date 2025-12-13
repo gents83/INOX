@@ -207,7 +207,7 @@ impl RenderPipeline {
                         .iter()
                         .collect::<Vec<_>>()
                         .as_slice(),
-                    push_constant_ranges: &[],
+                    ..Default::default()
                 });
 
         let mut vertex_state_buffers = Vec::new();

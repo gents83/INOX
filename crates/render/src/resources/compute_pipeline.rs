@@ -132,7 +132,7 @@ impl ComputePipeline {
                         .iter()
                         .collect::<Vec<_>>()
                         .as_slice(),
-                    push_constant_ranges: &[],
+                    ..Default::default()
                 });
 
         let compute_pipeline = {
