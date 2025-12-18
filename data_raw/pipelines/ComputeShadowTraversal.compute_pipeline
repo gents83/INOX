@@ -1,0 +1,3 @@
+{
+    "shader": "shaders/wgsl/compute_shadow_traversal.shader"
+}

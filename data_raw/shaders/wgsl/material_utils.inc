@@ -66,7 +66,14 @@ fn init_material_info_default(info: ptr<function, MaterialInfo>) {
     (*info).f_emissive = vec3<f32>(0.);
     (*info).f_diffuse = vec3<f32>(0.);
     (*info).f_diffuse_ibl = vec3<f32>(0.);
+    (*info).f_specular_ibl = vec3<f32>(0.);
     (*info).f_specular = vec3<f32>(0.);
+    (*info).f_sheen = vec3<f32>(0.);
+    (*info).f_sheen_ibl = vec3<f32>(0.);
+    (*info).f_clearcoat = vec3<f32>(0.);
+    (*info).f_clearcoat_ibl = vec3<f32>(0.);
+    (*info).f_transmission = vec3<f32>(0.);
+    (*info).shading_normal = vec3<f32>(0., 0., 1.);
 }
 
 fn compute_base_color(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) {

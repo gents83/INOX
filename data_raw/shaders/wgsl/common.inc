@@ -67,6 +67,15 @@ const MAX_TRACING_DISTANCE: f32 = 500.;
 const HIT_EPSILON: f32 = 0.0001;
 const INVALID_NODE: i32 = -1;
 
+// Wavefront Path Tracer Configuration
+const MAX_DIFFUSE_BOUNCES: u32 = 4u;
+const MAX_SPECULAR_BOUNCES: u32 = 8u;
+const MAX_TRANSMISSION_BOUNCES: u32 = 8u;
+const MAX_AO_SAMPLES: u32 = 1u;
+const AO_MAX_DISTANCE: f32 = 2.0;
+const RUSSIAN_ROULETTE_MIN_BOUNCES: u32 = 3u;
+const RUSSIAN_ROULETTE_THRESHOLD: f32 = 0.05;
+
 const VERTEX_ATTRIBUTE_HAS_POSITION: u32 = 0u;
 const VERTEX_ATTRIBUTE_HAS_COLOR: u32 = 1u;
 const VERTEX_ATTRIBUTE_HAS_NORMAL: u32 = 1u << 1u;
@@ -356,4 +365,11 @@ struct MaterialInfo {
     f_diffuse: vec3<f32>,
     f_diffuse_ibl: vec3<f32>,
     f_specular: vec3<f32>,
+    f_specular_ibl: vec3<f32>,
+    f_sheen: vec3<f32>,
+    f_sheen_ibl: vec3<f32>,
+    f_clearcoat: vec3<f32>,
+    f_clearcoat_ibl: vec3<f32>,
+    f_transmission: vec3<f32>,
+    shading_normal: vec3<f32>,
 };
