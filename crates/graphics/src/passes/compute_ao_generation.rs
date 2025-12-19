@@ -58,7 +58,9 @@ impl Pass for ComputeAOGenerationPass {
             pipelines: vec![PathBuf::from(COMPUTE_AO_GENERATION_PIPELINE)],
         };
 
-        let ao_rays = render_context.global_buffers().vector::<RayPackedData>();
+        let ao_rays = render_context
+            .global_buffers()
+            .vector_with_id::<RayPackedData>(crate::AO_RAYS_ID);
         let indices = render_context.global_buffers().buffer::<GPUVertexIndices>();
         let vertices_position = render_context
             .global_buffers()

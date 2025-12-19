@@ -59,10 +59,12 @@ impl Pass for ComputeRayTraversalPass {
             pipelines: vec![PathBuf::from(COMPUTE_RAY_TRAVERSAL_PIPELINE)],
         };
 
-        let rays = render_context.global_buffers().vector::<RayPackedData>();
+        let rays = render_context
+            .global_buffers()
+            .vector_with_id::<RayPackedData>(crate::BOUNCE_RAYS_ID);
         let intersections = render_context
             .global_buffers()
-            .vector::<IntersectionPackedData>();
+            .vector_with_id::<IntersectionPackedData>(crate::BOUNCE_INTERSECTIONS_ID);
         let indices = render_context.global_buffers().buffer::<GPUVertexIndices>();
         let vertices_position = render_context
             .global_buffers()
@@ -107,6 +109,11 @@ impl Pass for ComputeRayTraversalPass {
         }
 
         if self.rays.read().unwrap().is_empty() || self.intersections.read().unwrap().is_empty() {
+            return;
+        }
+
+        // Don't initialize if BVH is empty - wgpu will reject empty buffer bindings
+        if self.bvh.read().unwrap().is_empty() {
             return;
         }
 
@@ -269,5 +276,13 @@ impl Pass for ComputeRayTraversalPass {
 impl ComputeRayTraversalPass {
     pub fn intersections(&self) -> &GPUVector<IntersectionPackedData> {
         &self.intersections
+    }
+
+    pub fn get_compute_pass(&self) -> &Resource<ComputePass> {
+        &self.compute_pass
+    }
+
+    pub fn get_binding_data_mut(&mut self) -> &mut BindingData {
+        &mut self.binding_data
     }
 }

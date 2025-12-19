@@ -544,6 +544,20 @@ fn get_IBL_volume_refraction(n: vec3<f32>, v: vec3<f32>, perceptualRoughness: f3
 } 
 
 
+fn compute_tbn(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>) -> TBN {
+    var n = (*pixel_data).normal;
+    var t = (*pixel_data).tangent.xyz;
+    var b = cross(n,  t) * (*pixel_data).tangent.w;
+    if (has_texture(material, TEXTURE_TYPE_NORMAL)) {  
+        let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_NORMAL);
+        let uv_set_index = material_texture_coord_set(material, TEXTURE_TYPE_NORMAL);
+        var ntex = sample_texture(uv).rgb * 2. - vec3<f32>(1.);
+        let normal_scale = unpack2x16float((*material).normal_scale_and_alpha_cutoff).x;
+        ntex *= vec3<f32>(normal_scale, normal_scale, 1.);
+        n = normalize(mat3x3<f32>(t, b, n) * normalize(ntex));
+    }
+    return TBN(n, t, b);
+}
 
 
 //Inspired from glTF-Sample-Viewer

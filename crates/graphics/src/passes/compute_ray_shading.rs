@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use inox_render::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, GPUBuffer, GPUInstance, GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture,
+    ConstantDataRw, GPUBuffer, GPUInstance, GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture,
     GPUTransform, GPUVector, GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, Pass,
     RenderContext, RenderContextRc, ShaderStage, TextureId, TextureView, DEFAULT_HEIGHT,
     DEFAULT_WIDTH, INSTANCE_DATA_ID,
@@ -33,6 +33,7 @@ pub struct ComputeRayShadingPass {
     meshlets: GPUBuffer<GPUMeshlet>,
     materials: GPUBuffer<GPUMaterial>,
     textures: GPUBuffer<GPUTexture>,
+    lights: GPUBuffer<GPULight>,
     indirect_diffuse_texture: TextureId,
     indirect_specular_texture: TextureId,
 }
@@ -62,11 +63,15 @@ impl Pass for ComputeRayShadingPass {
             pipelines: vec![PathBuf::from(COMPUTE_RAY_SHADING_PIPELINE)],
         };
 
-        let rays = render_context.global_buffers().vector::<RayPackedData>();
+        let rays = render_context
+            .global_buffers()
+            .vector_with_id::<RayPackedData>(crate::BOUNCE_RAYS_ID);
         let intersections = render_context
             .global_buffers()
-            .vector::<IntersectionPackedData>();
-        let rays_next = render_context.global_buffers().vector::<RayPackedData>();
+            .vector_with_id::<IntersectionPackedData>(crate::BOUNCE_INTERSECTIONS_ID);
+        let rays_next = render_context
+            .global_buffers()
+            .vector_with_id::<RayPackedData>(crate::BOUNCE_RAYS_NEXT_ID);
         let indices = render_context.global_buffers().buffer::<GPUVertexIndices>();
         let vertices_position = render_context
             .global_buffers()
@@ -82,6 +87,7 @@ impl Pass for ComputeRayShadingPass {
         let meshlets = render_context.global_buffers().buffer::<GPUMeshlet>();
         let materials = render_context.global_buffers().buffer::<GPUMaterial>();
         let textures = render_context.global_buffers().buffer::<GPUTexture>();
+        let lights = render_context.global_buffers().buffer::<GPULight>();
 
         Self {
             compute_pass: ComputePass::new_resource(
@@ -104,6 +110,7 @@ impl Pass for ComputeRayShadingPass {
             meshlets,
             materials,
             textures,
+            lights,
             binding_data: BindingData::new(render_context, COMPUTE_RAY_SHADING_NAME),
             indirect_diffuse_texture: INVALID_UID,
             indirect_specular_texture: INVALID_UID,
@@ -138,29 +145,65 @@ impl Pass for ComputeRayShadingPass {
                 ..Default::default()
             },
         );
-        // TODO: Output textures - not yet implemented in shader
-        // .add_texture(
-        //     &self.indirect_diffuse_texture,
-        //     0,
-        //     BindingInfo {
-        //         group_index: 0,
-        //         binding_index: 3,
-        //         stage: ShaderStage::Compute,
-        //         flags: BindingFlags::Write | BindingFlags::Storage,
-        //         ..Default::default()
-        //     },
-        // )
-        // .add_texture(
-        //     &self.indirect_specular_texture,
-        //     0,
-        //     BindingInfo {
-        //         group_index: 0,
-        //         binding_index: 4,
-        //         stage: ShaderStage::Compute,
-        //         flags: BindingFlags::Write | BindingFlags::Storage,
-        //         ..Default::default()
-        //     },
-        // );
+
+        // Output textures for indirect lighting accumulation
+        self.binding_data.add_texture(
+            &self.indirect_diffuse_texture,
+            0,
+            inox_render::BindingInfo {
+                group_index: 0,
+                binding_index: 1,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Write | BindingFlags::Storage,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_texture(
+            &self.indirect_specular_texture,
+            0,
+            inox_render::BindingInfo {
+                group_index: 0,
+                binding_index: 2,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Write | BindingFlags::Storage,
+                ..Default::default()
+            },
+        );
+
+        // Ray data buffers (bindings 5-7 in group 0)
+        self.binding_data.add_buffer(
+            &mut *self.rays.write().unwrap(),
+            Some("rays"),
+            BindingInfo {
+                group_index: 0,
+                binding_index: 3,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.intersections.write().unwrap(),
+            Some("intersections"),
+            BindingInfo {
+                group_index: 0,
+                binding_index: 4,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.rays_next.write().unwrap(),
+            Some("rays_next"),
+            BindingInfo {
+                group_index: 0,
+                binding_index: 5,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                ..Default::default()
+            },
+        );
 
         // Group 1: Geometry - all buffers
         self.binding_data
@@ -265,43 +308,36 @@ impl Pass for ComputeRayShadingPass {
                     flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
                 },
+            )
+            .add_buffer(
+                &mut *self.lights.write().unwrap(),
+                Some("lights"),
+                BindingInfo {
+                    group_index: 2,
+                    binding_index: 2,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
+                    ..Default::default()
+                },
             );
 
-        // Group 3: Ray Data only (rays, intersections, rays_next)
+        // Group 3: Texture sampling (sampler + texture arrays) - required by shader
         self.binding_data
-            .add_buffer(
-                &mut *self.rays.write().unwrap(),
-                Some("rays"),
-                BindingInfo {
+            .add_default_sampler(
+                inox_render::BindingInfo {
                     group_index: 3,
                     binding_index: 0,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
+                inox_render::SamplerType::Unfiltered,
             )
-            .add_buffer(
-                &mut *self.intersections.write().unwrap(),
-                Some("intersections"),
-                BindingInfo {
-                    group_index: 3,
-                    binding_index: 1,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.rays_next.write().unwrap(),
-                Some("rays_next"),
-                BindingInfo {
-                    group_index: 3,
-                    binding_index: 2, // After rays and intersections
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
-                    ..Default::default()
-                },
-            );
+            .add_material_textures(inox_render::BindingInfo {
+                group_index: 3,
+                binding_index: 1,
+                stage: ShaderStage::Compute,
+                ..Default::default()
+            });
 
         let mut pass = self.compute_pass.get_mut();
         pass.init(render_context, &mut self.binding_data, None);
@@ -345,5 +381,13 @@ impl ComputeRayShadingPass {
 
     pub fn rays_next(&self) -> &GPUVector<RayPackedData> {
         &self.rays_next
+    }
+
+    pub fn get_compute_pass(&self) -> &Resource<ComputePass> {
+        &self.compute_pass
+    }
+
+    pub fn get_binding_data_mut(&mut self) -> &mut BindingData {
+        &mut self.binding_data
     }
 }

@@ -4,10 +4,12 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
     BlitPass, CommandsPass, ComputeAOGenerationPass, ComputeAOShadingPass, ComputeAOTraversalPass,
-    ComputeDirectLightingPass, ComputeInstancesPass, ComputeRayShadingPass,
-    ComputeRayTraversalPass, ComputeShadowGenerationPass, ComputeShadowShadingPass,
-    ComputeShadowTraversalPass, CullingPass, DepthFirstPass, DepthPyramidPass, FinalizePass,
-    RayPackedData, VisibilityBufferPass, WireframePass, WIREFRAME_PASS_NAME,
+    ComputeDirectLightingPass, ComputeInstancesPass, ComputeShadowGenerationPass,
+    ComputeShadowShadingPass, ComputeShadowTraversalPass, CullingPass, DepthFirstPass,
+    DepthPyramidPass, FinalizePass, IntersectionPackedData, RayBounceManagerPass, RayPackedData,
+    VisibilityBufferPass, WireframePass, AO_INTERSECTIONS_ID, AO_RAYS_ID, BOUNCE_INTERSECTIONS_ID,
+    BOUNCE_RAYS_ID, BOUNCE_RAYS_NEXT_ID, SHADOW_INTERSECTIONS_ID, SHADOW_RAYS_ID,
+    WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_render::{
@@ -297,16 +299,59 @@ impl Viewer {
             .unwrap()
             .prealloc::<MAX_NUM_MATERIALS>();
 
-        // Pre-allocate rays buffer for path tracing (one ray per pixel)
+        // Pre-allocate ray buffers for path tracing (one ray per pixel)
+        let num_pixels = DEFAULT_WIDTH as usize * DEFAULT_HEIGHT as usize;
+
         render_context
             .global_buffers()
-            .vector::<RayPackedData>()
+            .vector_with_id::<RayPackedData>(BOUNCE_RAYS_ID)
             .write()
             .unwrap()
-            .resize(
-                DEFAULT_WIDTH as usize * DEFAULT_HEIGHT as usize,
-                RayPackedData::default(),
-            );
+            .resize(num_pixels, RayPackedData::default());
+
+        render_context
+            .global_buffers()
+            .vector_with_id::<RayPackedData>(BOUNCE_RAYS_NEXT_ID)
+            .write()
+            .unwrap()
+            .resize(num_pixels, RayPackedData::default());
+
+        render_context
+            .global_buffers()
+            .vector_with_id::<IntersectionPackedData>(BOUNCE_INTERSECTIONS_ID)
+            .write()
+            .unwrap()
+            .resize(num_pixels, IntersectionPackedData::default());
+
+        // Shadow rays (shared across shadow generation/traversal/shading)
+        render_context
+            .global_buffers()
+            .vector_with_id::<RayPackedData>(SHADOW_RAYS_ID)
+            .write()
+            .unwrap()
+            .resize(num_pixels, RayPackedData::default());
+
+        render_context
+            .global_buffers()
+            .vector_with_id::<IntersectionPackedData>(SHADOW_INTERSECTIONS_ID)
+            .write()
+            .unwrap()
+            .resize(num_pixels, IntersectionPackedData::default());
+
+        // AO rays (shared across AO generation/traversal/shading)
+        render_context
+            .global_buffers()
+            .vector_with_id::<RayPackedData>(AO_RAYS_ID)
+            .write()
+            .unwrap()
+            .resize(num_pixels, RayPackedData::default());
+
+        render_context
+            .global_buffers()
+            .vector_with_id::<IntersectionPackedData>(AO_INTERSECTIONS_ID)
+            .write()
+            .unwrap()
+            .resize(num_pixels, IntersectionPackedData::default());
     }
 
     fn create_render_passes(context: &ContextRc, render_context: &RenderContextRc) {
@@ -316,22 +361,22 @@ impl Viewer {
 
         Self::create_visibility_pass(context, render_context);
 
-        // Wavefront Path Tracer Pipeline
+        // Wavefront Path Tracer Pipeline with Runtime-Configurable Multi-Bounce
         Self::create_compute_direct_lighting_pass(context, render_context);
 
-        // Shadow Pipeline
+        // Create bounce manager that will dispatch traversal + shading N times per frame
+        // based on runtime num_bounces value from ConstantData
+        Self::create_ray_bounce_manager_pass(context, render_context);
+
+        // Shadow Pipeline (always active, independent of num_bounces)
         Self::create_compute_shadow_generation_pass(context, render_context);
         Self::create_compute_shadow_traversal_pass(context, render_context);
         Self::create_compute_shadow_shading_pass(context, render_context);
 
-        // AO Pipeline
+        // AO Pipeline (always active, independent of num_bounces)
         Self::create_compute_ao_generation_pass(context, render_context);
         Self::create_compute_ao_traversal_pass(context, render_context);
         Self::create_compute_ao_shading_pass(context, render_context);
-
-        // Existing bounce ray passes
-        Self::create_compute_ray_traversal_pass(context, render_context);
-        Self::create_compute_ray_shading_pass(context, render_context);
 
         Self::create_finalize_pass(context, render_context);
         Self::create_blit_pass(context, render_context);
@@ -375,23 +420,6 @@ impl Viewer {
         pass.set_depth_texture(&render_context.render_target_id(RenderTargetType::Depth as usize));
         pass.set_direct_lighting_texture(
             &render_context.render_target_id(RenderTargetType::Direct as usize),
-        );
-        render_context.add_pass(pass, true);
-    }
-
-    fn create_compute_ray_traversal_pass(context: &ContextRc, render_context: &RenderContextRc) {
-        let pass = ComputeRayTraversalPass::create(context, render_context);
-        // Ray buffer will be set dynamically from direct lighting pass
-        render_context.add_pass(pass, true);
-    }
-
-    fn create_compute_ray_shading_pass(context: &ContextRc, render_context: &RenderContextRc) {
-        let mut pass = ComputeRayShadingPass::create(context, render_context);
-        pass.set_indirect_diffuse_texture(
-            &render_context.render_target_id(RenderTargetType::IndirectDiffuse as usize),
-        );
-        pass.set_indirect_specular_texture(
-            &render_context.render_target_id(RenderTargetType::IndirectSpecular as usize),
         );
         render_context.add_pass(pass, true);
     }
@@ -451,6 +479,18 @@ impl Viewer {
             ao_texture.get().dimensions(),
         );
         render_context.add_pass(pass, true);
+    }
+
+    fn create_ray_bounce_manager_pass(context: &ContextRc, render_context: &RenderContextRc) {
+        let mut manager = RayBounceManagerPass::create(context, render_context);
+        manager
+            .set_indirect_diffuse_texture(
+                &render_context.render_target_id(RenderTargetType::IndirectDiffuse as usize),
+            )
+            .set_indirect_specular_texture(
+                &render_context.render_target_id(RenderTargetType::IndirectSpecular as usize),
+            );
+        render_context.add_pass(manager, true);
     }
 
     // Legacy functions kept below...

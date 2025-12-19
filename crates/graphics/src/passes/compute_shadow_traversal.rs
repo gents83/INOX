@@ -59,10 +59,12 @@ impl Pass for ComputeShadowTraversalPass {
             pipelines: vec![PathBuf::from(COMPUTE_SHADOW_TRAVERSAL_PIPELINE)],
         };
 
-        let shadow_rays = render_context.global_buffers().vector::<RayPackedData>();
+        let shadow_rays = render_context
+            .global_buffers()
+            .vector_with_id::<RayPackedData>(crate::SHADOW_RAYS_ID);
         let shadow_intersections = render_context
             .global_buffers()
-            .vector::<IntersectionPackedData>();
+            .vector_with_id::<IntersectionPackedData>(crate::SHADOW_INTERSECTIONS_ID);
         let indices = render_context.global_buffers().buffer::<GPUVertexIndices>();
         let vertices_position = render_context
             .global_buffers()
@@ -109,6 +111,11 @@ impl Pass for ComputeShadowTraversalPass {
         if self.shadow_rays.read().unwrap().is_empty()
             || self.shadow_intersections.read().unwrap().is_empty()
         {
+            return;
+        }
+
+        // Don't initialize if BVH is empty - wgpu will reject empty buffer bindings
+        if self.bvh.read().unwrap().is_empty() {
             return;
         }
 

@@ -58,10 +58,12 @@ impl Pass for ComputeAOTraversalPass {
             pipelines: vec![PathBuf::from(COMPUTE_AO_TRAVERSAL_PIPELINE)],
         };
 
-        let ao_rays = render_context.global_buffers().vector::<RayPackedData>();
+        let ao_rays = render_context
+            .global_buffers()
+            .vector_with_id::<RayPackedData>(crate::AO_RAYS_ID);
         let ao_intersections = render_context
             .global_buffers()
-            .vector::<IntersectionPackedData>();
+            .vector_with_id::<IntersectionPackedData>(crate::AO_INTERSECTIONS_ID);
         let indices = render_context.global_buffers().buffer::<GPUVertexIndices>();
         let vertices_position = render_context
             .global_buffers()
@@ -108,6 +110,11 @@ impl Pass for ComputeAOTraversalPass {
         if self.ao_rays.read().unwrap().is_empty()
             || self.ao_intersections.read().unwrap().is_empty()
         {
+            return;
+        }
+
+        // Don't initialize if BVH is empty - wgpu will reject empty buffer bindings
+        if self.bvh.read().unwrap().is_empty() {
             return;
         }
 

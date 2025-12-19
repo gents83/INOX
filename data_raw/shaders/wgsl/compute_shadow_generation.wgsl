@@ -2,11 +2,9 @@
 #import "utils.inc"
 #import "vertex_utils.inc"
 #import "visibility_utils.inc"
-#import "material_utils.inc"
 #import "ray_data.inc"
 #import "ray_types.inc"
 #import "sampling.inc"
-#import "texture_utils.inc"
 
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;

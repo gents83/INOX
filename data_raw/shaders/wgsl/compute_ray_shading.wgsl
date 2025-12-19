@@ -10,11 +10,19 @@
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
 
-// TODO: Output textures - not yet implemented in shader
-// @group(0) @binding(3)
-// var indirect_diffuse_texture: texture_storage_2d<rgba16float, write>;
-// @group(0) @binding(4)
-// var indirect_specular_texture: texture_storage_2d<rgba16float, write>;
+// Output textures for accumulating indirect lighting
+@group(0) @binding(1)
+var indirect_diffuse_texture: texture_storage_2d<rgba16float, write>;
+@group(0) @binding(2)
+var indirect_specular_texture: texture_storage_2d<rgba16float, write>;
+
+// Group 0: Ray Data (bindings 3-5 to make room for output textures at 1-2)
+@group(0) @binding(3)
+var<storage, read> rays: Rays;
+@group(0) @binding(4)
+var<storage, read> intersections: Intersections;
+@group(0) @binding(5)
+var<storage, read_write> rays_next: Rays;
 
 // Group 1: Geometry
 @group(1) @binding(0)
@@ -41,79 +49,8 @@ var<uniform> textures: Textures;
 @group(2) @binding(2)
 var<uniform> lights: Lights;
 
-// Group 0: includes ray data (bindings 3-5 after ConstantData at 0)
-// See below after compute_ray_shading imports
+#import "texture_utils.inc"
 
-// Group 3: Texture sampling (sampler + texture arrays)
-@group(3) @binding(0)
-var default_sampler: sampler;
-
-#ifdef FEATURES_TEXTURE_BINDING_ARRAY
-@group(3) @binding(1)
-var texture_array: binding_array<texture_2d_array<f32>, 8>;
-#else
-@group(3) @binding(1)
-var texture_1: texture_2d_array<f32>;
-@group(3) @binding(2)
-var texture_2: texture_2d_array<f32>;
-@group(3) @binding(3)
-var texture_3: texture_2d_array<f32>;
-@group(3) @binding(4)
-var texture_4: texture_2d_array<f32>;
-@group(3) @binding(5)
-var texture_5: texture_2d_array<f32>;
-@group(3) @binding(6)
-var texture_6: texture_2d_array<f32>;
-@group(3) @binding(7)
-var texture_7: texture_2d_array<f32>;
-#endif
-
-fn sample_texture(tex_coords_and_texture_index: vec3<f32>) -> vec4<f32> {
-    let texture_data_index = i32(tex_coords_and_texture_index.z);
-    var v = vec4<f32>(0.);
-    var tex_coords = vec3<f32>(0.0, 0.0, 0.0);
-    if (texture_data_index < 0) {
-        return v;
-    }
-    let texture = &textures.data[texture_data_index];
-    var texture_index = (*texture).texture_and_layer_index;
-    let area_start = unpack2x16float((*texture).min);
-    let area_size = unpack2x16float((*texture).max);
-    let total_size = unpack2x16float((*texture).size);
-    if (texture_index < 0) {
-        texture_index *= -1;
-    } 
-    let atlas_index = u32(texture_index >> 3);
-    let layer_index = i32(texture_index & 0x00000007);
-
-    tex_coords.x = (f32(area_start.x) + mod_f32(tex_coords_and_texture_index.x, 1.) * f32(area_size.x)) / f32(total_size.x);
-    tex_coords.y = (f32(area_start.y) + mod_f32(tex_coords_and_texture_index.y, 1.) * f32(area_size.y)) / f32(total_size.y);
-    tex_coords.z = f32(layer_index);
-
-#ifdef FEATURES_TEXTURE_BINDING_ARRAY
-    v = textureSampleLevel(texture_array[atlas_index], default_sampler, tex_coords.xy, layer_index, 0.);
-#else
-    switch (atlas_index) {
-        case 0u: { v = textureSampleLevel(texture_1, default_sampler, tex_coords.xy, layer_index, 0.); }
-        case 1u: { v = textureSampleLevel(texture_2, default_sampler, tex_coords.xy, layer_index, 0.); }
-        case 2u: { v = textureSampleLevel(texture_3, default_sampler, tex_coords.xy, layer_index, 0.); }
-        case 3u: { v = textureSampleLevel(texture_4, default_sampler, tex_coords.xy, layer_index, 0.); }
-        case 4u: { v = textureSampleLevel(texture_5, default_sampler, tex_coords.xy, layer_index, 0.); }
-        case 5u: { v = textureSampleLevel(texture_6, default_sampler, tex_coords.xy, layer_index, 0.); }
-        case 6u: { v = textureSampleLevel(texture_7, default_sampler, tex_coords.xy, layer_index, 0.); }
-        default { v = textureSampleLevel(texture_1, default_sampler, tex_coords.xy, layer_index, 0.); }
-    };
-#endif
-    return v;
-}
-
-// Group 0: Ray Data (moved here from group 3 to make room for textures)
-@group(0) @binding(3)
-var<storage, read> rays: Rays;
-@group(0) @binding(4)
-var<storage, read> intersections: Intersections;
-@group(0) @binding(5)
-var<storage, read_write> rays_next: Rays;
 const WORKGROUP_SIZE: u32 = 64u;
 
 fn get_pixel_data_from_intersection(ray: PathRay, intersection: Intersection) -> PixelData {
@@ -179,14 +116,12 @@ fn main(
     let pixel_index = ray.pixel_index;
     let pixel = vec2<u32>(pixel_index % DEFAULT_WIDTH, pixel_index / DEFAULT_WIDTH);
     
-    // TODO: Restore when output textures are properly set up
-    // if (ray.ray_type == RAY_TYPE_DIFFUSE_BOUNCE) {
-    //     let prev = textureLoad(indirect_diffuse_texture, pixel);
-    //     textureStore(indirect_diffuse_texture, pixel, prev + vec4<f32>(contribution, 0.0));
-    // } else {
-    //     let prev = textureLoad(indirect_specular_texture, pixel);
-    //     textureStore(indirect_specular_texture, pixel, prev + vec4<f32>(contribution, 0.0));
-    // }
+    // Write contribution to appropriate output texture based on ray type
+    if (ray.ray_type == RAY_TYPE_DIFFUSE_BOUNCE) {
+        textureStore(indirect_diffuse_texture, pixel, vec4<f32>(contribution, 0.0));
+    } else {
+        textureStore(indirect_specular_texture, pixel, vec4<f32>(contribution, 0.0));
+    }
     
     // Generate next bounce (simplified - could be more sophisticated)
     var seed = vec2<u32>(pixel_index, constant_data.frame_index + ray_index);

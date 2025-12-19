@@ -50,10 +50,12 @@ impl Pass for ComputeAOShadingPass {
             pipelines: vec![PathBuf::from(COMPUTE_AO_SHADING_PIPELINE)],
         };
 
-        let ao_rays = render_context.global_buffers().vector::<RayPackedData>();
+        let ao_rays = render_context
+            .global_buffers()
+            .vector_with_id::<RayPackedData>(crate::AO_RAYS_ID);
         let ao_intersections = render_context
             .global_buffers()
-            .vector::<IntersectionPackedData>();
+            .vector_with_id::<IntersectionPackedData>(crate::AO_INTERSECTIONS_ID);
 
         Self {
             compute_pass: ComputePass::new_resource(
@@ -130,7 +132,7 @@ impl Pass for ComputeAOShadingPass {
                 group_index: 2,
                 binding_index: 0,
                 stage: ShaderStage::Compute,
-                flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                flags: BindingFlags::Write | BindingFlags::Storage, // STORE only, not LOAD | STORE
                 ..Default::default()
             },
         );

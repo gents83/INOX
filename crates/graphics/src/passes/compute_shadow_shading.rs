@@ -53,10 +53,12 @@ impl Pass for ComputeShadowShadingPass {
             pipelines: vec![PathBuf::from(COMPUTE_SHADOW_SHADING_PIPELINE)],
         };
 
-        let shadow_rays = render_context.global_buffers().vector::<RayPackedData>();
+        let shadow_rays = render_context
+            .global_buffers()
+            .vector_with_id::<RayPackedData>(crate::SHADOW_RAYS_ID);
         let shadow_intersections = render_context
             .global_buffers()
-            .vector::<IntersectionPackedData>();
+            .vector_with_id::<IntersectionPackedData>(crate::SHADOW_INTERSECTIONS_ID);
         let materials = render_context.global_buffers().buffer::<GPUMaterial>();
         let textures = render_context.global_buffers().buffer::<GPUTexture>();
         let lights = render_context.global_buffers().buffer::<GPULight>();
@@ -175,7 +177,7 @@ impl Pass for ComputeShadowShadingPass {
                 group_index: 3,
                 binding_index: 0,
                 stage: ShaderStage::Compute,
-                flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                flags: BindingFlags::Write | BindingFlags::Storage, // STORE only, not LOAD | STORE
                 ..Default::default()
             },
         );

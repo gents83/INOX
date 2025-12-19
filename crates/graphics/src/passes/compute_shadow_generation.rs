@@ -62,7 +62,9 @@ impl Pass for ComputeShadowGenerationPass {
             pipelines: vec![PathBuf::from(COMPUTE_SHADOW_GENERATION_PIPELINE)],
         };
 
-        let shadow_rays = render_context.global_buffers().vector::<RayPackedData>();
+        let shadow_rays = render_context
+            .global_buffers()
+            .vector_with_id::<RayPackedData>(crate::SHADOW_RAYS_ID);
         let indices = render_context.global_buffers().buffer::<GPUVertexIndices>();
         let vertices_position = render_context
             .global_buffers()

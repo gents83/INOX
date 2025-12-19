@@ -171,7 +171,7 @@ impl Pass for UIPass {
             )
             .add_default_sampler(
                 BindingInfo {
-                    group_index: 2,
+                    group_index: 3,
                     binding_index: 0,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
@@ -179,7 +179,7 @@ impl Pass for UIPass {
                 SamplerType::Default,
             )
             .add_material_textures(BindingInfo {
-                group_index: 2,
+                group_index: 3,
                 binding_index: 1,
                 stage: ShaderStage::Fragment,
                 ..Default::default()

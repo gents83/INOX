@@ -80,7 +80,9 @@ impl Pass for ComputeDirectLightingPass {
         let materials = render_context.global_buffers().buffer::<GPUMaterial>();
         let textures = render_context.global_buffers().buffer::<GPUTexture>();
         let lights = render_context.global_buffers().buffer::<GPULight>();
-        let rays = render_context.global_buffers().vector::<RayPackedData>();
+        let rays = render_context
+            .global_buffers()
+            .vector_with_id::<RayPackedData>(crate::BOUNCE_RAYS_ID);
 
         Self {
             compute_pass: ComputePass::new_resource(
