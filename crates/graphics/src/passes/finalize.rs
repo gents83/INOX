@@ -126,7 +126,7 @@ impl Pass for FinalizePass {
                     group_index: 0,
                     binding_index: 2,
                     stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Read,
+                    flags: BindingFlags::Read | BindingFlags::Storage,
                     ..Default::default()
                 },
             )
@@ -137,7 +137,7 @@ impl Pass for FinalizePass {
                     group_index: 0,
                     binding_index: 3,
                     stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Read,
+                    flags: BindingFlags::Read | BindingFlags::Storage,
                     ..Default::default()
                 },
             )

@@ -18,6 +18,10 @@ var depth_texture: texture_depth_2d;
 var direct_lighting_texture: texture_storage_2d<rgba16float, write>;
 @group(0) @binding(4)
 var<storage, read_write> rays: Rays;
+@group(0) @binding(5)
+var indirect_diffuse_texture: texture_storage_2d<rgba32uint, write>;
+@group(0) @binding(6)
+var indirect_specular_texture: texture_storage_2d<rgba32uint, write>;
 
 // Group 1: Geometry
 @group(1) @binding(0)
@@ -47,16 +51,17 @@ var<uniform> lights: Lights;
 
 const WORKGROUP_SIZE: u32 = 8u;
 
-@compute
-@workgroup_size(WORKGROUP_SIZE, WORKGROUP_SIZE, 1)
-fn main(
-    @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
-) {
+@compute @workgroup_size(WORKGROUP_SIZE, WORKGROUP_SIZE, 1)
+fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
     let dimensions = vec2<u32>(DEFAULT_WIDTH, DEFAULT_HEIGHT);
     let pixel = vec2<u32>(global_invocation_id.x, global_invocation_id.y);
     if (pixel.x >= dimensions.x || pixel.y >= dimensions.y) {
         return;
     }
+    
+    // Clear indirect lighting textures at frame start (prevents ghosting)
+    textureStore(indirect_diffuse_texture, pixel, vec4<u32>(0u));
+    textureStore(indirect_specular_texture, pixel, vec4<u32>(0u));
 
     var direct_light = vec3<f32>(0.0);
 
@@ -77,13 +82,20 @@ fn main(
         // Reconstruct pixel data from visibility
         var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
         
-        // Compute PBR lighting (direct lighting only)
-        let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data);
+        // Compute PBR lighting (direct lighting only, no IBL)
+        let material_info = compute_direct_lighting_only(pixel_data.material_id, &pixel_data);
         direct_light = material_info.f_color.rgb;
         
         // Generate bounce ray for path tracing
-        let ray_index = pixel.y * DEFAULT_WIDTH + pixel.x;
+        let ray_index = pixel.y * u32(constant_data.screen_width) + pixel.x;
         let N = normalize(pixel_data.normal);
+       
+        // Compute diffuse albedo for throughput (metallic workflow)
+        // Must match what compute_ray_shading.wgsl expects
+        let material = materials.data[pixel_data.material_id];
+        let c_diff_throughput = mix(material.base_color.rgb, vec3(0.0), material.metallic_factor);
+        
+        rays.data[ray_index].pixel_index = ray_index;
         
         // Simple cosine-weighted hemisphere sampling for diffuse bounce
         var seed = vec2<u32>(ray_index, constant_data.frame_index);
@@ -99,14 +111,15 @@ fn main(
         let bitangent = cross(N, tangent);
         let ray_dir = normalize(mat3x3<f32>(tangent, bitangent, N) * local_dir);
         
-        // Store bounce ray
+        // Store bounce ray with correct throughput
         rays.data[ray_index].origin = pixel_data.world_pos + N * 0.01;
         rays.data[ray_index].direction = ray_dir;
-        rays.data[ray_index].throughput = material_info.c_diff;
+        rays.data[ray_index].throughput = c_diff_throughput;  // Use directly computed c_diff
         rays.data[ray_index].t_max = MAX_TRACING_DISTANCE;
         rays.data[ray_index].t_min = 0.001;
         rays.data[ray_index].pixel_index = ray_index;
         rays.data[ray_index].ray_type = RAY_TYPE_DIFFUSE_BOUNCE;
+        rays.data[ray_index].bounce_count = 0u;
         rays.data[ray_index].flags = RAY_FLAG_ACTIVE;
     } else {
         // No hit - mark ray as terminated

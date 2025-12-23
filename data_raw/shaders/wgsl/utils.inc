@@ -289,3 +289,30 @@ fn vertex_layout_stride(vertex_attribute_layout: u32) -> u32
 {
     return countOneBits((vertex_attribute_layout & 0x0000FFFFu));
 }
+
+// Float/Uint bitcast encoding for lossless texture accumulation
+// Used for read_write integer textures that accumulate float values
+fn encode_float_to_uint(value: f32) -> u32 {
+    return bitcast<u32>(value);
+}
+
+fn decode_uint_to_float(value: u32) -> f32 {
+    return bitcast<f32>(value);
+}
+
+fn encode_vec3_to_uvec3(value: vec3<f32>) -> vec3<u32> {
+    return vec3<u32>(
+        encode_float_to_uint(value.r),
+        encode_float_to_uint(value.g),
+        encode_float_to_uint(value.b)
+    );
+}
+
+fn decode_uvec3_to_vec3(value: vec3<u32>) -> vec3<f32> {
+    return vec3<f32>(
+        decode_uint_to_float(value.r),
+        decode_uint_to_float(value.g),
+        decode_uint_to_float(value.b)
+    );
+}
+

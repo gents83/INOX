@@ -10,13 +10,13 @@
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
 
-// Output textures for accumulating indirect lighting
+// Read-write textures for accumulating indirect lighting (using integer format for atomic operations)
 @group(0) @binding(1)
-var indirect_diffuse_texture: texture_storage_2d<rgba16float, write>;
+var indirect_diffuse_texture: texture_storage_2d<rgba32uint, read_write>;
 @group(0) @binding(2)
-var indirect_specular_texture: texture_storage_2d<rgba16float, write>;
+var indirect_specular_texture: texture_storage_2d<rgba32uint, read_write>;
 
-// Group 0: Ray Data (bindings 3-5 to make room for output textures at 1-2)
+// Group 0: Ray Data (bindings 3-5 adjusted for fewer texture bindings)
 @group(0) @binding(3)
 var<storage, read> rays: Rays;
 @group(0) @binding(4)
@@ -92,12 +92,33 @@ fn main(
     
     // Check for miss
     if (intersection.instance_id < 0) {
-        // Environment contribution (if any)
+        // Environment contribution via IBL
         let pixel_index = ray.pixel_index;
         let dimensions = vec2<u32>(DEFAULT_WIDTH, DEFAULT_HEIGHT);
         let pixel = vec2<u32>(pixel_index % dimensions.x, pixel_index / dimensions.x);
         
-        // For now, just terminate the ray
+        // Sample environment map in ray direction for indirect lighting
+        if ((constant_data.flags & CONSTANT_DATA_FLAGS_USE_IBL) != 0) {
+            let env_radiance = sample_environment_ibl(ray.direction);
+            let contribution = env_radiance * ray.throughput;
+            
+            // Accumulate IBL contributions from all bounces
+            if (ray.ray_type == RAY_TYPE_DIFFUSE_BOUNCE) {
+                let prev_encoded = textureLoad(indirect_diffuse_texture, pixel).rgb;
+                let prev_value = decode_uvec3_to_vec3(prev_encoded);
+                let accumulated = prev_value + contribution;
+                let encoded = encode_vec3_to_uvec3(accumulated);
+                textureStore(indirect_diffuse_texture, pixel, vec4<u32>(encoded, 0u));
+            } else {
+                let prev_encoded = textureLoad(indirect_specular_texture, pixel).rgb;
+                let prev_value = decode_uvec3_to_vec3(prev_encoded);
+                let accumulated = prev_value + contribution;
+                let encoded = encode_vec3_to_uvec3(accumulated);
+                textureStore(indirect_specular_texture, pixel, vec4<u32>(encoded, 0u));
+            }
+        }
+        
+        // Terminate ray after environment contribution
         rays_next.data[ray_index].t_max = -1.0;
         rays_next.data[ray_index].flags = RAY_FLAG_TERMINATED;
         return;
@@ -106,39 +127,159 @@ fn main(
     // Hit processing
     var pixel_data = get_pixel_data_from_intersection(ray, intersection);
     
-    // Compute lighting at hit point
-    let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data);
-    let light_contribution = material_info.f_color.rgb;
-    let radiance = material_info.f_color.rgb;
+    // Use robust material preparation (matches direct lighting pass)
+    var material = materials.data[pixel_data.material_id];
+    var v: vec3<f32>; // View vector (will be computed by prepare_material)
+    var tbn: TBN;
+    var material_info = prepare_material(&material, &pixel_data, &tbn, &v);
     
-    // Apply throughput
-    let contribution = radiance * ray.throughput;
-    let pixel_index = ray.pixel_index;
-    let pixel = vec2<u32>(pixel_index % DEFAULT_WIDTH, pixel_index / DEFAULT_WIDTH);
+    // Extract properties from standardized material_info
+    let c_diff = material_info.c_diff;
+    let f0 = material_info.f0;
     
-    // Write contribution to appropriate output texture based on ray type
-    if (ray.ray_type == RAY_TYPE_DIFFUSE_BOUNCE) {
-        textureStore(indirect_diffuse_texture, pixel, vec4<f32>(contribution, 0.0));
-    } else {
-        textureStore(indirect_specular_texture, pixel, vec4<f32>(contribution, 0.0));
+    // Explicitly compute emissive using the same logic as direct lighting
+    // (prepare_material doesn't fully bake emissive * strength into a single float until combine, so we do it here)
+    var emissive = material.emissive_color.rgb * material.emissive_strength;
+    if (has_texture(&material, TEXTURE_TYPE_EMISSIVE)) {
+        let uv = material_texture_uv(&material, &pixel_data, TEXTURE_TYPE_EMISSIVE);
+        let texture_color = sample_texture(uv);
+        emissive *= texture_color.rgb;
     }
     
-    // Generate next bounce (simplified - could be more sophisticated)
-    var seed = vec2<u32>(pixel_index, constant_data.frame_index + ray_index);
+    // Prevent double counting: 
+    // If NEE is active (num_lights > 0), the previous bounce likely already sampled this light.
+    // Therefore, we ignore the implicit emissive contribution for this ray.
+    if (constant_data.num_lights > 0u) {
+        emissive = vec3(0.0);
+    }
+    
+    // Evaluate direct lighting at bounce hit point for indirect illumination contribution
+    let pixel_index = ray.pixel_index;
+    // Generate random seed early for light sampling
+    // Mix in bounce_count and ray origin to ensure unique random sequence per bounce
+    let origin_hash = bitcast<u32>(pixel_data.world_pos.x) ^ bitcast<u32>(pixel_data.world_pos.y) ^ bitcast<u32>(pixel_data.world_pos.z);
+    var seed = vec2<u32>(pixel_index ^ origin_hash, constant_data.frame_index + ray_index + (ray.bounce_count * 15485863u));
+
+    // Pick one random light (same approach as direct lighting pass)
+    let light_index = hash(constant_data.frame_index + ray_index) % constant_data.num_lights;
+    let light = lights.data[light_index];
+    
+    var light_contribution = vec3(0.0);
+    if (light.light_type != LIGHT_TYPE_INVALID) {
+        var point_to_light: vec3<f32>;
+        if (light.light_type == LIGHT_TYPE_DIRECTIONAL) { 
+             point_to_light = -light.direction;
+        } else {
+             point_to_light = light.position - pixel_data.world_pos;
+             
+             // Area Light Sampling
+             if (light.light_type == LIGHT_TYPE_AREA) {
+                let rnd_light = get_random_numbers(&seed);
+                // Construct Basis
+                let up = select(vec3(0., 1., 0.), vec3(1., 0., 0.), abs(light.direction.y) > 0.999);
+                let tangent = normalize(cross(up, light.direction));
+                let bitangent = cross(light.direction, tangent);
+                
+                // Dimensions from cone angles (Hack)
+                let width = light.inner_cone_angle;
+                let height = light.outer_cone_angle;
+                
+                var offset = vec3(0.0);
+                
+                // Decode Shape from _padding1 (f32 -> u32)
+                let shape_type = bitcast<u32>(light._padding1);
+                
+                if (shape_type == LIGHT_AREA_SHAPE_DISK) {
+                    // Uniform Disk Sampling
+                    let r = sqrt(rnd_light.x);            // Square root for uniform area distribution
+                    let theta = 2.0 * MATH_PI * rnd_light.y;
+                    
+                    // Disk radius is max of width/height? light.range? 
+                    // Usually width/height are extents. For a disk, width=height=diameter?
+                    // Let's assume width is diameter X, height is diameter Z.
+                    // If circular, width approx equals height. Radius = width * 0.5.
+                    let radius_x = width * 0.5;
+                    let radius_z = height * 0.5;
+                    
+                    let u = r * cos(theta) * radius_x;
+                    let v = r * sin(theta) * radius_z;
+                    
+                    offset = u * tangent + v * bitangent;
+                } else {
+                    // Rectangle Sampling
+                    offset = (rnd_light.x - 0.5) * width * tangent + (rnd_light.y - 0.5) * height * bitangent;
+                }
+                
+                point_to_light = (light.position + offset) - pixel_data.world_pos;
+             }
+        }
+        
+        let L = normalize(point_to_light);
+        let N = normalize(pixel_data.normal);
+        let NdotL = clamp(dot(N, L), 0.0, 1.0);
+        
+        if (NdotL > 0.0) {
+            // Get light intensity with attenuation
+            var range_attenuation = 1.0;
+            if (light.light_type != LIGHT_TYPE_DIRECTIONAL) {
+                range_attenuation = get_range_attenuation(light.range, length(point_to_light));
+            }
+            let intensity = range_attenuation * light.intensity;
+            
+            // Lambertian diffuse
+            light_contribution = c_diff * light.color * intensity * NdotL / MATH_PI;
+        }
+    }
+    
+    // Radiance = emissive + lights (NO AMBIENT in bounces to avoid energy explosion)
+    // Ambient is applied only in Direct pass or Finalize
+    // Radiance = emissive + lights (NO AMBIENT in bounces to avoid energy explosion)
+    // Ambient is applied only in Direct pass or Finalize
+    let radiance = emissive + light_contribution;
+
+    // Apply throughput
+    let contribution = radiance * ray.throughput;
+    let pixel = vec2<u32>(pixel_index % u32(constant_data.screen_width), pixel_index / u32(constant_data.screen_width));
+    
+    // Accumulate INDIRECT lighting
+    // We separate Diffuse and Specular integration for denoising purposes
+    // Load, decode, accumulate, and encode back to integer texture
+    if (ray.ray_type == RAY_TYPE_DIFFUSE_BOUNCE) {
+        let prev_data = textureLoad(indirect_diffuse_texture, pixel);
+        let prev_encoded = prev_data.rgb;
+        
+        let prev_value = decode_uvec3_to_vec3(prev_encoded);
+        let accumulated = prev_value + contribution;
+        
+        let encoded = encode_vec3_to_uvec3(accumulated);
+        textureStore(indirect_diffuse_texture, pixel, vec4<u32>(encoded, 0u));
+    } else {
+        let prev_data = textureLoad(indirect_specular_texture, pixel);
+        let prev_encoded = prev_data.rgb;
+        
+        let prev_value = decode_uvec3_to_vec3(prev_encoded);
+        let accumulated = prev_value + contribution;
+        
+        let encoded = encode_vec3_to_uvec3(accumulated);
+        textureStore(indirect_specular_texture, pixel, vec4<u32>(encoded, 0u));
+    }
+    
+    // Generate next bounce
+    
     let rnd = get_random_numbers(&seed);
     let rnd_dir = get_random_numbers(&seed);
     
     let cam_pos = constant_data.inv_view[3].xyz;
     let V = normalize(cam_pos - pixel_data.world_pos);
     
-    let diffuse_weight = length(material_info.c_diff);
-    let specular_weight = length(material_info.f0);
+    let diffuse_weight = length(c_diff);
+    let specular_weight = length(f0);
     let total_weight = diffuse_weight + specular_weight;
     
     if (total_weight > 0.001 && length(ray.throughput) > 0.01) {
         let p_specular = specular_weight / total_weight;
         
-        let N = normalize(material_info.shading_normal);
+        let N = normalize(pixel_data.normal);
         let up = select(vec3(1., 0., 0.), vec3(0., 1., 0.), abs(N.z) < 0.999);
         let tangent = normalize(cross(up, N));
         let bitangent = cross(N, tangent);
@@ -149,14 +290,14 @@ fn main(
         var next_ray_type: u32;
         
         if (rnd.x < p_specular) {
-            let H = importance_sample_ggx(material_info.perceptual_roughness, rnd_dir, N, V);
+            let H = importance_sample_ggx(material.roughness_factor, rnd_dir, N, V);
             next_dir = normalize(reflect(-V, H));
-            throughput_adj = material_info.f0 / p_specular;
+            throughput_adj = f0 / p_specular;
             next_ray_type = RAY_TYPE_SPECULAR_BOUNCE;
         } else {
             let local_dir = sample_cosine_weighted_hemisphere(rnd_dir);
             next_dir = normalize(tbn_sample * local_dir);
-            throughput_adj = material_info.c_diff / (1.0 - p_specular);
+            throughput_adj = c_diff / (1.0 - p_specular);
             next_ray_type = RAY_TYPE_DIFFUSE_BOUNCE;
         }
         
@@ -167,6 +308,7 @@ fn main(
         rays_next.data[ray_index].t_min = 0.001;
         rays_next.data[ray_index].pixel_index = pixel_index;
         rays_next.data[ray_index].ray_type = next_ray_type;
+        rays_next.data[ray_index].bounce_count = ray.bounce_count + 1u;
         rays_next.data[ray_index].flags = RAY_FLAG_ACTIVE;
     } else {
         // Terminate ray

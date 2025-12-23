@@ -234,7 +234,7 @@ impl Viewer {
         // IndirectDiffuse
         let _indirect_diffuse = render_context.create_render_target(
             (width, height, single_sample, 1, 1),
-            TextureFormat::Rgba16Float,
+            TextureFormat::Rgba32Uint,
             usage,
         );
         debug_assert!(_indirect_diffuse == RenderTargetType::IndirectDiffuse as usize);
@@ -242,7 +242,7 @@ impl Viewer {
         // IndirectSpecular
         let _indirect_specular = render_context.create_render_target(
             (width, height, single_sample, 1, 1),
-            TextureFormat::Rgba16Float,
+            TextureFormat::Rgba32Uint,
             usage,
         );
         debug_assert!(_indirect_specular == RenderTargetType::IndirectSpecular as usize);
@@ -420,6 +420,12 @@ impl Viewer {
         pass.set_depth_texture(&render_context.render_target_id(RenderTargetType::Depth as usize));
         pass.set_direct_lighting_texture(
             &render_context.render_target_id(RenderTargetType::Direct as usize),
+        );
+        pass.set_indirect_diffuse_texture(
+            &render_context.render_target_id(RenderTargetType::IndirectDiffuse as usize),
+        );
+        pass.set_indirect_specular_texture(
+            &render_context.render_target_id(RenderTargetType::IndirectSpecular as usize),
         );
         render_context.add_pass(pass, true);
     }

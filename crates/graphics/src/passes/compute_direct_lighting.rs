@@ -35,6 +35,8 @@ pub struct ComputeDirectLightingPass {
     visibility_texture: TextureId,
     depth_texture: TextureId,
     direct_lighting_texture: TextureId,
+    indirect_diffuse_texture: TextureId,
+    indirect_specular_texture: TextureId,
     dimensions: (u32, u32),
     rays: GPUVector<RayPackedData>,
 }
@@ -108,6 +110,8 @@ impl Pass for ComputeDirectLightingPass {
             visibility_texture: INVALID_UID,
             depth_texture: INVALID_UID,
             direct_lighting_texture: INVALID_UID,
+            indirect_diffuse_texture: INVALID_UID,
+            indirect_specular_texture: INVALID_UID,
             dimensions: (0, 0),
         }
     }
@@ -116,6 +120,8 @@ impl Pass for ComputeDirectLightingPass {
         if self.visibility_texture.is_nil()
             || self.depth_texture.is_nil()
             || self.direct_lighting_texture.is_nil()
+            || self.indirect_diffuse_texture.is_nil()
+            || self.indirect_specular_texture.is_nil()
         {
             return;
         }
@@ -176,6 +182,28 @@ impl Pass for ComputeDirectLightingPass {
                     binding_index: 4,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                    ..Default::default()
+                },
+            )
+            .add_texture(
+                &self.indirect_diffuse_texture,
+                0,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 5,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Write | BindingFlags::Storage,
+                    ..Default::default()
+                },
+            )
+            .add_texture(
+                &self.indirect_specular_texture,
+                0,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 6,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Write | BindingFlags::Storage,
                     ..Default::default()
                 },
             );
@@ -327,6 +355,8 @@ impl Pass for ComputeDirectLightingPass {
         if self.visibility_texture.is_nil()
             || self.depth_texture.is_nil()
             || self.direct_lighting_texture.is_nil()
+            || self.indirect_diffuse_texture.is_nil()
+            || self.indirect_specular_texture.is_nil()
         {
             return;
         }
@@ -367,6 +397,16 @@ impl ComputeDirectLightingPass {
 
     pub fn set_direct_lighting_texture(&mut self, texture_id: &TextureId) -> &mut Self {
         self.direct_lighting_texture = *texture_id;
+        self
+    }
+
+    pub fn set_indirect_diffuse_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.indirect_diffuse_texture = *texture_id;
+        self
+    }
+
+    pub fn set_indirect_specular_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.indirect_specular_texture = *texture_id;
         self
     }
 }

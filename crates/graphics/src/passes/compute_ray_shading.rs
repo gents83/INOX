@@ -146,7 +146,7 @@ impl Pass for ComputeRayShadingPass {
             },
         );
 
-        // Output textures for indirect lighting accumulation
+        // Read-write textures for indirect lighting accumulation (bindings 1-2)
         self.binding_data.add_texture(
             &self.indirect_diffuse_texture,
             0,
@@ -154,7 +154,7 @@ impl Pass for ComputeRayShadingPass {
                 group_index: 0,
                 binding_index: 1,
                 stage: ShaderStage::Compute,
-                flags: BindingFlags::Write | BindingFlags::Storage,
+                flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 ..Default::default()
             },
         );
@@ -165,12 +165,12 @@ impl Pass for ComputeRayShadingPass {
                 group_index: 0,
                 binding_index: 2,
                 stage: ShaderStage::Compute,
-                flags: BindingFlags::Write | BindingFlags::Storage,
+                flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                 ..Default::default()
             },
         );
 
-        // Ray data buffers (bindings 5-7 in group 0)
+        // Ray data buffers (bindings 3-5 in group 0)
         self.binding_data.add_buffer(
             &mut *self.rays.write().unwrap(),
             Some("rays"),

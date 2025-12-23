@@ -650,21 +650,135 @@ impl GltfCompiler {
         }
     }
 
+    #[allow(dead_code)]
+    fn add_area_light_if_emissive(
+        &mut self,
+        path: &Path,
+        primitive: &gltf::Primitive,
+        name: &str,
+        object_data: &mut ObjectData,
+    ) {
+        // Check for Emissive Material and create an Area Light
+        let material = primitive.material();
+        let emissive = material.emissive_factor();
+        if emissive[0] > 0.0 || emissive[1] > 0.0 || emissive[2] > 0.0 {
+            let mut light_data = GPULight {
+                light_type: LightType::Area.into(),
+                ..Default::default()
+            };
+
+            // Calculate Centroid and Extents from Vertices
+            let (_vertex_layout, vertices) = self.extract_vertices(path, primitive);
+            let mut centroid = Vector3::new(0., 0., 0.);
+            let mut min_pos = Vector3::new(f32::MAX, f32::MAX, f32::MAX);
+            let mut max_pos = Vector3::new(f32::MIN, f32::MIN, f32::MIN);
+
+            if !vertices.is_empty() {
+                for v in &vertices {
+                    let p = Vector3::new(v.pos.x, v.pos.y, v.pos.z);
+                    centroid += p;
+                    min_pos.x = min_pos.x.min(p.x);
+                    min_pos.y = min_pos.y.min(p.y);
+                    min_pos.z = min_pos.z.min(p.z);
+
+                    max_pos.x = max_pos.x.max(p.x);
+                    max_pos.y = max_pos.y.max(p.y);
+                    max_pos.z = max_pos.z.max(p.z);
+                }
+                centroid /= vertices.len() as f32;
+            }
+
+            // Light Data (Position is 0,0,0 relative to the Child Node)
+            light_data.position = [0., 0., 0.];
+
+            // Direction: pointing down? Or use average normal?
+            light_data.direction = [0., -1., 0.];
+
+            if name.to_lowercase().contains("circle") || name.to_lowercase().contains("disk") {
+                light_data.shape = 1.0;
+            } else {
+                light_data.shape = 0.0;
+            }
+
+            // Store Extents in cone angles (Hack for Area Light Dimensions)
+            let extent = max_pos - min_pos;
+            light_data.inner_cone_angle = extent.x; // Width
+            light_data.outer_cone_angle = extent.z; // Depth (assuming Y is up/normal)
+            light_data.range = 100.0; // Default range for Area lights
+
+            // Normalize color and extract intensity
+            let max_e = emissive[0].max(emissive[1]).max(emissive[2]);
+            light_data.intensity = max_e;
+            if max_e > 0.0 {
+                light_data.color = [
+                    emissive[0] / max_e,
+                    emissive[1] / max_e,
+                    emissive[2] / max_e,
+                ];
+            }
+
+            // Save the light resource
+            let light_name = format!("{}_Light", name);
+            let light_path = self.create_file(
+                path,
+                &light_data,
+                &light_name,
+                "light",
+                SerializationType::Binary,
+            );
+
+            // Create Child Object for the Light
+            let mut light_object_data = ObjectData {
+                transform: Matrix4::from_translation(centroid), // Local Offset
+                ..Default::default()
+            };
+            light_object_data.components.push(to_local_path(
+                light_path.as_path(),
+                self.data_raw_folder.as_path(),
+                self.data_folder.as_path(),
+            ));
+
+            let light_object_name = format!("{}_Node", light_name);
+            let light_object_path = self.create_file(
+                path,
+                &light_object_data,
+                &light_object_name,
+                "object",
+                SerializationType::Binary,
+            );
+
+            // Add child object to the main object
+            object_data.children.push(to_local_path(
+                light_object_path.as_path(),
+                self.data_raw_folder.as_path(),
+                self.data_folder.as_path(),
+            ));
+        }
+    }
+
     fn process_node(
         &mut self,
         path: &Path,
         node: &Node,
         node_name: &str,
+        parent_transform: &Matrix4,
     ) -> Option<(NodeType, PathBuf)> {
-        let (node_type, node_path) = self.process_object(path, node, node_name);
+        let (node_type, node_path) = self.process_object(path, node, node_name, parent_transform);
         self.node_index += 1;
         Some((node_type, node_path))
     }
 
-    fn process_object(&mut self, path: &Path, node: &Node, node_name: &str) -> (NodeType, PathBuf) {
+    fn process_object(
+        &mut self,
+        path: &Path,
+        node: &Node,
+        node_name: &str,
+        parent_transform: &Matrix4,
+    ) -> (NodeType, PathBuf) {
         let mut object_data = ObjectData::default();
-        let object_transform: Matrix4 = Matrix4::from(node.transform().matrix());
-        object_data.transform = object_transform;
+        let local_transform: Matrix4 = Matrix4::from(node.transform().matrix());
+        object_data.transform = local_transform;
+        let world_transform = *parent_transform * local_transform;
 
         if let Some(mesh) = node.mesh() {
             for (primitive_index, _primitive) in mesh.primitives().enumerate() {
@@ -674,6 +788,9 @@ impl GltfCompiler {
                 );
                 let mesh_path = self.meshes_paths.get(&name).unwrap();
                 object_data.components.push(mesh_path.clone());
+
+                // Check for Emissive Material and create an Area Light
+                //self.add_area_light_if_emissive(path, &_primitive, &name, &mut object_data);
             }
         }
         if let Some(camera) = node.camera() {
@@ -686,7 +803,7 @@ impl GltfCompiler {
             ));
         }
         if let Some(light) = node.light() {
-            let (_, light_path) = self.process_light(path, &light, &object_transform);
+            let (_, light_path) = self.process_light(path, &light, &world_transform);
             object_data.components.push(to_local_path(
                 light_path.as_path(),
                 self.data_raw_folder.as_path(),
@@ -731,9 +848,16 @@ impl GltfCompiler {
                     self.data_raw_folder.as_path(),
                     self.data_folder.as_path(),
                 ));
-            } else if let Some((node_type, node_path)) =
-                self.process_node(path, &child, child.name().unwrap_or(&name))
-            {
+            } else if let Some((node_type, node_path)) = {
+                let child_local_transform = Matrix4::from(child.transform().matrix());
+                let child_world_transform = *parent_transform * child_local_transform;
+                self.process_node(
+                    path,
+                    &child,
+                    child.name().unwrap_or(&name),
+                    &child_world_transform,
+                )
+            } {
                 if node_type == NodeType::Object {
                     let node_path = to_local_path(
                         node_path.as_path(),
@@ -866,9 +990,12 @@ impl GltfCompiler {
                     self.node_index = 0;
                     for node in scene.nodes() {
                         let name = format!("Node_{}", self.node_index);
-                        if let Some((node_type, node_path)) =
-                            self.process_node(path, &node, node.name().unwrap_or(&name))
-                        {
+                        if let Some((node_type, node_path)) = self.process_node(
+                            path,
+                            &node,
+                            node.name().unwrap_or(&name),
+                            &Matrix4::from_scale(1.0),
+                        ) {
                             let node_path = to_local_path(
                                 node_path.as_path(),
                                 self.data_raw_folder.as_path(),

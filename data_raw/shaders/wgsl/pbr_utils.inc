@@ -13,6 +13,17 @@ fn compute_equirectangular_uv(rd: vec3<f32>) -> vec2<f32> {
     return v / vec2<f32>(2. * MATH_PI, MATH_PI);
 }
 
+// Sample environment map for IBL contribution (used in indirect lighting)
+fn sample_environment_ibl(direction: vec3<f32>) -> vec3<f32> {
+    if ((constant_data.flags & CONSTANT_DATA_FLAGS_USE_IBL) != 0) {
+        let env_uv = vec3<f32>(compute_equirectangular_uv(direction), 
+                               f32(constant_data.environment_map_texture_index));
+        return sample_texture(env_uv).rgb;
+    }
+    return vec3<f32>(0.0);
+}
+
+
 // Assume air interface for top
 // Note: We don't handle the case fresnel0 == 1
 fn fresnel0_to_ior(fresnel0: vec3<f32>) -> vec3<f32> {
@@ -832,7 +843,60 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
     var light = lights.data[i];
     eval_punctual_light(&light, material, &material_info, pixel_data, tbn, v);
     
+    // Add ambient lighting to prevent completely black surfaces
+    // This provides a fallback when no direct light hits the surface
+    material_info.f_diffuse += material_info.c_diff * AMBIENT_LIGHT;
+    
     combine_lighting(&material, &material_info, pixel_data, v);
     
     return material_info;
 }
+
+// Simplified combine for direct lighting only (no IBL)
+// Used in multi-stage path tracer to avoid mixing IBL into direct pass
+fn combine_direct_lighting_only(material: ptr<function, Material>, material_info: ptr<function, MaterialInfo>, pixel_data: ptr<function, PixelData>, v: vec3<f32>) {
+    // Emissive
+    var f_emissive = (*material).emissive_color.rgb * (*material).emissive_strength;
+    if (has_texture(material, TEXTURE_TYPE_EMISSIVE)) {  
+        let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_EMISSIVE);
+        let texture_color = sample_texture(uv);
+        f_emissive *= texture_color.rgb;
+    }
+    (*material_info).f_emissive = f_emissive;
+
+    // Direct lighting only (no IBL terms)
+    var diffuse = (*material_info).f_diffuse;
+    var specular = (*material_info).f_specular;
+
+    var color = vec3<f32>(0.);
+    if((material.flags & MATERIAL_FLAGS_UNLIT) != 0u) {
+        color = (*material_info).base_color.rgb;
+    } else {
+        color = f_emissive + diffuse + specular;
+    }
+
+    (*material_info).f_color = vec4<f32>(color, (*material_info).base_color.a);
+}
+
+// Compute direct lighting only (no IBL)
+// Used in multi-stage path tracer for the primary direct lighting pass
+fn compute_direct_lighting_only(material_id: u32, pixel_data: ptr<function, PixelData>) -> MaterialInfo {
+    var material = materials.data[material_id];
+    var v: vec3<f32>;
+    var tbn: TBN;
+    var material_info = prepare_material(&material, pixel_data, &tbn, &v);
+
+    // Direct Lighting ONLY (no IBL)
+    let i = hash(constant_data.frame_index) % constant_data.num_lights;
+    var light = lights.data[i];
+    eval_punctual_light(&light, material, &material_info, pixel_data, tbn, v);
+    
+    // Add ambient lighting
+    material_info.f_diffuse += material_info.c_diff * AMBIENT_LIGHT;
+    
+    // Simplified combine (no IBL terms)
+    combine_direct_lighting_only(&material, &material_info, pixel_data, v);
+    
+    return material_info;
+}
+

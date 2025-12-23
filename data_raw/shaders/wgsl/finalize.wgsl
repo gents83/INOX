@@ -16,9 +16,9 @@ var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
 var direct_texture: texture_2d<f32>;
 @group(0) @binding(2)
-var indirect_diffuse_texture: texture_2d<f32>;
+var indirect_diffuse_texture: texture_storage_2d<rgba32uint, read>;
 @group(0) @binding(3)
-var indirect_specular_texture: texture_2d<f32>;
+var indirect_specular_texture: texture_storage_2d<rgba32uint, read>;
 @group(0) @binding(4)
 var previous_texture: texture_2d<f32>;
 @group(0) @binding(5)
@@ -45,35 +45,35 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     let dimensions = textureDimensions(direct_texture);
     let coords = vec2<i32>(i32(v_in.uv.x * f32(dimensions.x)), i32(v_in.uv.y * f32(dimensions.y)));
 
-    let direct = textureLoad(direct_texture, coords, 0).rgb;
-    let indirect_diffuse = textureLoad(indirect_diffuse_texture, coords, 0).rgb;
-    let indirect_specular = textureLoad(indirect_specular_texture, coords, 0).rgb;
+    let direct = textureLoad(direct_texture, coords, 0);
+    let indirect_diffuse_data = textureLoad(indirect_diffuse_texture, coords);
+    let indirect_specular_data = textureLoad(indirect_specular_texture, coords);
+    
+    // Normalize by global frame count (plus 1 to avoid div by zero)
+    let sample_count = f32(constant_data.frame_index + 1u);
+    
+    let indirect_diffuse = decode_uvec3_to_vec3(indirect_diffuse_data.rgb) / sample_count;
+    let indirect_specular = decode_uvec3_to_vec3(indirect_specular_data.rgb) / sample_count;
+    
     let shadow = textureLoad(shadow_texture, coords, 0).r;
     let ao = textureLoad(ao_texture, coords, 0).r;
     
-    // Combine with shadow and AO
-    // Direct lighting affected by both shadow and AO
-    // Indirect diffuse affected by AO
-    // Indirect specular less affected by AO (view-dependent)
-    var radiance = direct * shadow * ao + indirect_diffuse * ao + indirect_specular;
+    // Debug: Visualize Frame Index
+    // If frame_index is increasing, this should slowly turn white
+    // If it stays black, frame_index is stuck at 0
+    // let debug_val = f32(constant_data.frame_index) / 255.0; // Wrap every 255 frames
+    // var radiance = vec3(debug_val);
     
-    // Temporal Accumulation
-    if (constant_data.frame_index > 0u) {
-        let prev_value = textureLoad(previous_texture, coords, 0).rgb;
-        let frame_index = f32(min(constant_data.frame_index + 1u, 1000u));
-        let weight = 1.0 / frame_index; // Converge to average
-        // Or fixed weight for moving objects?
-        // Using accumulation weight 1/N is good for static image convergence.
-        radiance = mix(prev_value, radiance, weight);
-    }
+    // Normal Output
+    var radiance = direct.rgb * shadow * ao + indirect_diffuse + indirect_specular;
     
-    var out_color = vec4<f32>(radiance, 1.0);
+    var out_color = vec4<f32>(radiance, direct.a);
     
     // Tone Mapping
-    out_color = vec4<f32>(tonemap_ACES_Hill(out_color.rgb), 1.0);
+    out_color = vec4<f32>(tonemap_ACES_Hill(out_color.rgb), out_color.a);
     
-    // Gamma (sRGB conversion handling? linearTosRGB handles gamma usually approx pow(1/2.2))
-    out_color = vec4<f32>(linearTosRGB(out_color.rgb), 1.0);
+    // Gamma
+    out_color = vec4<f32>(linearTosRGB(out_color.rgb), out_color.a);
 
     return out_color;
 }

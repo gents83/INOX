@@ -76,6 +76,11 @@ const AO_MAX_DISTANCE: f32 = 2.0;
 const RUSSIAN_ROULETTE_MIN_BOUNCES: u32 = 3u;
 const RUSSIAN_ROULETTE_THRESHOLD: f32 = 0.05;
 
+// Ambient Lighting
+// Small constant to prevent completely black surfaces when no direct light hits them
+const AMBIENT_LIGHT: vec3<f32> = vec3<f32>(0.1, 0.1, 0.1); // 10% ambient
+
+
 const VERTEX_ATTRIBUTE_HAS_POSITION: u32 = 0u;
 const VERTEX_ATTRIBUTE_HAS_COLOR: u32 = 1u;
 const VERTEX_ATTRIBUTE_HAS_NORMAL: u32 = 1u << 1u;
@@ -106,6 +111,9 @@ const LIGHT_TYPE_INVALID: u32 = 0u;
 const LIGHT_TYPE_DIRECTIONAL: u32 = 1u;
 const LIGHT_TYPE_POINT: u32 = 1u << 1u;
 const LIGHT_TYPE_SPOT: u32 = 1u << 2u;
+const LIGHT_TYPE_AREA: u32 = 1u << 3u;
+const LIGHT_AREA_SHAPE_RECTANGLE: u32 = 0u;
+const LIGHT_AREA_SHAPE_DISK: u32 = 1u;
 
 struct ConstantData {
     view: mat4x4<f32>,
