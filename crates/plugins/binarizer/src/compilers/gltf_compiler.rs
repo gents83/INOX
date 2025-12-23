@@ -546,6 +546,8 @@ impl GltfCompiler {
                 }
             };
             material_data.alpha_cutoff = primitive.material().alpha_cutoff().unwrap_or(1.);
+            material_data.emissive_strength =
+                primitive.material().emissive_strength().unwrap_or(1.);
             material_data.emissive_color = [
                 primitive.material().emissive_factor()[0],
                 primitive.material().emissive_factor()[1],
@@ -707,8 +709,9 @@ impl GltfCompiler {
             light_data.range = 100.0; // Default range for Area lights
 
             // Normalize color and extract intensity
+            let strength = material.emissive_strength().unwrap_or(1.);
             let max_e = emissive[0].max(emissive[1]).max(emissive[2]);
-            light_data.intensity = max_e;
+            light_data.intensity = max_e * strength;
             if max_e > 0.0 {
                 light_data.color = [
                     emissive[0] / max_e,
