@@ -59,9 +59,17 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
         return;
     }
     
+    
     // Clear indirect lighting textures at frame start (prevents ghosting)
-    textureStore(indirect_diffuse_texture, pixel, vec4<u32>(0u));
-    textureStore(indirect_specular_texture, pixel, vec4<u32>(0u));
+    // IMPORTANT: Indirect textures are half-resolution, so divide coordinates by 2
+    // CRITICAL: Only clear once per indirect pixel to avoid race conditions
+    // Since this shader runs at full-res, 4 threads map to each half-res pixel
+    // Only the top-left thread (even x and y) should clear
+    if (pixel.x % 2u == 0u && pixel.y % 2u == 0u) {
+        let indirect_pixel = pixel / 2u;
+        textureStore(indirect_diffuse_texture, indirect_pixel, vec4<u32>(0u));
+        textureStore(indirect_specular_texture, indirect_pixel, vec4<u32>(0u));
+    }
 
     var direct_light = vec3<f32>(0.0);
 

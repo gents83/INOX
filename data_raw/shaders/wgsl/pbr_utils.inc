@@ -887,12 +887,15 @@ fn compute_direct_lighting_only(material_id: u32, pixel_data: ptr<function, Pixe
     var material_info = prepare_material(&material, pixel_data, &tbn, &v);
 
     // Direct Lighting ONLY (no IBL)
-    let i = hash(constant_data.frame_index) % constant_data.num_lights;
-    var light = lights.data[i];
-    eval_punctual_light(&light, material, &material_info, pixel_data, tbn, v);
-    
-    // Add ambient lighting
-    material_info.f_diffuse += material_info.c_diff * AMBIENT_LIGHT;
+    // Only sample lights if we have them (avoid modulo by zero)
+    if (constant_data.num_lights > 0u) {
+        let i = hash(constant_data.frame_index) % constant_data.num_lights;
+        var light = lights.data[i];
+        eval_punctual_light(&light, material, &material_info, pixel_data, tbn, v);
+        
+        // Add ambient lighting
+        material_info.f_diffuse += material_info.c_diff * AMBIENT_LIGHT;
+    }
     
     // Simplified combine (no IBL terms)
     combine_direct_lighting_only(&material, &material_info, pixel_data, v);

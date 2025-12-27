@@ -254,12 +254,14 @@ fn main(
     // Apply throughput
     let contribution = radiance * ray.throughput;
     
+    
     // Robustness Fix: Unpack X and Y from pixel_index
     let packed_coord = ray.pixel_index;
     let px = packed_coord & 0xFFFFu;
     let py = packed_coord >> 16u;
     let pixel = vec2<u32>(px, py);
     
+    // Write contribution to indirect textures
     if (ray.ray_type == RAY_TYPE_DIFFUSE_BOUNCE) {
         // Reduced Resolution: Write to pixel / 2
         let write_coord = pixel / 2u;
@@ -285,6 +287,16 @@ fn main(
         
         let encoded = encode_vec3_to_uvec3(accumulated);
         textureStore(indirect_specular_texture, write_coord, vec4<u32>(encoded, 0u));
+    }
+    
+    // Check if we hit a strong emissive surface (acts like hitting a light)
+    // If so, terminate the path after accumulating its contribution
+    let emissive_luminance = dot(emissive, vec3<f32>(0.299, 0.587, 0.114));
+    if (emissive_luminance > 0.1) {
+        // Hit an emissive surface - terminate path after contribution
+        rays_next.data[ray_index].t_max = -1.0;
+        rays_next.data[ray_index].flags = RAY_FLAG_TERMINATED;
+        return;
     }
     
     // Generate next bounce
