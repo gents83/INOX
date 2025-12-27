@@ -165,13 +165,13 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
                     next_dir = normalize(mat3x3<f32>(tbn.tangent, tbn.binormal, tbn.normal) * local_dir);
                     next_ray_type = RAY_TYPE_DIFFUSE_BOUNCE;
                     
-                    // Weight = (1 - k_spec * F) * Albedo
-                     let H_diff = normalize(v + next_dir);
-                    let VdotH_diff = clamp(dot(v, H_diff), 0.0, 1.0);
-                    let k_spec = unpack2x16float(material_info.specular_weight_and_anisotropy_strength).x;
-                    let F_diff = f_schlick_vec3_vec3(f0, material_info.f90, VdotH_diff);
+                    // Diffuse BRDF weight for path tracing
+                    // PDF = cos(theta) / pi (cosine-weighted hemisphere sampling)
+                    // BRDF_diffuse = c_diff / pi (Lambertian)
+                    // Weight = BRDF * cos(theta) / PDF = c_diff
+                    // Then scale by 1/(1-p_specular) to account for MIS probability
                     
-                    throughput_adj = ((1.0 - k_spec * F_diff) * c_diff) / (1.0 - p_specular);
+                    throughput_adj = c_diff / (1.0 - p_specular);
                 }
                 
                 rays.data[ray_index].origin = pixel_data.world_pos + next_dir * 0.01;
@@ -179,9 +179,7 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
                 rays.data[ray_index].throughput = throughput_adj; 
                 rays.data[ray_index].t_max = MAX_TRACING_DISTANCE;
                 rays.data[ray_index].t_min = 0.001;
-                rays.data[ray_index].pixel_index = packed_coord; // Use packed coord (Wait, I used ray_index before, need packed!)
-                // Wait, I defined packed_coord above.
-                // Re-using packed_coord here.
+                rays.data[ray_index].pixel_index = packed_coord;
                 rays.data[ray_index].ray_type = next_ray_type;
                 rays.data[ray_index].bounce_count = 0u;
                 rays.data[ray_index].flags = RAY_FLAG_ACTIVE;

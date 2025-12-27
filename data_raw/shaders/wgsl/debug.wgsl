@@ -432,6 +432,71 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let unpacked = decode_uvec3_to_vec3(packed);
         out_color = vec4<f32>(unpacked * 20., 1.);
     }
+    else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_C_DIFF) != 0) {
+        // Display diffuse albedo (c_diff) - shows what materials contribute to diffuse bounces
+        let depth_dimensions = textureDimensions(depth_texture);
+        let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
+        let depth_pixel = vec2<u32>(pixel * depth_scale);
+        let depth = textureLoad(depth_texture, depth_pixel, 0);
+        let hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth);
+        
+        let visibility_dimensions = textureDimensions(visibility_texture);
+        let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
+        let visibility_pixel = vec2<u32>(pixel * visibility_scale);
+        let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
+        let visibility_id = visibility_value.r;
+        
+        if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
+            var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
+            var material = materials.data[pixel_data.material_id];
+            var v: vec3<f32>;
+            var tbn: TBN;
+            var material_info = prepare_material(&material, &pixel_data, &tbn, &v);
+            
+            // c_diff is the diffuse albedo - should be non-zero for non-metallic materials
+            out_color = vec4<f32>(material_info.c_diff, 1.);
+        }
+    }
+    else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_F0) != 0) {
+        // Display specular reflectance at normal incidence (f0)
+        let depth_dimensions = textureDimensions(depth_texture);
+        let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
+        let depth_pixel = vec2<u32>(pixel * depth_scale);
+        let depth = textureLoad(depth_texture, depth_pixel, 0);
+        let hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth);
+        
+        let visibility_dimensions = textureDimensions(visibility_texture);
+        let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
+        let visibility_pixel = vec2<u32>(pixel * visibility_scale);
+        let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
+        let visibility_id = visibility_value.r;
+        
+        if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
+            var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
+            var material = materials.data[pixel_data.material_id];
+            var v: vec3<f32>;
+            var tbn: TBN;
+            var material_info = prepare_material(&material, &pixel_data, &tbn, &v);
+            
+            // f0 shows specular reflectance - high for metals, lower for dielectrics
+            // Scale up for visibility since f0 for dielectrics is typically 0.04
+            out_color = vec4<f32>(material_info.f0 * 5.0, 1.);
+        }
+    }
+    else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_FIRST_BOUNCE_THROUGHPUT) != 0) {
+        // Display the initial throughput from first bounce rays
+        // This helps diagnose if throughput is being computed correctly
+        let tex_coords = vec2<i32>(v_in.clip_position.xy);
+        let indirect_coord = vec2<i32>(tex_coords.x / 2, tex_coords.y / 2);
+        
+        // Use indirect diffuse texture to store first bounce throughput temporarily
+        // (This would need proper implementation - for now showing what's stored)
+        let packed = textureLoad(indirect_diffuse_texture, indirect_coord, 0).rgb;
+        let unpacked = decode_uvec3_to_vec3(packed);
+        
+        // Scale for visibility - throughput should typically be < 1.0
+        out_color = vec4<f32>(unpacked, 1.);
+    }
 
     return select(vec4<f32>(0.), out_color, out_color.a > 0.);
 }

@@ -4,8 +4,7 @@ use inox_render::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
     ConstantDataRw, GPUBuffer, GPUInstance, GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture,
     GPUTransform, GPUVector, GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, Pass,
-    RenderContext, RenderContextRc, ShaderStage, TextureId, TextureView, DEFAULT_HEIGHT,
-    DEFAULT_WIDTH, INSTANCE_DATA_ID,
+    RenderContext, RenderContextRc, ShaderStage, TextureId, TextureView, INSTANCE_DATA_ID,
 };
 
 use inox_core::ContextRc;
@@ -353,7 +352,16 @@ impl Pass for ComputeRayShadingPass {
             return;
         }
 
-        let num_rays = DEFAULT_WIDTH * DEFAULT_HEIGHT;
+        // CRITICAL: Use RUNTIME screen dimensions, not compile-time DEFAULT constants!
+        // The actual window size may differ from DEFAULT_WIDTH/HEIGHT
+        let constant_data = self.constant_data.read().unwrap();
+        let screen_size = constant_data.screen_size();
+        let screen_width = screen_size[0] as u32;
+        let screen_height = screen_size[1] as u32;
+        drop(constant_data);
+
+        // Match the half-resolution ray generation in compute_direct_lighting
+        let num_rays = (screen_width / 2) * (screen_height / 2);
         let workgroup_size = 64;
         let dispatch_x = num_rays.div_ceil(workgroup_size);
 

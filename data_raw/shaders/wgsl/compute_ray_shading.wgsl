@@ -268,9 +268,10 @@ fn main(
         
         let prev_data = textureLoad(indirect_diffuse_texture, write_coord);
         let prev_encoded = prev_data.rgb;
-        
         let prev_value = decode_uvec3_to_vec3(prev_encoded);
         
+        // Accumulate radiance contribution
+        // For emissive-only scenes, this will be zero until rays hit emissive surfaces
         let accumulated = prev_value + contribution;
         
         let encoded = encode_vec3_to_uvec3(accumulated);
@@ -353,19 +354,13 @@ fn main(
             next_dir = normalize(tbn_sample * local_dir);
             next_ray_type = RAY_TYPE_DIFFUSE_BOUNCE;
             
-            // Diffuse Weight
-            // PDF = NdotL / PI
-            // BRDF = (1-F) * c_diff / PI (Lambertian)
-            // Weight = BRDF * NdotL / PDF = (1-F) * c_diff
-            // Note: We use the Fresnel term logic from pbr_utils BRDF_lambertian which is (1 - specularWeight * F)
+            // Diffuse BRDF weight for path tracing
+            // PDF = cos(theta) / pi (cosine-weighted hemisphere sampling)
+            // BRDF_diffuse = c_diff / pi (Lambertian)
+            // Weight = BRDF * cos(theta) / PDF = c_diff
+            // Then scale by 1/(1-p_specular) to account for MIS probability
             
-            let H_diff = normalize(V + next_dir);
-            let VdotH_diff = clamp(dot(V, H_diff), 0.0, 1.0);
-            let k_spec = unpack2x16float(material_info.specular_weight_and_anisotropy_strength).x; // specular weight
-             // We need f_schlick for the chosen direction to scale down diffuse
-            let F_diff = f_schlick_vec3_vec3(f0, material_info.f90, VdotH_diff);
-            
-            throughput_adj = ((1.0 - k_spec * F_diff) * c_diff) / (1.0 - p_specular);
+            throughput_adj = c_diff / (1.0 - p_specular);
         }
         
         rays_next.data[ray_index].origin = pixel_data.world_pos + next_dir * 0.01;

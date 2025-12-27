@@ -27,6 +27,10 @@ pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_2: u32 = 1 << 14;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_3: u32 = 1 << 15;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_INDIRECT_DIFFUSE: u32 = 1 << 16;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_INDIRECT_SPECULAR: u32 = 1 << 17;
+// Path tracer debug modes
+pub const CONSTANT_DATA_FLAGS_DISPLAY_C_DIFF: u32 = 1 << 18;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_F0: u32 = 1 << 19;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_FIRST_BOUNCE_THROUGHPUT: u32 = 1 << 20;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -132,6 +136,9 @@ impl ConstantData {
     }
     pub fn num_bounces(&self) -> u32 {
         self.num_bounces
+    }
+    pub fn screen_size(&self) -> [f32; 2] {
+        self.screen_size
     }
     pub fn set_num_lights(&mut self, render_context: &RenderContext, n: u32) -> &mut Self {
         if self.num_lights != n {

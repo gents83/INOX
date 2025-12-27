@@ -12,7 +12,9 @@ use inox_platform::{MouseEvent, MouseState, WindowEvent};
 use inox_render::{
     DrawEvent, GPULight, Light, LightType, Mesh, MeshFlags, MeshId, RenderContextRc,
     CONSTANT_DATA_FLAGS_DISPLAY_AO, CONSTANT_DATA_FLAGS_DISPLAY_BASE_COLOR,
-    CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT, CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER,
+    CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT, CONSTANT_DATA_FLAGS_DISPLAY_C_DIFF,
+    CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, CONSTANT_DATA_FLAGS_DISPLAY_F0,
+    CONSTANT_DATA_FLAGS_DISPLAY_FIRST_BOUNCE_THROUGHPUT,
     CONSTANT_DATA_FLAGS_DISPLAY_INDIRECT_DIFFUSE, CONSTANT_DATA_FLAGS_DISPLAY_INDIRECT_SPECULAR,
     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_LOD_LEVEL,
     CONSTANT_DATA_FLAGS_DISPLAY_METALLIC, CONSTANT_DATA_FLAGS_DISPLAY_NORMALS,
@@ -150,6 +152,16 @@ impl Info {
                 (CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER, "DepthBuffer"),
                 (CONSTANT_DATA_FLAGS_DISPLAY_SHADOW, "Shadow"),
                 (CONSTANT_DATA_FLAGS_DISPLAY_AO, "Ambient Occlusion"),
+                // Path tracer diagnostics
+                (
+                    CONSTANT_DATA_FLAGS_DISPLAY_C_DIFF,
+                    "PT: Diffuse Albedo (c_diff)",
+                ),
+                (CONSTANT_DATA_FLAGS_DISPLAY_F0, "PT: Specular F0"),
+                (
+                    CONSTANT_DATA_FLAGS_DISPLAY_FIRST_BOUNCE_THROUGHPUT,
+                    "PT: First Bounce Throughput",
+                ),
             ],
             mouse_coords: Vector2::default_zero(),
             screen_size: Vector2::default_one(),
