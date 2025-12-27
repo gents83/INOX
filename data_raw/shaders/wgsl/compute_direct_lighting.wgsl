@@ -83,49 +83,114 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
         var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
         
         // Compute PBR lighting (direct lighting only, no IBL)
-        let material_info = compute_direct_lighting_only(pixel_data.material_id, &pixel_data);
-        direct_light = material_info.f_color.rgb;
+        let material_info_direct = compute_direct_lighting_only(pixel_data.material_id, &pixel_data);
+        direct_light = material_info_direct.f_color.rgb;
         
         // Generate bounce ray for path tracing
-        let ray_index = pixel.y * u32(constant_data.screen_width) + pixel.x;
-        let N = normalize(pixel_data.normal);
-       
-        // Compute diffuse albedo for throughput (metallic workflow)
-        // Must match what compute_ray_shading.wgsl expects
-        let material = materials.data[pixel_data.material_id];
-        let c_diff_throughput = mix(material.base_color.rgb, vec3(0.0), material.metallic_factor);
         
-        rays.data[ray_index].pixel_index = ray_index;
+        // Use robust material preparation
+        var material = materials.data[pixel_data.material_id];
+        var v: vec3<f32>; 
+        var tbn: TBN;
+        var material_info = prepare_material(&material, &pixel_data, &tbn, &v);
         
-        // Simple cosine-weighted hemisphere sampling for diffuse bounce
-        var seed = vec2<u32>(ray_index, constant_data.frame_index);
-        let random = get_random_numbers(&seed);
-        let random_dir = get_random_numbers(&seed);
+        let c_diff = material_info.c_diff;
+        let f0 = material_info.f0;
+        let diffuse_weight = length(c_diff);
+        let specular_weight_len = length(f0);
+        let total_weight = diffuse_weight + specular_weight_len;
         
-        // Cosine-weighted hemisphere sample
-        let local_dir = sample_cosine_weighted_hemisphere(random_dir.xy);
-        
-        // Transform to world space (TBN matrix)
-        let up = select(vec3(1., 0., 0.), vec3(0., 1., 0.), abs(N.z) < 0.999);
-        let tangent = normalize(cross(up, N));
-        let bitangent = cross(N, tangent);
-        let ray_dir = normalize(mat3x3<f32>(tangent, bitangent, N) * local_dir);
-        
-        // Store bounce ray with correct throughput
-        rays.data[ray_index].origin = pixel_data.world_pos + N * 0.01;
-        rays.data[ray_index].direction = ray_dir;
-        rays.data[ray_index].throughput = c_diff_throughput;  // Use directly computed c_diff
-        rays.data[ray_index].t_max = MAX_TRACING_DISTANCE;
-        rays.data[ray_index].t_min = 0.001;
-        rays.data[ray_index].pixel_index = ray_index;
-        rays.data[ray_index].ray_type = RAY_TYPE_DIFFUSE_BOUNCE;
-        rays.data[ray_index].bounce_count = 0u;
-        rays.data[ray_index].flags = RAY_FLAG_ACTIVE;
+        // Half-Resolution GI optimization.
+        // We only compute indirect lighting for every 2x2 block (High-Res pixels x%2==0 && y%2==0).
+        // This reduces Ray Buffer usage by 4x, allowing 2556x1490 resoluion to fit in a 2M buffer.
+        if (pixel.x % 2u == 0u && pixel.y % 2u == 0u) {
+            let screen_width = u32(constant_data.screen_width);
+            
+            // Force Dense Packing: Stride = Number of Even Pixels
+            let half_width = (screen_width + 1u) / 2u;
+            
+            let ray_index = (pixel.y / 2u) * half_width + (pixel.x / 2u);
+            
+            if (ray_index < arrayLength(&rays.data)) {
+                 // Robustness Fix: Pack X and Y into pixel_index (16 bits each)
+                let packed_coord = (pixel.y << 16u) | (pixel.x & 0xFFFFu);
+                rays.data[ray_index].pixel_index = packed_coord;
+                
+                var seed = vec2<u32>(ray_index, constant_data.frame_index);
+                let rnd = get_random_numbers(&seed);
+                let rnd_dir = get_random_numbers(&seed);
+                
+                var next_dir: vec3<f32>;
+                var throughput_adj: vec3<f32>;
+                var next_ray_type: u32;
+                
+                // Probability of choosing specular bounce
+                let p_specular = select(0.0, specular_weight_len / total_weight, total_weight > 0.001);
+                
+                if (rnd.x < p_specular) {
+                    // Specular Bounce (GGX)
+                    let local_H = importance_sample_ggx(material_info.perceptual_roughness, rnd_dir);
+                    let H = normalize(mat3x3<f32>(tbn.tangent, tbn.binormal, tbn.normal) * local_H);
+                    next_dir = normalize(reflect(-v, H));
+                    next_ray_type = RAY_TYPE_SPECULAR_BOUNCE;
+                    
+                    let NdotL_next = clamp(dot(tbn.normal, next_dir), 0.001, 1.0);
+                    let NdotV = clamp(dot(tbn.normal, v), 0.001, 1.0);
+                    let NdotH = clamp(dot(tbn.normal, H), 0.001, 1.0);
+                    let VdotH = clamp(dot(v, H), 0.001, 1.0);
+                    
+                    let F = f_schlick_vec3_vec3(f0, material_info.f90, VdotH); 
+                    let Vis = V_GGX(NdotL_next, NdotV, material_info.alpha_roughness); // Vis = G / (4*NL*NV)
+                    let G = Vis * 4.0 * NdotL_next * NdotV; 
+
+                    // PDF = D * NH / (4 * VH)
+                    // BRDF = F * G * D / (4 * NL * NV)
+                    // Weight = BRDF * NL / PDF 
+                    //        = (F * G * D * NL / (4 * NL * NV)) / (D * NH / (4 * VH))
+                    //        = F * G * VH / (NV * NH)
+
+                    throughput_adj = (F * G * VdotH) / (NdotV * NdotH * p_specular);
+
+                } else {
+                    // Diffuse Bounce (Cosine Weighted)
+                    let local_dir = sample_cosine_weighted_hemisphere(rnd_dir);
+                    next_dir = normalize(mat3x3<f32>(tbn.tangent, tbn.binormal, tbn.normal) * local_dir);
+                    next_ray_type = RAY_TYPE_DIFFUSE_BOUNCE;
+                    
+                    // Weight = (1 - k_spec * F) * Albedo
+                     let H_diff = normalize(v + next_dir);
+                    let VdotH_diff = clamp(dot(v, H_diff), 0.0, 1.0);
+                    let k_spec = unpack2x16float(material_info.specular_weight_and_anisotropy_strength).x;
+                    let F_diff = f_schlick_vec3_vec3(f0, material_info.f90, VdotH_diff);
+                    
+                    throughput_adj = ((1.0 - k_spec * F_diff) * c_diff) / (1.0 - p_specular);
+                }
+                
+                rays.data[ray_index].origin = pixel_data.world_pos + next_dir * 0.01;
+                rays.data[ray_index].direction = next_dir;
+                rays.data[ray_index].throughput = throughput_adj; 
+                rays.data[ray_index].t_max = MAX_TRACING_DISTANCE;
+                rays.data[ray_index].t_min = 0.001;
+                rays.data[ray_index].pixel_index = packed_coord; // Use packed coord (Wait, I used ray_index before, need packed!)
+                // Wait, I defined packed_coord above.
+                // Re-using packed_coord here.
+                rays.data[ray_index].ray_type = next_ray_type;
+                rays.data[ray_index].bounce_count = 0u;
+                rays.data[ray_index].flags = RAY_FLAG_ACTIVE;
+            }
+        }
     } else {
-        // No hit - mark ray as terminated
-        let ray_index = pixel.y * DEFAULT_WIDTH + pixel.x;
-        rays.data[ray_index].t_max = -1.0;
-        rays.data[ray_index].flags = RAY_FLAG_TERMINATED;
+        // No hit - mark ray as terminated (Only if Even)
+        if (pixel.x % 2u == 0u && pixel.y % 2u == 0u) {
+            let screen_width = u32(constant_data.screen_width);
+            let half_width = (screen_width + 1u) / 2u;
+            let ray_index = (pixel.y / 2u) * half_width + (pixel.x / 2u);
+            
+             if (ray_index < arrayLength(&rays.data)) {
+                rays.data[ray_index].t_max = -1.0;
+                rays.data[ray_index].flags = RAY_FLAG_TERMINATED;
+             }
+        }
     }
 
     // Write direct lighting

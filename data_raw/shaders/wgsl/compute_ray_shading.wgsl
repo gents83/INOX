@@ -99,22 +99,30 @@ fn main(
         
         // Sample environment map in ray direction for indirect lighting
         if ((constant_data.flags & CONSTANT_DATA_FLAGS_USE_IBL) != 0) {
+            
+            // Unpack Coord
+            let packed_coord = ray.pixel_index;
+            let px = packed_coord & 0xFFFFu;
+            let py = packed_coord >> 16u;
+            let pixel = vec2<u32>(px, py);
+            let write_coord = pixel / 2u;
+            
             let env_radiance = sample_environment_ibl(ray.direction);
             let contribution = env_radiance * ray.throughput;
             
             // Accumulate IBL contributions from all bounces
             if (ray.ray_type == RAY_TYPE_DIFFUSE_BOUNCE) {
-                let prev_encoded = textureLoad(indirect_diffuse_texture, pixel).rgb;
+                let prev_encoded = textureLoad(indirect_diffuse_texture, write_coord).rgb;
                 let prev_value = decode_uvec3_to_vec3(prev_encoded);
                 let accumulated = prev_value + contribution;
                 let encoded = encode_vec3_to_uvec3(accumulated);
-                textureStore(indirect_diffuse_texture, pixel, vec4<u32>(encoded, 0u));
+                textureStore(indirect_diffuse_texture, write_coord, vec4<u32>(encoded, 0u));
             } else {
-                let prev_encoded = textureLoad(indirect_specular_texture, pixel).rgb;
+                let prev_encoded = textureLoad(indirect_specular_texture, write_coord).rgb;
                 let prev_value = decode_uvec3_to_vec3(prev_encoded);
                 let accumulated = prev_value + contribution;
                 let encoded = encode_vec3_to_uvec3(accumulated);
-                textureStore(indirect_specular_texture, pixel, vec4<u32>(encoded, 0u));
+                textureStore(indirect_specular_texture, write_coord, vec4<u32>(encoded, 0u));
             }
         }
         
@@ -147,11 +155,11 @@ fn main(
     }
     
     // Prevent double counting: 
-    // If NEE is active (num_lights > 0), the previous bounce likely already sampled this light.
-    // Therefore, we ignore the implicit emissive contribution for this ray.
-    if (constant_data.num_lights > 0u) {
-        emissive = vec3(0.0);
-    }
+    // Ideally we should check if THIS specific instance is in the light list.
+    // For now, we allow it to ensure Emissive Meshes appear even if NEE is active.
+    // if (constant_data.num_lights > 0u) {
+    //     emissive = vec3(0.0);
+    // }
     
     // Evaluate direct lighting at bounce hit point for indirect illumination contribution
     let pixel_index = ray.pixel_index;
@@ -160,74 +168,79 @@ fn main(
     let origin_hash = bitcast<u32>(pixel_data.world_pos.x) ^ bitcast<u32>(pixel_data.world_pos.y) ^ bitcast<u32>(pixel_data.world_pos.z);
     var seed = vec2<u32>(pixel_index ^ origin_hash, constant_data.frame_index + ray_index + (ray.bounce_count * 15485863u));
 
-    // Pick one random light (same approach as direct lighting pass)
-    let light_index = hash(constant_data.frame_index + ray_index) % constant_data.num_lights;
-    let light = lights.data[light_index];
-    
     var light_contribution = vec3(0.0);
-    if (light.light_type != LIGHT_TYPE_INVALID) {
-        var point_to_light: vec3<f32>;
-        if (light.light_type == LIGHT_TYPE_DIRECTIONAL) { 
-             point_to_light = -light.direction;
-        } else {
-             point_to_light = light.position - pixel_data.world_pos;
-             
-             // Area Light Sampling
-             if (light.light_type == LIGHT_TYPE_AREA) {
-                let rnd_light = get_random_numbers(&seed);
-                // Construct Basis
-                let up = select(vec3(0., 1., 0.), vec3(1., 0., 0.), abs(light.direction.y) > 0.999);
-                let tangent = normalize(cross(up, light.direction));
-                let bitangent = cross(light.direction, tangent);
-                
-                // Dimensions from cone angles (Hack)
-                let width = light.inner_cone_angle;
-                let height = light.outer_cone_angle;
-                
-                var offset = vec3(0.0);
-                
-                // Decode Shape from _padding1 (f32 -> u32)
-                let shape_type = bitcast<u32>(light._padding1);
-                
-                if (shape_type == LIGHT_AREA_SHAPE_DISK) {
-                    // Uniform Disk Sampling
-                    let r = sqrt(rnd_light.x);            // Square root for uniform area distribution
-                    let theta = 2.0 * MATH_PI * rnd_light.y;
-                    
-                    // Disk radius is max of width/height? light.range? 
-                    // Usually width/height are extents. For a disk, width=height=diameter?
-                    // Let's assume width is diameter X, height is diameter Z.
-                    // If circular, width approx equals height. Radius = width * 0.5.
-                    let radius_x = width * 0.5;
-                    let radius_z = height * 0.5;
-                    
-                    let u = r * cos(theta) * radius_x;
-                    let v = r * sin(theta) * radius_z;
-                    
-                    offset = u * tangent + v * bitangent;
-                } else {
-                    // Rectangle Sampling
-                    offset = (rnd_light.x - 0.5) * width * tangent + (rnd_light.y - 0.5) * height * bitangent;
-                }
-                
-                point_to_light = (light.position + offset) - pixel_data.world_pos;
-             }
-        }
+    
+    // Only sample lights if we actually have them!
+    if (constant_data.num_lights > 0u) {
+        // Pick one random light (same approach as direct lighting pass)
+        let light_index = hash(constant_data.frame_index + ray_index) % constant_data.num_lights;
+        let light = lights.data[light_index];
         
-        let L = normalize(point_to_light);
-        let N = normalize(pixel_data.normal);
-        let NdotL = clamp(dot(N, L), 0.0, 1.0);
-        
-        if (NdotL > 0.0) {
-            // Get light intensity with attenuation
-            var range_attenuation = 1.0;
-            if (light.light_type != LIGHT_TYPE_DIRECTIONAL) {
-                range_attenuation = get_range_attenuation(light.range, length(point_to_light));
+        if (light.light_type != LIGHT_TYPE_INVALID) {
+             var point_to_light: vec3<f32>;
+            if (light.light_type == LIGHT_TYPE_DIRECTIONAL) { 
+                 point_to_light = -light.direction;
+            } else {
+                 point_to_light = light.position - pixel_data.world_pos;
+                 
+                 // Area Light Sampling
+                 if (light.light_type == LIGHT_TYPE_AREA) {
+                    let rnd_light = get_random_numbers(&seed);
+                    // Construct Basis
+                    let up = select(vec3(0., 1., 0.), vec3(1., 0., 0.), abs(light.direction.y) > 0.999);
+                    let tangent = normalize(cross(up, light.direction));
+                    let bitangent = cross(light.direction, tangent);
+                    
+                    // Dimensions from cone angles (Hack)
+                    let width = light.inner_cone_angle;
+                    let height = light.outer_cone_angle;
+                    
+                    var offset = vec3(0.0);
+                    
+                    // Decode Shape from _padding1 (f32 -> u32)
+                    let shape_type = bitcast<u32>(light._padding1);
+                    
+                    if (shape_type == LIGHT_AREA_SHAPE_DISK) {
+                        // Uniform Disk Sampling
+                        let r = sqrt(rnd_light.x);            // Square root for uniform area distribution
+                        let theta = 2.0 * MATH_PI * rnd_light.y;
+                        let radius_x = width * 0.5;
+                        let radius_z = height * 0.5;
+                        
+                        let u = r * cos(theta) * radius_x;
+                        let v = r * sin(theta) * radius_z;
+                        
+                        offset = u * tangent + v * bitangent;
+                    } else {
+                        // Rectangle Sampling
+                        offset = (rnd_light.x - 0.5) * width * tangent + (rnd_light.y - 0.5) * height * bitangent;
+                    }
+                    
+                    point_to_light = (light.position + offset) - pixel_data.world_pos;
+                 }
             }
-            let intensity = range_attenuation * light.intensity;
             
-            // Lambertian diffuse
-            light_contribution = c_diff * light.color * intensity * NdotL / MATH_PI;
+            let L = normalize(point_to_light);
+            let N = normalize(pixel_data.normal);
+            let NdotL = clamp(dot(N, L), 0.0, 1.0);
+            
+            if (NdotL > 0.0) {
+                var light_nee: LightData = light;
+                if (light.light_type == LIGHT_TYPE_DIRECTIONAL) { 
+                     light_nee.position = pixel_data.world_pos - light.direction; // Fake position for punctual eval
+                }
+                if (light.light_type == LIGHT_TYPE_AREA) {
+                     light_nee.position = pixel_data.world_pos + point_to_light; // Evaluated position
+                }
+                // Use eval_punctual_light which handles full PBR (diffuse + spec + sheen + clearcoat)
+                // It accumulates into material_info (which starts at 0 for light accumulators)
+                eval_punctual_light(&light_nee, material, &material_info, &pixel_data, tbn, v);
+                
+                // Extract the accumulated light
+                // Note: eval_punctual_light does: material_info.f_diffuse += contribution...
+                // So we sum them up.
+                light_contribution = material_info.f_diffuse + material_info.f_specular + material_info.f_sheen + material_info.f_clearcoat + material_info.f_transmission;
+            }
         }
     }
     
@@ -238,30 +251,40 @@ fn main(
     let radiance = emissive + light_contribution;
 
     // Apply throughput
+    // Apply throughput
     let contribution = radiance * ray.throughput;
-    let pixel = vec2<u32>(pixel_index % u32(constant_data.screen_width), pixel_index / u32(constant_data.screen_width));
     
-    // Accumulate INDIRECT lighting
-    // We separate Diffuse and Specular integration for denoising purposes
-    // Load, decode, accumulate, and encode back to integer texture
+    // Robustness Fix: Unpack X and Y from pixel_index
+    let packed_coord = ray.pixel_index;
+    let px = packed_coord & 0xFFFFu;
+    let py = packed_coord >> 16u;
+    let pixel = vec2<u32>(px, py);
+    
     if (ray.ray_type == RAY_TYPE_DIFFUSE_BOUNCE) {
-        let prev_data = textureLoad(indirect_diffuse_texture, pixel);
+        // Reduced Resolution: Write to pixel / 2
+        let write_coord = pixel / 2u;
+        
+        let prev_data = textureLoad(indirect_diffuse_texture, write_coord);
         let prev_encoded = prev_data.rgb;
         
         let prev_value = decode_uvec3_to_vec3(prev_encoded);
+        
         let accumulated = prev_value + contribution;
         
         let encoded = encode_vec3_to_uvec3(accumulated);
-        textureStore(indirect_diffuse_texture, pixel, vec4<u32>(encoded, 0u));
+        textureStore(indirect_diffuse_texture, write_coord, vec4<u32>(encoded, 0u));
     } else {
-        let prev_data = textureLoad(indirect_specular_texture, pixel);
+        let write_coord = pixel / 2u;
+        
+        let prev_data = textureLoad(indirect_specular_texture, write_coord);
         let prev_encoded = prev_data.rgb;
         
         let prev_value = decode_uvec3_to_vec3(prev_encoded);
+        
         let accumulated = prev_value + contribution;
         
         let encoded = encode_vec3_to_uvec3(accumulated);
-        textureStore(indirect_specular_texture, pixel, vec4<u32>(encoded, 0u));
+        textureStore(indirect_specular_texture, write_coord, vec4<u32>(encoded, 0u));
     }
     
     // Generate next bounce
@@ -290,15 +313,47 @@ fn main(
         var next_ray_type: u32;
         
         if (rnd.x < p_specular) {
-            let H = importance_sample_ggx(material.roughness_factor, rnd_dir, N, V);
+            let local_H = importance_sample_ggx(material.roughness_factor, rnd_dir);
+            let H = normalize(tbn_sample * local_H);
             next_dir = normalize(reflect(-V, H));
-            throughput_adj = f0 / p_specular;
             next_ray_type = RAY_TYPE_SPECULAR_BOUNCE;
+            
+            let NdotL_next = clamp(dot(N, next_dir), 0.001, 1.0);
+            let VdotH = clamp(dot(V, H), 0.001, 1.0);
+            let NdotH = clamp(dot(N, H), 0.001, 1.0);
+            let NdotV = clamp(dot(N, V), 0.001, 1.0);
+            
+            // Weight = BRDF * NdotL / PDF
+            // PDF(L) = D * NH / (4 * VH)
+            // BRDF = F * G * D / (4 * NL * NV)
+            // Weight = (F * G * D * NL / (4 * NL * NV)) / (D * NH / (4 * VH))
+            //        = F * G * VH / (NV * NH)
+            
+            let F = f_schlick_vec3_vec3(f0, material_info.f90, VdotH);
+            let Vis = V_GGX(NdotL_next, NdotV, material_info.alpha_roughness);
+            // Vis = G / (4 * NL * NV) => G = Vis * 4 * NL * NV
+            let G = Vis * 4.0 * NdotL_next * NdotV;
+            
+            throughput_adj = (F * G * VdotH) / (NdotV * NdotH * p_specular);
+            
         } else {
             let local_dir = sample_cosine_weighted_hemisphere(rnd_dir);
             next_dir = normalize(tbn_sample * local_dir);
-            throughput_adj = c_diff / (1.0 - p_specular);
             next_ray_type = RAY_TYPE_DIFFUSE_BOUNCE;
+            
+            // Diffuse Weight
+            // PDF = NdotL / PI
+            // BRDF = (1-F) * c_diff / PI (Lambertian)
+            // Weight = BRDF * NdotL / PDF = (1-F) * c_diff
+            // Note: We use the Fresnel term logic from pbr_utils BRDF_lambertian which is (1 - specularWeight * F)
+            
+            let H_diff = normalize(V + next_dir);
+            let VdotH_diff = clamp(dot(V, H_diff), 0.0, 1.0);
+            let k_spec = unpack2x16float(material_info.specular_weight_and_anisotropy_strength).x; // specular weight
+             // We need f_schlick for the chosen direction to scale down diffuse
+            let F_diff = f_schlick_vec3_vec3(f0, material_info.f90, VdotH_diff);
+            
+            throughput_adj = ((1.0 - k_spec * F_diff) * c_diff) / (1.0 - p_specular);
         }
         
         rays_next.data[ray_index].origin = pixel_data.world_pos + next_dir * 0.01;

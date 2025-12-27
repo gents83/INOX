@@ -50,10 +50,13 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     let indirect_specular_data = textureLoad(indirect_specular_texture, coords);
     
     // Normalize by global frame count (plus 1 to avoid div by zero)
+    // Since we clear the indirect textures every frame now (to fix ghosting), 
+    // we should NOT divide by accumulated frame count. The buffer contains only THe CURRENT frame's energy.
     let sample_count = f32(constant_data.frame_index + 1u);
     
-    let indirect_diffuse = decode_uvec3_to_vec3(indirect_diffuse_data.rgb) / sample_count;
-    let indirect_specular = decode_uvec3_to_vec3(indirect_specular_data.rgb) / sample_count;
+    // Decoding: The buffer contains raw accumulated radiance for THIS frame.
+    let indirect_diffuse = decode_uvec3_to_vec3(indirect_diffuse_data.rgb);
+    let indirect_specular = decode_uvec3_to_vec3(indirect_specular_data.rgb);
     
     let shadow = textureLoad(shadow_texture, coords, 0).r;
     let ao = textureLoad(ao_texture, coords, 0).r;
@@ -65,7 +68,21 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     // var radiance = vec3(debug_val);
     
     // Normal Output
-    var radiance = direct.rgb * shadow * ao + indirect_diffuse + indirect_specular;
+    // Normal Output
+    
+    // Nearest Neighbor Upsampling for Half-Res GI
+    // The texture size is Width/2.
+    // Screen Coord "coords" (0..W) maps to Texture Coord (0..W/2) via division.
+    let indirect_coord = vec2<i32>(coords.x / 2, coords.y / 2);
+    
+    let indirect_diffuse_packed = textureLoad(indirect_diffuse_texture, indirect_coord).rgb;
+    let indirect_specular_packed = textureLoad(indirect_specular_texture, indirect_coord).rgb;
+    
+    let ind_diff = decode_uvec3_to_vec3(indirect_diffuse_packed);
+    let ind_spec = decode_uvec3_to_vec3(indirect_specular_packed);
+
+    // Amplified for visibility test (20x)
+    var radiance = direct.rgb * shadow * ao + (ind_diff + ind_spec) * 20.0;
     
     var out_color = vec4<f32>(radiance, direct.a);
     

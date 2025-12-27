@@ -40,16 +40,13 @@ fn sample_ggx_vndf(roughness: f32, uh: vec2<f32>, V: vec3<f32>) -> vec3<f32> {
     return Ne;
 }
 
-fn importance_sample_ggx(roughness: f32, u: vec2<f32>, N: vec3<f32>, V: vec3<f32>) -> vec3<f32> {
+fn importance_sample_ggx(roughness: f32, u: vec2<f32>) -> vec3<f32> {
     let a = roughness * roughness;
     let phi = 2. * 3.14159265 * u.x;
     let cos_theta = sqrt((1. - u.y) / (1. + (a * a - 1.) * u.y));
     let sin_theta = sqrt(1. - cos_theta * cos_theta);
     
+    // Returns H in tangent space (aligned to Z+)
     let H = vec3<f32>(sin_theta * cos(phi), sin_theta * sin(phi), cos_theta);
-    
-    // Tangent Space to World
-    // Assumption: this function returns LOCAL H. Or call separate basis transform?
-    // Let's return local H and let caller transform.
     return H;
 }

@@ -5,7 +5,7 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 use inox_graphics::{
     BlitPass, CommandsPass, ComputeAOGenerationPass, ComputeAOShadingPass, ComputeAOTraversalPass,
     ComputeDirectLightingPass, ComputeInstancesPass, ComputeShadowGenerationPass,
-    ComputeShadowShadingPass, ComputeShadowTraversalPass, CullingPass, DepthFirstPass,
+    ComputeShadowShadingPass, ComputeShadowTraversalPass, CullingPass, DebugPass, DepthFirstPass,
     DepthPyramidPass, FinalizePass, IntersectionPackedData, RayBounceManagerPass, RayPackedData,
     VisibilityBufferPass, WireframePass, AO_INTERSECTIONS_ID, AO_RAYS_ID, BOUNCE_INTERSECTIONS_ID,
     BOUNCE_RAYS_ID, BOUNCE_RAYS_NEXT_ID, SHADOW_INTERSECTIONS_ID, SHADOW_RAYS_ID,
@@ -41,8 +41,6 @@ enum RenderTargetType {
     IndirectSpecular = 7,
     Shadow = 8,
     AO = 9,
-    Reflection = 10,
-    Refraction = 11,
 }
 
 pub struct Viewer {
@@ -233,7 +231,7 @@ impl Viewer {
 
         // IndirectDiffuse
         let _indirect_diffuse = render_context.create_render_target(
-            (width, height, single_sample, 1, 1),
+            (width / 2, height / 2, single_sample, 1, 1),
             TextureFormat::Rgba32Uint,
             usage,
         );
@@ -241,7 +239,7 @@ impl Viewer {
 
         // IndirectSpecular
         let _indirect_specular = render_context.create_render_target(
-            (width, height, single_sample, 1, 1),
+            (width / 2, height / 2, single_sample, 1, 1),
             TextureFormat::Rgba32Uint,
             usage,
         );
@@ -262,22 +260,6 @@ impl Viewer {
             usage,
         );
         debug_assert!(_ao == RenderTargetType::AO as usize);
-
-        // Reflection
-        let _reflection = render_context.create_render_target(
-            (width, height, single_sample, 1, 1),
-            TextureFormat::Rgba16Float,
-            usage,
-        );
-        debug_assert!(_reflection == RenderTargetType::Reflection as usize);
-
-        // Refraction
-        let _refraction = render_context.create_render_target(
-            (width, height, single_sample, 1, 1),
-            TextureFormat::Rgba16Float,
-            usage,
-        );
-        debug_assert!(_refraction == RenderTargetType::Refraction as usize);
     }
     fn create_data_buffers(render_context: &RenderContextRc, _width: u32, _height: u32) {
         render_context
@@ -380,10 +362,27 @@ impl Viewer {
 
         Self::create_finalize_pass(context, render_context);
         Self::create_blit_pass(context, render_context);
-
-        //Self::create_debug_pass(context, render_context);
+        Self::create_debug_pass(context, render_context);
         Self::create_wireframe_pass(context, render_context, has_wireframe_support());
         Self::create_ui_pass(context, render_context, ADD_UI_PASS);
+    }
+
+    fn create_debug_pass(context: &ContextRc, render_context: &RenderContextRc) {
+        let mut pass = DebugPass::create(context, render_context);
+        pass.set_direct_texture(&render_context.render_target(RenderTargetType::Direct as usize))
+            .set_indirect_diffuse_texture(
+                &render_context.render_target(RenderTargetType::IndirectDiffuse as usize),
+            )
+            .set_indirect_specular_texture(
+                &render_context.render_target(RenderTargetType::IndirectSpecular as usize),
+            )
+            .set_shadow_texture(&render_context.render_target(RenderTargetType::Shadow as usize))
+            .set_ao_texture(&render_context.render_target(RenderTargetType::AO as usize))
+            .set_visibility_texture(
+                &render_context.render_target(RenderTargetType::Visibility as usize),
+            )
+            .set_depth_texture(&render_context.render_target(RenderTargetType::Depth as usize));
+        render_context.add_pass(pass, true);
     }
 
     // ...

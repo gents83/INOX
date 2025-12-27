@@ -12,9 +12,9 @@ pub const CONSTANT_DATA_FLAGS_NONE: u32 = 0;
 pub const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 1 << 1;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_LOD_LEVEL: u32 = 1 << 2;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER: u32 = 1 << 3;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_SHADOW: u32 = 1 << 3;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER: u32 = 1 << 4;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE: u32 = 1 << 5;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_AO: u32 = 1 << 5;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_NORMALS: u32 = 1 << 6;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_TANGENT: u32 = 1 << 7;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT: u32 = 1 << 8;
@@ -25,6 +25,8 @@ pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_0: u32 = 1 << 12;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_1: u32 = 1 << 13;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_2: u32 = 1 << 14;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_3: u32 = 1 << 15;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_INDIRECT_DIFFUSE: u32 = 1 << 16;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_INDIRECT_SPECULAR: u32 = 1 << 17;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -200,9 +202,6 @@ impl ConstantData {
             .div(screen_size_and_debug_coords.0))
         .into();
         self.tlas_starting_index = tlas_starting_index;
-        if self.flags & CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE == 0 {
-            self.frame_index += 1;
-        }
         self.mark_as_dirty(render_context);
         true
     }
@@ -214,5 +213,8 @@ impl ConstantData {
     }
     pub fn inverse_view_proj(&self) -> [[f32; 4]; 4] {
         self.inverse_view_proj
+    }
+    pub fn flags(&self) -> u32 {
+        self.flags
     }
 }
