@@ -261,7 +261,7 @@ impl Viewer {
         );
         debug_assert!(_ao == RenderTargetType::AO as usize);
     }
-    fn create_data_buffers(render_context: &RenderContextRc, _width: u32, _height: u32) {
+    fn create_data_buffers(render_context: &RenderContextRc, width: u32, height: u32) {
         render_context
             .global_buffers()
             .buffer::<GPUTexture>()
@@ -282,7 +282,7 @@ impl Viewer {
             .prealloc::<MAX_NUM_MATERIALS>();
 
         // Pre-allocate ray buffers for path tracing (one ray per pixel)
-        let num_pixels = DEFAULT_WIDTH as usize * DEFAULT_HEIGHT as usize;
+        let num_pixels = (width * height) as usize;
 
         render_context
             .global_buffers()

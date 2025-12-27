@@ -46,8 +46,13 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     let coords = vec2<i32>(i32(v_in.uv.x * f32(dimensions.x)), i32(v_in.uv.y * f32(dimensions.y)));
 
     let direct = textureLoad(direct_texture, coords, 0);
-    let indirect_diffuse_data = textureLoad(indirect_diffuse_texture, coords);
-    let indirect_specular_data = textureLoad(indirect_specular_texture, coords);
+    
+    // Nearest Neighbor Upsampling for Half-Res GI
+    // The texture size is Width/2.
+    // Screen Coord "coords" (0..W) maps to Texture Coord (0..W/2) via division.
+    let indirect_coord = vec2<i32>(coords.x / 2, coords.y / 2);
+    let indirect_diffuse_data = textureLoad(indirect_diffuse_texture, indirect_coord);
+    let indirect_specular_data = textureLoad(indirect_specular_texture, indirect_coord);
     
     // Normalize by global frame count (plus 1 to avoid div by zero)
     // Since we clear the indirect textures every frame now (to fix ghosting), 
@@ -60,20 +65,6 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     
     let shadow = textureLoad(shadow_texture, coords, 0).r;
     let ao = textureLoad(ao_texture, coords, 0).r;
-    
-    // Debug: Visualize Frame Index
-    // If frame_index is increasing, this should slowly turn white
-    // If it stays black, frame_index is stuck at 0
-    // let debug_val = f32(constant_data.frame_index) / 255.0; // Wrap every 255 frames
-    // var radiance = vec3(debug_val);
-    
-    // Normal Output
-    // Normal Output
-    
-    // Nearest Neighbor Upsampling for Half-Res GI
-    // The texture size is Width/2.
-    // Screen Coord "coords" (0..W) maps to Texture Coord (0..W/2) via division.
-    let indirect_coord = vec2<i32>(coords.x / 2, coords.y / 2);
     
     let indirect_diffuse_packed = textureLoad(indirect_diffuse_texture, indirect_coord).rgb;
     let indirect_specular_packed = textureLoad(indirect_specular_texture, indirect_coord).rgb;

@@ -18,6 +18,8 @@ struct Intersection {
     instance_id: i32,
     primitive_index: i32,
     padding: u32,
+    // Pad to 32 bytes (8 floats) to match Rust IntersectionPackedData
+    _pad0: u32, _pad1: u32,
 }
 
 struct Rays {

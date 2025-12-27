@@ -15,13 +15,28 @@ pub const AO_INTERSECTIONS_ID: Uid = generate_static_uid_from_string("AO_INTERSE
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Default)]
 pub struct RayPackedData {
-    pub data: [f32; 16], // Packed ray data (origin, direction, throughput, etc.)
+    pub origin: [f32; 3],
+    pub t_min: f32,
+    pub direction: [f32; 3],
+    pub t_max: f32,
+    pub throughput: [f32; 3],
+    pub pixel_index: u32,
+    pub ray_type: u32,
+    pub bounce_count: u32,
+    pub flags: u32,
+    pub padding: u32,
 }
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Default)]
 pub struct IntersectionPackedData {
-    pub data: [f32; 16], // Packed intersection data (hit point, normal, etc.)
+    pub t: f32,
+    pub u: f32,
+    pub v: f32,
+    pub instance_id: i32,
+    pub primitive_index: i32,
+    pub padding: u32,
+    pub _pad: [u32; 2], // Pad to 32 bytes
 }
 
 pub use self::passes::*;

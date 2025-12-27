@@ -352,16 +352,11 @@ impl Pass for ComputeRayShadingPass {
             return;
         }
 
-        // CRITICAL: Use RUNTIME screen dimensions, not compile-time DEFAULT constants!
-        // The actual window size may differ from DEFAULT_WIDTH/HEIGHT
-        let constant_data = self.constant_data.read().unwrap();
-        let screen_size = constant_data.screen_size();
-        let screen_width = screen_size[0] as u32;
-        let screen_height = screen_size[1] as u32;
-        drop(constant_data);
+        // Use DEFAULT constants for stride alignment
+        use inox_render::DEFAULT_HEIGHT;
+        use inox_render::DEFAULT_WIDTH;
 
-        // Match the half-resolution ray generation in compute_direct_lighting
-        let num_rays = (screen_width / 2) * (screen_height / 2);
+        let num_rays = (DEFAULT_WIDTH / 2) * (DEFAULT_HEIGHT / 2);
         let workgroup_size = 64;
         let dispatch_x = num_rays.div_ceil(workgroup_size);
 

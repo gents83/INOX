@@ -100,12 +100,17 @@ fn main(
         // Sample environment map in ray direction for indirect lighting
         if ((constant_data.flags & CONSTANT_DATA_FLAGS_USE_IBL) != 0) {
             
-            // Unpack Coord
-            let packed_coord = ray.pixel_index;
-            let px = packed_coord & 0xFFFFu;
-            let py = packed_coord >> 16u;
-            let pixel = vec2<u32>(px, py);
-            let write_coord = pixel / 2u;
+            // Verify IBL Contribution
+            // Use ray_index to reconstruct coord, ensuring match with generation logic
+            let half_width = (DEFAULT_WIDTH + 1u) / 2u;
+            let write_x = ray_index % half_width;
+            let write_y = ray_index / half_width;
+            let write_coord = vec2<u32>(write_x, write_y);
+
+            // Bounds Check
+            if (write_x * 2u >= u32(constant_data.screen_width) || write_y * 2u >= u32(constant_data.screen_height)) {
+               return; // Skip inactive rays in fixed buffer
+            }
             
             let env_radiance = sample_environment_ibl(ray.direction);
             let contribution = env_radiance * ray.throughput;
@@ -257,9 +262,18 @@ fn main(
     
     // Robustness Fix: Unpack X and Y from pixel_index
     let packed_coord = ray.pixel_index;
-    let px = packed_coord & 0xFFFFu;
-    let py = packed_coord >> 16u;
+    // Reconstruct pixel coordinates from ray_index to ensure stride alignment
+    // This matches the dispatch logic: ray_index = y * (DEFAULT_WIDTH/2) + x
+    let half_width = (DEFAULT_WIDTH + 1u) / 2u;
+    let px = (ray_index % half_width) * 2u;
+    let py = (ray_index / half_width) * 2u;
     let pixel = vec2<u32>(px, py);
+
+    // Bounds Check: Since buffer is fixed size (DEFAULT), we might be processing 
+    // a ray that is outside the current window size (hole/padded area).
+    if (px >= u32(constant_data.screen_width) || py >= u32(constant_data.screen_height)) {
+        return;
+    }
     
     // Write contribution to indirect textures
     if (ray.ray_type == RAY_TYPE_DIFFUSE_BOUNCE) {
@@ -271,7 +285,6 @@ fn main(
         let prev_value = decode_uvec3_to_vec3(prev_encoded);
         
         // Accumulate radiance contribution
-        // For emissive-only scenes, this will be zero until rays hit emissive surfaces
         let accumulated = prev_value + contribution;
         
         let encoded = encode_vec3_to_uvec3(accumulated);
@@ -281,7 +294,6 @@ fn main(
         
         let prev_data = textureLoad(indirect_specular_texture, write_coord);
         let prev_encoded = prev_data.rgb;
-        
         let prev_value = decode_uvec3_to_vec3(prev_encoded);
         
         let accumulated = prev_value + contribution;

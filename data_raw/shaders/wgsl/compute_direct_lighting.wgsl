@@ -53,7 +53,7 @@ const WORKGROUP_SIZE: u32 = 8u;
 
 @compute @workgroup_size(WORKGROUP_SIZE, WORKGROUP_SIZE, 1)
 fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
-    let dimensions = vec2<u32>(DEFAULT_WIDTH, DEFAULT_HEIGHT);
+    let dimensions = vec2<u32>(u32(constant_data.screen_width), u32(constant_data.screen_height));
     let pixel = vec2<u32>(global_invocation_id.x, global_invocation_id.y);
     if (pixel.x >= dimensions.x || pixel.y >= dimensions.y) {
         return;
@@ -67,8 +67,11 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
     // Only the top-left thread (even x and y) should clear
     if (pixel.x % 2u == 0u && pixel.y % 2u == 0u) {
         let indirect_pixel = pixel / 2u;
-        textureStore(indirect_diffuse_texture, indirect_pixel, vec4<u32>(0u));
-        textureStore(indirect_specular_texture, indirect_pixel, vec4<u32>(0u));
+        // Safety check: Ensure we don't write OOB if grid alignment is weird
+        if(indirect_pixel.x < dimensions.x / 2u && indirect_pixel.y < dimensions.y / 2u) {
+            textureStore(indirect_diffuse_texture, indirect_pixel, vec4<u32>(0u));
+            textureStore(indirect_specular_texture, indirect_pixel, vec4<u32>(0u));
+        }
     }
 
     var direct_light = vec3<f32>(0.0);
@@ -112,12 +115,13 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
         // We only compute indirect lighting for every 2x2 block (High-Res pixels x%2==0 && y%2==0).
         // This reduces Ray Buffer usage by 4x, allowing 2556x1490 resoluion to fit in a 2M buffer.
         if (pixel.x % 2u == 0u && pixel.y % 2u == 0u) {
-            let screen_width = u32(constant_data.screen_width);
+            // Use DEFAULT_WIDTH for Stride to match fixed buffer size
+            // But use runtime screen_width for bounds checking (already done at start of main)
             
-            // Force Dense Packing: Stride = Number of Even Pixels
-            let half_width = (screen_width + 1u) / 2u;
+            // Force Fixed Stride: Stride = DEFAULT_WIDTH / 2
+            let half_stride = (DEFAULT_WIDTH + 1u) / 2u;
             
-            let ray_index = (pixel.y / 2u) * half_width + (pixel.x / 2u);
+            let ray_index = (pixel.y / 2u) * half_stride + (pixel.x / 2u);
             
             if (ray_index < arrayLength(&rays.data)) {
                  // Robustness Fix: Pack X and Y into pixel_index (16 bits each)
