@@ -11,17 +11,19 @@ struct Result {
 }
 
 fn intersect_aabb(origin: vec3<f32>, direction: vec3<f32>, max_distance: f32, aabb_min: vec3<f32>, aabb_max: vec3<f32>) -> f32 {
-    let size = aabb_max - aabb_min;
     let inverse_dir = 1. / direction;
-    let n = origin * inverse_dir;
-    let k = abs(inverse_dir) * size;
-    let t_min = -n - k;
-    let t_max = -n + k;
+    let t1 = (aabb_min - origin) * inverse_dir;
+    let t2 = (aabb_max - origin) * inverse_dir;
+
+    let t_min = min(t1, t2);
+    let t_max = max(t1, t2);
 
     let t_near = max(max(t_min.x, t_min.y), t_min.z);
     let t_far = min(min(t_max.x, t_max.y), t_max.z);
 
-    return select(t_far, t_near, (t_near < max_distance && t_far > 0.));
+    let is_hit = t_near <= t_far && t_far >= 0. && t_near < max_distance;
+
+    return select(max_distance, t_near, is_hit);
 }
 
 // Mäller-Trumbore algorithm
@@ -86,7 +88,7 @@ fn traverse_blas_stack(
 
     var loop_count = 0u;
 
-    while(stack_ptr > 0 && loop_count < 256u) {
+    while(stack_ptr > 0 && loop_count < 1024u) {
         loop_count++;
         stack_ptr--;
         let node_index = stack[stack_ptr];
@@ -156,7 +158,7 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
 
     var loop_count = 0u;
 
-    while(stack_ptr > 0 && loop_count < 256u) {
+    while(stack_ptr > 0 && loop_count < 1024u) {
         loop_count++;
         stack_ptr--;
         let node_index = stack[stack_ptr];
