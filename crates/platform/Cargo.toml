@@ -20,3 +20,6 @@ raw-window-handle = { workspace = true }
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { workspace = true }
 web-sys = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

@@ -58,8 +58,7 @@ fn main() {
         link_library("user32");
         link_library("kernel32");
         link_library("shcore");
-    } else if is_android_platform || is_web_platform {
-    } else if target_os == "linux" {
+    } else if is_android_platform || is_web_platform || target_os == "linux" {
     } else {
         panic!("Platform {target_os} not yet supported - Check build.rs to setup this platform to build from source");
     }

@@ -34,7 +34,7 @@ fn link_library(name: &str) {
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
     let out_dir = Path::new(&out_dir)
-        .join("..\\..\\..\\")
+        .join("../../../")
         .canonicalize()
         .unwrap();
 
@@ -63,7 +63,7 @@ fn main() {
         link_library("gdi32");
         link_library("dwmapi");
         link_library("uxtheme");
-    } else if is_android_platform || is_web_platform {
+    } else if is_android_platform || is_web_platform || target_os == "linux" {
     } else {
         panic!("Platform {target_os} not yet supported - Check build.rs to setup this platform to build from source");
     }
