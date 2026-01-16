@@ -33,7 +33,7 @@ fn link_library(name: &str) {
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
     let out_dir = Path::new(&out_dir)
-        .join("..\\..\\..\\")
+        .join("../../../")
         .canonicalize()
         .unwrap();
     let mut deps_path = Path::new(&out_dir).join("deps");
@@ -59,6 +59,7 @@ fn main() {
         link_library("kernel32");
         link_library("shcore");
     } else if is_android_platform || is_web_platform {
+    } else if target_os == "linux" {
     } else {
         panic!("Platform {target_os} not yet supported - Check build.rs to setup this platform to build from source");
     }
