@@ -30,7 +30,7 @@ impl Default for Timer {
 impl Timer {
     pub fn update(&mut self) -> &mut Self {
         let lastframe_time = self.current_time;
-        self.current_frame += 1 % u64::MAX;
+        self.current_frame = self.current_frame.wrapping_add(1);
         self.current_time = self.instant_time();
         self.dt = self
             .current_time
