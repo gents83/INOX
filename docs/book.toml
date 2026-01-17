@@ -5,4 +5,3 @@ src = "src"
 title = "INOX"
 
 [output.html]
-index = "index.html"
