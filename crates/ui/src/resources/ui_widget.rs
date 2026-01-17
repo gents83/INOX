@@ -143,7 +143,10 @@ impl UIWidget {
     pub fn execute(&mut self, ui_context: &Context) {
         inox_profiler::scoped_profile!("{} {:?}", "ui_widget::execute", self.type_name);
         self.is_interacting = (self.func)(self.data.as_mut(), ui_context);
-        self.is_interacting |= ui_context.is_using_pointer();
+        #[allow(deprecated)]
+        {
+            self.is_interacting |= ui_context.is_using_pointer();
+        }
     }
     pub fn is_interacting(&self) -> bool {
         self.is_interacting

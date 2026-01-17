@@ -33,3 +33,5 @@ dhat = "0.3.2"
 wasm-bindgen = { workspace = true }
 web-sys = { workspace = true }
 js-sys = { workspace = true }
+inox_common_script = { path = "../plugins/common_script" }
+inox_viewer = { path = "../plugins/viewer" }

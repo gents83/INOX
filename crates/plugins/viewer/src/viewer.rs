@@ -320,6 +320,7 @@ impl Viewer {
             .set_hzb_texture(render_context.render_target(RenderTargetType::HiZ as usize));
         render_context.add_pass(depth_pyramid_pass, true);
     }
+    #[allow(dead_code)]
     fn create_debug_pass(context: &ContextRc, render_context: &RenderContextRc) {
         let mut debug_pass = DebugPass::create(context, render_context);
         debug_pass
