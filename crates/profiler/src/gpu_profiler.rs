@@ -85,7 +85,13 @@ impl GpuProfiler {
             if self.settings.enable_timer_queries && !wgpu_results.is_empty() {
                 let gpu_tid = u64::MAX;
                 for (label, start, end) in wgpu_results {
-                    profiler.push_sample_with_tid(gpu_tid, "GPU".to_string(), label, start, end);
+                    profiler.push_sample_with_tid(
+                        gpu_tid as _,
+                        "GPU".to_string(),
+                        label,
+                        start,
+                        end,
+                    );
                 }
             }
         }

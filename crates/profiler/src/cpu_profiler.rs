@@ -197,7 +197,7 @@ impl CpuProfiler {
                         "dur": sample.time_end - sample.time_start,
                     }));
                 } else {
-                    let thread_name = if *id == u64::MAX { "GPU" } else { "Unknown" };
+                    let thread_name = if *id == !0 { "GPU" } else { "Unknown" };
                     data.push(serde_json::json!({
                         "pid": process::id(),
                         "id": id,
