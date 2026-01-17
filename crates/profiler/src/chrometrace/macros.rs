@@ -18,10 +18,11 @@ macro_rules! gpu_profiler_post_present {
                     let thread_profiler = $crate::GLOBAL_CPU_PROFILER.current_thread_profiler();
                     *profiler.borrow_mut() = Some(thread_profiler);
                 }
+                let current_time = $crate::GLOBAL_CPU_PROFILER.get_elapsed_time();
                 $crate::gpu_profiler::GLOBAL_GPU_PROFILER
                     .write()
                     .unwrap()
-                    .end_frame(profiler.borrow().as_ref().unwrap(), $queue);
+                    .end_frame(profiler.borrow().as_ref().unwrap(), $queue, current_time);
             });
         }
     };
