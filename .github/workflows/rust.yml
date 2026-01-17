@@ -67,15 +67,11 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: "Install stable toolchain"
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: default
           toolchain: stable
-          override: true
+          targets: wasm32-unknown-unknown
           components: rustfmt, clippy
-          
-      - name: "Add rust target wasm32"
-        run: rustup target add wasm32-unknown-unknown
           
       - name: "Update repos"
         run: |
@@ -84,17 +80,10 @@ jobs:
           cd ..
            
       - name: "Run cargo clippy check"
-        uses: actions-rs/cargo@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          command: clippy
-          args: --manifest-path ./crates/Cargo.toml --no-deps -- -D warnings
+        run: cargo clippy --manifest-path ./crates/Cargo.toml --no-deps -- -D warnings
 
       - name: "Run cargo build workspace release"
-        uses: actions-rs/cargo@v1
-        with:
-          command: build 
-          args: --manifest-path ./crates/Cargo.toml --release
+        run: cargo build --manifest-path ./crates/Cargo.toml --release
 
       - name: "Copy and rename inox_blender dll into pyd"
         run: cp -Force ./crates/target/release/inox_blender.dll ./crates/blender/inox_blender/INOX/inox_blender.pyd
@@ -125,10 +114,7 @@ jobs:
         run: cp -Force ./crates/target/release/*.exe ./output/INOX/bin/
       
       - name: "Run cargo build workspace release wasm32"
-        uses: actions-rs/cargo@v1
-        with:
-          command: build 
-          args: --manifest-path ./crates/Cargo.toml --release --target wasm32-unknown-unknown
+        run: cargo build --manifest-path ./crates/Cargo.toml --release --target wasm32-unknown-unknown
     
       - name: "Install wasm bindgen"
         run: cargo install -f wasm-bindgen-cli
