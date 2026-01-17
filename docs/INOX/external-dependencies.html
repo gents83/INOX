@@ -95,7 +95,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Overview</a></li><li class="chapter-item expanded affix "><li class="spacer"></li><li class="chapter-item expanded "><a href="../features.html"><strong aria-hidden="true">1.</strong> Features</a></li><li class="chapter-item expanded "><a href="../getting-started.html"><strong aria-hidden="true">2.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="../INOX/guide.html"><strong aria-hidden="true">3.</strong> Development Guide</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../INOX/building.html"><strong aria-hidden="true">3.1.</strong> Building INOX code</a></li><li class="chapter-item expanded "><a href="../INOX/architecture.html"><strong aria-hidden="true">3.2.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="../INOX/crates.html"><strong aria-hidden="true">3.3.</strong> Crates</a></li><li class="chapter-item expanded "><a href="../INOX/external-dependencies.html" class="active"><strong aria-hidden="true">3.4.</strong> Dependencies</a></li></ol></li><li class="chapter-item expanded "><a href="../sponsor.html"><strong aria-hidden="true">4.</strong> Sponsor</a></li><li class="chapter-item expanded affix "><li class="spacer"></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="index.html">Overview</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="features.html"><strong aria-hidden="true">1.</strong> Features</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="getting-started.html"><strong aria-hidden="true">2.</strong> Getting Started</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="INOX/guide.html"><strong aria-hidden="true">3.</strong> Development Guide</a></span><ol class="section"><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="INOX/building.html"><strong aria-hidden="true">3.1.</strong> Building INOX code</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="INOX/architecture.html"><strong aria-hidden="true">3.2.</strong> Architecture</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="INOX/crates.html"><strong aria-hidden="true">3.3.</strong> Crates</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="INOX/external-dependencies.html"><strong aria-hidden="true">3.4.</strong> Dependencies</a></span></li></ol><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="sponsor.html"><strong aria-hidden="true">4.</strong> Sponsor</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -103,7 +103,7 @@
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar-hover-placeholder"></div>
                 <div id="menu-bar" class="menu-bar sticky bordered">
                     <div class="left-buttons">
                         <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
@@ -113,7 +113,7 @@
                             <i class="fa fa-paint-brush"></i>
                         </button>
                         <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
-                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
@@ -156,57 +156,25 @@
                 <div id="content" class="content">
                     <main>
                         <h2 id="external-dependencies"><a class="header" href="#external-dependencies">External Dependencies</a></h2>
-<p>In this page you'll find a list of external dependencies that are required from the <em><strong>INOX</strong></em> engine
+<p>In this page you’ll find a list of external dependencies that are required from the <em><strong>INOX</strong></em> engine
 and that are referenced inside Cargo.toml as git submodules used in the workspace.</p>
 <ul>
-<li><a href="https://github.com/rustgd/cgmath"><strong>cgmath</strong></a>: <br />
-A linear algebra and mathematics library for computer graphics <br />
-Used in <em><strong>INOX</strong></em> as math library for vectors, matrices, quaternions, etc.</li>
-<li><a href="https://github.com/marcianx/downcast-rs"><strong>downcast-rs</strong></a>: <br />
-Adds downcasting support to trait objects using only safe Rust <br />
-Used in <em><strong>INOX</strong></em> for trait downcasting.</li>
-<li><a href="https://github.com/emilk/egui"><strong>egui</strong></a>: <br />
-An easy-to-use immediate mode GUI in pure Rust <br />
-Used in <em><strong>INOX</strong></em> for in-game tooling and debug UI.</li>
-<li><a href="https://github.com/dtolnay/erased-serde"><strong>erased-serde</strong></a>: <br />
-Trait serialization and deserialization for Rust <br />
-Used in <em><strong>INOX</strong></em> for trait serialization and deserialization purposes.</li>
-<li><a href="https://github.com/gltf-rs/gltf"><strong>gltf-rs</strong></a>: <br />
-A crate for loading glTF 2.0 <br />
-Used in <em><strong>INOX</strong></em> for GLTF file loading and parsing.</li>
-<li><a href="https://github.com/image-rs/image"><strong>image-rs</strong></a>: <br />
-Encoding and decoding images and textures in Rust <br />
-Used in <em><strong>INOX</strong></em> for images loading and saving.</li>
-<li><a href="https://github.com/serde-rs/json"><strong>serde-json</strong></a>: <br />
-Strongly typed JSON library for Rust <br />
-Used in <em><strong>INOX</strong></em> for serialization and deserialization purposes of data.</li>
-<li><a href="https://github.com/gwihlidal/meshopt-rs"><strong>meshopt-rs</strong></a>: <br />
-Rust ffi and idiomatic wrapper for zeux/meshoptimizer, a mesh optimization library that makes indexed meshes more GPU-friendly. <br />
-Used in <em><strong>INOX</strong></em> for mesh optimization and clustering.</li>
-<li><a href="https://github.com/PyO3/pyo3"><strong>pyo3</strong></a>: <br />
-Rust bindings for the Python interpreter <br />
-Used in <em><strong>INOX</strong></em> for Blender add-on interactions.</li>
-<li><a href="https://github.com/rust-random/rand"><strong>rand</strong></a>: <br />
-A Rust library for random number generation. <br />
-Used in <em><strong>INOX</strong></em> for random number generation.</li>
-<li><a href="https://github.com/rust-windowing/raw-window-handle"><strong>raw-window-handle</strong></a>: <br />
-A common windowing interoperability library for Rust <br />
-Used in <em><strong>INOX</strong></em> for shared window and handle concepts needed by wpgu.</li>
-<li><a href="https://github.com/serde-rs/serde"><strong>serde</strong></a>: <br />
-Serialization framework for Rust <br />
-Used in <em><strong>INOX</strong></em> for serialization and deserialization purposes.</li>
-<li><a href="https://github.com/RazrFalcon/ttf-parser"><strong>ttf-parser</strong></a>: <br />
-A high-level, safe, zero-allocation TrueType font parser <br />
-Used in <em><strong>INOX</strong></em> for TrueType fonts loading and parsing.</li>
-<li><a href="https://github.com/uuid-rs/uuid"><strong>uuid</strong></a>: <br />
-Generate and parse UUIDs. <br />
-Used in <em><strong>INOX</strong></em> for all resource IDs and for every UUID generated.</li>
-<li><a href="https://github.com/rustwasm/wasm-bindgen"><strong>wasm-bindgen</strong></a>: <br />
-Facilitating high-level interactions between Wasm modules and JavaScript <br />
-Used in <em><strong>INOX</strong></em> for wasm and javascript bindings.</li>
-<li><a href="https://github.com/gfx-rs/wgpu"><strong>wgpu</strong></a>: <br />
-Safe and portable GPU abstraction in Rust, implementing WebGPU API <br />
-Used in <em><strong>INOX</strong></em> for cross-platform graphics shared api</li>
+<li><a href="https://github.com/rustgd/cgmath"><strong>cgmath</strong></a>: <br>A linear algebra and mathematics library for computer graphics <br>Used in <em><strong>INOX</strong></em> as math library for vectors, matrices, quaternions, etc.</li>
+<li><a href="https://github.com/marcianx/downcast-rs"><strong>downcast-rs</strong></a>: <br>Adds downcasting support to trait objects using only safe Rust <br>Used in <em><strong>INOX</strong></em> for trait downcasting.</li>
+<li><a href="https://github.com/emilk/egui"><strong>egui</strong></a>: <br>An easy-to-use immediate mode GUI in pure Rust <br>Used in <em><strong>INOX</strong></em> for in-game tooling and debug UI.</li>
+<li><a href="https://github.com/dtolnay/erased-serde"><strong>erased-serde</strong></a>: <br>Trait serialization and deserialization for Rust <br>Used in <em><strong>INOX</strong></em> for trait serialization and deserialization purposes.</li>
+<li><a href="https://github.com/gltf-rs/gltf"><strong>gltf-rs</strong></a>: <br>A crate for loading glTF 2.0 <br>Used in <em><strong>INOX</strong></em> for GLTF file loading and parsing.</li>
+<li><a href="https://github.com/image-rs/image"><strong>image-rs</strong></a>: <br>Encoding and decoding images and textures in Rust <br>Used in <em><strong>INOX</strong></em> for images loading and saving.</li>
+<li><a href="https://github.com/serde-rs/json"><strong>serde-json</strong></a>: <br>Strongly typed JSON library for Rust <br>Used in <em><strong>INOX</strong></em> for serialization and deserialization purposes of data.</li>
+<li><a href="https://github.com/gwihlidal/meshopt-rs"><strong>meshopt-rs</strong></a>: <br>Rust ffi and idiomatic wrapper for zeux/meshoptimizer, a mesh optimization library that makes indexed meshes more GPU-friendly. <br>Used in <em><strong>INOX</strong></em> for mesh optimization and clustering.</li>
+<li><a href="https://github.com/PyO3/pyo3"><strong>pyo3</strong></a>: <br>Rust bindings for the Python interpreter <br>Used in <em><strong>INOX</strong></em> for Blender add-on interactions.</li>
+<li><a href="https://github.com/rust-random/rand"><strong>rand</strong></a>: <br>A Rust library for random number generation. <br>Used in <em><strong>INOX</strong></em> for random number generation.</li>
+<li><a href="https://github.com/rust-windowing/raw-window-handle"><strong>raw-window-handle</strong></a>: <br>A common windowing interoperability library for Rust <br>Used in <em><strong>INOX</strong></em> for shared window and handle concepts needed by wpgu.</li>
+<li><a href="https://github.com/serde-rs/serde"><strong>serde</strong></a>: <br>Serialization framework for Rust <br>Used in <em><strong>INOX</strong></em> for serialization and deserialization purposes.</li>
+<li><a href="https://github.com/RazrFalcon/ttf-parser"><strong>ttf-parser</strong></a>: <br>A high-level, safe, zero-allocation TrueType font parser <br>Used in <em><strong>INOX</strong></em> for TrueType fonts loading and parsing.</li>
+<li><a href="https://github.com/uuid-rs/uuid"><strong>uuid</strong></a>: <br>Generate and parse UUIDs. <br>Used in <em><strong>INOX</strong></em> for all resource IDs and for every UUID generated.</li>
+<li><a href="https://github.com/rustwasm/wasm-bindgen"><strong>wasm-bindgen</strong></a>: <br>Facilitating high-level interactions between Wasm modules and JavaScript <br>Used in <em><strong>INOX</strong></em> for wasm and javascript bindings.</li>
+<li><a href="https://github.com/gfx-rs/wgpu"><strong>wgpu</strong></a>: <br>Safe and portable GPU abstraction in Rust, implementing WebGPU API <br>Used in <em><strong>INOX</strong></em> for cross-platform graphics shared api</li>
 </ul>
 
                     </main>

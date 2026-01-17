@@ -95,7 +95,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Overview</a></li><li class="chapter-item expanded affix "><li class="spacer"></li><li class="chapter-item expanded "><a href="../features.html"><strong aria-hidden="true">1.</strong> Features</a></li><li class="chapter-item expanded "><a href="../getting-started.html"><strong aria-hidden="true">2.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="../INOX/guide.html"><strong aria-hidden="true">3.</strong> Development Guide</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../INOX/building.html" class="active"><strong aria-hidden="true">3.1.</strong> Building INOX code</a></li><li class="chapter-item expanded "><a href="../INOX/architecture.html"><strong aria-hidden="true">3.2.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="../INOX/crates.html"><strong aria-hidden="true">3.3.</strong> Crates</a></li><li class="chapter-item expanded "><a href="../INOX/external-dependencies.html"><strong aria-hidden="true">3.4.</strong> Dependencies</a></li></ol></li><li class="chapter-item expanded "><a href="../sponsor.html"><strong aria-hidden="true">4.</strong> Sponsor</a></li><li class="chapter-item expanded affix "><li class="spacer"></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="index.html">Overview</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="features.html"><strong aria-hidden="true">1.</strong> Features</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="getting-started.html"><strong aria-hidden="true">2.</strong> Getting Started</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="INOX/guide.html"><strong aria-hidden="true">3.</strong> Development Guide</a></span><ol class="section"><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="INOX/building.html"><strong aria-hidden="true">3.1.</strong> Building INOX code</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="INOX/architecture.html"><strong aria-hidden="true">3.2.</strong> Architecture</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="INOX/crates.html"><strong aria-hidden="true">3.3.</strong> Crates</a></span></li><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="INOX/external-dependencies.html"><strong aria-hidden="true">3.4.</strong> Dependencies</a></span></li></ol><li class="chapter-item expanded "><span class="chapter-link-wrapper"><a href="sponsor.html"><strong aria-hidden="true">4.</strong> Sponsor</a></span></li><li class="chapter-item expanded "><li class="spacer"></li></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -103,7 +103,7 @@
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar-hover-placeholder"></div>
                 <div id="menu-bar" class="menu-bar sticky bordered">
                     <div class="left-buttons">
                         <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
@@ -113,7 +113,7 @@
                             <i class="fa fa-paint-brush"></i>
                         </button>
                         <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
-                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
@@ -160,29 +160,26 @@
 <p>You can clone it using <a href="https://github.com/gents83/INOX.git">https://github.com/gents83/INOX.git</a></p>
 <p>Or you can download the zip from <a href="https://github.com/gents83/INOX/archive/refs/heads/master.zip">here</a></p>
 <h2 id="how-to-build-and-run-inox-code"><a class="header" href="#how-to-build-and-run-inox-code">How to build and run <em><strong>INOX</strong></em> code</a></h2>
-<p>Once that you've cloned and downloaded the repository, you can build it by running the following commands:</p>
+<p>Once that you’ve cloned and downloaded the repository, you can build it by running the following commands:</p>
 <blockquote>
-<p>git submodule update --init --recursive</p>
+<p>git submodule update –init –recursive</p>
 </blockquote>
 <p>The above command is needed to download all extern submodules and could require some time.</p>
 <blockquote>
-<p>cargo build --manifest-path ./crates/Cargo.toml</p>
+<p>cargo build –manifest-path ./crates/Cargo.toml</p>
 </blockquote>
-<p>The above command build the project in debug but you can switch to release adding --release at the end.</p>
+<p>The above command build the project in debug but you can switch to release adding –release at the end.</p>
 <blockquote>
-<p>cargo run --manifest-path ./crates/Cargo.toml -- -plugin inox_viewer</p>
+<p>cargo run –manifest-path ./crates/Cargo.toml – -plugin inox_viewer</p>
 </blockquote>
-<p>The above command run the inox_launcher executable with the inox_viewer plugin. <br />
-Please provided needed command line parameters, like the -file_to_load 'path' <br />
-See the section <a href="#command-line-parameters-accepted-by-inox_launcher">Command line parameters accepted by inox_launcher</a></p>
+<p>The above command run the inox_launcher executable with the inox_viewer plugin. <br>Please provided needed command line parameters, like the -file_to_load ‘path’ <br>See the section <a href="#command-line-parameters-accepted-by-inox_launcher">Command line parameters accepted by inox_launcher</a></p>
 <h2 id="how-to-use-microsoft-vscode-launch-and-tasks-created-for-inox-on-windows"><a class="header" href="#how-to-use-microsoft-vscode-launch-and-tasks-created-for-inox-on-windows">How to use <em><strong>Microsoft VSCode</strong></em> launch and tasks created for <em><strong>INOX</strong></em> on Windows</a></h2>
 <p>If you are using <em><strong>Microsoft VSCode</strong></em> on Windows you can benefits of several shortcuts to build and execute <em><strong>INOX</strong></em> code.</p>
 <p>Using the <em>SABI.code-workspace</em> file will allow you to get even raccomandation on useful extensions to maximise the <em>VSCode</em> experience.</p>
-<p>Let's see some useful shortcuts.</p>
+<p>Let’s see some useful shortcuts.</p>
 <ul>
 <li>
-<p>When building or pressing CTRL+SHIFT+B: <br />
-You'll have many debug possibilities as:</p>
+<p>When building or pressing CTRL+SHIFT+B: <br>You’ll have many debug possibilities as:</p>
 <ul>
 <li>BUILD DEBUG - Build workspace in debug</li>
 <li>BUILD RELEASE WASM - Build workspace in release with wasm as target</li>
@@ -193,8 +190,7 @@ You'll have many debug possibilities as:</p>
 </ul>
 </li>
 <li>
-<p>When debugging or pressing F5: <br />
-You'll have many debug possibilities as:</p>
+<p>When debugging or pressing F5: <br>You’ll have many debug possibilities as:</p>
 <ul>
 <li>RUN LAUNCHER DEBUG - Run the launcher in debug mode</li>
 <li>RUN LAUNCHER RELEASE - Run the launcher in release mode</li>
@@ -205,21 +201,15 @@ You'll have many debug possibilities as:</p>
 <h2 id="command-line-parameters-accepted-by-inox_launcher"><a class="header" href="#command-line-parameters-accepted-by-inox_launcher">Command line parameters accepted by <strong>inox_launcher</strong></a></h2>
 <ul>
 <li>
-<p><strong>-plugin [name]</strong>: <br />
-The plugin to use. <br />
-You can specify names of crates inside apps folder like inox_viewer, inox_editor, etc <br />
-When not specified an empty window will be opened with only the binarizer executing in background.</p>
+<p><strong>-plugin [name]</strong>: <br>The plugin to use. <br>You can specify names of crates inside apps folder like inox_viewer, inox_editor, etc <br>When not specified an empty window will be opened with only the binarizer executing in background.</p>
 </li>
 <li>
-<p><strong>-load_file [path]</strong>: <br />
-A path of a scene to load with path relative to <code>/data/</code> <br />
-As example could be <code>./data/blender_export/TestScene/TestScene.scene_data</code></p>
+<p><strong>-load_file [path]</strong>: <br>A path of a scene to load with path relative to <code>/data/</code> <br>As example could be <code>./data/blender_export/TestScene/TestScene.scene_data</code></p>
 </li>
 </ul>
 <h2 id="how-to-setup-your-marchine-for-android-platform"><a class="header" href="#how-to-setup-your-marchine-for-android-platform">How to setup your marchine for Android platform</a></h2>
 <p>Install AndroidSDK and NDK and setup environment variables (ANDROID_SDK_ROOT and ANDROID_NDK_ROOT).
-Going through Android Studio could be an easy win solution - just remember to go into SDK Manager and install then the Android NDK.<br />
-(https://mozilla.github.io/firefox-browser-architecture/experiments/2017-09-21-rust-on-android.html)</p>
+Going through Android Studio could be an easy win solution - just remember to go into SDK Manager and install then the Android NDK.<br>(https://mozilla.github.io/firefox-browser-architecture/experiments/2017-09-21-rust-on-android.html)</p>
 <p>Install cargo-apk with <code>cargo install cargo-apk</code>.</p>
 <p>Add desired android targets with <code>rustup target add &lt;triple&gt;</code>.</p>
 <p>Run <code>cargo apk run -p android-build</code> optionally with the flag <code>--target &lt;triple&gt;</code> for explicit target selection.</p>
