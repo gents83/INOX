@@ -8,7 +8,6 @@
             "name": "RUN LAUNCHER DEBUG",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
             "windows": {
                 "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe"
             },
@@ -31,7 +30,6 @@
             "name": "RUN VIEWER RELEASE",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe",
             "windows": {
                 "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe"
             },
@@ -62,7 +60,6 @@
             "name": "RUN VIEWER DEBUG",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
             "windows": {
                 "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe"
             },
@@ -79,6 +76,17 @@
                 "-plugin inox_viewer",
                 "-load_file",
                 "models/cornell_box/cornell_box.scene"
+                //"models/MetalRoughSpheresNoTextures/MetalRoughSpheresNoTextures.scene"
+                //"models/NormalTangent/NormalTangent.scene"
+                //"models/DamagedHelmet/DamagedHelmet.scene"
+                //"models/craftman/craftman.scene"
+                //"models/stanford_bunny/stanford_bunny.scene"
+                //"models/bunnies/bunnies.scene"
+                //"models/girl/girl.scene"
+                //"models/suzanne/suzanne.scene"
+                //"models/OriginalSponza/OriginalSponza.scene"
+                //"models/sponza/sponza.scene"
+                //"models/sponzaFloor/sponzaFloor.scene"
             ],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
@@ -93,7 +101,6 @@
             "name": "RUN BINARIZER SHADER PREPROCESSOR DEBUG",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
             "windows": {
                 "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe"
             },
@@ -121,7 +128,6 @@
             "name": "RUN BINARIZER DEBUG",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
             "windows": {
                 "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe"
             },
@@ -147,7 +153,6 @@
             "name": "RUN BINARIZER RELEASE",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe",
             "windows": {
                 "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe"
             },
@@ -173,7 +178,6 @@
             "name": "RUN BINARIZER RELEASE FOR WEB",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe",
             "windows": {
                 "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe"
             },
@@ -200,7 +204,6 @@
             "name": "RUN LAUNCHER RELEASE",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe",
             "windows": {
                 "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe"
             },
