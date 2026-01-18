@@ -11,7 +11,10 @@ pub trait NormalizedPath {
 
 impl NormalizedPath for Path {
     fn normalize(&self) -> PathBuf {
-        self.to_path_buf().normalize()
+        #[cfg(not(target_arch = "wasm32"))]
+        return crate::platform_impl::platform::utils::PathExtensions::normalize(self.to_path_buf().as_path());
+        #[cfg(target_arch = "wasm32")]
+        return self.to_path_buf();
     }
 }
 
@@ -65,9 +68,21 @@ where
 
 #[inline]
 pub fn convert_in_local_path(original_path: &Path, base_path: &Path) -> PathBuf {
-    let path = original_path.normalize().to_str().unwrap().to_string();
-    if path.contains(PathBuf::from(base_path).normalize().to_str().unwrap()) {
-        let path = path.replace(PathBuf::from(base_path).normalize().to_str().unwrap(), "");
+    let path = NormalizedPath::normalize(original_path)
+        .to_str()
+        .unwrap()
+        .to_string();
+    if path.contains(
+        NormalizedPath::normalize(PathBuf::from(base_path).as_path())
+            .to_str()
+            .unwrap(),
+    ) {
+        let path = path.replace(
+            NormalizedPath::normalize(PathBuf::from(base_path).as_path())
+                .to_str()
+                .unwrap(),
+            "",
+        );
         let mut path = path.replace('\\', "/");
         if path.starts_with('/') {
             path.remove(0);

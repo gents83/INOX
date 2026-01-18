@@ -1,3 +1,5 @@
+use crate::library::Library as LibraryWrapper;
+
 pub struct Library {}
 impl Library {
     #[inline]
@@ -12,4 +14,8 @@ impl Library {
 
     #[inline]
     pub fn close(&mut self) {}
+}
+
+pub fn open_lib(name: &str) -> Option<LibraryWrapper> {
+    Some(LibraryWrapper(Library::load(name)))
 }

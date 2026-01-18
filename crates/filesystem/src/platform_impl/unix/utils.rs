@@ -1,4 +1,4 @@
-#![cfg(target_os = "android")]
+#![cfg(target_os = "linux")]
 
 use std::path::{Path, PathBuf};
 
@@ -14,6 +14,6 @@ impl PathExtensions for PathBuf {
 
 impl PathExtensions for Path {
     fn normalize(&self) -> PathBuf {
-        self.to_path_buf()
+        self.to_path_buf() // Simplified normalization for Linux/Unix
     }
 }

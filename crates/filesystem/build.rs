@@ -53,12 +53,20 @@ fn main() {
     let is_windows_platform = target_os == "windows";
     let is_android_platform = target_os == "android";
     let is_web_platform = target_arch == "wasm32";
+    let is_linux_platform = target_os == "linux";
+    let is_macos_platform = target_os == "macos";
+    let is_ios_platform = target_os == "ios";
 
     if is_windows_platform {
         link_library("user32");
         link_library("kernel32");
         link_library("shcore");
-    } else if is_android_platform || is_web_platform {
+    } else if is_android_platform
+        || is_web_platform
+        || is_linux_platform
+        || is_macos_platform
+        || is_ios_platform
+    {
     } else {
         panic!("Platform {target_os} not yet supported - Check build.rs to setup this platform to build from source");
     }

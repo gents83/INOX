@@ -34,22 +34,34 @@ pub fn compute_folder_and_filename(lib_path: &Path) -> (PathBuf, PathBuf) {
     (path, filename)
 }
 
-pub struct Library(platform::Library);
+#[cfg(not(target_arch = "wasm32"))]
+pub struct Library(pub ::libloading::Library);
+#[cfg(target_arch = "wasm32")]
+pub struct Library(pub platform::Library);
 
 impl Library {
     #[inline]
-    pub fn new(filename: &str) -> Library {
-        let _lib = platform::Library::load(filename);
-        Library(_lib)
+    pub fn new(filename: &str) -> Option<Library> {
+        platform::open_lib(filename)
     }
 
     #[inline]
-    pub fn get<T>(&self, symbol: &str) -> Option<T> {
-        self.0.get(symbol)
+    pub fn get<T>(&self, symbol: &str) -> Option<T>
+    where T: Copy
+    {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Ok(f) = unsafe { self.0.get(symbol.as_bytes()) } {
+            return Some(*f);
+        }
+        #[cfg(target_arch = "wasm32")]
+        if let Some(f) = self.0.get(symbol) {
+            return Some(f);
+        }
+        None
     }
 
     #[inline]
     pub fn close(&mut self) {
-        self.0.close();
+        // self.0.close().ok();
     }
 }

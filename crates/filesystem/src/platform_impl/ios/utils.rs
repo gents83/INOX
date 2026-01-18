@@ -1,4 +1,4 @@
-#![cfg(target_os = "android")]
+#![cfg(target_os = "ios")]
 
 use std::path::{Path, PathBuf};
 

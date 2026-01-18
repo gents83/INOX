@@ -4,6 +4,7 @@ use std::{
 };
 
 pub struct File {
+    #[allow(dead_code)]
     pub(crate) path: PathBuf,
     pub(crate) bytes: Arc<RwLock<Vec<u8>>>,
 }
