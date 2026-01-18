@@ -30,7 +30,7 @@ fn move_all_files_with_extension(src_path: PathBuf, target_path: PathBuf, extens
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
     let out_dir = Path::new(&out_dir)
-        .join("..\\..\\..\\")
+        .parent().unwrap().parent().unwrap().parent().unwrap()
         .canonicalize()
         .unwrap();
     let mut deps_path = Path::new(&out_dir).join("deps");

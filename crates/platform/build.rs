@@ -34,8 +34,11 @@ fn link_library(name: &str) {
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
     let out_dir = Path::new(&out_dir)
-        .join("..\\..\\..\\")
-        .canonicalize()
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .parent()
         .unwrap();
 
     let mut deps_path = Path::new(&out_dir).join("deps");
@@ -46,8 +49,10 @@ fn main() {
     let deps_build_path = out_dir.join("in_use");
     let in_use_build_path = deps_build_path.join("deps");
 
-    move_all_files_with_extension(deps_path, deps_build_path, "pdb");
-    move_all_files_with_extension(out_dir, in_use_build_path, "pdb");
+    if deps_path.exists() {
+        move_all_files_with_extension(deps_path, deps_build_path, "pdb");
+    }
+    move_all_files_with_extension(out_dir.to_path_buf(), in_use_build_path, "pdb");
 
     // Deterimine build platform
     let target_os = ::std::env::var("CARGO_CFG_TARGET_OS").unwrap();
@@ -55,6 +60,9 @@ fn main() {
     let is_windows_platform = target_os == "windows";
     let is_android_platform = target_os == "android";
     let is_web_platform = target_arch == "wasm32";
+    let is_linux_platform = target_os == "linux";
+    let is_macos_platform = target_os == "macos";
+    let is_ios_platform = target_os == "ios";
 
     if is_windows_platform {
         link_library("user32");
@@ -63,7 +71,12 @@ fn main() {
         link_library("gdi32");
         link_library("dwmapi");
         link_library("uxtheme");
-    } else if is_android_platform || is_web_platform {
+    } else if is_android_platform
+        || is_web_platform
+        || is_linux_platform
+        || is_macos_platform
+        || is_ios_platform
+    {
     } else {
         panic!("Platform {target_os} not yet supported - Check build.rs to setup this platform to build from source");
     }

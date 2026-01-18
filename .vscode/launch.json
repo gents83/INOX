@@ -201,6 +201,58 @@
             }
         },
         {
+            "name": "RUN BINARIZER RELEASE FOR ANDROID",
+            "type": "lldb",
+            "request": "launch",
+            "windows": {
+                "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe"
+            },
+            "linux": {
+                "program": "${workspaceFolder}/crates/target/release/inox_launcher"
+            },
+            "osx": {
+                "program": "${workspaceFolder}/crates/target/release/inox_launcher"
+            },
+            "args": [
+                "-plugin inox_binarizer",
+                "-platform android"
+            ],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "preLaunchTask": "COMPILE RELEASE",
+            "postDebugTask": "CLEANUP",
+            "console": "integratedTerminal",
+            "sourceMap": {
+                "${workspaceFolder}": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "RUN BINARIZER RELEASE FOR IOS",
+            "type": "lldb",
+            "request": "launch",
+            "windows": {
+                "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe"
+            },
+            "linux": {
+                "program": "${workspaceFolder}/crates/target/release/inox_launcher"
+            },
+            "osx": {
+                "program": "${workspaceFolder}/crates/target/release/inox_launcher"
+            },
+            "args": [
+                "-plugin inox_binarizer",
+                "-platform ios"
+            ],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "preLaunchTask": "COMPILE RELEASE",
+            "postDebugTask": "CLEANUP",
+            "console": "integratedTerminal",
+            "sourceMap": {
+                "${workspaceFolder}": "${workspaceFolder}"
+            }
+        },
+        {
             "name": "RUN LAUNCHER RELEASE",
             "type": "lldb",
             "request": "launch",

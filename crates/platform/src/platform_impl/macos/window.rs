@@ -1,6 +1,7 @@
 #![cfg(target_os = "macos")]
 
-use crate::handle::{Handle, HandleImpl};
+use crate::handle::Handle;
+use crate::platform_impl::platform::handle::HandleImpl;
 use crate::window::{Window, WindowEvent};
 use crate::{Key, MouseButton, MouseState, InputState, KeyEvent, KeyTextEvent, MouseEvent};
 use inox_messenger::MessageHubRc;

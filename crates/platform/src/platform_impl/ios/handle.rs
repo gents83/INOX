@@ -19,7 +19,7 @@ unsafe impl Sync for HandleImpl {}
 
 impl HandleImpl {
     pub fn as_window_handle(&self) -> WindowHandle<'_> {
-        let mut handle = UiKitWindowHandle::new(NonNull::new(self.ui_view).unwrap());
+        let handle = UiKitWindowHandle::new(NonNull::new(self.ui_view).unwrap());
         unsafe { WindowHandle::borrow_raw(RawWindowHandle::UiKit(handle)) }
     }
     #[inline]

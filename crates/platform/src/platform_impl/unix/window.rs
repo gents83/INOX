@@ -1,6 +1,7 @@
 #![cfg(any(target_os = "linux", target_os = "freebsd", target_os = "dragonfly", target_os = "netbsd", target_os = "openbsd"))]
 
-use crate::handle::{Handle, HandleImpl};
+use crate::handle::Handle;
+use crate::platform_impl::platform::handle::HandleImpl;
 use crate::window::{Window, WindowEvent};
 use crate::{Key, MouseButton, MouseState, InputState, KeyEvent, KeyTextEvent, MouseEvent};
 use inox_messenger::MessageHubRc;

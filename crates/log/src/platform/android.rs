@@ -1,4 +1,3 @@
-#![cfg(target_os = "android")]
 
 #[macro_export]
 macro_rules! debug_log {
