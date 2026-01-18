@@ -1,14 +1,10 @@
 name: "Web"
 
 on:
-  push:
-    branches: [ master, instancing_rework ]
-    tags:
-      - 'v*.*.*'
-  pull_request:
-    branches: [ master, instancing_rework ]
-    tags:
-      - 'v*.*.*'
+  workflow_run:
+    workflows: ["Rust"]
+    types:
+      - completed
 
 env:
   CARGO_TERM_COLOR: always
@@ -19,6 +15,7 @@ jobs:
   build-web:
     name: "Build Web"
     runs-on: windows-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: "Add rustflags to env"
@@ -68,9 +65,30 @@ jobs:
           cargo update
           cd ..
 
-      # We need to build host binary (binarizer) to process assets
-      - name: "Run cargo build workspace release host"
-        run: cargo build --manifest-path ./crates/Cargo.toml --release
+      # We need to build host binary (binarizer) to process assets - we download it from previous workflow
+      - name: 'Download artifact'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               run_id: context.payload.workflow_run.id,
+            });
+            let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
+              return artifact.name == "output-binaries-windows-latest"
+            })[0];
+            let download = await github.rest.actions.downloadArtifact({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               artifact_id: matchArtifact.id,
+               archive_format: 'zip',
+            });
+            let fs = require('fs');
+            fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/output-binaries.zip`, Buffer.from(download.data));
+
+      - name: 'Unzip artifact'
+        run: unzip output-binaries.zip -d ./crates/target/release/
 
       - name: "Run cargo build workspace release wasm32"
         run: cargo build --manifest-path ./crates/Cargo.toml --release --target wasm32-unknown-unknown
@@ -94,7 +112,7 @@ jobs:
              rm -r "./output/web/data/"
 
       - name: "Executing binarizer"
-        run:  ./crates/target/release/inox_launcher.exe -plugin inox_binarizer -platform pc -platform web
+        run:  ./crates/target/release/INOX/bin/inox_launcher.exe -plugin inox_binarizer -platform pc -platform web
 
       - name: "Copy data binarized in output for wasm"
         run: |
