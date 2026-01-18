@@ -9,6 +9,15 @@
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
+            "windows": {
+                "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe"
+            },
+            "linux": {
+                "program": "${workspaceFolder}/crates/target/debug/inox_launcher"
+            },
+            "osx": {
+                "program": "${workspaceFolder}/crates/target/debug/inox_launcher"
+            },
             "args": [],
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "COMPILE DEBUG",
@@ -23,6 +32,15 @@
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe",
+            "windows": {
+                "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe"
+            },
+            "linux": {
+                "program": "${workspaceFolder}/crates/target/release/inox_launcher"
+            },
+            "osx": {
+                "program": "${workspaceFolder}/crates/target/release/inox_launcher"
+            },
             "args": [
                 "-plugin inox_binarizer",
                 "-plugin inox_connector",
@@ -30,8 +48,6 @@
                 "-plugin inox_viewer",
                 "-load_file",
                 "models/craftman/craftman.scene"
-                //"models/sponza/sponza.scene"
-                //"models/OriginalSponza/OriginalSponza.scene"
             ],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
@@ -47,6 +63,15 @@
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
+            "windows": {
+                "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe"
+            },
+            "linux": {
+                "program": "${workspaceFolder}/crates/target/debug/inox_launcher"
+            },
+            "osx": {
+                "program": "${workspaceFolder}/crates/target/debug/inox_launcher"
+            },
             "args": [
                 "-plugin inox_binarizer",
                 "-plugin inox_connector",
@@ -54,17 +79,6 @@
                 "-plugin inox_viewer",
                 "-load_file",
                 "models/cornell_box/cornell_box.scene"
-                //"models/MetalRoughSpheresNoTextures/MetalRoughSpheresNoTextures.scene"
-                //"models/NormalTangent/NormalTangent.scene"
-                //"models/DamagedHelmet/DamagedHelmet.scene"
-                //"models/craftman/craftman.scene"
-                //"models/stanford_bunny/stanford_bunny.scene"
-                //"models/bunnies/bunnies.scene"
-                //"models/girl/girl.scene"
-                //"models/suzanne/suzanne.scene"
-                //"models/OriginalSponza/OriginalSponza.scene"
-                //"models/sponza/sponza.scene"
-                //"models/sponzaFloor/sponzaFloor.scene"
             ],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
@@ -80,6 +94,15 @@
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
+            "windows": {
+                "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe"
+            },
+            "linux": {
+                "program": "${workspaceFolder}/crates/target/debug/inox_launcher"
+            },
+            "osx": {
+                "program": "${workspaceFolder}/crates/target/debug/inox_launcher"
+            },
             "args": [
                 "-plugin inox_binarizer",
                 "-preprocess_shader",
@@ -99,6 +122,15 @@
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
+            "windows": {
+                "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe"
+            },
+            "linux": {
+                "program": "${workspaceFolder}/crates/target/debug/inox_launcher"
+            },
+            "osx": {
+                "program": "${workspaceFolder}/crates/target/debug/inox_launcher"
+            },
             "args": [
                 "-plugin inox_binarizer"
             ],
@@ -116,6 +148,15 @@
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe",
+            "windows": {
+                "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe"
+            },
+            "linux": {
+                "program": "${workspaceFolder}/crates/target/release/inox_launcher"
+            },
+            "osx": {
+                "program": "${workspaceFolder}/crates/target/release/inox_launcher"
+            },
             "args": [
                 "-plugin inox_binarizer"
             ],
@@ -133,6 +174,15 @@
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe",
+            "windows": {
+                "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe"
+            },
+            "linux": {
+                "program": "${workspaceFolder}/crates/target/release/inox_launcher"
+            },
+            "osx": {
+                "program": "${workspaceFolder}/crates/target/release/inox_launcher"
+            },
             "args": [
                 "-plugin inox_binarizer",
                 "-platform web"
@@ -151,6 +201,15 @@
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe",
+            "windows": {
+                "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe"
+            },
+            "linux": {
+                "program": "${workspaceFolder}/crates/target/release/inox_launcher"
+            },
+            "osx": {
+                "program": "${workspaceFolder}/crates/target/release/inox_launcher"
+            },
             "args": [],
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "COMPILE RELEASE",

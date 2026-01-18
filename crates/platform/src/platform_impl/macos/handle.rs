@@ -1,11 +1,11 @@
+#![cfg(target_os = "macos")]
+
 use raw_window_handle::{
     AppKitDisplayHandle, AppKitWindowHandle, DisplayHandle, RawDisplayHandle, RawWindowHandle,
     WindowHandle,
 };
-
-use super::super::handle::*;
-use core::ffi::c_void;
-use core::ptr;
+use std::ptr::NonNull;
+use std::ffi::c_void;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HandleImpl {
@@ -13,24 +13,16 @@ pub struct HandleImpl {
     pub ns_view: *mut c_void,
 }
 
+unsafe impl Send for HandleImpl {}
+unsafe impl Sync for HandleImpl {}
+
 impl HandleImpl {
-    pub fn as_window_handle(&self) -> WindowHandle {
-        let view = NonNull::from(self.ns_view as _).cast();
-        let handle = XlibWindowHandle::new(view);
+    pub fn as_window_handle(&self) -> WindowHandle<'_> {
+        let mut handle = AppKitWindowHandle::new(NonNull::new(self.ns_view).unwrap());
         unsafe { WindowHandle::borrow_raw(RawWindowHandle::AppKit(handle)) }
     }
     #[inline]
-    pub fn as_display_handle(&self) -> DisplayHandle {
-        let handle = AppKitDisplayHandle::new();
-        unsafe { DisplayHandle::borrow_raw(RawDisplayHandle::AppKit(handle)) }
-    }
-    pub fn is_valid(&self) -> bool {
-        !self.ns_window.is_null()
-    }
-}
-
-impl Handle for HandleImpl {
-    fn is_valid(&self) -> bool {
-        self.is_valid()
+    pub fn as_display_handle(&self) -> DisplayHandle<'_> {
+        unsafe { DisplayHandle::borrow_raw(RawDisplayHandle::AppKit(AppKitDisplayHandle::new())) }
     }
 }

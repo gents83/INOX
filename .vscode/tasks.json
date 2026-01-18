@@ -81,7 +81,15 @@
 			"label": "CREATE INOX FOLDER IN ADDON FOLDER",
 			"type": "shell",
 			"isBackground": true,
-			"command": "New-Item -ItemType \"directory\" -Path \"$env:BLENDER_ADDONS_PATH\\INOX\" -Force",
+			"windows": {
+				"command": "New-Item -ItemType \"directory\" -Path \"$env:BLENDER_ADDONS_PATH\\INOX\" -Force"
+			},
+			"linux": {
+				"command": "mkdir -p \"$BLENDER_ADDONS_PATH/INOX\""
+			},
+			"osx": {
+				"command": "mkdir -p \"$BLENDER_ADDONS_PATH/INOX\""
+			},
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -95,7 +103,15 @@
 				"COMPILE RELEASE",
 			],
 			"isBackground": true,
-			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\target\\release\\inox_blender.dll -Destination \"$env:BLENDER_ADDONS_PATH\\INOX\\inox_blender.pyd\" -Force",
+			"windows": {
+				"command": "Copy-Item -Path ${workspaceFolder}\\crates\\target\\release\\inox_blender.dll -Destination \"$env:BLENDER_ADDONS_PATH\\INOX\\inox_blender.pyd\" -Force"
+			},
+			"linux": {
+				"command": "cp ${workspaceFolder}/crates/target/release/libinox_blender.so \"$BLENDER_ADDONS_PATH/INOX/inox_blender.so\""
+			},
+			"osx": {
+				"command": "cp ${workspaceFolder}/crates/target/release/libinox_blender.dylib \"$BLENDER_ADDONS_PATH/INOX/inox_blender.so\""
+			},
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -109,7 +125,15 @@
 				"COMPILE DEBUG",
 			],
 			"isBackground": true,
-			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\target\\debug\\inox_blender.dll -Destination \"$env:BLENDER_ADDONS_PATH\\INOX\\inox_blender.pyd\" -Force",
+			"windows": {
+				"command": "Copy-Item -Path ${workspaceFolder}\\crates\\target\\debug\\inox_blender.dll -Destination \"$env:BLENDER_ADDONS_PATH\\INOX\\inox_blender.pyd\" -Force"
+			},
+			"linux": {
+				"command": "cp ${workspaceFolder}/crates/target/debug/libinox_blender.so \"$BLENDER_ADDONS_PATH/INOX/inox_blender.so\""
+			},
+			"osx": {
+				"command": "cp ${workspaceFolder}/crates/target/debug/libinox_blender.dylib \"$BLENDER_ADDONS_PATH/INOX/inox_blender.so\""
+			},
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -123,7 +147,15 @@
 				"RENAME BLENDER RELEASE DLL IN ADDON FOLDER",
 			],
 			"isBackground": true,
-			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\blender\\inox_blender\\INOX -Destination \"$env:BLENDER_ADDONS_PATH\" -Force -Recurse",
+			"windows": {
+				"command": "Copy-Item -Path ${workspaceFolder}\\crates\\blender\\inox_blender\\INOX -Destination \"$env:BLENDER_ADDONS_PATH\" -Force -Recurse"
+			},
+			"linux": {
+				"command": "cp -r ${workspaceFolder}/crates/blender/inox_blender/INOX \"$BLENDER_ADDONS_PATH\""
+			},
+			"osx": {
+				"command": "cp -r ${workspaceFolder}/crates/blender/inox_blender/INOX \"$BLENDER_ADDONS_PATH\""
+			},
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -137,7 +169,15 @@
 				"RENAME BLENDER DEBUG DLL IN ADDON FOLDER",
 			],
 			"isBackground": true,
-			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\blender\\inox_blender\\INOX -Destination \"$env:BLENDER_ADDONS_PATH\" -Force -Recurse",
+			"windows": {
+				"command": "Copy-Item -Path ${workspaceFolder}\\crates\\blender\\inox_blender\\INOX -Destination \"$env:BLENDER_ADDONS_PATH\" -Force -Recurse"
+			},
+			"linux": {
+				"command": "cp -r ${workspaceFolder}/crates/blender/inox_blender/INOX \"$BLENDER_ADDONS_PATH\""
+			},
+			"osx": {
+				"command": "cp -r ${workspaceFolder}/crates/blender/inox_blender/INOX \"$BLENDER_ADDONS_PATH\""
+			},
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -147,7 +187,15 @@
 			"label": "CLEANUP",
 			"type": "shell",
 			"isBackground": true,
-			"command": "Remove-Item -Path ${workspaceFolder}\\crates\\target\\debug\\in_use\\* -Recurse -Force",
+			"windows": {
+				"command": "Remove-Item -Path ${workspaceFolder}\\crates\\target\\debug\\in_use\\* -Recurse -Force"
+			},
+			"linux": {
+				"command": "rm -rf ${workspaceFolder}/crates/target/debug/in_use/*"
+			},
+			"osx": {
+				"command": "rm -rf ${workspaceFolder}/crates/target/debug/in_use/*"
+			},
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -157,7 +205,15 @@
 			"label": "CREATE IN_USE FOLDER",
 			"type": "shell",
 			"isBackground": true,
-			"command": "New-Item -Path ${workspaceFolder}\\crates\\target\\debug\\ -Force -Name in_use -ItemType directory",
+			"windows": {
+				"command": "New-Item -Path ${workspaceFolder}\\crates\\target\\debug\\ -Force -Name in_use -ItemType directory"
+			},
+			"linux": {
+				"command": "mkdir -p ${workspaceFolder}/crates/target/debug/in_use"
+			},
+			"osx": {
+				"command": "mkdir -p ${workspaceFolder}/crates/target/debug/in_use"
+			},
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -167,7 +223,15 @@
 			"label": "CREATE DEPS IN_USE FOLDER",
 			"type": "shell",
 			"isBackground": true,
-			"command": "New-Item -Path ${workspaceFolder}\\crates\\target\\debug\\in_use\\ -Force -Name deps -ItemType directory",
+			"windows": {
+				"command": "New-Item -Path ${workspaceFolder}\\crates\\target\\debug\\in_use\\ -Force -Name deps -ItemType directory"
+			},
+			"linux": {
+				"command": "mkdir -p ${workspaceFolder}/crates/target/debug/in_use/deps"
+			},
+			"osx": {
+				"command": "mkdir -p ${workspaceFolder}/crates/target/debug/in_use/deps"
+			},
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -272,6 +336,40 @@
 			}
 		},
 		{
+			"label": "COMPILE RELEASE IOS",
+			"args": [
+				"build",
+				"--manifest-path",
+				"./crates/Cargo.toml",
+				"--release",
+				"--target",
+				"aarch64-apple-ios",
+			],
+			"command": "cargo",
+			"problemMatcher": [
+				{
+					"owner": "rust",
+					"fileLocation": [
+						"relative",
+						"${workspaceRoot}"
+					],
+					"pattern": {
+						"regexp": "^(.*):(\\d+):(\\d+):\\s+(\\d+):(\\d+)\\s+(warning|error):\\s+(.*)$",
+						"file": 1,
+						"line": 2,
+						"column": 3,
+						"endLine": 4,
+						"endColumn": 5,
+						"severity": 6,
+						"message": 7
+					}
+				}
+			],
+			"presentation": {
+				"clear": true,
+			}
+		},
+		{
 			"label": "COMPILE RELEASE WASM",
 			"args": [
 				"build",
@@ -317,7 +415,15 @@
 				"COMPILE RELEASE WASM",
 			],
 			"isBackground": true,
-			"command": "New-Item -ItemType \"directory\" -Path \"${workspaceFolder}\\web\" -Force \n Copy-Item -Path ${workspaceFolder}\\crates\\target\\wasm32-unknown-unknown\\release\\*.wasm -Destination ${workspaceFolder}\\web\\ -Force",
+			"windows": {
+				"command": "New-Item -ItemType \"directory\" -Path \"${workspaceFolder}\\web\" -Force \n Copy-Item -Path ${workspaceFolder}\\crates\\target\\wasm32-unknown-unknown\\release\\*.wasm -Destination ${workspaceFolder}\\web\\ -Force"
+			},
+			"linux": {
+				"command": "mkdir -p ${workspaceFolder}/web && cp ${workspaceFolder}/crates/target/wasm32-unknown-unknown/release/*.wasm ${workspaceFolder}/web/"
+			},
+			"osx": {
+				"command": "mkdir -p ${workspaceFolder}/web && cp ${workspaceFolder}/crates/target/wasm32-unknown-unknown/release/*.wasm ${workspaceFolder}/web/"
+			},
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -330,7 +436,15 @@
 				"PREPARE WASM IN WEB FOLDER",
 			],
 			"isBackground": true,
-			"command": "cd ${workspaceFolder}\\web\\ \n Get-ChildItem './../crates/target/wasm32-unknown-unknown/release/' -Filter *.wasm | Foreach-Object { wasm-bindgen $_ --out-dir ./ --web --no-typescript --debug --no-demangle; }",
+			"windows": {
+				"command": "cd ${workspaceFolder}\\web\\ \n Get-ChildItem './../crates/target/wasm32-unknown-unknown/release/' -Filter *.wasm | Foreach-Object { wasm-bindgen $_ --out-dir ./ --web --no-typescript --debug --no-demangle; }"
+			},
+			"linux": {
+				"command": "cd ${workspaceFolder}/web && for f in ../crates/target/wasm32-unknown-unknown/release/*.wasm; do wasm-bindgen \"$f\" --out-dir ./ --web --no-typescript --debug --no-demangle; done"
+			},
+			"osx": {
+				"command": "cd ${workspaceFolder}/web && for f in ../crates/target/wasm32-unknown-unknown/release/*.wasm; do wasm-bindgen \"$f\" --out-dir ./ --web --no-typescript --debug --no-demangle; done"
+			},
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -385,6 +499,19 @@
 			"isBackground": true,
 			"dependsOn": [
 				"COMPILE RELEASE ANDROID",
+			],
+			"problemMatcher": [],
+			"presentation": {
+				"clear": true,
+				"reveal": "never", //process does not switch terminal (focus on program output)
+			},
+		},
+		{
+			"label": "BUILD RELEASE IOS",
+			"group": "build",
+			"isBackground": true,
+			"dependsOn": [
+				"COMPILE RELEASE IOS",
 			],
 			"problemMatcher": [],
 			"presentation": {

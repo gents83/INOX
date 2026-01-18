@@ -1,0 +1,109 @@
+name: "Web"
+
+on:
+  push:
+    branches: [ master, instancing_rework ]
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches: [ master, instancing_rework ]
+    tags:
+      - 'v*.*.*'
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_TARGET_DIR: ./crates/target
+  RUSTFLAGS: '--cfg=web_sys_unstable_apis' # required for webgpu
+
+jobs:
+  build-web:
+    name: "Build Web"
+    runs-on: windows-latest
+
+    steps:
+      - name: "Add rustflags to env"
+        run: echo RUSTFLAGS=${RUSTFLAGS} >> $GITHUB_ENV
+
+      - name: "Checkout repository and submodules"
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: "Install LLVM and Clang"
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: "13.0"
+          directory: ${{ runner.temp }}/llvm
+
+      - name: "Set LIBCLANG_PATH"
+        run: echo "LIBCLANG_PATH=$((gcm clang).source -replace "clang.exe")" >> $env:GITHUB_ENV
+
+      - name: "Creating folders"
+        run: |
+          mkdir -p "./crates/target/"
+          mkdir -p "./output/"
+          mkdir -p "./output/web/"
+
+      - name: "Enable use of cache"
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            ./crates/target/
+          key: ${{ runner.os }}-cargo-web-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: "Install stable toolchain"
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+
+      - name: "Update repos"
+        run: |
+          cd crates
+          cargo update
+          cd ..
+
+      # We need to build host binary (binarizer) to process assets
+      - name: "Run cargo build workspace release host"
+        run: cargo build --manifest-path ./crates/Cargo.toml --release
+
+      - name: "Run cargo build workspace release wasm32"
+        run: cargo build --manifest-path ./crates/Cargo.toml --release --target wasm32-unknown-unknown
+
+      - name: "Install wasm bindgen"
+        run: cargo install -f wasm-bindgen-cli
+
+      - name: "Run wasm bindgen"
+        run: wasm-bindgen ./crates/target/wasm32-unknown-unknown/release/inox_launcher.wasm --out-dir ./output/web/ --target web --no-typescript --no-demangle --keep-lld-exports --split-linked-modules
+
+      - name: "Copy wasm in web"
+        run: cp -Force "./crates/target/wasm32-unknown-unknown/release/inox_launcher.wasm" "./output/web/inox_launcher.wasm"
+
+      - name: "Copy wasm32 in output"
+        run: cp -Force "./web/*.html" "./output/web/"
+
+      - name: "Clearing data folder"
+        continue-on-error: true
+        run:  |
+             rm -r "./data/"
+             rm -r "./output/web/data/"
+
+      - name: "Executing binarizer"
+        run:  ./crates/target/release/inox_launcher.exe -plugin inox_binarizer -platform pc -platform web
+
+      - name: "Copy data binarized in output for wasm"
+        run: |
+             mkdir -p "./output/web/data/"
+             mkdir -p "./output/web/data/web/"
+             cp -r -Force "./data/web/" "./output/web/data/"
+
+      - name: "Upload artifacts"
+        uses: actions/upload-artifact@v4
+        with:
+          name: output-web
+          path: output/web/

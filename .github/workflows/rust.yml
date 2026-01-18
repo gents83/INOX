@@ -23,8 +23,8 @@ jobs:
       matrix:
         os:
           - windows-latest
-          #- macOS-latest
-          #- ubuntu-latest
+          - macOS-latest
+          - ubuntu-latest
 
     steps:
       - name: "Add rustflags to env"
@@ -46,11 +46,17 @@ jobs:
         run: echo "LIBCLANG_PATH=$((gcm clang).source -replace "clang.exe")" >> $env:GITHUB_ENV
         if: ${{ matrix.os }} == 'windows-latest'
 
+      # Add Linux dependencies for X11 if on ubuntu
+      - name: "Install Linux Dependencies"
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libasound2-dev libudev-dev
+
       - name: "Creating folders"
         run: |
           mkdir -p "./crates/target/"
           mkdir -p "./output/"
-          mkdir -p "./output/web/"
           mkdir -p "./output/INOX/"
           mkdir -p "./output/INOX/bin/"
           mkdir -p "./output/INOX/bin/data_raw/"
@@ -70,7 +76,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          targets: wasm32-unknown-unknown
           components: rustfmt, clippy
           
       - name: "Update repos"
@@ -85,66 +90,43 @@ jobs:
       - name: "Run cargo build workspace release"
         run: cargo build --manifest-path ./crates/Cargo.toml --release
 
-      - name: "Copy and rename inox_blender dll into pyd"
+      - name: "Copy and rename inox_blender dll into pyd (Windows)"
+        if: runner.os == 'Windows'
         run: cp -Force ./crates/target/release/inox_blender.dll ./crates/blender/inox_blender/INOX/inox_blender.pyd
 
-      - name: "Copy inox_blender in INOX"
+      - name: "Copy inox_blender in INOX (Windows)"
+        if: runner.os == 'Windows'
         run: cp -r -Force "./crates/blender/inox_blender/INOX/" "./output/"
           
       - name: "Copy inox_viewer configs in output"
+        shell: bash
         run: |
           mkdir -p "./output/INOX/bin/data_raw/config/"
           mkdir -p "./output/INOX/bin/data_raw/config/inox_viewer/"
-          cp -r -Force "./data_raw/config/inox_viewer/" "./output/INOX/bin/data_raw/config/"
+          cp -r "./data_raw/config/inox_viewer/" "./output/INOX/bin/data_raw/config/"
 
       - name: "Copy pipelines in output"
+        shell: bash
         run: |
           mkdir -p "./output/INOX/bin/data_raw/pipelines/"
-          cp -r -Force "./data_raw/pipelines/" "./output/INOX/bin/data_raw/"
+          cp -r "./data_raw/pipelines/" "./output/INOX/bin/data_raw/"
 
       - name: "Copy shaders in output"
+        shell: bash
         run: |
           mkdir -p "./output/INOX/bin/data_raw/shaders/"
-          cp -r -Force "./data_raw/shaders/" "./output/INOX/bin/data_raw/"
+          cp -r "./data_raw/shaders/" "./output/INOX/bin/data_raw/"
 
-      - name: "Copy .dll in output"
+      - name: "Copy .dll in output (Windows)"
+        if: runner.os == 'Windows'
         run: cp -Force ./crates/target/release/*.dll ./output/INOX/bin/
           
-      - name: "Copy .exes in output"
+      - name: "Copy .exes in output (Windows)"
+        if: runner.os == 'Windows'
         run: cp -Force ./crates/target/release/*.exe ./output/INOX/bin/
       
-      - name: "Run cargo build workspace release wasm32"
-        run: cargo build --manifest-path ./crates/Cargo.toml --release --target wasm32-unknown-unknown
-    
-      - name: "Install wasm bindgen"
-        run: cargo install -f wasm-bindgen-cli
-        
-      - name: "Run wasm bindgen"
-        run: wasm-bindgen ./crates/target/wasm32-unknown-unknown/release/inox_launcher.wasm --out-dir ./output/web/ --target web --no-typescript --no-demangle --keep-lld-exports --split-linked-modules
-
-      - name: "Copy wasm in web"
-        run: cp -Force "./crates/target/wasm32-unknown-unknown/release/inox_launcher.wasm" "./output/web/inox_launcher.wasm"
-
-      - name: "Copy wasm32 in output"
-        run: cp -Force "./web/*.html" "./output/web/"
-
-      - name: "Clearing data folder"
-        continue-on-error: true
-        run:  |
-             rm -r "./data/"
-             rm -r "./output/web/data/"
-
-      - name: "Executing binarizer"
-        run:  ./crates/target/release/inox_launcher.exe -plugin inox_binarizer -platform pc -platform web
-
-      - name: "Copy data binarized in output for wasm"          
-        run: |
-             mkdir -p "./output/web/data/" 
-             mkdir -p "./output/web/data/web/" 
-             cp -r -Force "./data/web/" "./output/web/data/"
-          
       - name: "Upload artifacts"
         uses: actions/upload-artifact@v4
         with:
-          name: output-binaries
+          name: output-binaries-${{ matrix.os }}
           path: output/
