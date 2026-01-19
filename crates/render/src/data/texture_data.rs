@@ -329,7 +329,6 @@ pub enum TextureFormat {
         block: AstcBlock,
         channel: AstcChannel,
     },
-    P010,
 }
 
 impl TextureFormat {
@@ -430,7 +429,6 @@ impl From<TextureFormat> for wgpu::TextureFormat {
                 block: b.into(),
                 channel: c.into(),
             },
-            crate::TextureFormat::P010 => wgpu::TextureFormat::P010,
         }
     }
 }
@@ -521,7 +519,6 @@ impl From<wgpu::TextureFormat> for crate::TextureFormat {
                 block: b.into(),
                 channel: c.into(),
             },
-            wgpu::TextureFormat::P010 => crate::TextureFormat::P010,
         }
     }
 }

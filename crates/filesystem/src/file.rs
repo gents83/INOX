@@ -36,4 +36,40 @@ impl File {
     pub fn bytes(&self) -> Vec<u8> {
         self.bytes.read().unwrap().clone()
     }
+
+    pub fn exists(&self) -> bool {
+        self.path.exists()
+    }
+
+    pub fn load<F>(&self, f: F)
+    where
+        F: FnMut(&[u8]),
+    {
+        let mut f = f;
+        if self.path.exists() {
+            if let Ok(bytes) = std::fs::read(&self.path) {
+                *self.bytes.write().unwrap() = bytes;
+            }
+        }
+        let bytes = self.bytes.read().unwrap();
+        f(&bytes);
+    }
+
+    pub fn save<F>(&self, f: F)
+    where
+        F: FnMut(&mut Vec<u8>),
+    {
+        let mut f = f;
+        {
+            let mut bytes = self.bytes.write().unwrap();
+            f(&mut bytes);
+        }
+        if let Some(parent) = self.path.parent() {
+            if !parent.exists() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+        }
+        let bytes = self.bytes.read().unwrap();
+        let _ = std::fs::write(&self.path, &*bytes);
+    }
 }

@@ -109,7 +109,7 @@ impl PluginManager {
         fullpath: PathBuf,
         context: &ContextRc,
     ) -> (library::Library, Option<PluginHolder>) {
-        let lib = library::Library::new(fullpath.to_str().unwrap());
+        let lib = library::Library::new(fullpath.to_str().unwrap()).unwrap();
         if let Some(create_fn) = lib.get::<PfnCreatePlugin>(CREATE_PLUGIN_FUNCTION_NAME) {
             let mut plugin_holder = unsafe { create_fn.unwrap()(context) };
             plugin_holder.destroy_fn = lib

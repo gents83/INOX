@@ -67,6 +67,14 @@ where
 }
 
 #[inline]
+pub fn convert_from_local_path(base_path: &Path, path: &Path) -> PathBuf {
+    if path.is_absolute() {
+        return path.to_path_buf();
+    }
+    base_path.join(path)
+}
+
+#[inline]
 pub fn convert_in_local_path(original_path: &Path, base_path: &Path) -> PathBuf {
     let path = NormalizedPath::normalize(original_path)
         .to_str()

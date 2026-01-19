@@ -3,7 +3,7 @@
 use crate::handle::Handle;
 use crate::platform_impl::platform::handle::HandleImpl;
 use crate::window::{Window, WindowEvent};
-use crate::{Key, MouseButton, MouseState, InputState, KeyEvent, KeyTextEvent, MouseEvent};
+use crate::{Key, MouseButton, MouseState, InputState, KeyEvent, MouseEvent};
 use inox_messenger::MessageHubRc;
 use std::ffi::{CString};
 use std::path::Path;
@@ -16,6 +16,7 @@ static mut XLIB: Option<xlib::Xlib> = None;
 static mut ATOM_WM_DELETE_WINDOW: xlib::Atom = 0;
 static mut EVENTS_DISPATCHER: Option<MessageHubRc> = None;
 
+#[allow(static_mut_refs)]
 pub fn xlib() -> &'static xlib::Xlib {
     unsafe {
         if XLIB.is_none() {
@@ -60,7 +61,7 @@ impl Window {
                 *height as _,
                 0,
                 xlib::CopyFromParent,
-                xlib::InputOutput,
+                xlib::InputOutput as _,
                 (xlib.XDefaultVisual)(display, screen),
                 xlib::CWBackPixel | xlib::CWEventMask,
                 &mut attributes,
@@ -141,7 +142,9 @@ impl Window {
 
                 match event.type_ {
                     xlib::ClientMessage => {
-                         if event.client_message.data.l[0] as xlib::Atom == ATOM_WM_DELETE_WINDOW {
+                        let data_ptr = &event.client_message.data as *const _ as *const [std::os::raw::c_long; 5];
+                        let atom = (*data_ptr)[0] as xlib::Atom;
+                         if atom == ATOM_WM_DELETE_WINDOW {
                              if let Some(events_dispatcher) = &mut *addr_of_mut!(EVENTS_DISPATCHER) {
                                 events_dispatcher.send_event(WindowEvent::Close);
                              }

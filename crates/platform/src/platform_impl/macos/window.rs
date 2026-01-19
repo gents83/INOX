@@ -3,7 +3,7 @@
 use crate::handle::Handle;
 use crate::platform_impl::platform::handle::HandleImpl;
 use crate::window::{Window, WindowEvent};
-use crate::{Key, MouseButton, MouseState, InputState, KeyEvent, KeyTextEvent, MouseEvent};
+use crate::{Key, MouseButton, MouseState, InputState, KeyEvent, MouseEvent};
 use inox_messenger::MessageHubRc;
 use std::path::Path;
 use std::ptr::{self, addr_of_mut};
@@ -12,7 +12,7 @@ use cocoa::base::{id, nil};
 use cocoa::foundation::{NSAutoreleasePool, NSPoint, NSRect, NSSize, NSString};
 use cocoa::appkit::{
     NSApp, NSApplication, NSWindow, NSWindowStyleMask, NSBackingStoreType, NSRunningApplication,
-    NSApplicationActivationPolicy, NSEvent, NSEventType, NSEventModifierFlags
+    NSApplicationActivationPolicy, NSEvent, NSEventType
 };
 use objc::{msg_send, sel, sel_impl};
 
@@ -127,13 +127,70 @@ impl Window {
                 let event_type = event.eventType();
                 match event_type {
                      NSEventType::NSKeyDown | NSEventType::NSKeyUp => {
-                         // convert key
-                         // send KeyEvent
+                        let key_code = event.keyCode();
+                        let state = if event_type == NSEventType::NSKeyDown {
+                            InputState::Pressed
+                        } else {
+                            InputState::Released
+                        };
+                        let key = convert_key(key_code as _);
+                        if let Some(events_dispatcher) = &mut *addr_of_mut!(EVENTS_DISPATCHER) {
+                            events_dispatcher.send_event(KeyEvent {
+                                code: key,
+                                state,
+                            });
+                        }
                      }
-                     NSEventType::NSLeftMouseDown | NSEventType::NSRightMouseDown | NSEventType::NSOtherMouseDown => {
-                         // send MouseEvent
+                     NSEventType::NSLeftMouseDown | NSEventType::NSRightMouseDown | NSEventType::NSOtherMouseDown | NSEventType::NSLeftMouseUp | NSEventType::NSRightMouseUp | NSEventType::NSOtherMouseUp => {
+                        let button = match event_type {
+                            NSEventType::NSLeftMouseDown | NSEventType::NSLeftMouseUp => MouseButton::Left,
+                            NSEventType::NSRightMouseDown | NSEventType::NSRightMouseUp => MouseButton::Right,
+                            NSEventType::NSOtherMouseDown | NSEventType::NSOtherMouseUp => MouseButton::Middle,
+                            _ => MouseButton::None,
+                        };
+                        let state = match event_type {
+                            NSEventType::NSLeftMouseDown | NSEventType::NSRightMouseDown | NSEventType::NSOtherMouseDown => MouseState::Down,
+                            _ => MouseState::Up,
+                        };
+                        let location = event.locationInWindow();
+                        let window = handle.handle_impl.ns_window as id;
+                        let content_rect = window.contentRectForFrameRect_(window.frame());
+                        let width = content_rect.size.width as f32;
+                        let height = content_rect.size.height as f32;
+                        let x = location.x as f64;
+                        let y = height as f64 - location.y as f64;
+
+                        if let Some(events_dispatcher) = &mut *addr_of_mut!(EVENTS_DISPATCHER) {
+                            events_dispatcher.send_event(MouseEvent {
+                                x,
+                                y,
+                                normalized_x: x as f32 / width,
+                                normalized_y: y as f32 / height,
+                                button,
+                                state,
+                            });
+                        }
                      }
-                     // ...
+                     NSEventType::NSMouseMoved | NSEventType::NSLeftMouseDragged | NSEventType::NSRightMouseDragged | NSEventType::NSOtherMouseDragged => {
+                        let location = event.locationInWindow();
+                        let window = handle.handle_impl.ns_window as id;
+                        let content_rect = window.contentRectForFrameRect_(window.frame());
+                        let width = content_rect.size.width as f32;
+                        let height = content_rect.size.height as f32;
+                        let x = location.x as f64;
+                        let y = height as f64 - location.y as f64;
+
+                        if let Some(events_dispatcher) = &mut *addr_of_mut!(EVENTS_DISPATCHER) {
+                            events_dispatcher.send_event(MouseEvent {
+                                x,
+                                y,
+                                normalized_x: x as f32 / width,
+                                normalized_y: y as f32 / height,
+                                button: MouseButton::None,
+                                state: MouseState::Move,
+                            });
+                        }
+                     }
                      _ => {}
                 }
 
@@ -146,6 +203,69 @@ impl Window {
     }
 }
 
-pub fn convert_key(key: i32) -> Key {
-    Key::Unidentified // TODO: implement
+pub fn convert_key(key_code: u16) -> Key {
+    match key_code {
+        0x00 => Key::A,
+        0x01 => Key::S,
+        0x02 => Key::D,
+        0x03 => Key::F,
+        0x04 => Key::H,
+        0x05 => Key::G,
+        0x06 => Key::Z,
+        0x07 => Key::X,
+        0x08 => Key::C,
+        0x09 => Key::V,
+        0x0B => Key::B,
+        0x0C => Key::Q,
+        0x0D => Key::W,
+        0x0E => Key::E,
+        0x0F => Key::R,
+        0x10 => Key::Y,
+        0x11 => Key::T,
+        0x12 => Key::Key1,
+        0x13 => Key::Key2,
+        0x14 => Key::Key3,
+        0x15 => Key::Key4,
+        0x16 => Key::Key6,
+        0x17 => Key::Key5,
+        0x18 => Key::Equal,
+        0x19 => Key::Key9,
+        0x1A => Key::Key7,
+        0x1B => Key::Minus,
+        0x1C => Key::Key8,
+        0x1D => Key::Key0,
+        0x1E => Key::RightBracket,
+        0x1F => Key::O,
+        0x20 => Key::U,
+        0x21 => Key::LeftBracket,
+        0x22 => Key::I,
+        0x23 => Key::P,
+        0x24 => Key::Enter,
+        0x25 => Key::L,
+        0x26 => Key::J,
+        0x27 => Key::Quote,
+        0x28 => Key::K,
+        0x29 => Key::Semicolon,
+        0x2A => Key::Backslash,
+        0x2B => Key::Comma,
+        0x2C => Key::Slash,
+        0x2D => Key::N,
+        0x2E => Key::M,
+        0x2F => Key::Period,
+        0x30 => Key::Tab,
+        0x31 => Key::Space,
+        0x32 => Key::GraveAccent,
+        0x33 => Key::Backspace,
+        0x35 => Key::Escape,
+        0x37 => Key::Meta, // Command
+        0x38 => Key::Shift,
+        0x39 => Key::CapsLock,
+        0x3A => Key::Alt,
+        0x3B => Key::Control,
+        0x7B => Key::ArrowLeft,
+        0x7C => Key::ArrowRight,
+        0x7D => Key::ArrowDown,
+        0x7E => Key::ArrowUp,
+        _ => Key::Unidentified,
+    }
 }

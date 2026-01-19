@@ -254,18 +254,11 @@ impl UISystem {
         output: PlatformOutput,
         textures_delta: TexturesDelta,
     ) -> &mut Self {
-        for command in output.commands {
-            match command {
-                egui::OutputCommand::CopyText(text) => {
-                    self.ui_clipboard = Some(text);
-                }
-                egui::OutputCommand::CopyImage(_image) => {
-                    debug_log!("Trying to copy image - not handled");
-                }
-                egui::OutputCommand::OpenUrl(open_url) => {
-                    debug_log!("Trying to open url: {:?}", open_url.url);
-                }
-            }
+        if !output.copied_text.is_empty() {
+            self.ui_clipboard = Some(output.copied_text);
+        }
+        if let Some(open_url) = output.open_url {
+            debug_log!("Trying to open url: {:?}", open_url.url);
         }
 
         for (egui_texture_id, image_delta) in textures_delta.set {
@@ -277,6 +270,17 @@ impl UISystem {
                         "Mismatch between texture size and texel count"
                     );
                     Cow::Borrowed(&image.pixels)
+                }
+                egui::ImageData::Font(image) => {
+                    let pixels: Vec<egui::Color32> = image
+                        .pixels
+                        .iter()
+                        .map(|&a| {
+                            let alpha = (a * 255.0).round() as u8;
+                            egui::Color32::from_white_alpha(alpha)
+                        })
+                        .collect();
+                    Cow::Owned(pixels)
                 }
             };
             let pixels: &[u8] = to_slice(color32.as_slice());

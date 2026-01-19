@@ -1,11 +1,11 @@
 #![cfg(target_os = "ios")]
 
 use raw_window_handle::{
-    UiKitDisplayHandle, UiKitWindowHandle, DisplayHandle, RawDisplayHandle, RawWindowHandle,
-    WindowHandle,
+    DisplayHandle, HandleError, RawDisplayHandle, RawWindowHandle, UiKitDisplayHandle,
+    UiKitWindowHandle, WindowHandle,
 };
-use std::ptr::NonNull;
 use std::ffi::c_void;
+use std::ptr::NonNull;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HandleImpl {
@@ -18,12 +18,20 @@ unsafe impl Send for HandleImpl {}
 unsafe impl Sync for HandleImpl {}
 
 impl HandleImpl {
-    pub fn as_window_handle(&self) -> WindowHandle<'_> {
-        let handle = UiKitWindowHandle::new(NonNull::new(self.ui_view).unwrap());
-        unsafe { WindowHandle::borrow_raw(RawWindowHandle::UiKit(handle)) }
+    pub fn as_window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        if let Some(ptr) = NonNull::new(self.ui_view) {
+            let handle = UiKitWindowHandle::new(ptr);
+            unsafe { Ok(WindowHandle::borrow_raw(RawWindowHandle::UiKit(handle))) }
+        } else {
+            Err(HandleError::Unavailable)
+        }
     }
     #[inline]
-    pub fn as_display_handle(&self) -> DisplayHandle<'_> {
-        unsafe { DisplayHandle::borrow_raw(RawDisplayHandle::UiKit(UiKitDisplayHandle::new())) }
+    pub fn as_display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
+        unsafe {
+            Ok(DisplayHandle::borrow_raw(RawDisplayHandle::UiKit(
+                UiKitDisplayHandle::new(),
+            )))
+        }
     }
 }

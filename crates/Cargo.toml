@@ -60,7 +60,7 @@ cgmath = { git = "https://github.com/rustgd/cgmath", features = [
     "swizzle",
 ] }
 downcast-rs = { git = "https://github.com/marcianx/downcast-rs" }
-egui = { git = "https://github.com/emilk/egui" }
+egui = { git = "https://github.com/emilk/egui", rev = "d8646550" }
 image = { git = "https://github.com/image-rs/image", version = "0.25.0", default-features = false, features = [
     "default-formats",
 ] }
@@ -83,7 +83,7 @@ uuid = { git = "https://github.com/uuid-rs/uuid", features = [
     "js",
 ] }
 
-wgpu = { git = "https://github.com/gfx-rs/wgpu", features = [
+wgpu = { git = "https://github.com/gfx-rs/wgpu", rev = "8c2c2ce2", features = [
     "spirv",
     "glsl",
     "metal",
@@ -94,7 +94,7 @@ wgpu = { git = "https://github.com/gfx-rs/wgpu", features = [
     "webgpu",
     "fragile-send-sync-non-atomic-wasm",
 ] }
-naga = { git = "https://github.com/gfx-rs/wgpu", features = [
+naga = { git = "https://github.com/gfx-rs/wgpu", rev = "8c2c2ce2", features = [
     "default",
     "glsl-in",
     "wgsl-in",
@@ -160,7 +160,7 @@ web-sys = { version = "0.3.77", features = [
 #meshopt = { git = "https://github.com/gents83/meshopt-rs", branch = "traverse_breda_vertex_lock" }
 
 [patch."https://github.com/Wumpf/wgpu-profiler"]
-wgpu-profiler = { git = "https://github.com/gents83/wgpu-profiler.git", branch = "wgpu-updated" }
+wgpu-profiler = { path = "./libs/wgpu-profiler" }
 
 #[patch."https://github.com/gfx-rs/wgpu"]
 #wgpu = { path = "../../wgpu/wgpu" }

@@ -123,7 +123,7 @@ impl SerializableResource for Texture {
     }
 
     fn deserialize_data(path: &Path, mut f: Box<dyn FnMut(Self::DataType) + 'static>) {
-        let mut file = File::new(path);
+        let file = File::new(path);
         let filepath = path.to_path_buf();
         file.load(move |bytes| {
             let image_format = ImageFormat::from_path(filepath.as_path()).unwrap();
@@ -134,7 +134,7 @@ impl SerializableResource for Texture {
                 .to_str()
                 .unwrap()
                 .ends_with("_LUT");
-            match image::load_from_memory_with_format(bytes.as_slice(), image_format) {
+            match image::load_from_memory_with_format(bytes, image_format) {
                 Ok(image_data) => {
                     f(TextureData {
                         width: image_data.width(),

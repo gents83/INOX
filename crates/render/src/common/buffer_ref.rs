@@ -110,10 +110,7 @@ impl BufferRef {
                 });
                 render_core_context
                     .device
-                    .poll(wgpu::PollType::Wait {
-                        submission_index: None,
-                        timeout: Some(std::time::Duration::from_secs(60)),
-                    })
+                    .poll(wgpu::PollType::Poll)
                     .ok();
                 while !is_ready.load(std::sync::atomic::Ordering::SeqCst) {
                     std::thread::sleep(std::time::Duration::from_millis(1));
@@ -207,10 +204,7 @@ impl BufferRef {
                 });
                 render_core_context
                     .device
-                    .poll(wgpu::PollType::Wait {
-                        submission_index: None,
-                        timeout: Some(std::time::Duration::from_secs(60)),
-                    })
+                    .poll(wgpu::PollType::Poll)
                     .ok();
                 while !is_ready.load(std::sync::atomic::Ordering::SeqCst) {
                     std::thread::sleep(std::time::Duration::from_millis(1));

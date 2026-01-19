@@ -1,8 +1,8 @@
 use wasm_bindgen::JsCast;
 
 use raw_window_handle::{
-    DisplayHandle, RawDisplayHandle, RawWindowHandle, WebDisplayHandle, WebWindowHandle,
-    WindowHandle,
+    DisplayHandle, HandleError, RawDisplayHandle, RawWindowHandle, WebDisplayHandle,
+    WebWindowHandle, WindowHandle,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,13 +17,13 @@ pub struct HandleImpl {
 }
 
 impl HandleImpl {
-    pub fn as_window_handle(&self) -> WindowHandle {
+    pub fn as_window_handle(&self) -> Result<WindowHandle, HandleError> {
         let handle = WebWindowHandle::new(self.id);
-        unsafe { WindowHandle::borrow_raw(RawWindowHandle::Web(handle)) }
+        unsafe { Ok(WindowHandle::borrow_raw(RawWindowHandle::Web(handle))) }
     }
     #[inline]
-    pub fn as_display_handle(&self) -> DisplayHandle {
-        unsafe { DisplayHandle::borrow_raw(RawDisplayHandle::Web(WebDisplayHandle::new())) }
+    pub fn as_display_handle(&self) -> Result<DisplayHandle, HandleError> {
+        unsafe { Ok(DisplayHandle::borrow_raw(RawDisplayHandle::Web(WebDisplayHandle::new()))) }
     }
     pub fn is_valid(&self) -> bool {
         self.id != 0

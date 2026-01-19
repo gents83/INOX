@@ -124,7 +124,7 @@ impl RenderContext {
     async fn log_adapters(instance: &wgpu::Instance, backends: &wgpu::Backends) {
         use wgpu::Adapter;
 
-        let all_adapters = instance.enumerate_adapters(*backends).await;
+        let all_adapters = instance.enumerate_adapters(*backends);
         let mut available_adapters: Vec<Adapter> = Vec::new();
         for a in all_adapters {
             if !available_adapters
@@ -169,9 +169,8 @@ impl RenderContext {
                 backends,
                 flags,
                 backend_options: wgpu::BackendOptions::from_env_or_default(),
-                ..Default::default()
             };
-            let instance = wgpu::Instance::new(instance_descriptor);
+            let instance = wgpu::Instance::new(&instance_descriptor);
             let surface = Self::create_surface(&instance, handle.clone());
 
             #[cfg(not(target_arch = "wasm32"))]
@@ -189,12 +188,15 @@ impl RenderContext {
                     required_limits: platform_limits(),
                     memory_hints: wgpu::MemoryHints::Performance,
                     trace: wgpu::Trace::Off,
-                    experimental_features: wgpu::ExperimentalFeatures::default(),
                 })
                 .await
                 .unwrap();
 
-            device.on_uncaptured_error(Arc::new(Self::default_error_handler));
+            device.on_uncaptured_error(Box::new(Self::default_error_handler));
+            inox_profiler::GLOBAL_GPU_PROFILER
+                .write()
+                .unwrap()
+                .init(&device);
             (instance, surface, adapter, device, queue)
         };
 

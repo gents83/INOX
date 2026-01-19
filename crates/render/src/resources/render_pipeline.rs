@@ -309,7 +309,7 @@ impl RenderPipeline {
                     },
                     // If the pipeline will be used with a multiview render pass, this
                     // indicates how many array layers the attachments will have.
-                    multiview_mask: None,
+                    multiview: None,
                 })
         };
         self.formats = pipeline_render_formats.iter().map(|&f| f.into()).collect();
