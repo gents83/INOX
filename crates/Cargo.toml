@@ -83,7 +83,7 @@ uuid = { git = "https://github.com/uuid-rs/uuid", features = [
     "js",
 ] }
 
-wgpu = { git = "https://github.com/gfx-rs/wgpu", rev = "8c2c2ce2", features = [
+wgpu = { git = "https://github.com/gfx-rs/wgpu", rev = "c76dea03", features = [
     "spirv",
     "glsl",
     "metal",
@@ -94,7 +94,7 @@ wgpu = { git = "https://github.com/gfx-rs/wgpu", rev = "8c2c2ce2", features = [
     "webgpu",
     "fragile-send-sync-non-atomic-wasm",
 ] }
-naga = { git = "https://github.com/gfx-rs/wgpu", rev = "8c2c2ce2", features = [
+naga = { git = "https://github.com/gfx-rs/wgpu", rev = "c76dea03", features = [
     "default",
     "glsl-in",
     "wgsl-in",

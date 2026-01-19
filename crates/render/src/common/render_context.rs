@@ -169,6 +169,7 @@ impl RenderContext {
                 backends,
                 flags,
                 backend_options: wgpu::BackendOptions::from_env_or_default(),
+                memory_budget_thresholds: Default::default(),
             };
             let instance = wgpu::Instance::new(&instance_descriptor);
             let surface = Self::create_surface(&instance, handle.clone());
@@ -188,11 +189,12 @@ impl RenderContext {
                     required_limits: platform_limits(),
                     memory_hints: wgpu::MemoryHints::Performance,
                     trace: wgpu::Trace::Off,
+                    experimental_features: wgpu::ExperimentalFeatures::default(),
                 })
                 .await
                 .unwrap();
 
-            device.on_uncaptured_error(Box::new(Self::default_error_handler));
+            device.on_uncaptured_error(Arc::new(Self::default_error_handler));
             inox_profiler::GLOBAL_GPU_PROFILER
                 .write()
                 .unwrap()

@@ -21,7 +21,7 @@ pub fn clean_unused_definitions(shader_source: &str) -> Result<String, Box<dyn s
     // 2. Use Naga's built-in `compact` function to remove all unused global items.
     // This is the correct, modern way to perform dead code elimination on globals.
     // We pass `KeepUnused::No` to ensure all unreferenced items are pruned.
-    compact::compact(&mut module);
+    compact::compact(&mut module, compact::KeepUnused::No);
 
     // 4. Validate the pruned module to ensure it's still correct.
     let mut validator = Validator::new(ValidationFlags::all(), Capabilities::all());
