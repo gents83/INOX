@@ -9,7 +9,6 @@ pub use self::watcher::*;
 pub use self::window::*;
 
 //Modules
-mod ctypes;
 pub mod handle;
 pub mod thread;
 pub mod watcher;

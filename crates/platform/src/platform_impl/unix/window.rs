@@ -1,10 +1,10 @@
 use std::path::Path;
 use std::ptr::null_mut;
-use std::ptr::addr_of_mut;
+use std::sync::OnceLock;
 
 use inox_messenger::MessageHubRc;
 use x11_dl::xlib::{
-    Display, Xlib, Atom,
+    Display, Xlib,
 };
 use crate::handle::Handle;
 use crate::window::*;
@@ -26,10 +26,7 @@ const STRUCTURE_NOTIFY_MASK: i64 = 1 << 17;
 const EXPOSURE_MASK: i64 = 1 << 15;
 const FOCUS_CHANGE_MASK: i64 = 1 << 21;
 
-static mut XLIB: Option<Xlib> = None;
-static mut EVENTS_DISPATCHER: Option<MessageHubRc> = None;
-static mut WM_DELETE_WINDOW: Atom = 0;
-static mut WM_PROTOCOLS: Atom = 0;
+static XLIB: OnceLock<Xlib> = OnceLock::new();
 
 impl Window {
     pub fn create_handle(
@@ -42,15 +39,9 @@ impl Window {
         _icon_path: &Path,
         events_dispatcher: &MessageHubRc,
     ) -> Handle {
+        let xlib = XLIB.get_or_init(|| Xlib::open().expect("failed to load xlib"));
+
         unsafe {
-            EVENTS_DISPATCHER = Some(events_dispatcher.clone());
-
-            if XLIB.is_none() {
-                let xlib = Xlib::open().expect("failed to load xlib");
-                XLIB = Some(xlib);
-            }
-            let xlib = XLIB.as_ref().unwrap();
-
             let display = (xlib.XOpenDisplay)(null_mut());
             if display.is_null() {
                 panic!("failed to open display");
@@ -61,8 +52,8 @@ impl Window {
 
             *scale_factor = 1.0;
 
-            let mut w = *width;
-            let mut h = *height;
+            let w = *width;
+            let h = *height;
 
             let window = (xlib.XCreateSimpleWindow)(
                 display,
@@ -91,15 +82,19 @@ impl Window {
 
             let wm_protocols_str = std::ffi::CString::new("WM_PROTOCOLS").unwrap();
             let wm_delete_window_str = std::ffi::CString::new("WM_DELETE_WINDOW").unwrap();
-            WM_PROTOCOLS = (xlib.XInternAtom)(display, wm_protocols_str.as_ptr(), 0);
-            WM_DELETE_WINDOW = (xlib.XInternAtom)(display, wm_delete_window_str.as_ptr(), 0);
-            let mut protocols = [WM_DELETE_WINDOW];
+            let wm_protocols = (xlib.XInternAtom)(display, wm_protocols_str.as_ptr(), 0);
+            let wm_delete_window = (xlib.XInternAtom)(display, wm_delete_window_str.as_ptr(), 0);
+
+            let mut protocols = [wm_delete_window];
             (xlib.XSetWMProtocols)(display, window, protocols.as_mut_ptr(), 1);
 
             Handle {
                 handle_impl: HandleImpl {
                     window,
                     display: display as _,
+                    wm_delete_window,
+                    wm_protocols,
+                    events_dispatcher: events_dispatcher.clone(),
                 },
             }
         }
@@ -107,7 +102,7 @@ impl Window {
 
     pub fn change_title(handle: &Handle, title: &str) {
         unsafe {
-             if let Some(xlib) = XLIB.as_ref() {
+             if let Some(xlib) = XLIB.get() {
                 let display = handle.handle_impl.display as *mut Display;
                 let title_c = std::ffi::CString::new(title).unwrap();
                 (xlib.XStoreName)(display, handle.handle_impl.window, title_c.as_ptr());
@@ -116,7 +111,7 @@ impl Window {
     }
     pub fn change_visibility(handle: &Handle, is_visible: bool) {
         unsafe {
-             if let Some(xlib) = XLIB.as_ref() {
+             if let Some(xlib) = XLIB.get() {
                 let display = handle.handle_impl.display as *mut Display;
                 if is_visible {
                     (xlib.XMapWindow)(display, handle.handle_impl.window);
@@ -129,7 +124,7 @@ impl Window {
     }
     pub fn change_position(handle: &Handle, x: u32, y: u32) {
          unsafe {
-             if let Some(xlib) = XLIB.as_ref() {
+             if let Some(xlib) = XLIB.get() {
                 let display = handle.handle_impl.display as *mut Display;
                 (xlib.XMoveWindow)(display, handle.handle_impl.window, x as _, y as _);
                 (xlib.XFlush)(display);
@@ -138,7 +133,7 @@ impl Window {
     }
     pub fn change_size(handle: &Handle, width: u32, height: u32) {
          unsafe {
-             if let Some(xlib) = XLIB.as_ref() {
+             if let Some(xlib) = XLIB.get() {
                 let display = handle.handle_impl.display as *mut Display;
                 (xlib.XResizeWindow)(display, handle.handle_impl.window, width as _, height as _);
                 (xlib.XFlush)(display);
@@ -148,8 +143,8 @@ impl Window {
 
     #[inline]
     pub fn internal_update(handle: &Handle) -> bool {
-        unsafe {
-            if let Some(xlib) = XLIB.as_ref() {
+        if let Some(xlib) = XLIB.get() {
+            unsafe {
                 let display = handle.handle_impl.display as *mut Display;
                 while (xlib.XPending)(display) > 0 {
                     let mut event = std::mem::zeroed();
@@ -159,12 +154,10 @@ impl Window {
                         let data_ptr = &event.client_message.data as *const _ as *const std::os::raw::c_long;
                         let atom = *data_ptr.offset(0) as u64;
 
-                         if event.client_message.message_type == WM_PROTOCOLS
+                         if event.client_message.message_type == handle.handle_impl.wm_protocols
                             && event.client_message.format == 32
-                            && atom == WM_DELETE_WINDOW {
-                                if let Some(events_dispatcher) = &mut *addr_of_mut!(EVENTS_DISPATCHER) {
-                                    events_dispatcher.send_event(WindowEvent::Close);
-                                }
+                            && atom == handle.handle_impl.wm_delete_window as u64 {
+                                handle.handle_impl.events_dispatcher.send_event(WindowEvent::Close);
                                 return false;
                             }
                     } else if event.type_ == KEY_PRESS || event.type_ == KEY_RELEASE {
@@ -176,7 +169,7 @@ impl Window {
                     }
                 }
             }
-            true
         }
+        true
     }
 }

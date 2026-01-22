@@ -20,7 +20,7 @@ pub mod platform_impl {
     pub mod platform;
 
     #[cfg(all(not(target_arch = "wasm32"), unix, not(target_os = "android"), not(target_os = "ios")))]
-    #[path = "platform_impl/unix/platform.rs"]
+    #[path = "unix/platform.rs"]
     pub mod platform;
 
     #[cfg(target_arch = "wasm32")]

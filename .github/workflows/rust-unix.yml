@@ -37,8 +37,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libx11-dev libxcursor-dev libxi-dev libxrandr-dev libxinerama-dev libwayland-dev libxkbcommon-dev
-          wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -
-          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.3.268-jammy.list https://packages.lunarg.com/vulkan/1.3.268/lunarg-vulkan-1.3.268-jammy.list
+          wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
+          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list https://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
           sudo apt-get update
           sudo apt-get install -y vulkan-sdk
           echo "VULKAN_SDK=/usr" >> $GITHUB_ENV
@@ -81,49 +81,12 @@ jobs:
       - name: "Run cargo build workspace release"
         run: cargo build --manifest-path ./crates/Cargo.toml --release
 
-      - name: "Copy and rename inox_blender dll into pyd"
-        run: cp -f ./crates/target/release/libinox_blender.so ./crates/blender/inox_blender/INOX/inox_blender.so
-
-      - name: "Copy inox_blender in INOX"
-        run: cp -r -f "./crates/blender/inox_blender/INOX/" "./output/"
-
-      - name: "Copy inox_viewer configs in output"
-        run: |
-          mkdir -p "./output/INOX/bin/data_raw/config/"
-          mkdir -p "./output/INOX/bin/data_raw/config/inox_viewer/"
-          cp -r -f "./data_raw/config/inox_viewer/" "./output/INOX/bin/data_raw/config/"
-
-      - name: "Copy pipelines in output"
-        run: |
-          mkdir -p "./output/INOX/bin/data_raw/pipelines/"
-          cp -r -f "./data_raw/pipelines/" "./output/INOX/bin/data_raw/"
-
-      - name: "Copy shaders in output"
-        run: |
-          mkdir -p "./output/INOX/bin/data_raw/shaders/"
-          cp -r -f "./data_raw/shaders/" "./output/INOX/bin/data_raw/"
-
       - name: "Copy .so in output"
         run: cp -f ./crates/target/release/*.so ./output/INOX/bin/
 
       - name: "Copy executables in output"
         run: |
           find ./crates/target/release/ -maxdepth 1 -executable -type f ! -name "*.so" -exec cp -f {} ./output/INOX/bin/ \;
-
-      - name: "Clearing data folder"
-        continue-on-error: true
-        run:  |
-             rm -r "./data/"
-             rm -r "./output/web/data/"
-
-      - name: "Executing binarizer"
-        run:  ./crates/target/release/inox_launcher -plugin inox_binarizer -platform pc -platform web
-
-      - name: "Copy data binarized in output for wasm"
-        run: |
-             mkdir -p "./output/web/data/"
-             mkdir -p "./output/web/data/web/"
-             cp -r -f "./data/web/" "./output/web/data/"
 
       - name: "Upload artifacts"
         uses: actions/upload-artifact@v4
