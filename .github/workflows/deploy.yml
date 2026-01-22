@@ -2,7 +2,7 @@ name: "Deploy on Github Pages"
 
 on:
   workflow_run:
-    workflows: ["Rust"]
+    workflows: ["Rust Web"]
     branches: [master, instancing_rework]
     types:
       - completed

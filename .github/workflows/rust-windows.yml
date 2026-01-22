@@ -1,4 +1,4 @@
-name: "Rust"
+name: "Rust Windows"
 
 on:
   push:
@@ -70,7 +70,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          targets: wasm32-unknown-unknown
           components: rustfmt, clippy
           
       - name: "Update repos"
@@ -112,21 +111,6 @@ jobs:
           
       - name: "Copy .exes in output"
         run: cp -Force ./crates/target/release/*.exe ./output/INOX/bin/
-      
-      - name: "Run cargo build workspace release wasm32"
-        run: cargo build --manifest-path ./crates/Cargo.toml --release --target wasm32-unknown-unknown
-    
-      - name: "Install wasm bindgen"
-        run: cargo install -f wasm-bindgen-cli
-        
-      - name: "Run wasm bindgen"
-        run: wasm-bindgen ./crates/target/wasm32-unknown-unknown/release/inox_launcher.wasm --out-dir ./output/web/ --target web --no-typescript --no-demangle --keep-lld-exports --split-linked-modules
-
-      - name: "Copy wasm in web"
-        run: cp -Force "./crates/target/wasm32-unknown-unknown/release/inox_launcher.wasm" "./output/web/inox_launcher.wasm"
-
-      - name: "Copy wasm32 in output"
-        run: cp -Force "./web/*.html" "./output/web/"
 
       - name: "Clearing data folder"
         continue-on-error: true
