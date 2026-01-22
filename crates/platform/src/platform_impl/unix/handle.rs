@@ -2,37 +2,26 @@ use raw_window_handle::{
     DisplayHandle, RawDisplayHandle, RawWindowHandle, WindowHandle, XlibDisplayHandle,
     XlibWindowHandle,
 };
-
-use super::super::handle::*;
-use core::ffi::c_void;
-use core::ptr;
+use std::ptr::NonNull;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HandleImpl {
-    /// An Xlib `Window`.
-    pub window: u32,
-    /// A pointer to an Xlib `Display`.
-    pub display: *mut c_void,
+    pub window: std::os::raw::c_ulong,
+    pub display: *mut std::ffi::c_void,
 }
+
+unsafe impl Send for HandleImpl {}
+unsafe impl Sync for HandleImpl {}
 
 impl HandleImpl {
     pub fn as_window_handle(&self) -> WindowHandle {
-        let mut window = XlibWindowHandle::new(self.window);
-        unsafe { WindowHandle::borrow_raw(RawWindowHandle::Xlib(handle as _)) }
+        let mut handle = XlibWindowHandle::new(self.window);
+        unsafe { WindowHandle::borrow_raw(RawWindowHandle::Xlib(handle)) }
     }
-    #[inline]
-    pub fn as_display_handle(&self) -> DisplayHandle {
-        let display = NonNull::from(self.xconn.display as _).cast();
-        let handle = XlibDisplayHandle::new(Some(display), 0 as _);
-        unsafe { DisplayHandle::borrow_raw(RawDisplayHandle::Xlib(handle)) }
-    }
-    pub fn is_valid(&self) -> bool {
-        !self.display.is_null()
-    }
-}
 
-impl Handle for HandleImpl {
-    fn is_valid(&self) -> bool {
-        self.is_valid()
+    pub fn as_display_handle(&self) -> DisplayHandle {
+        let display = NonNull::new(self.display).unwrap();
+        let handle = XlibDisplayHandle::new(Some(display), 0);
+        unsafe { DisplayHandle::borrow_raw(RawDisplayHandle::Xlib(handle)) }
     }
 }
