@@ -1,4 +1,5 @@
 #![allow(unexpected_cfgs)]
+#![warn(unexpected_cfgs)]
 use std::sync::Arc;
 use crate::launcher::Launcher;
 use objc::runtime::{Object, Sel};

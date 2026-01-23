@@ -5,6 +5,7 @@ use crate::launcher::Launcher;
 #[no_mangle]
 fn android_main(app: AndroidApp) {
     inox_platform::platform_impl::platform::create_android_app(app);
+    #[allow(clippy::main_recursion)]
     crate::main();
 }
 
@@ -14,7 +15,7 @@ pub fn setup_env() {
 
 pub fn load_plugins(launcher: &Arc<Launcher>) {
     // Same as PC/generic
-    let context = launcher.context();
+    let _context = launcher.context();
     launcher.add_dynamic_plugin("inox_viewer", std::path::Path::new(""));
 }
 

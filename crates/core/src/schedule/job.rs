@@ -163,7 +163,9 @@ impl JobHandler {
 
     #[inline]
     fn setup_worker_threads(&mut self, can_continue: &Arc<AtomicBool>) {
+        #[allow(clippy::absurd_extreme_comparisons)]
         if NUM_WORKER_THREADS > 0 {
+            #[allow(clippy::reversed_empty_ranges)]
             for i in 1..NUM_WORKER_THREADS + 1 {
                 self.add_worker(format!("Worker{i}").as_str(), can_continue);
             }
