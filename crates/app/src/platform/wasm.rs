@@ -1,5 +1,3 @@
-#![cfg(target_arch = "wasm32")]
-
 use std::sync::Arc;
 
 use wasm_bindgen::prelude::*;
@@ -43,21 +41,21 @@ pub fn load_plugins(launcher: &Arc<Launcher>) {
     launcher.add_static_plugin(
         "inox_common_script",
         &context,
-        Some(|context| inox_common_script::static_plugin::create_plugin(context)),
-        Some(|context| inox_common_script::static_plugin::load_config_plugin(context)),
-        Some(|context| inox_common_script::static_plugin::prepare_plugin(context)),
-        Some(|context| inox_common_script::static_plugin::unprepare_plugin(context)),
-        Some(|| inox_common_script::static_plugin::destroy_plugin()),
+        Some(inox_common_script::static_plugin::create_plugin),
+        Some(inox_common_script::static_plugin::load_config_plugin),
+        Some(inox_common_script::static_plugin::prepare_plugin),
+        Some(inox_common_script::static_plugin::unprepare_plugin),
+        Some(inox_common_script::static_plugin::destroy_plugin),
     );
 
     launcher.add_static_plugin(
         "inox_viewer",
         &context,
-        Some(|context| inox_viewer::static_plugin::create_plugin(context)),
-        Some(|context| inox_viewer::static_plugin::load_config_plugin(context)),
-        Some(|context| inox_viewer::static_plugin::prepare_plugin(context)),
-        Some(|context| inox_viewer::static_plugin::unprepare_plugin(context)),
-        Some(|| inox_viewer::static_plugin::destroy_plugin()),
+        Some(inox_viewer::static_plugin::create_plugin),
+        Some(inox_viewer::static_plugin::load_config_plugin),
+        Some(inox_viewer::static_plugin::prepare_plugin),
+        Some(inox_viewer::static_plugin::unprepare_plugin),
+        Some(inox_viewer::static_plugin::destroy_plugin),
     );
 }
 
@@ -102,6 +100,7 @@ fn init_panic_hook() {
 
 #[wasm_bindgen]
 pub fn send_event_from_string(s: &str) {
+    #[allow(static_mut_refs)]
     if let Some(message_hub) = unsafe { MESSAGE_HUB.as_mut() } {
         debug_log!("Received string to convert into event:\n{}", s);
         message_hub.send_from_string(s.to_string());

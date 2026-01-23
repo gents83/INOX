@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use inox_filesystem::convert_from_local_path;
-use inox_platform::{FileEvent, FileWatcher};
+use inox_platform::FileWatcher;
 
 pub trait ExtensionHandler {
     fn on_changed(&mut self, path: &Path);
@@ -32,7 +32,8 @@ impl DataWatcher {
     }
 
     pub fn update(&mut self) {
-        while let Ok(FileEvent::Modified(path)) = self.filewatcher.read_events().try_recv() {
+        while let Ok(path) = self.filewatcher.read_events().try_recv() {
+            let path = std::path::PathBuf::from(path);
             if path.is_file() {
                 self.binarize_file(path.as_path());
             }

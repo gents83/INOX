@@ -10,6 +10,7 @@ license.workspace = true
 
 [features]
 dhat-heap = [] # if you are doing heap profiling
+cargo-clippy = []
 
 [dependencies]
 inox_resources = { path = "../resources" }
@@ -25,6 +26,12 @@ inox_profiler = { path = "../profiler" }
 inox_serialize = { path = "../serialize" }
 env_logger = { workspace = true }
 tracing = { workspace = true }
+
+[target.'cfg(target_os = "android")'.dependencies]
+android-activity = { version = "0.6", features = [ "native-activity" ] }
+
+[target.'cfg(target_os = "ios")'.dependencies]
+objc = "0.2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 dhat = "0.3.2"

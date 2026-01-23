@@ -1,38 +1,44 @@
-use std::{
-    path::{Path, PathBuf},
-    sync::{Arc, RwLock},
-};
+use std::path::{Path, PathBuf};
 
+use crate::platform_impl::platform::file;
+
+#[derive(Clone)]
 pub struct File {
+    #[allow(dead_code)]
     pub(crate) path: PathBuf,
-    pub(crate) bytes: Arc<RwLock<Vec<u8>>>,
 }
 
 impl File {
     pub fn new(path: &Path) -> Self {
         Self {
             path: path.to_path_buf(),
-            bytes: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
-    pub fn apply<F>(&mut self, mut f: F) -> &mut Self
-    where
-        F: FnMut(&mut Vec<u8>) + 'static,
-    {
-        {
-            let mut bytes = self.bytes.write().unwrap();
-            let bytes = bytes.as_mut();
-            f(bytes);
+    pub fn exists(&self) -> bool {
+        self.path.exists()
+    }
+
+    pub fn load(&self, f: impl FnOnce(&mut [u8])) {
+        if let Ok(mut bytes) = std::fs::read(&self.path) {
+            f(&mut bytes);
         }
-        self
     }
 
-    pub fn is_loaded(&self) -> bool {
-        !self.bytes.read().unwrap().is_empty()
+    pub fn save(&self, f: impl FnOnce(&mut Vec<u8>)) {
+        let mut bytes = Vec::new();
+        f(&mut bytes);
+        let _ = std::fs::write(&self.path, bytes);
     }
 
-    pub fn bytes(&self) -> Vec<u8> {
-        self.bytes.read().unwrap().clone()
+    pub fn save_ip(path: &Path, ip: &str) {
+        if path.exists() {
+            let _res = std::fs::remove_file(path);
+        }
+        let _res = std::fs::write(path, ip);
+    }
+
+    pub fn get_exe_path() -> PathBuf {
+        file::get_exe_path()
     }
 }

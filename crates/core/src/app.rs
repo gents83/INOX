@@ -86,12 +86,11 @@ impl App {
                 if e.code == Key::F9 && e.state == InputState::JustPressed {
                     if !is_profiling {
                         inox_profiler::start_profiler!();
-                        is_profiling = true;
                     } else {
-                        is_profiling = false;
                         inox_profiler::stop_profiler!();
                         inox_profiler::write_profile_file!();
                     }
+                    is_profiling = !is_profiling;
                 }
             })
             .process_messages(|e: &WindowEvent| match e {
