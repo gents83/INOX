@@ -10,6 +10,7 @@ license.workspace = true
 
 [features]
 dhat-heap = [] # if you are doing heap profiling
+cargo-clippy = []
 
 [dependencies]
 inox_resources = { path = "../resources" }

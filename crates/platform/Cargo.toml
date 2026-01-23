@@ -10,6 +10,8 @@ license.workspace = true
 [lib]
 crate-type = ["lib"]
 
+[features]
+cargo-clippy = []
 
 [dependencies]
 inox_commands = { path = "../commands" }
