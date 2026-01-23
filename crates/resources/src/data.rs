@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use inox_filesystem::{convert_from_local_path, File};
 use inox_messenger::MessageHubRc;
@@ -18,6 +18,19 @@ pub const PC_FOLDER: &str = "pc";
 pub const WEB_FOLDER: &str = "web";
 
 pub struct Data {}
+
+impl Data {
+    pub fn platform_data_folder() -> PathBuf {
+        let mut path = PathBuf::from(DATA_FOLDER);
+        if cfg!(target_arch = "wasm32") {
+            path.push(WEB_FOLDER);
+        } else {
+            path.push(PC_FOLDER);
+        }
+        path
+    }
+}
+
 pub trait DataTypeResource: ResourceTrait {
     type DataType;
 

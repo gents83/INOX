@@ -84,10 +84,10 @@ pub fn get_raw_thread_id() -> RawThreadId {
 pub fn get_raw_thread_id() -> RawThreadId {
     #[link(name = "pthread")]
     extern "C" {
-        fn pthread_threadid_np(thread: libc::pthread_t, thread_id: *mut u64) -> libc::c_int;
+        fn pthread_threadid_np(thread: *mut core::ffi::c_void, thread_id: *mut u64) -> i32;
     }
     let mut tid: u64 = 0;
-    let err = unsafe { pthread_threadid_np(0, &mut tid) };
+    let err = unsafe { pthread_threadid_np(0 as _, &mut tid) };
     assert_eq!(err, 0);
     tid
 }

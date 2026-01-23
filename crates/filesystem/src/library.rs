@@ -39,8 +39,15 @@ pub struct Library(platform::Library);
 impl Library {
     #[inline]
     pub fn new(filename: &str) -> Library {
+        #[cfg(target_os = "ios")]
         let _lib = platform::Library::load(filename);
-        Library(_lib)
+        #[cfg(not(target_os = "ios"))]
+        let _lib = Some(platform::Library::load(filename));
+
+        #[cfg(target_os = "ios")]
+        return Library(_lib.unwrap_or(platform::Library));
+        #[cfg(not(target_os = "ios"))]
+        return Library(_lib);
     }
 
     #[inline]

@@ -11,13 +11,13 @@ pub struct HandleImpl {
 }
 
 impl HandleImpl {
-    pub fn as_window_handle(&self) -> WindowHandle {
+    pub fn as_window_handle(&self) -> WindowHandle<'_> {
         let native_window = NonNull::new(self.a_native_window).unwrap();
         let handle = AndroidNdkWindowHandle::new(native_window);
         unsafe { WindowHandle::borrow_raw(RawWindowHandle::AndroidNdk(handle)) }
     }
 
-    pub fn as_display_handle(&self) -> DisplayHandle {
+    pub fn as_display_handle(&self) -> DisplayHandle<'_> {
         let handle = AndroidDisplayHandle::new();
         unsafe { DisplayHandle::borrow_raw(RawDisplayHandle::Android(handle)) }
     }

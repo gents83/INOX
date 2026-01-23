@@ -11,13 +11,13 @@ pub struct HandleImpl {
 }
 
 impl HandleImpl {
-    pub fn as_window_handle(&self) -> WindowHandle {
+    pub fn as_window_handle(&self) -> WindowHandle<'_> {
         let view = NonNull::new(self.ui_view).unwrap();
         let handle = UiKitWindowHandle::new(view);
         unsafe { WindowHandle::borrow_raw(RawWindowHandle::UiKit(handle)) }
     }
 
-    pub fn as_display_handle(&self) -> DisplayHandle {
+    pub fn as_display_handle(&self) -> DisplayHandle<'_> {
         let handle = UiKitDisplayHandle::new();
         unsafe { DisplayHandle::borrow_raw(RawDisplayHandle::UiKit(handle)) }
     }

@@ -4,7 +4,7 @@ use android_activity::{MainEvent, PollEvent};
 use inox_messenger::MessageHubRc;
 
 use super::handle::*;
-use super::platform::{ANDROID_APP, NATIVE_WINDOW};
+use super::platform::{ANDROID_APP, NATIVE_WINDOW, NativeWindowWrapper};
 use crate::handle::*;
 use crate::window::*;
 
@@ -24,17 +24,18 @@ impl Window {
         // Wait for window creation
         let mut window_ptr = std::ptr::null_mut();
         loop {
-            let win = *NATIVE_WINDOW.read().unwrap();
-            if !win.is_null() {
-                window_ptr = win;
+            let win = NATIVE_WINDOW.read().unwrap();
+            if !win.0.is_null() {
+                window_ptr = win.0;
                 break;
             }
+            drop(win);
 
             app.poll_events(Some(std::time::Duration::from_millis(10)), |event| {
                 match event {
                     PollEvent::Main(MainEvent::WindowCreated { window }) => {
                         let ptr = window.ptr().as_ptr();
-                        *NATIVE_WINDOW.write().unwrap() = ptr as _;
+                        *NATIVE_WINDOW.write().unwrap() = NativeWindowWrapper(ptr as _);
                         *scale_factor = 1.0; // TODO: Get density
                         // Update width/height?
                     }
@@ -65,10 +66,10 @@ impl Window {
                     can_continue = false;
                 }
                 PollEvent::Main(MainEvent::WindowCreated { window }) => {
-                     *NATIVE_WINDOW.write().unwrap() = window.ptr().as_ptr() as _;
+                     *NATIVE_WINDOW.write().unwrap() = NativeWindowWrapper(window.ptr().as_ptr() as _);
                 }
                 PollEvent::Main(MainEvent::WindowDestroyed { .. }) => {
-                     *NATIVE_WINDOW.write().unwrap() = std::ptr::null_mut();
+                     *NATIVE_WINDOW.write().unwrap() = NativeWindowWrapper(std::ptr::null_mut());
                 }
                 // TODO: Handle Input events
                 _ => {}

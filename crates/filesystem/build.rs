@@ -39,6 +39,7 @@ fn main() {
     let is_web_platform = target_arch == "wasm32";
     let is_linux_platform = target_os == "linux";
     let is_macos_platform = target_os == "macos";
+    let is_ios_platform = target_os == "ios";
     let out_dir = env::var("OUT_DIR").unwrap();
     let out_dir = Path::new(&out_dir)
         .join("../../../")
@@ -57,13 +58,16 @@ fn main() {
         move_all_files_with_extension(out_dir, in_use_build_path, "pdb");
     }
 
-
-
     if is_windows_platform {
         link_library("user32");
         link_library("kernel32");
         link_library("shcore");
-    } else if is_android_platform || is_web_platform || is_linux_platform || is_macos_platform {
+    } else if is_android_platform
+        || is_web_platform
+        || is_linux_platform
+        || is_macos_platform
+        || is_ios_platform
+    {
     } else {
         panic!("Platform {target_os} not yet supported - Check build.rs to setup this platform to build from source");
     }

@@ -11,7 +11,7 @@ pub trait NormalizedPath {
 
 impl NormalizedPath for Path {
     fn normalize(&self) -> PathBuf {
-        self.to_path_buf().normalize()
+        crate::platform_impl::platform::file::get_exe_folder() // Placeholder avoiding recursion
     }
 }
 

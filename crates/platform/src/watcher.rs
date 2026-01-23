@@ -30,7 +30,7 @@ pub trait EventFn: 'static + Fn(FileEvent) + Send {}
 impl<F> EventFn for F where F: 'static + Fn(FileEvent) + Send {}
 
 pub struct FileWatcher {
-    rx: Receiver<FileEvent>,
+    rx: Receiver<String>,
     file_watcher: FileWatcherImpl,
     filepath: PathBuf,
     filename: PathBuf,
@@ -43,8 +43,7 @@ impl FileWatcher {
         let filepath = Path::new(path.to_str().unwrap()).canonicalize().unwrap();
         let filename: PathBuf = PathBuf::from(filepath.file_name().unwrap());
         let (tx, rx) = mpsc::channel();
-        let mut w = FileWatcherImpl::new(move |res| tx.send(res).unwrap()).unwrap();
-        w.watch(path.as_ref());
+        let w = FileWatcherImpl::new(filepath.clone(), move |res| tx.send(res.to_string()).unwrap()).unwrap();
         Self {
             rx,
             file_watcher: w,
@@ -68,7 +67,7 @@ impl FileWatcher {
     }
 
     #[inline]
-    pub fn read_events(&self) -> &Receiver<FileEvent> {
+    pub fn read_events(&self) -> &Receiver<String> {
         &self.rx
     }
 }
