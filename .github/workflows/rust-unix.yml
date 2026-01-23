@@ -22,7 +22,7 @@ jobs:
     strategy:
       matrix:
         os:
-          - ubuntu-latest
+          - ubuntu-22.04
 
     steps:
       - name: "Add rustflags to env"
