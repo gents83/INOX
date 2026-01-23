@@ -1,0 +1,73 @@
+name: "Rust Android/iOS"
+
+on:
+  push:
+    branches: [ master, instancing_rework ]
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches: [ master, instancing_rework ]
+    tags:
+      - 'v*.*.*'
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_TARGET_DIR: ./crates/target
+
+jobs:
+  android:
+    name: "Android Check"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: "Install stable toolchain"
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: aarch64-linux-android
+          components: clippy
+
+      - name: "Update repos"
+        run: |
+          cd crates
+          cargo update
+          cd ..
+
+      - name: "Install cargo-ndk"
+        run: cargo install cargo-ndk
+
+      - name: "Check Android"
+        run: |
+          cd crates
+          cargo ndk -t arm64-v8a check --release
+          # cargo ndk -t arm64-v8a clippy --release --no-deps -- -D warnings
+
+  ios:
+    name: "iOS Check"
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: "Install stable toolchain"
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: aarch64-apple-ios
+          components: clippy
+
+      - name: "Update repos"
+        run: |
+          cd crates
+          cargo update
+          cd ..
+
+      - name: "Check iOS"
+        run: |
+          export SDKROOT=$(xcrun -sdk iphoneos --show-sdk-path)
+          cargo check --manifest-path ./crates/Cargo.toml --target aarch64-apple-ios --release
+          cargo clippy --manifest-path ./crates/Cargo.toml --target aarch64-apple-ios --release --no-deps -- -D warnings
