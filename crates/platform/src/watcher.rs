@@ -15,6 +15,7 @@ pub enum MetaEvent {
     WatcherAwakened,
 }
 
+#[derive(Debug)]
 pub enum FileEvent {
     RenamedFrom(PathBuf),
     RenamedTo(PathBuf),
@@ -43,7 +44,16 @@ impl FileWatcher {
         let filepath = Path::new(path.to_str().unwrap()).canonicalize().unwrap();
         let filename: PathBuf = PathBuf::from(filepath.file_name().unwrap());
         let (tx, rx) = mpsc::channel();
-        let w = FileWatcherImpl::new(filepath.clone(), move |res| tx.send(res.to_string()).unwrap()).unwrap();
+        #[cfg(not(target_os = "android"))]
+        #[cfg(not(target_os = "ios"))]
+        let w = FileWatcherImpl::new(move |res: FileEvent| tx.send(format!("{res:?}")).unwrap())
+            .unwrap();
+        #[cfg(any(target_os = "android", target_os = "ios"))]
+        let w = FileWatcherImpl::new(
+            filepath.clone(),
+            move |res: &str| tx.send(res.to_string()).unwrap(),
+        )
+        .unwrap();
         Self {
             rx,
             file_watcher: w,

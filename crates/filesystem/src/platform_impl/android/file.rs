@@ -1,21 +1,17 @@
+use std::path::PathBuf;
 
-use crate::File;
-
-impl File {
-    pub fn exists(&self) -> bool {
-        true
-    }
-
-    pub fn load<F>(&mut self, mut _f: F)
-    where
-        F: FnMut(&mut Vec<u8>) + 'static, {
-            eprintln!("Load not implemented for this platform");            
-    }
-
-    pub fn save<F>(&mut self, _f: F)
-    where
-        F: FnMut(&mut Vec<u8>) + 'static,
-    {
-        eprintln!("Save not implemented for this platform");
-    }
+pub fn get_exe_path() -> PathBuf {
+    std::env::current_exe().unwrap().parent().unwrap().to_path_buf()
+}
+pub fn get_exe_folder() -> PathBuf {
+    std::env::current_exe().unwrap().parent().unwrap().to_path_buf()
+}
+pub fn get_exe_filename() -> String {
+    std::env::current_exe()
+        .unwrap()
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string()
 }

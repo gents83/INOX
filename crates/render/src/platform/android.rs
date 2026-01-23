@@ -1,4 +1,4 @@
-#![cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+#![cfg(target_os = "android")]
 
 pub fn required_gpu_features() -> wgpu::Features {
     wgpu::Features::default()
@@ -9,17 +9,6 @@ pub fn required_gpu_features() -> wgpu::Features {
         | wgpu::Features::DEPTH32FLOAT_STENCIL8
         | wgpu::Features::VERTEX_WRITABLE_STORAGE
         | wgpu::Features::CLEAR_TEXTURE
-        | wgpu::Features::MULTI_DRAW_INDIRECT_COUNT
-        | wgpu::Features::TEXTURE_BINDING_ARRAY
-        | wgpu::Features::BUFFER_BINDING_ARRAY
-        | wgpu::Features::STORAGE_RESOURCE_BINDING_ARRAY
-        | wgpu::Features::SAMPLED_TEXTURE_AND_STORAGE_BUFFER_ARRAY_NON_UNIFORM_INDEXING
-        | wgpu::Features::STORAGE_TEXTURE_ARRAY_NON_UNIFORM_INDEXING
-        | wgpu::Features::SHADER_PRIMITIVE_INDEX
-        | wgpu::Features::PIPELINE_STATISTICS_QUERY
-        | wgpu::Features::TIMESTAMP_QUERY
-        | wgpu::Features::TIMESTAMP_QUERY_INSIDE_PASSES
-        | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS
 }
 
 pub fn platform_limits() -> wgpu::Limits {

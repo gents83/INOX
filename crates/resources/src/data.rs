@@ -16,14 +16,26 @@ pub const DATA_FOLDER: &str = "data";
 
 pub const PC_FOLDER: &str = "pc";
 pub const WEB_FOLDER: &str = "web";
+pub const ANDROID_FOLDER: &str = "android";
+pub const IOS_FOLDER: &str = "ios";
 
 pub struct Data {}
 
 impl Data {
+    pub fn data_raw_folder() -> PathBuf {
+        PathBuf::from(DATA_RAW_FOLDER)
+    }
+    pub fn data_folder() -> PathBuf {
+        PathBuf::from(DATA_FOLDER)
+    }
     pub fn platform_data_folder() -> PathBuf {
         let mut path = PathBuf::from(DATA_FOLDER);
         if cfg!(target_arch = "wasm32") {
             path.push(WEB_FOLDER);
+        } else if cfg!(target_os = "android") {
+            path.push(ANDROID_FOLDER);
+        } else if cfg!(target_os = "ios") {
+            path.push(IOS_FOLDER);
         } else {
             path.push(PC_FOLDER);
         }
