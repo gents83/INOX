@@ -156,7 +156,7 @@ impl Window {
 
                          if event.client_message.message_type == handle.handle_impl.wm_protocols
                             && event.client_message.format == 32
-                            && atom == handle.handle_impl.wm_delete_window as u64 {
+                            && atom == handle.handle_impl.wm_delete_window {
                                 handle.handle_impl.events_dispatcher.send_event(WindowEvent::Close);
                                 return false;
                             }
