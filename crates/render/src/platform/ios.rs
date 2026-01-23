@@ -1,5 +1,3 @@
-#![cfg(target_os = "ios")]
-
 pub fn required_gpu_features() -> wgpu::Features {
     wgpu::Features::default()
         | wgpu::Features::POLYGON_MODE_LINE
