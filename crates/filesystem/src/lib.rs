@@ -19,11 +19,7 @@ pub mod platform_impl {
     #[path = "ios/platform.rs"]
     pub mod platform;
 
-    #[cfg(all(not(target_arch = "wasm32"), target_os = "macos"))]
-    #[path = "macos/platform.rs"]
-    pub mod platform;
-
-    #[cfg(all(not(target_arch = "wasm32"), target_os = "linux"))]
+    #[cfg(all(not(target_arch = "wasm32"), unix, not(target_os = "android"), not(target_os = "ios")))]
     #[path = "unix/platform.rs"]
     pub mod platform;
 
