@@ -102,7 +102,7 @@ naga = { git = "https://github.com/gfx-rs/wgpu", features = [
     "serialize",
     "deserialize",
 ] }
-wgpu-profiler = { git = "https://github.com/Wumpf/wgpu-profiler" }
+wgpu-profiler = { git = "https://github.com/gents83/wgpu-profiler.git", branch = "wgpu-updated" }
 regex = { git = "https://github.com/rust-lang/regex" }
 gltf = { git = "https://github.com/gltf-rs/gltf", features = [
     "extras",
@@ -159,9 +159,12 @@ web-sys = { version = "0.3.77", features = [
 #[patch."https://github.com/gwihlidal/meshopt-rs"]
 #meshopt = { git = "https://github.com/gents83/meshopt-rs", branch = "traverse_breda_vertex_lock" }
 
-[patch."https://github.com/Wumpf/wgpu-profiler"]
-wgpu-profiler = { git = "https://github.com/gents83/wgpu-profiler.git", branch = "wgpu-updated" }
+[patch.crates-io]
+wgpu = { git = "https://github.com/gfx-rs/wgpu" }
+naga = { git = "https://github.com/gfx-rs/wgpu" }
+wgpu-core = { git = "https://github.com/gfx-rs/wgpu" }
+wgpu-hal = { git = "https://github.com/gfx-rs/wgpu" }
+wgpu-types = { git = "https://github.com/gfx-rs/wgpu" }
 
-#[patch."https://github.com/gfx-rs/wgpu"]
-#wgpu = { path = "../../wgpu/wgpu" }
-#wgpu = { git = "https://github.com/gents83/wgpu" }
+
+

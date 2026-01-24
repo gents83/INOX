@@ -17,7 +17,6 @@ pub mod config;
 pub mod data;
 pub mod event_handlers;
 pub mod events;
-pub mod platform;
 pub mod resource;
 pub mod shared_data;
 pub mod singleton;

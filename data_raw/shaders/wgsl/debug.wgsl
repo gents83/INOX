@@ -1,12 +1,5 @@
 #import "common.inc"
-#import "vertex_utils.inc"
-#import "texture_utils.inc"
-#import "material_utils.inc"
-#import "shape_utils.inc"
-#import "visibility_utils.inc"
-#import "pbr_utils.inc"
 #import "utils.inc"
-#import "color_utils.inc"
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
@@ -40,22 +33,23 @@ var<uniform> materials: Materials;
 @group(1) @binding(1)
 var<uniform> textures: Textures;
 @group(1) @binding(2)
-var<uniform> lights: Lights;
-@group(1) @binding(3)
 var visibility_texture: texture_2d<u32>;
-@group(1) @binding(4)
+@group(1) @binding(3)
 var depth_texture: texture_depth_2d;
-@group(1) @binding(5) 
-var direct_texture: texture_2d<f32>;
-@group(1) @binding(6) 
-var shadow_texture: texture_2d<f32>;
-@group(1) @binding(7) 
-var ao_texture: texture_2d<f32>;
+@group(1) @binding(4)
+var<storage, read_write> data_buffer_1: array<f32>;
+@group(1) @binding(5)
+var<storage, read_write> data_buffer_debug: array<f32>;
 
-@group(2) @binding(0) 
-var indirect_diffuse_texture: texture_2d<u32>;
-@group(2) @binding(1) 
-var indirect_specular_texture: texture_2d<u32>;
+#import "texture_utils.inc"
+#import "geom_utils.inc"
+#import "shape_utils.inc"
+#import "matrix_utils.inc"
+#import "material_utils.inc"
+#import "pbr_utils.inc"
+#import "visibility_utils.inc"
+#import "color_utils.inc"
+
 
 fn draw_triangle_from_visibility(visibility_id: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec3<f32>{
     let instance_id = (visibility_id >> 8u) - 1u;
@@ -400,6 +394,16 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
             out_color = vec4<f32>(vec3<f32>(material_info.perceptual_roughness), 1.);
         }
     } 
+    /*
+    else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER) != 0) {
+        let data_dimensions = vec2<u32>(DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        let data_scale = vec2<f32>(data_dimensions) / vec2<f32>(dimensions);
+        let data_pixel = vec2<u32>(pixel * data_scale);
+        let data_index = (data_pixel.y * data_dimensions.x + data_pixel.x) * SIZE_OF_DATA_BUFFER_ELEMENT;
+        let radiance = vec3<f32>(data_buffer_1[data_index], data_buffer_1[data_index + 1u], data_buffer_1[data_index + 2u]);
+        out_color = vec4<f32>(radiance, 1.);
+    }
+    */
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER) != 0) {
         let depth_dimensions = textureDimensions(depth_texture);
         let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
@@ -408,94 +412,52 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let v = vec3<f32>(1. - depth) * 10.;
         out_color = vec4<f32>(v, 1.);
     } 
-    else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_SHADOW) != 0) {
-        let tex_coords = vec2<i32>(v_in.clip_position.xy);
-        let shadow = textureLoad(shadow_texture, tex_coords, 0).r;
-        out_color = vec4<f32>(vec3<f32>(shadow), 1.);
-    } 
-    else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_AO) != 0) {
-        let tex_coords = vec2<i32>(v_in.clip_position.xy);
-        let ao = textureLoad(ao_texture, tex_coords, 0).r;
-        out_color = vec4<f32>(vec3<f32>(ao), 1.);
-    }
-    else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_INDIRECT_DIFFUSE) != 0) {
-        let tex_coords = vec2<i32>(v_in.clip_position.xy);
-        let indirect_coord = vec2<i32>(tex_coords.x / 2, tex_coords.y / 2);
-        let packed = textureLoad(indirect_diffuse_texture, indirect_coord, 0).rgb;
-        let unpacked = decode_uvec3_to_vec3(packed);
-        out_color = vec4<f32>(unpacked * 20., 1.);
-    }
-    else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_INDIRECT_SPECULAR) != 0) {
-        let tex_coords = vec2<i32>(v_in.clip_position.xy);
-        let indirect_coord = vec2<i32>(tex_coords.x / 2, tex_coords.y / 2);
-        let packed = textureLoad(indirect_specular_texture, indirect_coord, 0).rgb;
-        let unpacked = decode_uvec3_to_vec3(packed);
-        out_color = vec4<f32>(unpacked * 20., 1.);
-    }
-    else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_C_DIFF) != 0) {
-        // Display diffuse albedo (c_diff) - shows what materials contribute to diffuse bounces
-        let depth_dimensions = textureDimensions(depth_texture);
-        let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
-        let depth_pixel = vec2<u32>(pixel * depth_scale);
-        let depth = textureLoad(depth_texture, depth_pixel, 0);
-        let hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth);
+    else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE) != 0) {
+        var origin = vec3<f32>(0.);
+        var direction = vec3<f32>(0.);
+        let line_color = vec3<f32>(0., 1., 0.);
+        let line_size = 0.003;
+        var bounce_index = 0u;
         
-        let visibility_dimensions = textureDimensions(visibility_texture);
-        let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
-        let visibility_pixel = vec2<u32>(pixel * visibility_scale);
-        let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
-        let visibility_id = visibility_value.r;
-        
-        if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
-            var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
-            var material = materials.data[pixel_data.material_id];
-            var v: vec3<f32>;
-            var tbn: TBN;
-            var material_info = prepare_material(&material, &pixel_data, &tbn, &v);
-            
-            // c_diff is the diffuse albedo - should be non-zero for non-metallic materials
-            out_color = vec4<f32>(material_info.c_diff, 1.);
+        let data_dimensions = vec2<u32>(DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        let data_scale = vec2<f32>(data_dimensions) / vec2<f32>(dimensions);
+        let data_pixel = vec2<u32>(pixel * data_scale);
+        let data_index = (data_pixel.y * data_dimensions.x + data_pixel.x) * SIZE_OF_DATA_BUFFER_ELEMENT;
+        let radiance = vec3<f32>(data_buffer_1[data_index], data_buffer_1[data_index + 1u], data_buffer_1[data_index + 2u]);
+        var color = radiance.rgb;
+        /*
+        var debug_bvh_index = 100u;
+        let max_bvh_index = u32(read_value_from_data_buffer(&data_buffer_debug, &debug_bvh_index));
+        while(debug_bvh_index < max_bvh_index)
+        {
+            var min = read_vec3_from_data_buffer(&data_buffer_debug, &debug_bvh_index);
+            var max = read_vec3_from_data_buffer(&data_buffer_debug, &debug_bvh_index);
+            color += draw_cube_from_min_max(min, max, screen_pixel, dimensions);
+            //color += draw_line_3d(screen_pixel, dimensions, min, max, vec3<f32>(0.,0.,1.), line_size);
         }
-    }
-    else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_F0) != 0) {
-        // Display specular reflectance at normal incidence (f0)
-        let depth_dimensions = textureDimensions(depth_texture);
-        let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
-        let depth_pixel = vec2<u32>(pixel * depth_scale);
-        let depth = textureLoad(depth_texture, depth_pixel, 0);
-        let hit_point = pixel_to_world(depth_pixel, depth_dimensions, depth);
+        */
         
-        let visibility_dimensions = textureDimensions(visibility_texture);
-        let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);
-        let visibility_pixel = vec2<u32>(pixel * visibility_scale);
-        let visibility_value = textureLoad(visibility_texture, visibility_pixel, 0);
-        let visibility_id = visibility_value.r;
-        
-        if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
-            var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
-            var material = materials.data[pixel_data.material_id];
-            var v: vec3<f32>;
-            var tbn: TBN;
-            var material_info = prepare_material(&material, &pixel_data, &tbn, &v);
-            
-            // f0 shows specular reflectance - high for metals, lower for dielectrics
-            // Scale up for visibility since f0 for dielectrics is typically 0.04
-            out_color = vec4<f32>(material_info.f0 * 5.0, 1.);
+        var debug_index = 0u;
+        let max_index = u32(data_buffer_debug[debug_index]);
+        debug_index = debug_index + 1u;
+        if(max_index > 8u) {
+            while(debug_index < max_index) {
+                let visibility_id = u32(data_buffer_debug[debug_index]);
+                color += draw_triangle_from_visibility(visibility_id, screen_pixel, dimensions);
+
+                var previous = origin;
+                origin = vec3<f32>(data_buffer_debug[debug_index + 1u], data_buffer_debug[debug_index + 2u], data_buffer_debug[debug_index + 3u]);
+                direction = vec3<f32>(data_buffer_debug[debug_index + 4u], data_buffer_debug[debug_index + 5u], data_buffer_debug[debug_index + 6u]);
+
+                if (bounce_index > 0u) {
+                    color += draw_line_3d(screen_pixel, dimensions, previous, origin, line_color, line_size);
+                }
+                bounce_index += 1u;
+                debug_index = debug_index + 7u;
+            }
+            color += draw_line_3d(screen_pixel, dimensions, origin, origin + direction * 5., line_color, line_size);
+            out_color = vec4<f32>(color, 1.);
         }
-    }
-    else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_FIRST_BOUNCE_THROUGHPUT) != 0) {
-        // Display the initial throughput from first bounce rays
-        // This helps diagnose if throughput is being computed correctly
-        let tex_coords = vec2<i32>(v_in.clip_position.xy);
-        let indirect_coord = vec2<i32>(tex_coords.x / 2, tex_coords.y / 2);
-        
-        // Use indirect diffuse texture to store first bounce throughput temporarily
-        // (This would need proper implementation - for now showing what's stored)
-        let packed = textureLoad(indirect_diffuse_texture, indirect_coord, 0).rgb;
-        let unpacked = decode_uvec3_to_vec3(packed);
-        
-        // Scale for visibility - throughput should typically be < 1.0
-        out_color = vec4<f32>(unpacked, 1.);
     }
 
     return select(vec4<f32>(0.), out_color, out_color.a > 0.);

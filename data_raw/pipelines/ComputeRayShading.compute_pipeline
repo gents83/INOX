@@ -1,3 +1,0 @@
-{
-    "shader": "shaders/wgsl/compute_ray_shading.shader"
-}

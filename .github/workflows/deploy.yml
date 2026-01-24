@@ -2,7 +2,7 @@ name: "Deploy on Github Pages"
 
 on:
   workflow_run:
-    workflows: ["Rust"]
+    workflows: ["Rust Web"]
     branches: [master, instancing_rework]
     types:
       - completed
@@ -23,6 +23,8 @@ jobs:
         with:
           name: output-binaries
           path: output/
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: "Install zip"
         uses: montudor/action-zip@v1

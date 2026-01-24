@@ -171,7 +171,7 @@ impl RenderContext {
                 backend_options: wgpu::BackendOptions::from_env_or_default(),
                 ..Default::default()
             };
-            let instance = wgpu::Instance::new(&instance_descriptor);
+            let instance = wgpu::Instance::new(instance_descriptor);
             let surface = Self::create_surface(&instance, handle.clone());
 
             #[cfg(not(target_arch = "wasm32"))]

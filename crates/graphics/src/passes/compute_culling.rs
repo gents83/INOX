@@ -3,10 +3,7 @@ use std::path::PathBuf;
 use inox_bvh::GPUBVHNode;
 use inox_math::{matrix4_to_array, Mat4Ops, Matrix4};
 use inox_render::{
-    AsBinding, BindingData, BindingFlags, BindingInfo, BufferRef, CommandBuffer, ComputePass,
-    ComputePassData, ConstantDataRw, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMeshlet,
-    GPUTransform, GPUVector, MeshFlags, Pass, RenderContext, RenderContextRc, ShaderStage, Texture,
-    TextureView, INSTANCE_DATA_ID,
+    AsBinding, BindingData, BindingFlags, BindingInfo, BufferRef, CommandBuffer, ComputePass, ComputePassData, ConstantDataRw, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMeshlet, GPUTransform, GPUVector, INSTANCE_DATA_ID, MeshFlags, Pass, RenderContext, RenderContextRc, ShaderStage, Texture, TextureView
 };
 
 use inox_commands::CommandParser;
@@ -296,31 +293,26 @@ impl Pass for CullingPass {
                     flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                     ..Default::default()
                 },
+            )
+            .add_texture(
+                self.hzb_texture.as_ref().unwrap().id(),
+                0,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 2,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+            )
+            .add_default_sampler(
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 3,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+                inox_render::SamplerType::Unfiltered,
             );
-
-        // Only add HZB texture if it has been set
-        if let Some(ref hzb_texture) = self.hzb_texture {
-            self.binding_data
-                .add_texture(
-                    hzb_texture.id(),
-                    0,
-                    BindingInfo {
-                        group_index: 1,
-                        binding_index: 2,
-                        stage: ShaderStage::Compute,
-                        ..Default::default()
-                    },
-                )
-                .add_default_sampler(
-                    BindingInfo {
-                        group_index: 1,
-                        binding_index: 3,
-                        stage: ShaderStage::Compute,
-                        ..Default::default()
-                    },
-                    inox_render::SamplerType::Unfiltered,
-                );
-        }
 
         let mut pass = self.compute_pass.get_mut();
         pass.init(render_context, &mut self.binding_data, None);

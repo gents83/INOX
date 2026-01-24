@@ -1,0 +1,95 @@
+name: "Rust Unix"
+
+on:
+  push:
+    branches: [ master, instancing_rework ]
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches: [ master, instancing_rework ]
+    tags:
+      - 'v*.*.*'
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_TARGET_DIR: ./crates/target
+  RUSTFLAGS: '--cfg=web_sys_unstable_apis' # required for webgpu
+
+jobs:
+  check:
+    name: "Build on OS: ${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - ubuntu-22.04
+
+    steps:
+      - name: "Add rustflags to env"
+        run: echo RUSTFLAGS=${RUSTFLAGS} >> $GITHUB_ENV
+
+      - name: "Checkout repository and submodules"
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: "Install Dependencies"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxcursor-dev libxi-dev libxrandr-dev libxinerama-dev libwayland-dev libxkbcommon-dev
+          wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
+          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list https://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
+          sudo apt-get update
+          sudo apt-get install -y vulkan-sdk
+          echo "VULKAN_SDK=/usr" >> $GITHUB_ENV
+
+      - name: "Creating folders"
+        run: |
+          mkdir -p "./crates/target/"
+          mkdir -p "./output/"
+          mkdir -p "./output/web/"
+          mkdir -p "./output/INOX/"
+          mkdir -p "./output/INOX/bin/"
+          mkdir -p "./output/INOX/bin/data_raw/"
+
+      - name: "Enable use of cache"
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            ./crates/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: "Install stable toolchain"
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: "Update repos"
+        run: |
+          cd crates
+          cargo update
+          cd ..
+
+      - name: "Run cargo clippy check"
+        run: cargo clippy --manifest-path ./crates/Cargo.toml --no-deps -- -D warnings
+
+      - name: "Run cargo build workspace release"
+        run: cargo build --manifest-path ./crates/Cargo.toml --release
+
+      - name: "Copy .so in output"
+        run: cp -f ./crates/target/release/*.so ./output/INOX/bin/
+
+      - name: "Copy executables in output"
+        run: |
+          find ./crates/target/release/ -maxdepth 1 -executable -type f ! -name "*.so" -exec cp -f {} ./output/INOX/bin/ \;
+
+      - name: "Upload artifacts"
+        uses: actions/upload-artifact@v4
+        with:
+          name: output-binaries-linux
+          path: output/

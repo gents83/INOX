@@ -1,9 +1,7 @@
 [book]
 authors = ["Mauro Gentile"]
 language = "en"
-multilingual = false
 src = "src"
 title = "INOX"
 
 [output.html]
-index = "index.html"

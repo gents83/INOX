@@ -2,15 +2,18 @@ use std::path::PathBuf;
 
 use inox_render::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, GPUBuffer, GPUInstance,
-    GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture, GPUTransform, GPUVector,
-    GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, Pass, RenderContext, RenderContextRc,
-    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
-    Texture, TextureView, INSTANCE_DATA_ID,
+    GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture, GPUTransform, GPUVector, GPUVertexAttributes,
+    GPUVertexIndices, GPUVertexPosition, LoadOperation, Pass, RenderContext, RenderContextRc,
+    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType, ShaderStage,
+    StoreOperation, TextureId, TextureView, DEFAULT_HEIGHT, DEFAULT_WIDTH, INSTANCE_DATA_ID,
 };
 
 use inox_core::ContextRc;
-use inox_resources::{DataTypeResource, Handle, Resource, ResourceTrait};
-use inox_uid::generate_random_uid;
+use inox_resources::{DataTypeResource, Resource, ResourceTrait};
+use inox_uid::{generate_random_uid, INVALID_UID};
+
+use super::compute_pathtracing_indirect::DebugPackedData;
+use crate::{RadiancePackedData, SIZE_OF_DATA_BUFFER_ELEMENT};
 
 pub const DEBUG_PIPELINE: &str = "pipelines/Debug.render_pipeline";
 pub const DEBUG_PASS_NAME: &str = "DebugPass";
@@ -19,23 +22,20 @@ pub struct DebugPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    indices: GPUBuffer<GPUVertexIndices>,
-    vertices_positions: GPUBuffer<GPUVertexPosition>,
-    vertices_attributes: GPUBuffer<GPUVertexAttributes>,
     meshes: GPUBuffer<GPUMesh>,
     meshlets: GPUBuffer<GPUMeshlet>,
+    indices: GPUBuffer<GPUVertexIndices>,
     instances: GPUVector<GPUInstance>,
     transforms: GPUVector<GPUTransform>,
-    materials: GPUBuffer<GPUMaterial>,
+    vertices_position: GPUBuffer<GPUVertexPosition>,
+    vertices_attributes: GPUBuffer<GPUVertexAttributes>,
     textures: GPUBuffer<GPUTexture>,
-    lights: GPUBuffer<GPULight>,
-    visibility_texture: Handle<Texture>,
-    depth_texture: Handle<Texture>,
-    direct_texture: Handle<Texture>,
-    indirect_diffuse_texture: Handle<Texture>,
-    indirect_specular_texture: Handle<Texture>,
-    shadow_texture: Handle<Texture>,
-    ao_texture: Handle<Texture>,
+    materials: GPUBuffer<GPUMaterial>,
+    finalize_texture: TextureId,
+    visibility_texture: TextureId,
+    depth_texture: TextureId,
+    data_buffer_1: GPUVector<RadiancePackedData>,
+    data_buffer_debug: GPUVector<DebugPackedData>,
 }
 unsafe impl Send for DebugPass {}
 unsafe impl Sync for DebugPass {}
@@ -54,14 +54,31 @@ impl Pass for DebugPass {
     where
         Self: Sized,
     {
+        inox_profiler::scoped_profile!("debug_pass::create");
+
         let data = RenderPassData {
             name: DEBUG_PASS_NAME.to_string(),
+            load_color: LoadOperation::Load,
+            load_depth: LoadOperation::Load,
             store_color: StoreOperation::Store,
             store_depth: StoreOperation::Store,
             render_target: RenderTarget::Screen,
             pipeline: PathBuf::from(DEBUG_PIPELINE),
             ..Default::default()
         };
+
+        let data_buffer_debug = render_context.global_buffers().vector::<DebugPackedData>();
+        data_buffer_debug.write().unwrap().resize(
+            SIZE_OF_DATA_BUFFER_ELEMENT * (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
+            DebugPackedData(0.),
+        );
+        let data_buffer_1 = render_context
+            .global_buffers()
+            .vector::<RadiancePackedData>();
+        data_buffer_1.write().unwrap().resize(
+            SIZE_OF_DATA_BUFFER_ELEMENT * (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
+            RadiancePackedData(0.),
+        );
 
         Self {
             render_pass: RenderPass::new_resource(
@@ -71,52 +88,45 @@ impl Pass for DebugPass {
                 &data,
                 None,
             ),
-            constant_data: render_context.global_buffers().constant_data.clone(),
+            data_buffer_1: render_context
+                .global_buffers()
+                .vector::<RadiancePackedData>(),
+            data_buffer_debug: render_context.global_buffers().vector::<DebugPackedData>(),
             binding_data: BindingData::new(render_context, DEBUG_PASS_NAME),
+            constant_data: render_context.global_buffers().constant_data.clone(),
+            meshes: render_context.global_buffers().buffer::<GPUMesh>(),
+            meshlets: render_context.global_buffers().buffer::<GPUMeshlet>(),
+            transforms: render_context.global_buffers().vector::<GPUTransform>(),
+            instances: render_context
+                .global_buffers()
+                .vector_with_id::<GPUInstance>(INSTANCE_DATA_ID),
+            textures: render_context.global_buffers().buffer::<GPUTexture>(),
+            materials: render_context.global_buffers().buffer::<GPUMaterial>(),
             indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
-            vertices_positions: render_context
+            vertices_position: render_context
                 .global_buffers()
                 .buffer::<GPUVertexPosition>(),
             vertices_attributes: render_context
                 .global_buffers()
                 .buffer::<GPUVertexAttributes>(),
-            meshes: render_context.global_buffers().buffer::<GPUMesh>(),
-            meshlets: render_context.global_buffers().buffer::<GPUMeshlet>(),
-            instances: render_context
-                .global_buffers()
-                .vector_with_id::<GPUInstance>(INSTANCE_DATA_ID),
-            transforms: render_context.global_buffers().vector::<GPUTransform>(),
-            lights: render_context.global_buffers().buffer::<GPULight>(),
-            materials: render_context.global_buffers().buffer::<GPUMaterial>(),
-            textures: render_context.global_buffers().buffer::<GPUTexture>(),
-            visibility_texture: None,
-            depth_texture: None,
-            direct_texture: None,
-            indirect_diffuse_texture: None,
-            indirect_specular_texture: None,
-            shadow_texture: None,
-            ao_texture: None,
+            finalize_texture: INVALID_UID,
+            visibility_texture: INVALID_UID,
+            depth_texture: INVALID_UID,
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
+        inox_profiler::scoped_profile!("debug_pass::init");
+
         if self.indices.read().unwrap().is_empty()
             || self.meshes.read().unwrap().is_empty()
             || self.meshlets.read().unwrap().is_empty()
             || self.instances.read().unwrap().is_empty()
-            || self.visibility_texture.is_none()
-            || self.direct_texture.is_none()
-            || self.indirect_diffuse_texture.is_none()
-            || self.indirect_specular_texture.is_none()
-            || self.shadow_texture.is_none()
-            || self.ao_texture.is_none()
+            || self.visibility_texture.is_nil()
         {
             return;
         }
 
-        inox_profiler::scoped_profile!("debug_pass::init");
-
         let mut pass = self.render_pass.get_mut();
-        pass.remove_all_render_targets();
 
         self.binding_data
             .add_buffer(
@@ -137,29 +147,29 @@ impl Pass for DebugPass {
                     group_index: 0,
                     binding_index: 1,
                     stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Read | BindingFlags::Storage,
+                    flags: BindingFlags::Storage | BindingFlags::Read | BindingFlags::Index,
                     ..Default::default()
                 },
             )
             .add_buffer(
-                &mut *self.vertices_positions.write().unwrap(),
-                Some("VerticesPositions"),
+                &mut *self.vertices_position.write().unwrap(),
+                Some("Vertices Position"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,
                     stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Read | BindingFlags::Storage,
+                    flags: BindingFlags::Storage | BindingFlags::Read | BindingFlags::Vertex,
                     ..Default::default()
                 },
             )
             .add_buffer(
                 &mut *self.vertices_attributes.write().unwrap(),
-                Some("VerticesAttributes"),
+                Some("Vertices Attributes"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 3,
                     stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Read | BindingFlags::Storage,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
@@ -170,7 +180,7 @@ impl Pass for DebugPass {
                     group_index: 0,
                     binding_index: 4,
                     stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Read | BindingFlags::Storage,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
@@ -181,7 +191,7 @@ impl Pass for DebugPass {
                     group_index: 0,
                     binding_index: 5,
                     stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Read | BindingFlags::Storage,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
@@ -192,7 +202,7 @@ impl Pass for DebugPass {
                     group_index: 0,
                     binding_index: 6,
                     stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Read | BindingFlags::Storage,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
@@ -203,7 +213,7 @@ impl Pass for DebugPass {
                     group_index: 0,
                     binding_index: 7,
                     stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Read | BindingFlags::Storage,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
@@ -229,142 +239,73 @@ impl Pass for DebugPass {
                     ..Default::default()
                 },
             )
-            .add_buffer(
-                &mut *self.lights.write().unwrap(),
-                Some("Lights"),
+            .add_texture(
+                &self.visibility_texture,
+                0,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 2,
                     stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Read | BindingFlags::Uniform,
                     ..Default::default()
                 },
             )
             .add_texture(
-                self.visibility_texture.as_ref().unwrap().id(),
+                &self.depth_texture,
                 0,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 3,
                     stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_texture(
-                self.depth_texture.as_ref().unwrap().id(),
-                0,
+            .add_buffer(
+                &mut *self.data_buffer_1.write().unwrap(),
+                Some("DataBuffer_1"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 4,
                     stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Read,
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                     ..Default::default()
                 },
             )
-            .add_texture(
-                self.direct_texture.as_ref().unwrap().id(),
-                0,
+            .add_buffer(
+                &mut *self.data_buffer_debug.write().unwrap(),
+                Some("DataBuffer_Debug"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 5,
                     stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_texture(
-                self.shadow_texture.as_ref().unwrap().id(),
-                0,
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 6,
-                    stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_texture(
-                self.ao_texture.as_ref().unwrap().id(),
-                0,
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 7,
-                    stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_texture(
-                self.indirect_diffuse_texture.as_ref().unwrap().id(),
-                0,
-                BindingInfo {
-                    group_index: 2,
-                    binding_index: 0,
-                    stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_texture(
-                self.indirect_specular_texture.as_ref().unwrap().id(),
-                0,
-                BindingInfo {
-                    group_index: 2,
-                    binding_index: 1,
-                    stage: ShaderStage::Fragment,
-                    flags: BindingFlags::Read,
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                     ..Default::default()
                 },
             );
 
-        // Group 3: Texture sampling (sampler + texture arrays) - required by shader
         self.binding_data
             .add_default_sampler(
-                inox_render::BindingInfo {
-                    group_index: 3,
+                BindingInfo {
+                    group_index: 2,
                     binding_index: 0,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
-                inox_render::SamplerType::Unfiltered,
+                SamplerType::Unfiltered,
             )
-            .add_material_textures(inox_render::BindingInfo {
-                group_index: 3,
+            .add_material_textures(BindingInfo {
+                group_index: 2,
                 binding_index: 1,
                 stage: ShaderStage::Fragment,
                 ..Default::default()
             });
-
         pass.init(render_context, &mut self.binding_data, None, None);
     }
-
     fn update(
         &mut self,
         render_context: &RenderContext,
         surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        // Check Flags: If no debug flag is set, return immediately.
-        let flags = self.constant_data.read().unwrap().flags();
-        if flags == 0 {
-            return;
-        }
-
-        if self.indices.read().unwrap().is_empty()
-            || self.meshes.read().unwrap().is_empty()
-            || self.meshlets.read().unwrap().is_empty()
-            || self.instances.read().unwrap().is_empty()
-            || self.visibility_texture.is_none()
-            || self.direct_texture.is_none()
-            || self.indirect_diffuse_texture.is_none()
-            || self.indirect_specular_texture.is_none()
-            || self.shadow_texture.is_none()
-            || self.ao_texture.is_none()
-        {
-            return;
-        }
-
         inox_profiler::scoped_profile!("debug_pass::update");
 
         let pass = self.render_pass.get();
@@ -372,6 +313,16 @@ impl Pass for DebugPass {
         if !pipeline.is_initialized() {
             return;
         }
+
+        if self.indices.read().unwrap().is_empty()
+            || self.meshes.read().unwrap().is_empty()
+            || self.meshlets.read().unwrap().is_empty()
+            || self.instances.read().unwrap().is_empty()
+            || self.visibility_texture.is_nil()
+        {
+            return;
+        }
+
         let buffers = render_context.buffers();
         let render_targets = render_context.texture_handler().render_targets();
 
@@ -396,32 +347,16 @@ impl Pass for DebugPass {
 }
 
 impl DebugPass {
-    pub fn set_direct_texture(&mut self, texture: &Resource<Texture>) -> &mut Self {
-        self.direct_texture = Some(texture.clone());
+    pub fn set_visibility_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.visibility_texture = *texture_id;
         self
     }
-    pub fn set_indirect_diffuse_texture(&mut self, texture: &Resource<Texture>) -> &mut Self {
-        self.indirect_diffuse_texture = Some(texture.clone());
+    pub fn set_depth_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.depth_texture = *texture_id;
         self
     }
-    pub fn set_indirect_specular_texture(&mut self, texture: &Resource<Texture>) -> &mut Self {
-        self.indirect_specular_texture = Some(texture.clone());
-        self
-    }
-    pub fn set_shadow_texture(&mut self, texture: &Resource<Texture>) -> &mut Self {
-        self.shadow_texture = Some(texture.clone());
-        self
-    }
-    pub fn set_ao_texture(&mut self, texture: &Resource<Texture>) -> &mut Self {
-        self.ao_texture = Some(texture.clone());
-        self
-    }
-    pub fn set_visibility_texture(&mut self, texture: &Resource<Texture>) -> &mut Self {
-        self.visibility_texture = Some(texture.clone());
-        self
-    }
-    pub fn set_depth_texture(&mut self, texture: &Resource<Texture>) -> &mut Self {
-        self.depth_texture = Some(texture.clone());
+    pub fn set_finalize_texture(&mut self, texture_id: &TextureId) -> &mut Self {
+        self.finalize_texture = *texture_id;
         self
     }
 }

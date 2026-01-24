@@ -5,7 +5,7 @@ use std::{
 };
 
 use inox_filesystem::{delete_file, library, Library};
-use inox_platform::{FileEvent, FileWatcher};
+use inox_platform::FileWatcher;
 
 use crate::{
     ContextRc, PfnCreatePlugin, PfnDestroyPlugin, PfnLoadConfigPlugin, PfnPreparePlugin,
@@ -228,9 +228,10 @@ impl PluginManager {
     pub fn update(&mut self) -> Vec<PluginId> {
         inox_profiler::scoped_profile!("plugin_manager::update");
 
-        let mut plugins_to_remove: Vec<PluginId> = Vec::new();
+        let plugins_to_remove: Vec<PluginId> = Vec::new();
         for plugin_data in self.dynamic_plugins.iter_mut() {
-            while let Ok(event) = plugin_data.filewatcher.read_events().try_recv() {
+            while let Ok(_event) = plugin_data.filewatcher.read_events().try_recv() {
+                /*
                 match event {
                     FileEvent::Modified(path)
                     | FileEvent::Created(path)
@@ -242,6 +243,7 @@ impl PluginManager {
                     }
                     _ => {}
                 }
+                */
             }
         }
 
