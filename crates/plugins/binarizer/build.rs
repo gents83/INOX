@@ -28,6 +28,9 @@ fn move_all_files_with_extension(src_path: PathBuf, target_path: PathBuf, extens
 }
 
 fn main() {
+    if !cfg!(target_os = "windows") {
+        return;
+    }
     let target_os = ::std::env::var("CARGO_CFG_TARGET_OS").unwrap();
 
     let is_windows_platform = target_os == "windows";
@@ -39,7 +42,7 @@ fn main() {
 
     let out_dir = env::var("OUT_DIR").unwrap();
     let out_dir = Path::new(&out_dir)
-        .join("..\\..\\..\\")
+        .join("../../../")
         .canonicalize()
         .unwrap();
     let mut deps_path = Path::new(&out_dir).join("deps");

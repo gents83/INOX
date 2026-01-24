@@ -12,9 +12,9 @@ const CONSTANT_DATA_FLAGS_NONE: u32 = 0u;
 const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1u;
 const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 1u << 1u;
 const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_LOD_LEVEL: u32 = 1u << 2u;
-const CONSTANT_DATA_FLAGS_DISPLAY_SHADOW: u32 = 1u << 3u;
+const CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER: u32 = 1u << 3u;
 const CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER: u32 = 1u << 4u;
-const CONSTANT_DATA_FLAGS_DISPLAY_AO: u32 = 1u << 5u;
+const CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE: u32 = 1u << 5u;
 const CONSTANT_DATA_FLAGS_DISPLAY_NORMALS: u32 = 1u << 6u;
 const CONSTANT_DATA_FLAGS_DISPLAY_TANGENT: u32 = 1u << 7u;
 const CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT: u32 = 1u << 8u;
@@ -25,12 +25,6 @@ const CONSTANT_DATA_FLAGS_DISPLAY_UV_0: u32 = 1u << 12u;
 const CONSTANT_DATA_FLAGS_DISPLAY_UV_1: u32 = 1u << 13u;
 const CONSTANT_DATA_FLAGS_DISPLAY_UV_2: u32 = 1u << 14u;
 const CONSTANT_DATA_FLAGS_DISPLAY_UV_3: u32 = 1u << 15u;
-const CONSTANT_DATA_FLAGS_DISPLAY_INDIRECT_DIFFUSE: u32 = 1u << 16u;
-const CONSTANT_DATA_FLAGS_DISPLAY_INDIRECT_SPECULAR: u32 = 1u << 17u;
-// Path tracer debug modes
-const CONSTANT_DATA_FLAGS_DISPLAY_C_DIFF: u32 = 1u << 18u;
-const CONSTANT_DATA_FLAGS_DISPLAY_F0: u32 = 1u << 19u;
-const CONSTANT_DATA_FLAGS_DISPLAY_FIRST_BOUNCE_THROUGHPUT: u32 = 1u << 20u;
 
 const MAX_TEXTURE_ATLAS_COUNT: u32 = 8u;
 const MAX_TEXTURE_COORDS_SET: u32 = 4u;
@@ -73,20 +67,6 @@ const MAX_TRACING_DISTANCE: f32 = 500.;
 const HIT_EPSILON: f32 = 0.0001;
 const INVALID_NODE: i32 = -1;
 
-// Wavefront Path Tracer Configuration
-const MAX_DIFFUSE_BOUNCES: u32 = 4u;
-const MAX_SPECULAR_BOUNCES: u32 = 8u;
-const MAX_TRANSMISSION_BOUNCES: u32 = 8u;
-const MAX_AO_SAMPLES: u32 = 1u;
-const AO_MAX_DISTANCE: f32 = 2.0;
-const RUSSIAN_ROULETTE_MIN_BOUNCES: u32 = 3u;
-const RUSSIAN_ROULETTE_THRESHOLD: f32 = 0.05;
-
-// Ambient Lighting
-// Small constant to prevent completely black surfaces when no direct light hits them
-const AMBIENT_LIGHT: vec3<f32> = vec3<f32>(0.1, 0.1, 0.1); // 10% ambient
-
-
 const VERTEX_ATTRIBUTE_HAS_POSITION: u32 = 0u;
 const VERTEX_ATTRIBUTE_HAS_COLOR: u32 = 1u;
 const VERTEX_ATTRIBUTE_HAS_NORMAL: u32 = 1u << 1u;
@@ -117,9 +97,6 @@ const LIGHT_TYPE_INVALID: u32 = 0u;
 const LIGHT_TYPE_DIRECTIONAL: u32 = 1u;
 const LIGHT_TYPE_POINT: u32 = 1u << 1u;
 const LIGHT_TYPE_SPOT: u32 = 1u << 2u;
-const LIGHT_TYPE_AREA: u32 = 1u << 3u;
-const LIGHT_AREA_SHAPE_RECTANGLE: u32 = 0u;
-const LIGHT_AREA_SHAPE_DISK: u32 = 1u;
 
 struct ConstantData {
     view: mat4x4<f32>,
@@ -379,11 +356,4 @@ struct MaterialInfo {
     f_diffuse: vec3<f32>,
     f_diffuse_ibl: vec3<f32>,
     f_specular: vec3<f32>,
-    f_specular_ibl: vec3<f32>,
-    f_sheen: vec3<f32>,
-    f_sheen_ibl: vec3<f32>,
-    f_clearcoat: vec3<f32>,
-    f_clearcoat_ibl: vec3<f32>,
-    f_transmission: vec3<f32>,
-    shading_normal: vec3<f32>,
 };

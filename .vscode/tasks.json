@@ -240,12 +240,47 @@
 		{
 			"label": "COMPILE RELEASE ANDROID",
 			"args": [
+				"ndk",
+				"-t",
+				"arm64-v8a",
+				"build",
+				"--manifest-path",
+				"./crates/Cargo.toml",
+				"--release",
+			],
+			"command": "cargo",
+			"problemMatcher": [
+				{
+					"owner": "rust",
+					"fileLocation": [
+						"relative",
+						"${workspaceRoot}"
+					],
+					"pattern": {
+						"regexp": "^(.*):(\\d+):(\\d+):\\s+(\\d+):(\\d+)\\s+(warning|error):\\s+(.*)$",
+						"file": 1,
+						"line": 2,
+						"column": 3,
+						"endLine": 4,
+						"endColumn": 5,
+						"severity": 6,
+						"message": 7
+					}
+				}
+			],
+			"presentation": {
+				"clear": true,
+			}
+		},
+		{
+			"label": "COMPILE RELEASE IOS",
+			"args": [
 				"build",
 				"--manifest-path",
 				"./crates/Cargo.toml",
 				"--release",
 				"--target",
-				"x86_64-linux-android",
+				"aarch64-apple-ios",
 			],
 			"command": "cargo",
 			"problemMatcher": [
@@ -385,6 +420,19 @@
 			"isBackground": true,
 			"dependsOn": [
 				"COMPILE RELEASE ANDROID",
+			],
+			"problemMatcher": [],
+			"presentation": {
+				"clear": true,
+				"reveal": "never", //process does not switch terminal (focus on program output)
+			},
+		},
+		{
+			"label": "BUILD RELEASE IOS",
+			"group": "build",
+			"isBackground": true,
+			"dependsOn": [
+				"COMPILE RELEASE IOS",
 			],
 			"problemMatcher": [],
 			"presentation": {

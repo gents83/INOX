@@ -8,14 +8,13 @@ use std::{
     io::BufWriter,
     process,
     sync::{
-        atomic::{AtomicBool, AtomicU64},
+        atomic::AtomicBool,
         mpsc::{channel, Receiver, Sender},
-        Arc, LazyLock, Mutex,
+        Arc, LazyLock, Mutex, RwLock,
     },
     thread,
+    time::Instant,
 };
-
-use crate::current_time_in_micros;
 
 pub type GlobalCpuProfiler = Arc<CpuProfiler>;
 
@@ -48,6 +47,23 @@ impl ThreadProfiler {
         };
         self.tx.send(sample).ok();
     }
+    pub fn push_sample_with_tid(
+        &self,
+        tid: RawThreadId,
+        category: String,
+        name: String,
+        time_start: f64,
+        time_end: f64,
+    ) {
+        let sample = Sample {
+            tid,
+            category,
+            name,
+            time_start,
+            time_end,
+        };
+        self.tx.send(sample).ok();
+    }
 }
 
 #[repr(C)]
@@ -67,7 +83,7 @@ struct LockedData {
 #[repr(C)]
 pub struct CpuProfiler {
     is_started: AtomicBool,
-    time_start: AtomicU64,
+    time_start: RwLock<Instant>,
     rx: Receiver<Sample>,
     tx: Sender<Sample>,
     locked_data: Mutex<LockedData>,
@@ -81,7 +97,7 @@ impl CpuProfiler {
 
         CpuProfiler {
             is_started: AtomicBool::new(false),
-            time_start: AtomicU64::new(0),
+            time_start: RwLock::new(Instant::now()),
             rx,
             tx,
             locked_data: Mutex::new(LockedData::default()),
@@ -93,30 +109,21 @@ impl CpuProfiler {
     pub fn start(&self) {
         self.is_started
             .swap(true, std::sync::atomic::Ordering::SeqCst);
-        self.time_start.swap(
-            current_time_in_micros(),
-            std::sync::atomic::Ordering::SeqCst,
-        );
+        *self.time_start.write().unwrap() = Instant::now();
         inox_log::debug_log!("Starting profiler");
     }
     pub fn stop(&self) {
         self.is_started
             .swap(false, std::sync::atomic::Ordering::SeqCst);
-        let current_time = current_time_in_micros();
-        let start_time = self.time_start.load(std::sync::atomic::Ordering::SeqCst);
+        let start_time = *self.time_start.read().unwrap();
         inox_log::debug_log!(
             "Stopping profiler for a total duration of {:.3}",
-            (current_time - start_time) as f64 / 1000. / 1000.
+            start_time.elapsed().as_secs_f64()
         );
     }
-    #[inline]
-    pub fn start_time(&self) -> u64 {
-        self.time_start.load(std::sync::atomic::Ordering::SeqCst)
-    }
     pub fn get_elapsed_time(&self) -> f64 {
-        let current_time = current_time_in_micros();
-        let start_time = self.start_time();
-        (current_time - start_time) as _
+        let start_time = *self.time_start.read().unwrap();
+        start_time.elapsed().as_micros() as _
     }
     pub fn current_thread_profiler(&self) -> Arc<ThreadProfiler> {
         let id = get_raw_thread_id();
@@ -169,11 +176,7 @@ impl CpuProfiler {
         }
 
         while let Ok(sample) = self.rx.try_recv() {
-            if let Some(vec) = thread_data.get_mut(&sample.tid) {
-                vec.push(sample);
-            } else {
-                panic!("Invalid thread id {:?}", sample.tid);
-            }
+            thread_data.entry(sample.tid).or_default().push(sample);
         }
 
         let mut data = Vec::new();
@@ -194,7 +197,17 @@ impl CpuProfiler {
                         "dur": sample.time_end - sample.time_start,
                     }));
                 } else {
-                    panic!("Invalid thread id {:?}", sample.tid);
+                    let thread_name = if *id == !0 { "GPU" } else { "Unknown" };
+                    data.push(serde_json::json!({
+                        "pid": process::id(),
+                        "id": id,
+                        "tid": thread_name,
+                        "cat": sample.category,
+                        "name": sample.name,
+                        "ph": "X",
+                        "ts": sample.time_start,
+                        "dur": sample.time_end - sample.time_start,
+                    }));
                 }
             }
         }

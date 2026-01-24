@@ -91,7 +91,7 @@ where
     T: Serialize + Sized + SerializeFile + 'static + Clone,
 {
     let data = data.clone();
-    let mut file = File::new(filepath);
+    let file = File::new(filepath);
     file.save(move |bytes| {
         let b = match serialization_type {
             SerializationType::Binary => serialize(&data),
@@ -110,7 +110,7 @@ pub fn read_from_file<'a, T>(
 where
     T: for<'de> Deserialize<'de> + SerializeFile + 'static,
 {
-    let mut file = File::new(filepath);
+    let file = File::new(filepath);
     if file.exists() {
         let path = filepath.to_path_buf();
         file.load(move |bytes| {

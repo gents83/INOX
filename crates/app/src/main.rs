@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 #![warn(clippy::all)]
+#![allow(unexpected_cfgs)]
 
 pub mod launcher;
 pub mod platform;

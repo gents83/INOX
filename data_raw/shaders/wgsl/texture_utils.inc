@@ -1,23 +1,23 @@
-@group(3) @binding(0)
+@group(2) @binding(0)
 var default_sampler: sampler;
 
 #ifdef FEATURES_TEXTURE_BINDING_ARRAY
-@group(3) @binding(1)
+@group(2) @binding(1)
 var texture_array: binding_array<texture_2d_array<f32>, 8>; //MAX_TEXTURE_ATLAS_COUNT
 #else
-@group(3) @binding(1)
+@group(2) @binding(1)
 var texture_1: texture_2d_array<f32>;
-@group(3) @binding(2)
+@group(2) @binding(2)
 var texture_2: texture_2d_array<f32>;
-@group(3) @binding(3)
+@group(2) @binding(3)
 var texture_3: texture_2d_array<f32>;
-@group(3) @binding(4)
+@group(2) @binding(4)
 var texture_4: texture_2d_array<f32>;
-@group(3) @binding(5)
+@group(2) @binding(5)
 var texture_5: texture_2d_array<f32>;
-@group(3) @binding(6)
+@group(2) @binding(6)
 var texture_6: texture_2d_array<f32>;
-@group(3) @binding(7)
+@group(2) @binding(7)
 var texture_7: texture_2d_array<f32>;
 #endif
 

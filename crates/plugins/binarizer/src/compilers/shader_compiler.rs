@@ -66,14 +66,27 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
             let result = create_dir_all(shader_data_folder);
             debug_assert!(result.is_ok());
         }
+        let bin_folder = if cfg!(windows) { "Bin" } else { "bin" };
+        let glslc_name = if cfg!(windows) { "glslc.exe" } else { "glslc" };
+        let glslang_name = if cfg!(windows) {
+            "glslangValidator.exe"
+        } else {
+            "glslangValidator"
+        };
+        let spirv_val_name = if cfg!(windows) {
+            "spirv-val.exe"
+        } else {
+            "spirv-val"
+        };
+
         Self {
             message_hub,
             shared_data,
             data_raw_folder: data_raw_folder.to_path_buf(),
             data_folder: data_folder.to_path_buf(),
-            glsl_compiler: vulkan_sdk_path.join("Bin\\glslc.exe"),
-            glsl_validator: vulkan_sdk_path.join("Bin\\glslangValidator.exe"),
-            spirv_validator: vulkan_sdk_path.join("Bin\\spirv-val.exe"),
+            glsl_compiler: vulkan_sdk_path.join(bin_folder).join(glslc_name),
+            glsl_validator: vulkan_sdk_path.join(bin_folder).join(glslang_name),
+            spirv_validator: vulkan_sdk_path.join(bin_folder).join(spirv_val_name),
         }
     }
 

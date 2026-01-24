@@ -1,5 +1,3 @@
-#import "matrix_utils.inc"
-
 const HIT_DATA_TLAS = 0u;
 const HIT_DATA_BLAS = 1u;
 const HIT_DATA_TRIANGLE = 2u;
@@ -7,17 +5,9 @@ const HIT_DATA_MISS = 4u;
 
 struct Result {
     distance: f32,
+    visibility_id: u32,
     instance_id: u32,
-    primitive_index: u32,
-    u: f32,
-    v: f32,
     steps: u32,
-}
-
-struct IntersectTriangleResult {
-    t: f32,
-    u: f32,
-    v: f32,
 }
 
 fn intersect_aabb(origin: vec3<f32>, direction: vec3<f32>, max_distance: f32, aabb_min: vec3<f32>, aabb_max: vec3<f32>) -> f32 {
@@ -36,15 +26,15 @@ fn intersect_aabb(origin: vec3<f32>, direction: vec3<f32>, max_distance: f32, aa
 
 // Mäller-Trumbore algorithm
 // https://en.wikipedia.org/wiki/Möller–Trumbore_intersection_algorithm
-fn intersect_triangle(origin: vec3<f32>, direction: vec3<f32>, max_distance: f32, v0: vec3<f32>, v1: vec3<f32>, v2: vec3<f32>) -> IntersectTriangleResult
+fn intersect_triangle(origin: vec3<f32>, direction: vec3<f32>, max_distance: f32, v0: vec3<f32>, v1: vec3<f32>, v2: vec3<f32>) -> f32
 {
-    var result = IntersectTriangleResult(max_distance, 0., 0.);
+    var result = max_distance;
     let e1 = v1 - v0;
     let e2 = v2 - v0;
     let n = cross(e1, e2);
-    // if (dot(n, direction) > 0.) {
-    //    return result;
-    // }
+    if (dot(n, direction) > 0.) {
+        return result;
+    }
 
     let s = origin - v0;
     let q = cross(s, e1);
@@ -56,11 +46,9 @@ fn intersect_triangle(origin: vec3<f32>, direction: vec3<f32>, max_distance: f32
     let v = inv_det * dot(direction, q);
     let t = inv_det * dot(e2, q);
     
-    if (t > MATH_EPSILON && t < max_distance && u >= 0. && u <= 1. && v >= 0. && u + v <= 1.) {
-        result.t = t;
-        result.u = u;
-        result.v = v;
-    }
+    result = select(result, t, (t > MATH_EPSILON && t < result));
+    result = select(result, max_distance, u < 0. || u > 1.);
+    result = select(result, max_distance, v < 0. || u + v > 1.);
     return result;
 }
 
@@ -78,6 +66,7 @@ fn traverse_blas_stack(
     blas_index: i32, 
     min_dist: f32,
     instance_id: u32,
+    target_meshlet_id: u32,
     hit_size: vec3<f32>,
     position: vec3<f32>,
     orientation: vec4<f32>,
@@ -87,10 +76,8 @@ fn traverse_blas_stack(
     bb_min: vec3<f32>
 ) -> Result {
     var max_distance = min_dist;
-    var primitive_index = 0u;
+    var visibility_id = 0u;
     var result_instance_id = 0u;
-    var best_u = 0.;
-    var best_v = 0.;
 
     var stack: array<i32, 64>;
     var stack_ptr = 0;
@@ -100,17 +87,14 @@ fn traverse_blas_stack(
 
     var loop_count = 0u;
 
-    while(stack_ptr > 0 && loop_count < 2048u) {
+    while(stack_ptr > 0 && loop_count < 1024u) {
         loop_count++;
         stack_ptr--;
         let node_index = stack[stack_ptr];
         
         let node = bvh.data[u32(node_index)];
         // Use LOCAL RAY for AABB
-        let aabb_min = bb_min + node.min * hit_size - vec3<f32>(0.01);
-        let aabb_max = bb_min + node.max * hit_size + vec3<f32>(0.01);
-
-        let intersection = intersect_aabb(local_ray_origin, local_ray_direction, max_distance, aabb_min, aabb_max);
+        let intersection = intersect_aabb(local_ray_origin, local_ray_direction, max_distance, node.min, node.max);
         
         if(intersection < max_distance) {
             if(node.reference < 0) {
@@ -131,43 +115,42 @@ fn traverse_blas_stack(
                 }
             } else {
                 let meshlet_id = meshlets_offset + u32(node.reference);
-                let meshlet = meshlets.data[meshlet_id];
-                let triangle_count = meshlet.indices_count / 3u;
 
-                for(var i = 0u; i < triangle_count; i++) {
-                    let index_offset = meshlet.indices_offset + (i * 3u);
-                    
-                    let p1 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vertices_position_offset + indices.data[index_offset]]) * hit_size;
-                    let p2 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vertices_position_offset + indices.data[index_offset + 1u]]) * hit_size;
-                    let p3 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vertices_position_offset + indices.data[index_offset + 2u]]) * hit_size;
+                if (meshlet_id == target_meshlet_id) {
+                    let meshlet = meshlets.data[meshlet_id];
+                    let triangle_count = meshlet.indices_count / 3u;
 
-                    let v1 = transform_vector(p1, position, orientation, scale);
-                    let v2 = transform_vector(p2, position, orientation, scale);
-                    let v3 = transform_vector(p3, position, orientation, scale);
-                    
-                    // Use WORLD RAY for Triangle
-                    let res = intersect_triangle(world_ray_origin, world_ray_direction, max_distance, v1, v2, v3);
-                    if(res.t < max_distance) {
-                        primitive_index = meshlet.indices_offset / 3u + i;
-                        result_instance_id = instance_id;
-                        max_distance = res.t;
-                        best_u = res.u;
-                        best_v = res.v;
+                    for(var i = 0u; i < triangle_count; i++) {
+                        let index_offset = meshlet.indices_offset + (i * 3u);
+
+                        let p1 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vertices_position_offset + indices.data[index_offset]]) * hit_size;
+                        let p2 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vertices_position_offset + indices.data[index_offset + 1u]]) * hit_size;
+                        let p3 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vertices_position_offset + indices.data[index_offset + 2u]]) * hit_size;
+
+                        let v1 = transform_vector(p1, position, orientation, scale);
+                        let v2 = transform_vector(p2, position, orientation, scale);
+                        let v3 = transform_vector(p3, position, orientation, scale);
+
+                        // Use WORLD RAY for Triangle
+                        let distance = intersect_triangle(world_ray_origin, world_ray_direction, max_distance, v1, v2, v3);
+                        if(distance < max_distance) {
+                            visibility_id = ((instance_id + 1u) << 8u) | i;
+                            result_instance_id = instance_id;
+                            max_distance = distance;
+                        }
                     }
                 }
             }
         }
     }
-    return Result(max_distance, result_instance_id, primitive_index, best_u, best_v, loop_count);
+    return Result(max_distance, visibility_id, result_instance_id, loop_count);
 }
 
 
 fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tlas_starting_index: u32) -> Result {
     var max_distance = MAX_TRACING_DISTANCE;
-    var primitive_index = 0u;
+    var visibility_id = 0u;
     var instance_id = 0u;
-    var u_coord = 0.;
-    var v_coord = 0.;
 
     var stack: array<i32, 64>;
     var stack_ptr = 0;
@@ -177,7 +160,7 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
 
     var loop_count = 0u;
 
-    while(stack_ptr > 0 && loop_count < 2048u) {
+    while(stack_ptr > 0 && loop_count < 1024u) {
         loop_count++;
         stack_ptr--;
         let node_index = stack[stack_ptr];
@@ -231,6 +214,7 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
                     world_ray_origin, world_ray_direction,
                     local_ray_origin, local_ray_direction,
                     blas_index, max_distance, current_instance_id,
+                    instance.meshlet_id,
                     hit_size, position, orientation, scale,
                     (*mesh).meshlets_offset, (*mesh).vertices_position_offset, bb_min
                 );
@@ -240,13 +224,11 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
 
                 if(blas_result.distance < max_distance) {
                     max_distance = blas_result.distance;
-                    primitive_index = blas_result.primitive_index;
+                    visibility_id = blas_result.visibility_id;
                     instance_id = blas_result.instance_id;
-                    u_coord = blas_result.u;
-                    v_coord = blas_result.v;
                 }
             }
         }
     }
-    return Result(max_distance, instance_id, primitive_index, u_coord, v_coord, loop_count);
+    return Result(max_distance, visibility_id, instance_id, loop_count);
 }

@@ -11,20 +11,13 @@ struct FragmentOutput {
     @location(0) color: vec4<f32>,
 };
 
+
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
-var direct_texture: texture_2d<f32>;
+var<storage, read_write> data_buffer_1: array<f32>;
 @group(0) @binding(2)
-var indirect_diffuse_texture: texture_storage_2d<rgba32uint, read>;
-@group(0) @binding(3)
-var indirect_specular_texture: texture_storage_2d<rgba32uint, read>;
-@group(0) @binding(4)
 var previous_texture: texture_2d<f32>;
-@group(0) @binding(5)
-var shadow_texture: texture_2d<f32>;
-@group(0) @binding(6)
-var ao_texture: texture_2d<f32>;
 
 @vertex
 fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
@@ -38,50 +31,30 @@ fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
     return vertex_out;
 }
 
-const EXPOSURE: f32 = 0.5;
-
 @fragment
 fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
-    let dimensions = textureDimensions(direct_texture);
-    let coords = vec2<i32>(i32(v_in.uv.x * f32(dimensions.x)), i32(v_in.uv.y * f32(dimensions.y)));
+    let dimensions = vec2<u32>(u32(constant_data.screen_width), u32(constant_data.screen_height));
+    let pixel = vec2<f32>(v_in.uv.x * constant_data.screen_width, v_in.uv.y * constant_data.screen_height);
 
-    let direct = textureLoad(direct_texture, coords, 0);
+    let data_dimensions = vec2<u32>(DEFAULT_WIDTH, DEFAULT_HEIGHT);
+    let data_scale = vec2<f32>(data_dimensions) / vec2<f32>(dimensions);
+    let data_pixel = vec2<u32>(pixel * data_scale);
+    let data_index = (data_pixel.y * data_dimensions.x + data_pixel.x) * SIZE_OF_DATA_BUFFER_ELEMENT;
     
-    // Nearest Neighbor Upsampling for Half-Res GI
-    // The texture size is Width/2.
-    // Screen Coord "coords" (0..W) maps to Texture Coord (0..W/2) via division.
-    let indirect_coord = vec2<i32>(coords.x / 2, coords.y / 2);
-    let indirect_diffuse_data = textureLoad(indirect_diffuse_texture, indirect_coord);
-    let indirect_specular_data = textureLoad(indirect_specular_texture, indirect_coord);
-    
-    // Normalize by global frame count (plus 1 to avoid div by zero)
-    // Since we clear the indirect textures every frame now (to fix ghosting), 
-    // we should NOT divide by accumulated frame count. The buffer contains only THe CURRENT frame's energy.
-    let sample_count = f32(constant_data.frame_index + 1u);
-    
-    // Decoding: The buffer contains raw accumulated radiance for THIS frame.
-    let indirect_diffuse = decode_uvec3_to_vec3(indirect_diffuse_data.rgb);
-    let indirect_specular = decode_uvec3_to_vec3(indirect_specular_data.rgb);
-    
-    let shadow = textureLoad(shadow_texture, coords, 0).r;
-    let ao = textureLoad(ao_texture, coords, 0).r;
-    
-    let indirect_diffuse_packed = textureLoad(indirect_diffuse_texture, indirect_coord).rgb;
-    let indirect_specular_packed = textureLoad(indirect_specular_texture, indirect_coord).rgb;
-    
-    let ind_diff = decode_uvec3_to_vec3(indirect_diffuse_packed);
-    let ind_spec = decode_uvec3_to_vec3(indirect_specular_packed);
+    var radiance = vec3<f32>(0.);
+    radiance.x = data_buffer_1[data_index];
+    radiance.y = data_buffer_1[data_index + 1u];
+    radiance.z = data_buffer_1[data_index + 2u];
+    if(constant_data.frame_index > 0u) {
+        let prev_value = textureLoad(previous_texture, data_pixel, 0).rgb;
+        let frame_index = f32(min(constant_data.frame_index + 1u, 1000u));
+        let weight = 1. / frame_index;
+        radiance = mix(prev_value, radiance, weight);
+    }
 
-    // Amplified for visibility test (20x)
-    var radiance = direct.rgb * shadow * ao + (ind_diff + ind_spec) * 20.0;
-    
-    var out_color = vec4<f32>(radiance, direct.a);
-    
-    // Tone Mapping
-    out_color = vec4<f32>(tonemap_ACES_Hill(out_color.rgb), out_color.a);
-    
-    // Gamma
-    out_color = vec4<f32>(linearTosRGB(out_color.rgb), out_color.a);
+    var out_color = vec4<f32>(radiance, 1.);
+    //out_color = vec4<f32>(tonemap_ACES_Hill(out_color.rgb), 1.);
+    //out_color = vec4<f32>(linearTosRGB(out_color.rgb), 1.);
 
     return out_color;
 }

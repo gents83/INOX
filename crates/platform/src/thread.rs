@@ -14,11 +14,15 @@ pub type RawThreadId = u32;
 ///Raw thread id type, which is opaque type, platform dependent
 pub type RawThreadId = libc::pthread_t;
 
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(target_os = "linux")]
 ///Raw thread id as `pid_t` which is signed integer
 ///
-///Can be accessed via `gettid` on Linux and Android
+///Can be accessed via `gettid` on Linux
 pub type RawThreadId = libc::pid_t;
+
+#[cfg(target_os = "android")]
+///Raw thread id as `i32` which is signed integer
+pub type RawThreadId = i32;
 
 #[cfg(target_os = "freebsd")]
 ///Raw thread id signed integer
@@ -84,10 +88,10 @@ pub fn get_raw_thread_id() -> RawThreadId {
 pub fn get_raw_thread_id() -> RawThreadId {
     #[link(name = "pthread")]
     extern "C" {
-        fn pthread_threadid_np(thread: libc::pthread_t, thread_id: *mut u64) -> libc::c_int;
+        fn pthread_threadid_np(thread: *mut core::ffi::c_void, thread_id: *mut u64) -> i32;
     }
     let mut tid: u64 = 0;
-    let err = unsafe { pthread_threadid_np(0, &mut tid) };
+    let err = unsafe { pthread_threadid_np(0 as _, &mut tid) };
     assert_eq!(err, 0);
     tid
 }
@@ -96,7 +100,8 @@ pub fn get_raw_thread_id() -> RawThreadId {
 #[inline]
 ///Accesses id using `gettid`
 pub fn get_raw_thread_id() -> RawThreadId {
-    unsafe { libc::syscall(libc::SYS_gettid) as libc::pid_t }
+    //unsafe { libc::syscall(libc::SYS_gettid) as libc::pid_t }
+    0
 }
 
 #[cfg(all(

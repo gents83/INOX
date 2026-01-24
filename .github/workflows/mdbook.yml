@@ -10,6 +10,9 @@ on:
 jobs:
   mdBook-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}
     steps:

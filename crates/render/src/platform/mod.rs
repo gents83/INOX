@@ -5,9 +5,29 @@ pub use wasm::*;
 pub mod wasm;
 
 #[cfg(target_os = "windows")]
-pub use pc::*;
+pub use windows::*;
 #[cfg(target_os = "windows")]
-pub mod pc;
+pub mod windows;
+
+#[cfg(target_os = "linux")]
+pub use unix::*;
+#[cfg(target_os = "linux")]
+pub mod unix;
+
+#[cfg(target_os = "macos")]
+pub use macos::*;
+#[cfg(target_os = "macos")]
+pub mod macos;
+
+#[cfg(target_os = "android")]
+pub use android::*;
+#[cfg(target_os = "android")]
+pub mod android;
+
+#[cfg(target_os = "ios")]
+pub use ios::*;
+#[cfg(target_os = "ios")]
+pub mod ios;
 
 pub const WGPU_FIXED_ALIGNMENT: u64 = 16; // 4 bytes is min alignment for wgpu
 

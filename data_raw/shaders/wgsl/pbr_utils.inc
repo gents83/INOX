@@ -13,17 +13,6 @@ fn compute_equirectangular_uv(rd: vec3<f32>) -> vec2<f32> {
     return v / vec2<f32>(2. * MATH_PI, MATH_PI);
 }
 
-// Sample environment map for IBL contribution (used in indirect lighting)
-fn sample_environment_ibl(direction: vec3<f32>) -> vec3<f32> {
-    if ((constant_data.flags & CONSTANT_DATA_FLAGS_USE_IBL) != 0) {
-        let env_uv = vec3<f32>(compute_equirectangular_uv(direction), 
-                               f32(constant_data.environment_map_texture_index));
-        return sample_texture(env_uv).rgb;
-    }
-    return vec3<f32>(0.0);
-}
-
-
 // Assume air interface for top
 // Note: We don't handle the case fresnel0 == 1
 fn fresnel0_to_ior(fresnel0: vec3<f32>) -> vec3<f32> {
@@ -555,124 +544,109 @@ fn get_IBL_volume_refraction(n: vec3<f32>, v: vec3<f32>, perceptualRoughness: f3
 } 
 
 
-fn compute_tbn(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>) -> TBN {
-    var n = (*pixel_data).normal;
-    var t = (*pixel_data).tangent.xyz;
-    var b = cross(n,  t) * (*pixel_data).tangent.w;
-    if (has_texture(material, TEXTURE_TYPE_NORMAL)) {  
-        let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_NORMAL);
-        let uv_set_index = material_texture_coord_set(material, TEXTURE_TYPE_NORMAL);
-        var ntex = sample_texture(uv).rgb * 2. - vec3<f32>(1.);
-        let normal_scale = unpack2x16float((*material).normal_scale_and_alpha_cutoff).x;
-        ntex *= vec3<f32>(normal_scale, normal_scale, 1.);
-        n = normalize(mat3x3<f32>(t, b, n) * normalize(ntex));
-    }
-    return TBN(n, t, b);
-}
 
 
 //Inspired from glTF-Sample-Viewer
-fn prepare_material(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, tbn: ptr<function, TBN>, v: ptr<function, vec3<f32>>) -> MaterialInfo {
-    *v = normalize(view_pos() - (*pixel_data).world_pos);
-    *tbn = compute_tbn(material, pixel_data);
+fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, PixelData>) -> MaterialInfo {
+    var material = materials.data[material_id];
 
-    let NdotV = clamped_dot((*tbn).normal, *v);
-    let TdotV = clamped_dot((*tbn).tangent, *v);
-    let BdotV = clamped_dot((*tbn).binormal, *v);
+    let v = normalize(view_pos() - (*pixel_data).world_pos);
+    var tbn = compute_tbn(&material, pixel_data);
+
+    let NdotV = clamped_dot(tbn.normal,v);
+    let TdotV = clamped_dot(tbn.tangent,v);
+    let BdotV = clamped_dot(tbn.binormal,v);
 
     var material_info: MaterialInfo;
 
     init_material_info_default(&material_info);
-    compute_base_color(material, pixel_data, &material_info);
+    compute_base_color(&material, pixel_data, &material_info);
 
-    if(((*material).flags & MATERIAL_FLAGS_IOR) != 0u) {
-        compute_ior(material, &material_info);
+    if((material.flags & MATERIAL_FLAGS_IOR) != 0u) {
+        compute_ior(&material, &material_info);
     }
-    if(((*material).flags & MATERIAL_FLAGS_SPECULARGLOSSINESS) != 0u) {
-        compute_specular_glossiness(material, pixel_data, &material_info);
+    if((material.flags & MATERIAL_FLAGS_SPECULARGLOSSINESS) != 0u) {
+        compute_specular_glossiness(&material, pixel_data, &material_info);
     }
-    if(((*material).flags & MATERIAL_FLAGS_METALLICROUGHNESS) != 0u) {
-        compute_metallic_roughness(material, pixel_data, &material_info);
+    if((material.flags & MATERIAL_FLAGS_METALLICROUGHNESS) != 0u) {
+        compute_metallic_roughness(&material, pixel_data, &material_info);
     }
-    if(((*material).flags & MATERIAL_FLAGS_SHEEN) != 0u) {
-        compute_sheen(material, pixel_data, &material_info);
+    if((material.flags & MATERIAL_FLAGS_SHEEN) != 0u) {
+        compute_sheen(&material, pixel_data, &material_info);
     }
-    if(((*material).flags & MATERIAL_FLAGS_CLEARCOAT) != 0u) {
-        compute_clear_coat(material, (*tbn).normal, pixel_data, &material_info);
+    if((material.flags & MATERIAL_FLAGS_CLEARCOAT) != 0u) {
+        compute_clear_coat(&material, tbn.normal, pixel_data, &material_info);
     }
-    if(((*material).flags & MATERIAL_FLAGS_SPECULAR) != 0u) {
-        compute_specular(material, pixel_data, &material_info);
+    if((material.flags & MATERIAL_FLAGS_SPECULAR) != 0u) {
+        compute_specular(&material, pixel_data, &material_info);
     }
-    if(((*material).flags & MATERIAL_FLAGS_TRANSMISSION) != 0u) {
-        compute_transmission(material, pixel_data, &material_info);
+    if((material.flags & MATERIAL_FLAGS_TRANSMISSION) != 0u) {
+        compute_transmission(&material, pixel_data, &material_info);
     }
-    if(((*material).flags & MATERIAL_FLAGS_VOLUME) != 0u) {
-        compute_volume(material, pixel_data, &material_info);
+    if((material.flags & MATERIAL_FLAGS_VOLUME) != 0u) {
+        compute_volume(&material, pixel_data, &material_info);
     }
-    if(((*material).flags & MATERIAL_FLAGS_IRIDESCENCE) != 0u) {
-        compute_iridescence(material, pixel_data, &material_info);
+    if((material.flags & MATERIAL_FLAGS_IRIDESCENCE) != 0u) {
+        compute_iridescence(&material, pixel_data, &material_info);
     }
-    if(((*material).flags & MATERIAL_FLAGS_ANISOTROPY) != 0u) {
-        compute_anisotropy(material, tbn, &material_info);
+    if((material.flags & MATERIAL_FLAGS_ANISOTROPY) != 0u) {
+        compute_anisotropy(&material, &tbn, &material_info);
     }
 
     material_info.perceptual_roughness = clamp(material_info.perceptual_roughness, 0.0, 1.0);
     material_info.metallic = clamp(material_info.metallic, 0.0, 1.0);
     
+    // Roughness is authored as perceptual roughness; as is convention,
+    // convert to material roughness by squaring the perceptual roughness.
     material_info.alpha_roughness = material_info.perceptual_roughness * material_info.perceptual_roughness;
 
     // Compute reflectance.
     let reflectance = max(max(material_info.f0.r, material_info.f0.g), material_info.f0.b);
     
+    // Anything less than 2% is physically impossible and is instead considered to be shadowing. Compare to "Real-Time-Rendering" 4th editon on page 325.
     material_info.f90 = vec3<f32>(1.);
-    material_info.shading_normal = (*tbn).normal;
 
-    // Eval Iridescence Fresnel
-    if((material.flags & MATERIAL_FLAGS_IRIDESCENCE) != 0u) {
-        let iridescence_fresnel = eval_iridescence(1., material_info.iridescence_ior, NdotV, material_info.iridescence_thickness, material_info.f0);
-    }
-    return material_info;
-}
-
-fn eval_ibl(material: Material, material_info: ptr<function, MaterialInfo>, pixel_data: ptr<function, PixelData>, tbn: TBN, v: vec3<f32>) {
+    // LIGHTING
     var f_specular = vec3<f32>(0.0);
     var f_diffuse = vec3<f32>(0.0);
+    var f_emissive = vec3<f32>(0.0);
     var f_clearcoat = vec3<f32>(0.0);
     var f_sheen = vec3<f32>(0.0);
     var f_transmission = vec3<f32>(0.0);
 
-    let NdotV = clamped_dot(tbn.normal, v);
+    var albedo_sheen_scaling = 1.0;
 
     var iridescence_fresnel = vec3<f32>(0.);
     var iridescence_f0 = vec3<f32>(0.);
     if((material.flags & MATERIAL_FLAGS_IRIDESCENCE) != 0u) {
-        iridescence_fresnel = eval_iridescence(1., (*material_info).iridescence_ior, NdotV, (*material_info).iridescence_thickness, (*material_info).f0);
+        iridescence_fresnel = eval_iridescence(1., material_info.iridescence_ior, NdotV, material_info.iridescence_thickness, material_info.f0);
         iridescence_f0 = schlick_to_f0_vec3(iridescence_fresnel, vec3<f32>(1.), NdotV);
-        if((*material_info).iridescence_thickness == 0.) { (*material_info).iridescence_factor = 0.; }
+        if(material_info.iridescence_thickness == 0.) { material_info.iridescence_factor = 0.; }
     }
 
-    let specular_weight_and_anisotropy_strength = unpack2x16float((*material_info).specular_weight_and_anisotropy_strength);
+    let specular_weight_and_anisotropy_strength = unpack2x16float(material_info.specular_weight_and_anisotropy_strength);
     let specular_weight = specular_weight_and_anisotropy_strength.x;
     let anisotropy_strength = specular_weight_and_anisotropy_strength.y;
 
+    // TODO - Calculate lighting contribution from image based lighting source (IBL)
     if ((constant_data.flags & CONSTANT_DATA_FLAGS_USE_IBL) != 0) {      
         if((material.flags & MATERIAL_FLAGS_IRIDESCENCE) != 0u) {
-            f_specular += get_IBL_radiance_GGX_iridescence(tbn.normal, v, (*material_info).perceptual_roughness, (*material_info).f0, iridescence_fresnel, (*material_info).iridescence_factor, specular_weight);
-            f_diffuse += get_IBL_radiance_lambertian_iridescence(tbn.normal, v, (*material_info).perceptual_roughness, (*material_info).c_diff, (*material_info).f0, iridescence_f0, (*material_info).iridescence_factor, specular_weight);
+            f_specular += get_IBL_radiance_GGX_iridescence(tbn.normal, v, material_info.perceptual_roughness, material_info.f0, iridescence_fresnel, material_info.iridescence_factor, specular_weight);
+            f_diffuse += get_IBL_radiance_lambertian_iridescence(tbn.normal, v, material_info.perceptual_roughness, material_info.c_diff, material_info.f0, iridescence_f0, material_info.iridescence_factor, specular_weight);
         }
         else if((material.flags & MATERIAL_FLAGS_ANISOTROPY) != 0u) {
-            f_specular += get_IBL_radiance_anisotropy(tbn.normal, v, (*material_info).perceptual_roughness, anisotropy_strength, (*material_info).anisotropicB, (*material_info).f0, specular_weight);
-            f_diffuse += get_IBL_radiance_lambertian(tbn.normal, v, (*material_info).perceptual_roughness, (*material_info).c_diff, (*material_info).f0, specular_weight);
+            f_specular += get_IBL_radiance_anisotropy(tbn.normal, v, material_info.perceptual_roughness, anisotropy_strength, material_info.anisotropicB, material_info.f0, specular_weight);
+            f_diffuse += get_IBL_radiance_lambertian(tbn.normal, v, material_info.perceptual_roughness, material_info.c_diff, material_info.f0, specular_weight);
         }
         else {
-            f_specular += get_IBL_radiance_GGX(tbn.normal, v, (*material_info).perceptual_roughness, (*material_info).f0, specular_weight);
-            f_diffuse += get_IBL_radiance_lambertian(tbn.normal, v, (*material_info).perceptual_roughness, (*material_info).c_diff, (*material_info).f0, specular_weight);
+            f_specular += get_IBL_radiance_GGX(tbn.normal, v, material_info.perceptual_roughness, material_info.f0, specular_weight);
+            f_diffuse += get_IBL_radiance_lambertian(tbn.normal, v, material_info.perceptual_roughness, material_info.c_diff, material_info.f0, specular_weight);
         }
         if((material.flags & MATERIAL_FLAGS_CLEARCOAT) != 0u) {
-            f_clearcoat += get_IBL_radiance_GGX((*material_info).clear_coat_normal, v, (*material_info).clear_coat_roughness_factor, (*material_info).clear_coat_f0, 1.0);
+            f_clearcoat += get_IBL_radiance_GGX(material_info.clear_coat_normal, v, material_info.clear_coat_roughness_factor, material_info.clear_coat_f0, 1.0);
         }
         if((material.flags & MATERIAL_FLAGS_SHEEN) != 0u) {
-            f_sheen += get_IBL_radiance_charlie(tbn.normal, v, (*material_info).sheen_color_and_roughness_factor.z, (*material_info).sheen_color_and_roughness_factor.rgb);
+            f_sheen += get_IBL_radiance_charlie(tbn.normal, v, material_info.sheen_color_and_roughness_factor.z, material_info.sheen_color_and_roughness_factor.rgb);
         }
         if((material.flags & MATERIAL_FLAGS_TRANSMISSION) != 0u) {
             let instance = &instances.data[(*pixel_data).instance_id];
@@ -680,226 +654,148 @@ fn eval_ibl(material: Material, material_info: ptr<function, MaterialInfo>, pixe
             let instance_scale = max(max(transform.position_scale_x.w, transform.bb_min_scale_y.w), transform.bb_max_scale_z.w);
             f_transmission += get_IBL_volume_refraction(
                 tbn.normal, v,
-                (*material_info).perceptual_roughness,
-                (*material_info).c_diff, (*material_info).f0, (*material_info).f90,
+                material_info.perceptual_roughness,
+                material_info.c_diff, material_info.f0, material_info.f90,
                 (*pixel_data).world_pos, instance_scale,
-                (*material_info).ior, (*material_info).thickness_factor, (*material_info).attenuation_color_and_distance.rgb, (*material_info).attenuation_color_and_distance.z);
+                material_info.ior, material_info.thickness_factor, material_info.attenuation_color_and_distance.rgb, material_info.attenuation_color_and_distance.z);
         }
     }
     
-    (*material_info).f_diffuse_ibl = f_diffuse;
-    (*material_info).f_specular_ibl = f_specular; 
-    (*material_info).f_sheen_ibl = f_sheen;
-    (*material_info).f_clearcoat_ibl = f_clearcoat;
-    (*material_info).f_transmission += f_transmission;
-}
-
-fn eval_punctual_light(light: ptr<function, LightData>, material: Material, material_info: ptr<function, MaterialInfo>, pixel_data: ptr<function, PixelData>, tbn: TBN, v: vec3<f32>) {
-    var f_diffuse = vec3<f32>(0.0);
-    var f_specular = vec3<f32>(0.0);
-    var f_sheen = vec3<f32>(0.0);
-    var f_clearcoat = vec3<f32>(0.0);
-    var f_transmission = vec3<f32>(0.0);
-
-    let specular_weight_and_anisotropy_strength = unpack2x16float((*material_info).specular_weight_and_anisotropy_strength);
-    let specular_weight = specular_weight_and_anisotropy_strength.x;
-    let anisotropy_strength = specular_weight_and_anisotropy_strength.y;
-
-    let NdotV = clamped_dot(tbn.normal, v);
+    var f_diffuse_ibl = f_diffuse;
+    var f_specular_ibl = f_specular;
+    var f_sheen_ibl = f_sheen;
+    var f_clearcoat_ibl = f_clearcoat;
+    f_diffuse = material_info.base_color.rgb;
+    f_specular = vec3<f32>(0.0);
+    f_sheen = vec3<f32>(0.0);
+    f_clearcoat = vec3<f32>(0.0);
+    /*
+    let i = hash(constant_data.frame_index) % constant_data.num_lights;
     
-    var iridescence_fresnel = vec3<f32>(0.);
-    if((material.flags & MATERIAL_FLAGS_IRIDESCENCE) != 0u) {
-        iridescence_fresnel = eval_iridescence(1., (*material_info).iridescence_ior, NdotV, (*material_info).iridescence_thickness, (*material_info).f0);
-    }
-
-    if ((*light).light_type != LIGHT_TYPE_INVALID) { 
+    var light = lights.data[i];
+    if (light.light_type != LIGHT_TYPE_INVALID) {
+        f_diffuse = vec3<f32>(0.0);
         var pointToLight: vec3<f32>;
-        if ((*light).light_type != LIGHT_TYPE_DIRECTIONAL) { 
-            pointToLight = (*light).position - (*pixel_data).world_pos;
+        if (light.light_type != LIGHT_TYPE_DIRECTIONAL) {
+            pointToLight = light.position - (*pixel_data).world_pos;
         } else {
-            pointToLight = -(*light).direction;
+            pointToLight = -light.direction;
         }
             
-        var l = normalize(pointToLight);   
-        let h = normalize(l + v);          
+        // BSTF
+        var l = normalize(pointToLight);   // Direction from surface point to light
+        let h = normalize(l + v);          // Direction of the vector between l and v, called halfway vector
         let NdotL = clamped_dot(tbn.normal, l);
         let NdotH = clamped_dot(tbn.normal, h);
+        let NdotV = clamped_dot(tbn.normal, v);
         let LdotH = clamped_dot(l, h);
         let VdotH = clamped_dot(v, h);
-        let intensity = get_light_intensity(light, pointToLight);
         if (NdotL > 0.0 || NdotV > 0.0)
         {
+            // Calculation of analytical light
+            let intensity = get_light_intensity(&light, pointToLight);
             if((material.flags & MATERIAL_FLAGS_IRIDESCENCE) != 0u) {
-                f_diffuse += intensity * NdotL *  BRDF_lambertian_iridescence((*material_info).f0, (*material_info).f90, iridescence_fresnel, (*material_info).iridescence_factor, (*material_info).c_diff, specular_weight, VdotH);
-                f_specular += intensity * NdotL * BRDF_specular_GGX_iridescence((*material_info).f0, (*material_info).f90, iridescence_fresnel, (*material_info).alpha_roughness,  (*material_info).iridescence_factor, specular_weight, VdotH, NdotL, NdotV, NdotH);
+                f_diffuse += intensity * NdotL *  BRDF_lambertian_iridescence(material_info.f0, material_info.f90, iridescence_fresnel, material_info.iridescence_factor, material_info.c_diff, specular_weight, VdotH);
+                f_specular += intensity * NdotL * BRDF_specular_GGX_iridescence(material_info.f0, material_info.f90, iridescence_fresnel, material_info.alpha_roughness,  material_info.iridescence_factor, specular_weight, VdotH, NdotL, NdotV, NdotH);
             }
             else if((material.flags & MATERIAL_FLAGS_ANISOTROPY) != 0u) {
-                f_diffuse += intensity * NdotL *  BRDF_lambertian((*material_info).f0, (*material_info).f90, (*material_info).c_diff, specular_weight, VdotH);
-                f_specular += intensity * NdotL * BRDF_specular_GGX_anisotropy((*material_info).f0, (*material_info).f90, (*material_info).alpha_roughness, anisotropy_strength, tbn.normal, v, l, h, (*material_info).anisotropicT, (*material_info).anisotropicB);
+                f_diffuse += intensity * NdotL *  BRDF_lambertian(material_info.f0, material_info.f90, material_info.c_diff, specular_weight, VdotH);
+                f_specular += intensity * NdotL * BRDF_specular_GGX_anisotropy(material_info.f0, material_info.f90, material_info.alpha_roughness, anisotropy_strength, tbn.normal, v, l, h, material_info.anisotropicT, material_info.anisotropicB);
             } else {
-                f_diffuse += intensity * NdotL *  BRDF_lambertian((*material_info).f0, (*material_info).f90, (*material_info).c_diff, specular_weight, VdotH);
-                f_specular += intensity * NdotL * BRDF_specular_GGX((*material_info).f0, (*material_info).f90, (*material_info).alpha_roughness, specular_weight, VdotH, NdotL, NdotV, NdotH);
+                f_diffuse += intensity * NdotL *  BRDF_lambertian(material_info.f0, material_info.f90, material_info.c_diff, specular_weight, VdotH);
+                f_specular += intensity * NdotL * BRDF_specular_GGX(material_info.f0, material_info.f90, material_info.alpha_roughness, specular_weight, VdotH, NdotL, NdotV, NdotH);
             }
             
             if((material.flags & MATERIAL_FLAGS_SHEEN) != 0u) {
-                f_sheen += intensity * get_punctual_radiance_sheen((*material_info).sheen_color_and_roughness_factor.rgb, (*material_info).sheen_color_and_roughness_factor.w, NdotL, NdotV, NdotH);
+                f_sheen += intensity * get_punctual_radiance_sheen(material_info.sheen_color_and_roughness_factor.rgb, material_info.sheen_color_and_roughness_factor.w, NdotL, NdotV, NdotH);
+                let c = max(max(material_info.sheen_color_and_roughness_factor.r, material_info.sheen_color_and_roughness_factor.g), material_info.sheen_color_and_roughness_factor.b);
+                albedo_sheen_scaling = min(1.0 - c * albedo_sheen_scaling_LUT(NdotV, material_info.sheen_color_and_roughness_factor.w),
+                    1.0 - c * albedo_sheen_scaling_LUT(NdotL, material_info.sheen_color_and_roughness_factor.w));
             }
         }
             
         if((material.flags & MATERIAL_FLAGS_CLEARCOAT) != 0u) {
-            f_clearcoat += intensity * get_punctual_radiance_clearcoat((*material_info).clear_coat_normal, v, l, h, VdotH,
-                (*material_info).clear_coat_f0, (*material_info).clear_coat_f90, (*material_info).clear_coat_roughness_factor);
+            f_clearcoat += intensity * get_punctual_radiance_clearcoat(material_info.clear_coat_normal, v, l, h, VdotH,
+                material_info.clear_coat_f0, material_info.clear_coat_f90, material_info.clear_coat_roughness_factor);
         }
         
+        // BDTF
         if((material.flags & MATERIAL_FLAGS_TRANSMISSION) != 0u) {
+            // If the light ray travels through the geometry, use the point it exits the geometry again.
+            // That will change the angle to the light source, if the material refracts the light ray.
             let instance = &instances.data[(*pixel_data).instance_id];
             let transform = transforms.data[(*instance).transform_id];
             let instance_scale = max(max(transform.position_scale_x.w, transform.bb_min_scale_y.w), transform.bb_max_scale_z.w);
-            let transmission_ray = get_volume_transmission_ray(tbn.normal, v, (*material_info).thickness_factor, (*material_info).ior, instance_scale);
+            let transmission_ray = get_volume_transmission_ray(tbn.normal, v, material_info.thickness_factor, material_info.ior, instance_scale);
             pointToLight -= transmission_ray;
             l = normalize(pointToLight);
-            let intensity = get_light_intensity(light, pointToLight);
-            var transmitted_light = intensity * get_punctual_radiance_transmission(tbn.normal, v, l, (*material_info).alpha_roughness, (*material_info).f0, (*material_info).f90, (*material_info).c_diff, (*material_info).ior);
+            let intensity = get_light_intensity(&light, pointToLight);
+            var transmitted_light = intensity * get_punctual_radiance_transmission(tbn.normal, v, l, material_info.alpha_roughness, material_info.f0, material_info.f90, material_info.c_diff, material_info.ior);
         
             if((material.flags & MATERIAL_FLAGS_VOLUME) != 0u) {
-                transmitted_light = apply_volume_attenuation(transmitted_light, length(transmission_ray), (*material_info).attenuation_color_and_distance.rgb, (*material_info).attenuation_color_and_distance.w);
+                transmitted_light = apply_volume_attenuation(transmitted_light, length(transmission_ray), material_info.attenuation_color_and_distance.rgb, material_info.attenuation_color_and_distance.w);
             }
             f_transmission += transmitted_light;
         }
     }
-    
-    (*material_info).f_diffuse += f_diffuse;
-    (*material_info).f_specular += f_specular;
-    (*material_info).f_sheen += f_sheen;
-    (*material_info).f_clearcoat += f_clearcoat;
-    (*material_info).f_transmission += f_transmission;
-}
-
-fn combine_lighting(material: ptr<function, Material>, material_info: ptr<function, MaterialInfo>, pixel_data: ptr<function, PixelData>, v: vec3<f32>) {
-    // Emissive
-    var f_emissive = (*material).emissive_color.rgb * (*material).emissive_strength;
-    if (has_texture(material, TEXTURE_TYPE_EMISSIVE)) {  
-        let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_EMISSIVE);
+    */
+    f_emissive = material.emissive_color.rgb * material.emissive_strength;
+    if (has_texture(&material, TEXTURE_TYPE_EMISSIVE)) {
+        let uv = material_texture_uv(&material, pixel_data, TEXTURE_TYPE_EMISSIVE);
         let texture_color = sample_texture(uv);
         f_emissive *= texture_color.rgb;
     }
-    (*material_info).f_emissive = f_emissive;
 
-    // Layer blend
-    var ao = 1.0;
-    if (has_texture(material, TEXTURE_TYPE_OCCLUSION)) {  
-        let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_OCCLUSION);
-        let texture_color = sample_texture(uv);
-        ao = ao * texture_color.r;
-    }
+    //Layer blending
 
-    var diffuse = (*material_info).f_diffuse + mix((*material_info).f_diffuse_ibl, (*material_info).f_diffuse_ibl * ao, material.occlusion_strength);
-    var specular = (*material_info).f_specular + mix((*material_info).f_specular_ibl, (*material_info).f_specular_ibl * ao, material.occlusion_strength);
-    var sheen = (*material_info).f_sheen + mix((*material_info).f_sheen_ibl, (*material_info).f_sheen_ibl * ao, material.occlusion_strength);
-    var clearcoat = (*material_info).f_clearcoat + mix((*material_info).f_clearcoat_ibl, (*material_info).f_clearcoat_ibl * ao, material.occlusion_strength);
-
-    var albedo_sheen_scaling = 1.0; 
-    // Note: albedo_sheen_scaling was computed inside lighting loop in original code based on NdotV/NdotL.
-    // Simplifying assumption: We might lose some sheen scaling accuracy if we don't store it from light loop.
-    // Original code mixed it into 'color' at the end: `color = sheen + color * albedo_sheen_scaling;`
-    // If multiple lights, `albedo_sheen_scaling` was updated?
-    // In original code `albedo_sheen_scaling` was updated per light.
-    // We should probably accumulate sheen independently.
-    
     var clearcoatFactor = 0.0;
     var clearcoatFresnel = vec3(0.);
+    var diffuse = vec3<f32>(0.0);
+    var specular = vec3<f32>(0.0);
+    var sheen = vec3<f32>(0.0);
+    var clearcoat = vec3<f32>(0.0);
+
+    var ao = 1.0;
+    if (has_texture(&material, TEXTURE_TYPE_OCCLUSION)) {
+        let uv = material_texture_uv(&material, pixel_data, TEXTURE_TYPE_OCCLUSION);
+        let texture_color = sample_texture(uv);
+        ao = ao * texture_color.r;
+        diffuse = f_diffuse + mix(f_diffuse_ibl, f_diffuse_ibl * ao, material.occlusion_strength);
+        // apply ambient occlusion to all lighting that is not punctual
+        specular = f_specular + mix(f_specular_ibl, f_specular_ibl * ao, material.occlusion_strength);
+        sheen = f_sheen + mix(f_sheen_ibl, f_sheen_ibl * ao, material.occlusion_strength);
+        clearcoat = f_clearcoat + mix(f_clearcoat_ibl, f_clearcoat_ibl * ao, material.occlusion_strength);
+    }
+    else {
+        diffuse = f_diffuse_ibl + f_diffuse;
+        specular = f_specular_ibl + f_specular;
+        sheen = f_sheen_ibl + f_sheen;
+        clearcoat = f_clearcoat_ibl + f_clearcoat;
+    }
+    
     if((material.flags & MATERIAL_FLAGS_CLEARCOAT) != 0u) {
-        clearcoatFactor = (*material_info).clear_coat_factor;
-        clearcoatFresnel = f_schlick_vec3_vec3((*material_info).clear_coat_f0, (*material_info).clear_coat_f90, clamped_dot((*material_info).clear_coat_normal, v));
+        clearcoatFactor = material_info.clear_coat_factor;
+        clearcoatFresnel = f_schlick_vec3_vec3(material_info.clear_coat_f0, material_info.clear_coat_f90, clamped_dot(material_info.clear_coat_normal, v));
         clearcoat *= clearcoatFactor;
     }
     
     if((material.flags & MATERIAL_FLAGS_TRANSMISSION) != 0u) {
-        diffuse = mix(diffuse, (*material_info).f_transmission, (*material_info).transmission_factor);
+        diffuse = mix(diffuse, f_transmission, material_info.transmission_factor);
     }
 
     var color = vec3<f32>(0.);
     if((material.flags & MATERIAL_FLAGS_UNLIT) != 0u) {
-        color = (*material_info).base_color.rgb;
+        color = material_info.base_color.rgb;
     } else {
         color = f_emissive + diffuse + specular;
-        color = sheen + color * albedo_sheen_scaling; // Using default 1.0 scaling if not computed
+        color = sheen + color * albedo_sheen_scaling;
         color = color * (1.0 - clearcoatFactor * clearcoatFresnel) + clearcoat;
     }
 
-    (*material_info).f_color = vec4<f32>(color, (*material_info).base_color.a);
-}
-
-fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, PixelData>) -> MaterialInfo {
-    var material = materials.data[material_id];
-    var v: vec3<f32>;
-    var tbn: TBN;
-    var material_info = prepare_material(&material, pixel_data, &tbn, &v);
-
-    eval_ibl(material, &material_info, pixel_data, tbn, v);
-    
-    // Direct Lighting
-    let i = hash(constant_data.frame_index) % constant_data.num_lights;
-    var light = lights.data[i];
-    eval_punctual_light(&light, material, &material_info, pixel_data, tbn, v);
-    
-    // Add ambient lighting to prevent completely black surfaces
-    // This provides a fallback when no direct light hits the surface
-    material_info.f_diffuse += material_info.c_diff * AMBIENT_LIGHT;
-    
-    combine_lighting(&material, &material_info, pixel_data, v);
-    
+    material_info.f_color = vec4<f32>(color, material_info.base_color.a);
+    material_info.f_emissive = f_emissive;
+    material_info.f_diffuse = f_diffuse;
+    material_info.f_diffuse_ibl = f_diffuse_ibl;
+    material_info.f_specular = f_specular;
     return material_info;
 }
-
-// Simplified combine for direct lighting only (no IBL)
-// Used in multi-stage path tracer to avoid mixing IBL into direct pass
-fn combine_direct_lighting_only(material: ptr<function, Material>, material_info: ptr<function, MaterialInfo>, pixel_data: ptr<function, PixelData>, v: vec3<f32>) {
-    // Emissive
-    var f_emissive = (*material).emissive_color.rgb * (*material).emissive_strength;
-    if (has_texture(material, TEXTURE_TYPE_EMISSIVE)) {  
-        let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_EMISSIVE);
-        let texture_color = sample_texture(uv);
-        f_emissive *= texture_color.rgb;
-    }
-    (*material_info).f_emissive = f_emissive;
-
-    // Direct lighting only (no IBL terms)
-    var diffuse = (*material_info).f_diffuse;
-    var specular = (*material_info).f_specular;
-
-    var color = vec3<f32>(0.);
-    if((material.flags & MATERIAL_FLAGS_UNLIT) != 0u) {
-        color = (*material_info).base_color.rgb;
-    } else {
-        color = f_emissive + diffuse + specular;
-    }
-
-    (*material_info).f_color = vec4<f32>(color, (*material_info).base_color.a);
-}
-
-// Compute direct lighting only (no IBL)
-// Used in multi-stage path tracer for the primary direct lighting pass
-fn compute_direct_lighting_only(material_id: u32, pixel_data: ptr<function, PixelData>) -> MaterialInfo {
-    var material = materials.data[material_id];
-    var v: vec3<f32>;
-    var tbn: TBN;
-    var material_info = prepare_material(&material, pixel_data, &tbn, &v);
-
-    // Direct Lighting ONLY (no IBL)
-    // Only sample lights if we have them (avoid modulo by zero)
-    if (constant_data.num_lights > 0u) {
-        let i = hash(constant_data.frame_index) % constant_data.num_lights;
-        var light = lights.data[i];
-        eval_punctual_light(&light, material, &material_info, pixel_data, tbn, v);
-        
-        // Add ambient lighting
-        material_info.f_diffuse += material_info.c_diff * AMBIENT_LIGHT;
-    }
-    
-    // Simplified combine (no IBL terms)
-    combine_direct_lighting_only(&material, &material_info, pixel_data, v);
-    
-    return material_info;
-}
-

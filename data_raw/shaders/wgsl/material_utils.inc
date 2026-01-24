@@ -28,6 +28,21 @@ fn material_texture_uv(material: ptr<function, Material>, pixel_data: ptr<functi
     return uv;
 } 
 
+fn compute_tbn(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>) -> TBN {
+    var n = (*pixel_data).normal;
+    var t = (*pixel_data).tangent.xyz;
+    var b = cross(n,  t) * (*pixel_data).tangent.w;
+    if (has_texture(material, TEXTURE_TYPE_NORMAL)) {
+        let uv = material_texture_uv(material, pixel_data, TEXTURE_TYPE_NORMAL);
+        let uv_set_index = material_texture_coord_set(material, TEXTURE_TYPE_NORMAL);
+        var ntex = sample_texture(uv).rgb * 2. - vec3<f32>(1.);
+        let normal_scale = unpack2x16float((*material).normal_scale_and_alpha_cutoff).x;
+        ntex *= vec3<f32>(normal_scale, normal_scale, 1.);
+        n = normalize(mat3x3<f32>(t, b, n) * normalize(ntex));
+    }
+    return TBN(n, t, b);
+}
+
 fn init_material_info_default(info: ptr<function, MaterialInfo>) {
     (*info).base_color = vec4<f32>(1.);
     (*info).f0 = vec3<f32>(0.04);
@@ -51,14 +66,7 @@ fn init_material_info_default(info: ptr<function, MaterialInfo>) {
     (*info).f_emissive = vec3<f32>(0.);
     (*info).f_diffuse = vec3<f32>(0.);
     (*info).f_diffuse_ibl = vec3<f32>(0.);
-    (*info).f_specular_ibl = vec3<f32>(0.);
     (*info).f_specular = vec3<f32>(0.);
-    (*info).f_sheen = vec3<f32>(0.);
-    (*info).f_sheen_ibl = vec3<f32>(0.);
-    (*info).f_clearcoat = vec3<f32>(0.);
-    (*info).f_clearcoat_ibl = vec3<f32>(0.);
-    (*info).f_transmission = vec3<f32>(0.);
-    (*info).shading_normal = vec3<f32>(0., 0., 1.);
 }
 
 fn compute_base_color(material: ptr<function, Material>, pixel_data: ptr<function, PixelData>, info: ptr<function, MaterialInfo>) {

@@ -11,7 +11,6 @@ pub enum LightType {
     Directional = 1,
     Point = 1 << 1,
     Spot = 1 << 2,
-    Area = 1 << 3,
 }
 
 #[repr(C)]
@@ -26,7 +25,7 @@ pub struct GPULight {
     pub range: f32,
     pub inner_cone_angle: f32,
     pub outer_cone_angle: f32,
-    pub shape: f32,
+    pub _padding1: f32,
     pub _padding2: f32,
 }
 
@@ -47,7 +46,7 @@ impl Default for GPULight {
             range: 0.,
             inner_cone_angle: 0.,
             outer_cone_angle: core::f32::consts::PI / 4.,
-            shape: 0.,
+            _padding1: 0.,
             _padding2: 0.,
         }
     }

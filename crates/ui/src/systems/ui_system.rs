@@ -358,7 +358,8 @@ impl System for UISystem {
             let shared_data = self.shared_data.clone();
             let job_handler = self.job_handler.clone();
             let ui_context = self.ui_context.clone();
-            self.ui_context.run_ui(self.ui_input.take(), move |_| {
+            #[allow(deprecated)]
+            self.ui_context.run(self.ui_input.take(), move |_| {
                 Self::show_ui(&shared_data, &job_handler, &ui_context, false);
             })
         };

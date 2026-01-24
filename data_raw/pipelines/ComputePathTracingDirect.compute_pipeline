@@ -1,0 +1,3 @@
+{
+    "shader": "shaders/wgsl/compute_pathtracing_direct.shader"
+}

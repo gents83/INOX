@@ -12,9 +12,9 @@ pub const CONSTANT_DATA_FLAGS_NONE: u32 = 0;
 pub const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 1 << 1;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_LOD_LEVEL: u32 = 1 << 2;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_SHADOW: u32 = 1 << 3;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER: u32 = 1 << 3;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER: u32 = 1 << 4;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_AO: u32 = 1 << 5;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE: u32 = 1 << 5;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_NORMALS: u32 = 1 << 6;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_TANGENT: u32 = 1 << 7;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_BITANGENT: u32 = 1 << 8;
@@ -25,12 +25,6 @@ pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_0: u32 = 1 << 12;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_1: u32 = 1 << 13;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_2: u32 = 1 << 14;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_3: u32 = 1 << 15;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_INDIRECT_DIFFUSE: u32 = 1 << 16;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_INDIRECT_SPECULAR: u32 = 1 << 17;
-// Path tracer debug modes
-pub const CONSTANT_DATA_FLAGS_DISPLAY_C_DIFF: u32 = 1 << 18;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_F0: u32 = 1 << 19;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_FIRST_BOUNCE_THROUGHPUT: u32 = 1 << 20;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -66,10 +60,10 @@ impl Default for ConstantData {
             inverse_view_proj: Matrix4::default_identity().into(),
             screen_size: [DEFAULT_WIDTH as _, DEFAULT_HEIGHT as _],
             frame_index: 0,
-            flags: CONSTANT_DATA_FLAGS_USE_IBL,
+            flags: 0,
             debug_uv_coords: [0.; 2],
             tlas_starting_index: 0,
-            num_bounces: 4,
+            num_bounces: 0,
             lut_pbr_charlie_texture_index: 0,
             lut_pbr_ggx_texture_index: 0,
             env_map_texture_index: 0,
@@ -136,9 +130,6 @@ impl ConstantData {
     }
     pub fn num_bounces(&self) -> u32 {
         self.num_bounces
-    }
-    pub fn screen_size(&self) -> [f32; 2] {
-        self.screen_size
     }
     pub fn set_num_lights(&mut self, render_context: &RenderContext, n: u32) -> &mut Self {
         if self.num_lights != n {
@@ -209,6 +200,9 @@ impl ConstantData {
             .div(screen_size_and_debug_coords.0))
         .into();
         self.tlas_starting_index = tlas_starting_index;
+        if self.flags & CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE == 0 {
+            self.frame_index += 1;
+        }
         self.mark_as_dirty(render_context);
         true
     }
@@ -220,8 +214,5 @@ impl ConstantData {
     }
     pub fn inverse_view_proj(&self) -> [[f32; 4]; 4] {
         self.inverse_view_proj
-    }
-    pub fn flags(&self) -> u32 {
-        self.flags
     }
 }

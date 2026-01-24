@@ -1,0 +1,47 @@
+name: "Rust iOS"
+
+on:
+  push:
+    branches: [ master, instancing_rework ]
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches: [ master, instancing_rework ]
+    tags:
+      - 'v*.*.*'
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_TARGET_DIR: ./crates/target
+
+jobs:
+  check:
+    name: "iOS Build"
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: "Install stable toolchain"
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: aarch64-apple-ios
+          components: clippy
+
+      - name: "Update repos"
+        run: |
+          cd crates
+          cargo update
+          cd ..
+
+      - name: "Run cargo clippy check"
+        run: |
+          export SDKROOT=$(xcrun -sdk iphoneos --show-sdk-path)
+          cargo clippy --manifest-path ./crates/Cargo.toml --target aarch64-apple-ios --release --no-deps -- -D warnings
+
+      - name: "Run cargo build release"
+        run: |
+          export SDKROOT=$(xcrun -sdk iphoneos --show-sdk-path)
+          cargo build --manifest-path ./crates/Cargo.toml --target aarch64-apple-ios --release
