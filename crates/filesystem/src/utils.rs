@@ -24,7 +24,7 @@ impl NormalizedPath for Path {
                 }
                 Component::CurDir => {}
                 Component::ParentDir => {
-                    match ret.components().last() {
+                    match ret.components().next_back() {
                         Some(Component::Normal(_)) => {
                             ret.pop();
                         }
@@ -45,6 +45,9 @@ impl NormalizedPath for Path {
                     ret.push(c);
                 }
             }
+        }
+        if ret.as_os_str().is_empty() {
+            ret.push(".");
         }
         ret
     }
@@ -193,6 +196,14 @@ mod tests {
         let path = PathBuf::from("./foo");
         let normalized = path.normalize();
         assert_eq!(normalized, PathBuf::from("foo"));
+
+        let path = PathBuf::from(".");
+        let normalized = path.normalize();
+        assert_eq!(normalized, PathBuf::from("."));
+
+        let path = PathBuf::from("foo/..");
+        let normalized = path.normalize();
+        assert_eq!(normalized, PathBuf::from("."));
 
         let path = PathBuf::from("foo/../../bar");
         let normalized = path.normalize();
