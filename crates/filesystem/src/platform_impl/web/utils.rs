@@ -1,11 +1,4 @@
-use crate::NormalizedPath;
 use std::path::{Path, PathBuf};
-
-impl NormalizedPath for PathBuf {
-    fn normalize(&self) -> PathBuf {
-        self.to_path_buf()
-    }
-}
 
 #[inline]
 pub fn convert_from_local_path(parent_folder: &Path, relative_path: &Path) -> PathBuf {

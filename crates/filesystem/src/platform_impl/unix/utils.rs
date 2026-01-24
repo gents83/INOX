@@ -2,12 +2,6 @@ use std::path::{Path, PathBuf};
 
 use crate::NormalizedPath;
 
-impl NormalizedPath for PathBuf {
-    fn normalize(&self) -> PathBuf {
-        self.canonicalize().unwrap_or(self.clone())
-    }
-}
-
 #[inline]
 pub fn convert_from_local_path(parent_folder: &Path, relative_path: &Path) -> PathBuf {
     let mut pathbuf = parent_folder.to_path_buf();
