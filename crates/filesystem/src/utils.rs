@@ -1,5 +1,5 @@
 use std::{
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -11,7 +11,42 @@ pub trait NormalizedPath {
 
 impl NormalizedPath for Path {
     fn normalize(&self) -> PathBuf {
-        crate::platform_impl::platform::file::get_exe_folder() // Placeholder avoiding recursion
+        let components = self.components();
+        let mut ret = PathBuf::new();
+
+        for component in components {
+            match component {
+                Component::Prefix(..) => {
+                    ret.push(component.as_os_str());
+                }
+                Component::RootDir => {
+                    ret.push(component.as_os_str());
+                }
+                Component::CurDir => {}
+                Component::ParentDir => {
+                    match ret.components().last() {
+                        Some(Component::Normal(_)) => {
+                            ret.pop();
+                        }
+                        Some(Component::RootDir) => {}
+                        Some(Component::Prefix(_)) => {
+                            ret.push(Component::ParentDir.as_os_str());
+                        }
+                        Some(Component::CurDir) => {}
+                        Some(Component::ParentDir) => {
+                            ret.push(Component::ParentDir.as_os_str());
+                        }
+                        None => {
+                            ret.push(Component::ParentDir.as_os_str());
+                        }
+                    }
+                }
+                Component::Normal(c) => {
+                    ret.push(c);
+                }
+            }
+        }
+        ret
     }
 }
 
@@ -141,5 +176,37 @@ pub fn remove_files_containing_with_ext(folder: PathBuf, name: &str, extension: 
                 let _res = ::std::fs::remove_file(path);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_normalize_path() {
+        let path = PathBuf::from("foo/./bar/../baz");
+        let normalized = path.normalize();
+        assert_eq!(normalized, PathBuf::from("foo/baz"));
+
+        let path = PathBuf::from("./foo");
+        let normalized = path.normalize();
+        assert_eq!(normalized, PathBuf::from("foo"));
+
+        let path = PathBuf::from("foo/../../bar");
+        let normalized = path.normalize();
+        // Depending on implementation, this could be "../bar" or just "bar" if we stop at root.
+        // Cargo implementation keeps ".." if it goes beyond start for relative paths.
+        // Let's assume we want ".." for relative paths.
+        assert_eq!(normalized, PathBuf::from("../bar"));
+
+        let path = PathBuf::from("foo/bar/");
+        let normalized = path.normalize();
+        assert_eq!(normalized, PathBuf::from("foo/bar"));
+
+        let path = PathBuf::from("/foo/../bar");
+        let normalized = path.normalize();
+        assert_eq!(normalized, PathBuf::from("/bar"));
     }
 }
