@@ -1,4 +1,3 @@
-use crate::NormalizedPath;
 use std::path::{Path, PathBuf};
 
 #[inline]
