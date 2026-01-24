@@ -2,11 +2,12 @@ use std::{
     collections::HashMap,
     sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
-        mpsc::{channel, Receiver, Sender},
-        Arc, Mutex, RwLock,
+        Arc, RwLock,
     },
 };
 
+use crossbeam_channel::{unbounded, Receiver, Sender};
+use dashmap::DashMap;
 use inox_uid::Uid;
 
 use crate::Worker;
@@ -76,9 +77,8 @@ impl Job {
 }
 
 pub type JobHandlerRw = Arc<RwLock<JobHandler>>;
-pub type JobReceiverRw = Arc<Mutex<Receiver<Job>>>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JobPriority {
     High = 0,
     Medium = 1,
@@ -98,22 +98,19 @@ impl From<usize> for JobPriority {
 }
 struct PrioChannel {
     sender: Sender<Job>,
-    receiver: JobReceiverRw,
+    receiver: Receiver<Job>,
 }
 impl Default for PrioChannel {
     fn default() -> Self {
-        let (sender, receiver) = channel();
-        Self {
-            sender,
-            receiver: Arc::new(Mutex::new(receiver)),
-        }
+        let (sender, receiver) = unbounded();
+        Self { sender, receiver }
     }
 }
 
 #[derive(Default)]
 pub struct JobHandler {
     channel: [PrioChannel; JobPriority::Count as usize],
-    pending_jobs: HashMap<JobId, Arc<AtomicUsize>>,
+    pending_jobs: Arc<DashMap<JobId, Arc<AtomicUsize>>>,
     workers: HashMap<String, Worker>,
 }
 
@@ -133,7 +130,10 @@ impl JobHandler {
     #[inline]
     fn get_job_with_priority(&self, job_priority: JobPriority) -> Option<Job> {
         inox_profiler::scoped_profile!("JobReceiver::get_job_with_priority[{:?}]", job_priority);
-        self.channel[job_priority as usize].receiver.get_job()
+        match self.channel[job_priority as usize].receiver.try_recv() {
+            Ok(job) => Some(job),
+            Err(_) => None,
+        }
     }
     #[inline]
     fn execute_all_jobs(&self) {
@@ -145,18 +145,16 @@ impl JobHandler {
         }
     }
 
-    fn add_worker(&mut self, name: &str, can_continue: &Arc<AtomicBool>) -> &mut Worker {
+    fn add_worker(
+        &mut self,
+        name: &str,
+        can_continue: &Arc<AtomicBool>,
+        receivers: Vec<Receiver<Job>>,
+    ) -> &mut Worker {
         let key = String::from(name);
         let w = self.workers.entry(key).or_default();
         if !w.is_started() {
-            w.start(
-                name,
-                can_continue,
-                self.channel
-                    .iter()
-                    .map(|channel| channel.receiver.clone())
-                    .collect(),
-            );
+            w.start(name, can_continue, receivers);
         }
         w
     }
@@ -165,9 +163,36 @@ impl JobHandler {
     fn setup_worker_threads(&mut self, can_continue: &Arc<AtomicBool>) {
         #[allow(clippy::absurd_extreme_comparisons)]
         if NUM_WORKER_THREADS > 0 {
-            #[allow(clippy::reversed_empty_ranges)]
-            for i in 1..NUM_WORKER_THREADS + 1 {
-                self.add_worker(format!("Worker{i}").as_str(), can_continue);
+            if NUM_WORKER_THREADS == 1 {
+                self.add_worker(
+                    "Worker",
+                    can_continue,
+                    vec![
+                        self.channel[JobPriority::High as usize].receiver.clone(),
+                        self.channel[JobPriority::Medium as usize].receiver.clone(),
+                        self.channel[JobPriority::Low as usize].receiver.clone(),
+                    ],
+                );
+            } else {
+                #[allow(clippy::reversed_empty_ranges)]
+                // Loading thread - only execute Low priority jobs
+                self.add_worker(
+                    "WorkerLoad",
+                    can_continue,
+                    vec![self.channel[JobPriority::Low as usize].receiver.clone()],
+                );
+
+                // Generic threads - execute High and Medium priority jobs
+                for i in 1..NUM_WORKER_THREADS {
+                    self.add_worker(
+                        format!("WorkerGeneric{i}").as_str(),
+                        can_continue,
+                        vec![
+                            self.channel[JobPriority::High as usize].receiver.clone(),
+                            self.channel[JobPriority::Medium as usize].receiver.clone(),
+                        ],
+                    );
+                }
             }
         }
     }
@@ -177,20 +202,20 @@ impl JobHandler {
         for (_name, w) in self.workers.iter_mut() {
             w.stop();
         }
-        self.pending_jobs.iter().for_each(|(_, pending_jobs)| {
-            pending_jobs.store(0, Ordering::SeqCst);
+        self.pending_jobs.iter().for_each(|entry| {
+            entry.value().store(0, Ordering::SeqCst);
         });
         self.pending_jobs.clear();
 
         self.channel.iter_mut().for_each(|c| {
-            while let Some(j) = c.receiver.get_job() {
+            while let Ok(j) = c.receiver.try_recv() {
                 drop(j);
             }
         });
     }
 
     fn add_job<F>(
-        &mut self,
+        &self,
         job_category: &JobId,
         job_name: &str,
         job_priority: JobPriority,
@@ -206,9 +231,6 @@ impl JobHandler {
             .clone();
         let job = Job::new(job_name, func, pending_jobs);
         self.channel[job_priority as usize].sender.send(job).ok();
-        self.workers.iter().for_each(|(_n, w)| {
-            w.wakeup();
-        });
     }
 }
 
@@ -229,7 +251,7 @@ impl JobHandlerTrait for JobHandlerRw {
     where
         F: FnOnce() + Send + Sync + 'static,
     {
-        self.write()
+        self.read()
             .unwrap()
             .add_job(job_category, job_name, job_priority, func);
     }
@@ -263,21 +285,5 @@ impl JobHandlerTrait for JobHandlerRw {
             can_continue.store(is_enabled, Ordering::SeqCst);
             self.start(can_continue);
         }
-    }
-}
-
-pub trait JobReceiverTrait {
-    fn get_job(&self) -> Option<Job>;
-}
-
-impl JobReceiverTrait for JobReceiverRw {
-    fn get_job(&self) -> Option<Job> {
-        inox_profiler::scoped_profile!("JobReceiver::get_job");
-        let mutex = self.lock().unwrap();
-        if let Ok(job) = mutex.try_recv() {
-            drop(mutex);
-            return Some(job);
-        }
-        None
     }
 }

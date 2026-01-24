@@ -4,9 +4,12 @@ use std::{
         Arc,
     },
     thread::{self, JoinHandle},
+    time::Duration,
 };
 
-use crate::{JobReceiverRw, JobReceiverTrait};
+use crossbeam_channel::{Receiver, Select};
+
+use crate::Job;
 
 #[derive(Default)]
 pub struct Worker {
@@ -21,7 +24,7 @@ impl Worker {
         &mut self,
         name: &str,
         can_continue: &Arc<AtomicBool>,
-        receivers: Vec<JobReceiverRw>,
+        receivers: Vec<Receiver<Job>>,
     ) {
         if self.thread_handle.is_none() {
             let builder = thread::Builder::new().name(name.into());
@@ -30,24 +33,34 @@ impl Worker {
             let t = builder
                 .spawn(move || {
                     inox_profiler::register_profiler_thread!();
-                    let receivers_count = receivers.len() as i32;
-                    let mut i;
                     loop {
-                        i = 0i32;
-                        while i >= 0 && i < receivers_count {
-                            if let Some(job) = receivers[i as usize].get_job() {
+                        let mut executed = false;
+                        // Try to execute jobs based on priority (order in receivers)
+                        for r in &receivers {
+                            if let Ok(job) = r.try_recv() {
                                 job.execute();
-                                //force exit from loop
-                                i = -1;
-                            } else {
-                                i += 1;
+                                executed = true;
+                                break;
                             }
                         }
-                        if !can_continue.load(Ordering::SeqCst) {
-                            return false;
-                        }
-                        if i >= 0 {
-                            std::thread::park();
+
+                        if !executed {
+                            if !can_continue.load(Ordering::SeqCst) {
+                                return false;
+                            }
+
+                            let mut sel = Select::new();
+                            for r in &receivers {
+                                sel.recv(r);
+                            }
+
+                            // Wait for a job or timeout to check can_continue
+                            if let Ok(oper) = sel.select_timeout(Duration::from_millis(100)) {
+                                let index = oper.index();
+                                if let Ok(job) = oper.recv(&receivers[index]) {
+                                    job.execute();
+                                }
+                            }
                         }
                     }
                 })
@@ -57,13 +70,10 @@ impl Worker {
     }
 
     pub fn wakeup(&self) {
-        if let Some(t) = &self.thread_handle {
-            t.thread().unpark();
-        }
+        // No-op
     }
 
     pub fn stop(&mut self) {
-        self.wakeup();
         if let Some(t) = self.thread_handle.take() {
             t.join().unwrap();
             self.thread_handle = None;
