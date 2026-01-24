@@ -7,9 +7,7 @@ use std::{
     time::Duration,
 };
 
-use crossbeam_channel::{Receiver, Select};
-
-use crate::Job;
+use crate::{JobReceiverRw, JobReceiverTrait};
 
 #[derive(Default)]
 pub struct Worker {
@@ -24,7 +22,7 @@ impl Worker {
         &mut self,
         name: &str,
         can_continue: &Arc<AtomicBool>,
-        receivers: Vec<Receiver<Job>>,
+        receivers: Vec<JobReceiverRw>,
     ) {
         if self.thread_handle.is_none() {
             let builder = thread::Builder::new().name(name.into());
@@ -35,32 +33,18 @@ impl Worker {
                     inox_profiler::register_profiler_thread!();
                     loop {
                         let mut executed = false;
-                        // Try to execute jobs based on priority (order in receivers)
                         for r in &receivers {
-                            if let Ok(job) = r.try_recv() {
+                            if let Some(job) = r.get_job() {
                                 job.execute();
                                 executed = true;
                                 break;
                             }
                         }
-
                         if !executed {
                             if !can_continue.load(Ordering::SeqCst) {
                                 return false;
                             }
-
-                            let mut sel = Select::new();
-                            for r in &receivers {
-                                sel.recv(r);
-                            }
-
-                            // Wait for a job or timeout to check can_continue
-                            if let Ok(oper) = sel.select_timeout(Duration::from_millis(100)) {
-                                let index = oper.index();
-                                if let Ok(job) = oper.recv(&receivers[index]) {
-                                    job.execute();
-                                }
-                            }
+                            thread::park_timeout(Duration::from_millis(10));
                         }
                     }
                 })
@@ -70,10 +54,13 @@ impl Worker {
     }
 
     pub fn wakeup(&self) {
-        // No-op
+        if let Some(t) = &self.thread_handle {
+            t.thread().unpark();
+        }
     }
 
     pub fn stop(&mut self) {
+        self.wakeup();
         if let Some(t) = self.thread_handle.take() {
             t.join().unwrap();
             self.thread_handle = None;

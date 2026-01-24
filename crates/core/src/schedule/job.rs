@@ -2,12 +2,11 @@ use std::{
     collections::HashMap,
     sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
-        Arc, RwLock,
+        mpsc::{channel, Receiver, Sender},
+        Arc, Mutex, RwLock,
     },
 };
 
-use crossbeam_channel::{unbounded, Receiver, Sender};
-use dashmap::DashMap;
 use inox_uid::Uid;
 
 use crate::Worker;
@@ -35,12 +34,6 @@ impl Job {
         F: FnOnce() + Send + Sync + 'static,
     {
         pending_jobs.fetch_add(1, Ordering::SeqCst);
-        /*
-        debug_log(
-            "Adding job {:?} - remaining {:?}",
-            name,
-            pending_jobs.load(Ordering::SeqCst)
-        );*/
         Self {
             func: Some(Box::new(func)),
             pending_jobs,
@@ -54,29 +47,16 @@ impl Job {
 
     pub fn execute(mut self) {
         inox_profiler::scoped_profile!("Job {}", self.name);
-        /*
-        debug_log(
-            "Starting {:?} - remaining {:?}",
-            self.name.as_str(),
-            self.pending_jobs.load(Ordering::SeqCst)
-        );
-        */
         let f = self.func.take().unwrap();
         (f)();
 
         self.pending_jobs.fetch_sub(1, Ordering::SeqCst);
         self.name.clear();
-        /*
-        debug_log(
-            "Ending {:?} - remaining {:?}",
-            self.name.as_str(),
-            self.pending_jobs.load(Ordering::SeqCst)
-        );
-        */
     }
 }
 
 pub type JobHandlerRw = Arc<RwLock<JobHandler>>;
+pub type JobReceiverRw = Arc<Mutex<Receiver<Job>>>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JobPriority {
@@ -98,19 +78,22 @@ impl From<usize> for JobPriority {
 }
 struct PrioChannel {
     sender: Sender<Job>,
-    receiver: Receiver<Job>,
+    receiver: JobReceiverRw,
 }
 impl Default for PrioChannel {
     fn default() -> Self {
-        let (sender, receiver) = unbounded();
-        Self { sender, receiver }
+        let (sender, receiver) = channel();
+        Self {
+            sender,
+            receiver: Arc::new(Mutex::new(receiver)),
+        }
     }
 }
 
 #[derive(Default)]
 pub struct JobHandler {
     channel: [PrioChannel; JobPriority::Count as usize],
-    pending_jobs: Arc<DashMap<JobId, Arc<AtomicUsize>>>,
+    pending_jobs: RwLock<HashMap<JobId, Arc<AtomicUsize>>>,
     workers: HashMap<String, Worker>,
 }
 
@@ -121,19 +104,17 @@ impl JobHandler {
     #[inline]
     fn get_pending_jobs_count(&self, job_category: &JobId) -> usize {
         inox_profiler::scoped_profile!("JobHandler::get_pending_jobs_count");
-        if let Some(pending_jobs) = self.pending_jobs.get(job_category) {
-            pending_jobs.load(Ordering::SeqCst)
-        } else {
-            0
+        if let Ok(pending_jobs) = self.pending_jobs.read() {
+            if let Some(pending_jobs) = pending_jobs.get(job_category) {
+                return pending_jobs.load(Ordering::SeqCst);
+            }
         }
+        0
     }
     #[inline]
     fn get_job_with_priority(&self, job_priority: JobPriority) -> Option<Job> {
         inox_profiler::scoped_profile!("JobReceiver::get_job_with_priority[{:?}]", job_priority);
-        match self.channel[job_priority as usize].receiver.try_recv() {
-            Ok(job) => Some(job),
-            Err(_) => None,
-        }
+        self.channel[job_priority as usize].receiver.get_job()
     }
     #[inline]
     fn execute_all_jobs(&self) {
@@ -149,7 +130,7 @@ impl JobHandler {
         &mut self,
         name: &str,
         can_continue: &Arc<AtomicBool>,
-        receivers: Vec<Receiver<Job>>,
+        receivers: Vec<JobReceiverRw>,
     ) -> &mut Worker {
         let key = String::from(name);
         let w = self.workers.entry(key).or_default();
@@ -202,13 +183,15 @@ impl JobHandler {
         for (_name, w) in self.workers.iter_mut() {
             w.stop();
         }
-        self.pending_jobs.iter().for_each(|entry| {
-            entry.value().store(0, Ordering::SeqCst);
-        });
-        self.pending_jobs.clear();
+        if let Ok(mut pending_jobs) = self.pending_jobs.write() {
+            pending_jobs.iter().for_each(|entry| {
+                entry.1.store(0, Ordering::SeqCst);
+            });
+            pending_jobs.clear();
+        }
 
         self.channel.iter_mut().for_each(|c| {
-            while let Ok(j) = c.receiver.try_recv() {
+            while let Some(j) = c.receiver.get_job() {
                 drop(j);
             }
         });
@@ -224,13 +207,25 @@ impl JobHandler {
         F: FnOnce() + Send + Sync + 'static,
     {
         inox_profiler::scoped_profile!("JobHandler::add_job[{}]", job_name);
-        let pending_jobs = self
-            .pending_jobs
-            .entry(*job_category)
-            .or_insert_with(|| Arc::new(AtomicUsize::new(0)))
-            .clone();
+        let pending_jobs = {
+            let read_lock = self.pending_jobs.read().unwrap();
+            read_lock.get(job_category).cloned()
+        };
+        let pending_jobs = pending_jobs.unwrap_or_else(|| {
+            let mut write_lock = self.pending_jobs.write().unwrap();
+            write_lock
+                .entry(*job_category)
+                .or_insert_with(|| Arc::new(AtomicUsize::new(0)))
+                .clone()
+        });
+
         let job = Job::new(job_name, func, pending_jobs);
         self.channel[job_priority as usize].sender.send(job).ok();
+        // Wake up all workers as we don't know which one is sleeping on this priority
+        // Using unpark is cheap
+        self.workers.iter().for_each(|(_n, w)| {
+            w.wakeup();
+        });
     }
 }
 
@@ -285,5 +280,21 @@ impl JobHandlerTrait for JobHandlerRw {
             can_continue.store(is_enabled, Ordering::SeqCst);
             self.start(can_continue);
         }
+    }
+}
+
+pub trait JobReceiverTrait {
+    fn get_job(&self) -> Option<Job>;
+}
+
+impl JobReceiverTrait for JobReceiverRw {
+    fn get_job(&self) -> Option<Job> {
+        inox_profiler::scoped_profile!("JobReceiver::get_job");
+        let mutex = self.lock().unwrap();
+        if let Ok(job) = mutex.try_recv() {
+            drop(mutex);
+            return Some(job);
+        }
+        None
     }
 }

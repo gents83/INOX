@@ -12,8 +12,6 @@ license.workspace = true
 crate-type = ["lib"]
 
 [dependencies]
-crossbeam-channel = "0.5.15"
-dashmap = "6.1.0"
 downcast-rs = { workspace = true }
 inox_commands = { path = "../commands" }
 inox_filesystem = { path = "../filesystem" }
