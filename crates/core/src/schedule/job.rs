@@ -15,6 +15,7 @@ use crate::Worker;
 const NUM_WORKER_THREADS: usize = 0;
 #[cfg(not(target_arch = "wasm32"))]
 const NUM_WORKER_THREADS: usize = 5;
+const LOW_PRIORITY_THREAD_RATIO: f32 = 0.5;
 
 pub type JobId = Uid;
 pub const INDEPENDENT_JOB_ID: JobId = inox_uid::generate_static_uid_from_string("IndependentJob");
@@ -142,38 +143,27 @@ impl JobHandler {
 
     #[inline]
     fn setup_worker_threads(&mut self, can_continue: &Arc<AtomicBool>) {
-        #[allow(clippy::absurd_extreme_comparisons)]
         if NUM_WORKER_THREADS > 0 {
-            if NUM_WORKER_THREADS == 1 {
-                self.add_worker(
-                    "Worker",
-                    can_continue,
-                    vec![
-                        self.channel[JobPriority::High as usize].receiver.clone(),
-                        self.channel[JobPriority::Medium as usize].receiver.clone(),
-                        self.channel[JobPriority::Low as usize].receiver.clone(),
-                    ],
-                );
-            } else {
-                #[allow(clippy::reversed_empty_ranges)]
-                // Loading thread - only execute Low priority jobs
-                self.add_worker(
-                    "WorkerLoad",
-                    can_continue,
-                    vec![self.channel[JobPriority::Low as usize].receiver.clone()],
-                );
+            // High priority jobs are mandatory and should be executed as fast as possible
+            // Low priority jobs are non-mandatory and should not block the frame
+            // We can set a ratio of threads that can execute Low priority jobs
+            let num_low_priority_workers = (NUM_WORKER_THREADS as f32 * LOW_PRIORITY_THREAD_RATIO).ceil() as usize;
+            let num_low_priority_workers = num_low_priority_workers.max(1);
 
-                // Generic threads - execute High and Medium priority jobs
-                for i in 1..NUM_WORKER_THREADS {
-                    self.add_worker(
-                        format!("WorkerGeneric{i}").as_str(),
-                        can_continue,
-                        vec![
-                            self.channel[JobPriority::High as usize].receiver.clone(),
-                            self.channel[JobPriority::Medium as usize].receiver.clone(),
-                        ],
-                    );
+            for i in 0..NUM_WORKER_THREADS {
+                let mut receivers = vec![
+                    self.channel[JobPriority::High as usize].receiver.clone(),
+                    self.channel[JobPriority::Medium as usize].receiver.clone(),
+                ];
+                if i < num_low_priority_workers {
+                    receivers.push(self.channel[JobPriority::Low as usize].receiver.clone());
                 }
+
+                self.add_worker(
+                    format!("Worker{i}").as_str(),
+                    can_continue,
+                    receivers,
+                );
             }
         }
     }
