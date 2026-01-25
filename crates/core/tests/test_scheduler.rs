@@ -8,21 +8,19 @@ use std::{
 };
 
 use inox_core::{
-    JobHandler, JobHandlerTrait, JobPriority, Phase, Phases, Scheduler, System,
+    JobHandler, JobHandlerTrait, JobPriority, Phases, Scheduler, System,
     SystemUID, INDEPENDENT_JOB_ID,
 };
 use inox_uid::generate_uid_from_string;
 
 #[derive(Default)]
 struct TestSystem {
-    name: String,
     counter: Arc<AtomicUsize>,
 }
 
 impl TestSystem {
-    fn new(name: &str, counter: Arc<AtomicUsize>) -> Self {
+    fn new(_name: &str, counter: Arc<AtomicUsize>) -> Self {
         Self {
-            name: name.to_string(),
             counter,
         }
     }
@@ -229,6 +227,87 @@ fn test_scheduler_dependencies() {
     assert_eq!(counter.load(Ordering::SeqCst), 2);
 
     scheduler.uninit();
+    can_continue.store(false, Ordering::SeqCst);
+    job_handler.stop();
+}
+
+#[test]
+fn test_phase_wait_logic() {
+    let job_handler = Arc::new(RwLock::new(JobHandler::default()));
+    let can_continue = Arc::new(AtomicBool::new(true));
+    job_handler.start(&can_continue);
+
+    let mut scheduler = Scheduler::default();
+    scheduler.start();
+
+    let counter = Arc::new(AtomicUsize::new(0));
+    let c = counter.clone();
+
+    // System that spawns a job and waits for it implicitly by being in a phase
+    // In reality, the scheduler waits for jobs launched by the phase.
+    // We can simulate a system that takes time.
+    struct SlowSystem { counter: Arc<AtomicUsize> }
+    inox_core::implement_unique_system_uid!(SlowSystem);
+    impl System for SlowSystem {
+        fn read_config(&mut self, _: &str) {}
+        fn should_run_when_not_focused(&self) -> bool { false }
+        fn init(&mut self) {}
+        fn run(&mut self) -> bool {
+            thread::sleep(Duration::from_millis(100));
+            self.counter.fetch_add(1, Ordering::SeqCst);
+            true
+        }
+        fn uninit(&mut self) {}
+    }
+
+    scheduler.add_system(
+        Phases::Update,
+        SlowSystem { counter: c },
+        None,
+        &job_handler,
+    );
+
+    // This call should block until SlowSystem is done because scheduler waits for phase completion
+    scheduler.run_once(true, &job_handler);
+
+    assert_eq!(counter.load(Ordering::SeqCst), 1);
+
+    scheduler.uninit();
+    can_continue.store(false, Ordering::SeqCst);
+    job_handler.stop();
+}
+
+#[test]
+fn test_stress_concurrent_jobs() {
+    let job_handler = Arc::new(RwLock::new(JobHandler::default()));
+    let can_continue = Arc::new(AtomicBool::new(true));
+    job_handler.start(&can_continue);
+
+    let total_jobs = 1000;
+    let counter = Arc::new(AtomicUsize::new(0));
+
+    for _ in 0..total_jobs {
+        let c = counter.clone();
+        job_handler.add_job(
+            &INDEPENDENT_JOB_ID,
+            "StressJob",
+            JobPriority::Medium,
+            move || {
+                c.fetch_add(1, Ordering::SeqCst);
+            },
+        );
+    }
+
+    // Wait for all jobs to finish
+    // Since we don't have a direct "wait_all" on handler exposed for tests easily, we loop
+    let mut retries = 0;
+    while counter.load(Ordering::SeqCst) < total_jobs && retries < 100 {
+        thread::sleep(Duration::from_millis(50));
+        retries += 1;
+    }
+
+    assert_eq!(counter.load(Ordering::SeqCst), total_jobs);
+
     can_continue.store(false, Ordering::SeqCst);
     job_handler.stop();
 }

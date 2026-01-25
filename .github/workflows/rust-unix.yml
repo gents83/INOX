@@ -78,6 +78,9 @@ jobs:
       - name: "Run cargo clippy check"
         run: cargo clippy --manifest-path ./crates/Cargo.toml --no-deps -- -D warnings
 
+      - name: "Run cargo test inox_core"
+        run: cargo test -p inox_core --manifest-path ./crates/Cargo.toml
+
       - name: "Run cargo build workspace release"
         run: cargo build --manifest-path ./crates/Cargo.toml --release
 
