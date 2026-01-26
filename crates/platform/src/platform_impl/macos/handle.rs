@@ -3,7 +3,7 @@ use raw_window_handle::{
     WindowHandle,
 };
 
-use super::super::handle::*;
+use crate::handle::*;
 use core::ffi::c_void;
 use core::ptr;
 

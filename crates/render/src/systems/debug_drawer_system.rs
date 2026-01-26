@@ -20,34 +20,19 @@ use super::config::Config;
 /// A debug drawer
 /// You can use this to draw things in the editor just sending events:
 /// ```
-/// use inox_editor::systems::{DebugDrawer, DrawEvent};
-/// use inox_math::{Vector3, Zero};
-/// use inox_messenger::{MessengerRw, Message};
+/// use inox_render::DrawEvent;
+/// use inox_math::Vector3;
+/// use inox_messenger::MessageHub;
+/// use std::sync::Arc;
 ///
-/// let message_hub = MessengerRw::default();
-/// let global_dispatcher = message_hub.read().unwrap().get_dispatcher().clone();
-///     global_dispatcher
-///     .write()
-///     .unwrap()
-///     .send(
-///         DrawEvent::Sphere([2., 2., 2.].into(), 2., [1., 0., 0., 1.].into(), true)
-///             .as_boxed(),
-///     )
-///     .ok();
-///
-///     global_dispatcher
-///     .write()
-///     .unwrap()
-///     .send(
-///         DrawEvent::Arrow(
-///             Vector3::zero(),
-///             [2., 2., 0.].into(),
-///             [1., 0., 0., 1.].into(),
-///             false,
-///         )
-///         .as_boxed(),
-///     )
-///     .ok();
+/// let message_hub = Arc::new(MessageHub::default());
+/// message_hub.send_event(DrawEvent::Sphere([2., 2., 2.].into(), 2., [1., 0., 0., 1.].into(), true));
+/// message_hub.send_event(DrawEvent::Arrow(
+///     Vector3::default(),
+///     [2., 2., 0.].into(),
+///     [1., 0., 0., 1.].into(),
+///     false,
+/// ));
 /// ```
 pub struct DebugDrawerSystem {
     config: Config,
