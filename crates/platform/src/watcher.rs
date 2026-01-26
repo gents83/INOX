@@ -1,4 +1,4 @@
-use super::platform_impl::platform::watcher::FileWatcherImpl;
+use crate::platform_impl::platform::watcher::FileWatcherImpl;
 use std::{
     path::{Path, PathBuf},
     sync::mpsc::{self, Receiver},

@@ -71,7 +71,6 @@ pyo3 = { git = "https://github.com/PyO3/pyo3", features = [
     "abi3-py310",
     "generate-import-lib",
 ] }
-rand = { git = "https://github.com/rust-random/rand", features = ["std"] }
 serde_json = { git = "https://github.com/serde-rs/json" }
 flexbuffers = { git = "https://github.com/google/flatbuffers" }
 ttf-parser = { git = "https://github.com/RazrFalcon/ttf-parser" }
@@ -137,7 +136,6 @@ rspirv = { version = "0.11" }
 js-sys = { version = "0.3.77" }
 wasm-bindgen = { version = "0.2.100" }
 wasm-bindgen-futures = { version = "0.4.43" }
-wasm-bindgen-test = { version = "0.3" }
 web-sys = { version = "0.3.77", features = [
     "Request",
     "Response",

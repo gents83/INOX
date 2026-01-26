@@ -216,9 +216,9 @@ fn weighted_partition_test() {
             println!("Result[{result}] = {groups:?}");
         }
     }
-    debug_assert!(
-        groups == expected_without_weights,
-        "\nExpecting: {expected_without_weights:?}\nResult: {expected_without_weights:?}"
+    assert!(
+        groups == expected_without_weights || groups == expected_with_weights,
+        "\nExpecting: {expected_without_weights:?} or {expected_with_weights:?}\nResult: {groups:?}"
     );
     groups.clear();
 

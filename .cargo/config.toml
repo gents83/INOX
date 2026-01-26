@@ -40,8 +40,8 @@ wasm-opt = ['-Oz']
 # `brew install michaeleisel/zld/zld`
 [target.x86_64-apple-darwin]
 rustflags = ["-C", "link-arg=-fuse-ld=lld"]
-[target.aarch64-apple-darwin]
-rustflags = ["-C", "link-arg=-fuse-ld=/opt/homebrew/opt/llvm/bin/ld64.lld"]
+#[target.aarch64-apple-darwin]
+#rustflags = ["-C", "link-arg=-fuse-ld=/opt/homebrew/opt/llvm/bin/ld64.lld"]
 
 [target.wasm32-unknown-unknown]
 rustflags = [
