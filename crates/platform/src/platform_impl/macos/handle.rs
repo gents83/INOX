@@ -5,7 +5,7 @@ use raw_window_handle::{
 
 use crate::handle::*;
 use core::ffi::c_void;
-use core::ptr;
+use std::ptr::NonNull;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HandleImpl {
@@ -15,8 +15,8 @@ pub struct HandleImpl {
 
 impl HandleImpl {
     pub fn as_window_handle(&self) -> WindowHandle {
-        let view = NonNull::from(self.ns_view as _).cast();
-        let handle = XlibWindowHandle::new(view);
+        let view = NonNull::new(self.ns_view).unwrap();
+        let handle = AppKitWindowHandle::new(view);
         unsafe { WindowHandle::borrow_raw(RawWindowHandle::AppKit(handle)) }
     }
     #[inline]

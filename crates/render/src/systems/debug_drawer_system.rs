@@ -28,7 +28,7 @@ use super::config::Config;
 /// let message_hub = Arc::new(MessageHub::default());
 /// message_hub.send_event(DrawEvent::Sphere([2., 2., 2.].into(), 2., [1., 0., 0., 1.].into(), true));
 /// message_hub.send_event(DrawEvent::Arrow(
-///     Vector3::default(),
+///     [0., 0., 0.].into(),
 ///     [2., 2., 0.].into(),
 ///     [1., 0., 0., 1.].into(),
 ///     false,
