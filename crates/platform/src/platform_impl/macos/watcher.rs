@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 pub struct FileWatcherImpl;
 
 impl FileWatcherImpl {
-    pub fn new(_path: PathBuf, _f: impl Fn(&str) + Send + 'static) -> Result<Self, String> {
+    pub fn new<F: Fn(crate::watcher::FileEvent) + Send + 'static>(_f: F) -> Result<Self, String> {
         Ok(Self)
     }
     pub fn unwatch(&mut self, _path: &Path) {}

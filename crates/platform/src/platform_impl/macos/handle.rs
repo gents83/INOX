@@ -3,7 +3,6 @@ use raw_window_handle::{
     WindowHandle,
 };
 
-use crate::handle::*;
 use core::ffi::c_void;
 use std::ptr::NonNull;
 
