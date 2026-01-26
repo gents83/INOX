@@ -29,8 +29,3 @@ impl HandleImpl {
     }
 }
 
-impl Handle for HandleImpl {
-    fn is_valid(&self) -> bool {
-        self.is_valid()
-    }
-}
