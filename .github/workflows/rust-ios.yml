@@ -41,6 +41,10 @@ jobs:
           export SDKROOT=$(xcrun -sdk iphoneos --show-sdk-path)
           cargo clippy --manifest-path ./crates/Cargo.toml --target aarch64-apple-ios --release --no-deps -- -D warnings
 
+      - name: "Run cargo test workspace"
+        run: |
+          cargo test --workspace --manifest-path ./crates/Cargo.toml
+
       - name: "Run cargo build release"
         run: |
           export SDKROOT=$(xcrun -sdk iphoneos --show-sdk-path)

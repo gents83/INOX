@@ -4,6 +4,7 @@ use std::{
         Arc,
     },
     thread::{self, JoinHandle},
+    time::Duration,
 };
 
 use crate::{JobReceiverRw, JobReceiverTrait};
@@ -30,24 +31,20 @@ impl Worker {
             let t = builder
                 .spawn(move || {
                     inox_profiler::register_profiler_thread!();
-                    let receivers_count = receivers.len() as i32;
-                    let mut i;
                     loop {
-                        i = 0i32;
-                        while i >= 0 && i < receivers_count {
-                            if let Some(job) = receivers[i as usize].get_job() {
+                        let mut executed = false;
+                        for r in &receivers {
+                            if let Some(job) = r.get_job() {
                                 job.execute();
-                                //force exit from loop
-                                i = -1;
-                            } else {
-                                i += 1;
+                                executed = true;
+                                break;
                             }
                         }
-                        if !can_continue.load(Ordering::SeqCst) {
-                            return false;
-                        }
-                        if i >= 0 {
-                            std::thread::park();
+                        if !executed {
+                            if !can_continue.load(Ordering::SeqCst) {
+                                return false;
+                            }
+                            thread::park_timeout(Duration::from_millis(10));
                         }
                     }
                 })
