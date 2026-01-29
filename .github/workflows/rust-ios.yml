@@ -23,10 +23,10 @@ jobs:
         with:
           submodules: recursive
 
-      - name: "Install nightly toolchain"
+      - name: "Install stable toolchain"
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly
+          toolchain: stable
           targets: aarch64-apple-ios
           components: clippy
 
