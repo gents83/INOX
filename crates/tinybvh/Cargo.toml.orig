@@ -1,0 +1,28 @@
+[package]
+name = "tinybvh-rs"
+description = "Rust wrapper for tinybvh"
+repository = "https://github.com/DavidPeicho/tinybvh-rs"
+version = "0.1.0-beta.3"
+edition = "2021"
+license = "MIT"
+readme = "README.md"
+keywords = ["graphics", "rendering", "tinybvh", "bvh"]
+include = [
+    "build.rs",
+    "src/**/*.rs",
+    "ffi/include/**/*.h",
+    "ffi/src/**/*.cpp",
+    "ffi/tinybvh/tiny_bvh.h",
+    "Cargo.toml",
+]
+
+[dependencies]
+bytemuck = { version = "1.20.0", features = ["derive"] }
+cxx = "1.0.158"
+pas = { version = "0.3.0" }
+
+[build-dependencies]
+cxx-build = "1.0.158"
+
+[dev-dependencies]
+approx = "0.5.1"

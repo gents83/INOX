@@ -153,8 +153,8 @@ impl GlobalBuffers {
         self.buffer::<GPUBVHNode>().write().unwrap().data_mut()[mesh_bvh_range]
             .iter_mut()
             .for_each(|n| {
-                if n.miss >= 0 {
-                    n.miss += blas_index as i32;
+                if n.left_node >= 0 {
+                    n.left_node += blas_index as i32;
                 }
             });
         self.buffer::<GPUBVHNode>()
@@ -367,8 +367,8 @@ impl GlobalBuffers {
             .unwrap()
             .store(tlas_starting_index, Ordering::SeqCst);
         bvh.data_mut()[tlas_range].iter_mut().for_each(|n| {
-            if n.miss >= 0 {
-                n.miss += tlas_starting_index as i32;
+            if n.left_node >= 0 {
+                n.left_node += tlas_starting_index as i32;
             }
         });
         bvh.mark_as_dirty(render_context);
