@@ -24,8 +24,6 @@ mod layouts;
 mod ray;
 mod traversal;
 
-use std::u32;
-
 pub(crate) use cxx_ffi::ffi;
 pub use layouts::*;
 pub use ray::*;
@@ -59,7 +57,7 @@ pub enum Error {
 impl Error {
     pub(crate) fn validate_triangulated(prim_len: usize) -> Result<(), Error> {
         if prim_len % 3 != 0 {
-            Err(Error::PrimitiveTriangulated(prim_len as usize))
+            Err(Error::PrimitiveTriangulated(prim_len))
         } else {
             Ok(())
         }
