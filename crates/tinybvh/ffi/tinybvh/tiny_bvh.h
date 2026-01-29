@@ -194,6 +194,7 @@ THE SOFTWARE.
 #include <cstdio>
 #include <cmath>
 #include <cstring>
+#include <stdlib.h> // for aligned_alloc
 #endif
 #include <cstdint>
 #include <atomic> // for SBVH builds
@@ -273,6 +274,8 @@ inline size_t make_multiple_of( size_t x, size_t alignment ) { return (x + (alig
 #else
 #if defined __APPLE__ || defined __aarch64__ || (defined __ANDROID_API__ && (__ANDROID_API__ >= 28))
 #define _ALIGNED_ALLOC(alignment,size) aligned_alloc( alignment, make_multiple_of( size, alignment ) );
+#elif defined __ANDROID__
+#define _ALIGNED_ALLOC(alignment,size) memalign( alignment, make_multiple_of( size, alignment ) );
 #elif defined __GNUC__
 #ifdef __linux__
 #define _ALIGNED_ALLOC(alignment,size) aligned_alloc( alignment, make_multiple_of( size, alignment ) );
@@ -4509,7 +4512,7 @@ void BVH_Verbose::Optimize( const uint32_t iterations, const bool extreme, bool 
 		int start = 0;
 		if (stochastic)
 		{
-			float r = (float)rand() / RAND_MAX;
+			float r = (float)rand() / (float)RAND_MAX;
 			r = tinybvh_max( 0.0f, (r * 1.2f) - 0.3f ); // 0 .. 0.9f
 			start = (int)((float)limit * r);
 		}
