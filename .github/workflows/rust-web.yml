@@ -49,10 +49,10 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "Install stable toolchain"
+      - name: "Install nightly toolchain"
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          toolchain: nightly
           targets: wasm32-unknown-unknown
           components: rustfmt, clippy
 

@@ -66,10 +66,10 @@ jobs:
             ./crates/target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: "Install stable toolchain"
+      - name: "Install nightly toolchain"
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          toolchain: nightly
           components: rustfmt, clippy
           
       - name: "Update repos"
