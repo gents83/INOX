@@ -82,6 +82,7 @@ pub(crate) mod ffi {
         pub type BVH8_CPU;
         pub fn BVH8_CPU_new() -> UniquePtr<BVH8_CPU>;
         pub fn ConvertFrom(self: Pin<&mut BVH8_CPU>, bvh: &MBVH8);
+        #[allow(dead_code)]
         pub fn Intersect(self: &BVH8_CPU, ray: &mut Ray) -> i32;
 
         // CWBVH

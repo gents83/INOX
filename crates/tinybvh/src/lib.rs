@@ -56,7 +56,7 @@ pub enum Error {
 
 impl Error {
     pub(crate) fn validate_triangulated(prim_len: usize) -> Result<(), Error> {
-        if prim_len % 3 != 0 {
+        if !prim_len.is_multiple_of(3) {
             Err(Error::PrimitiveTriangulated(prim_len))
         } else {
             Ok(())

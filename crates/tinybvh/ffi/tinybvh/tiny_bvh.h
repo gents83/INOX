@@ -195,6 +195,9 @@ THE SOFTWARE.
 #include <cmath>
 #include <cstring>
 #include <stdlib.h> // for aligned_alloc
+#if defined(__ANDROID__)
+#include <malloc.h>
+#endif
 #endif
 #include <cstdint>
 #include <atomic> // for SBVH builds
@@ -272,10 +275,14 @@ inline size_t make_multiple_of( size_t x, size_t alignment ) { return (x + (alig
 #define _ALIGNED_ALLOC(alignment,size) _mm_malloc( make_multiple_of( size, alignment ), alignment );
 #define _ALIGNED_FREE(ptr) _mm_free( ptr );
 #else
-#if defined __APPLE__ || defined __aarch64__ || (defined __ANDROID_API__ && (__ANDROID_API__ >= 28))
+#if defined(__ANDROID__)
+  #if defined(__ANDROID_API__) && __ANDROID_API__ >= 28
+    #define _ALIGNED_ALLOC(alignment,size) aligned_alloc( alignment, make_multiple_of( size, alignment ) );
+  #else
+    #define _ALIGNED_ALLOC(alignment,size) memalign( alignment, make_multiple_of( size, alignment ) );
+  #endif
+#elif defined __APPLE__ || defined __aarch64__
 #define _ALIGNED_ALLOC(alignment,size) aligned_alloc( alignment, make_multiple_of( size, alignment ) );
-#elif defined __ANDROID__
-#define _ALIGNED_ALLOC(alignment,size) memalign( alignment, make_multiple_of( size, alignment ) );
 #elif defined __GNUC__
 #ifdef __linux__
 #define _ALIGNED_ALLOC(alignment,size) aligned_alloc( alignment, make_multiple_of( size, alignment ) );
