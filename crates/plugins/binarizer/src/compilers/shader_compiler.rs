@@ -169,6 +169,10 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
                         spirv_code,
                         ..Default::default()
                     };
+                    if !new_path.exists() {
+                        let result = create_dir_all(new_path.parent().unwrap());
+                        debug_assert!(result.is_ok());
+                    }
                     shader_data.save_to_file(new_path.as_path(), SerializationType::Binary);
                     send_reloaded_event(&self.message_hub, new_path.as_path());
                 }
@@ -323,6 +327,10 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
                     wgsl_code: preprocessed_code,
                     ..Default::default()
                 };
+                if !new_path.exists() {
+                    let result = create_dir_all(new_path.parent().unwrap());
+                    debug_assert!(result.is_ok());
+                }
                 shader_data.save_to_file(new_path.as_path(), SerializationType::Binary);
                 send_reloaded_event(&self.message_hub, new_path.as_path());
             }
