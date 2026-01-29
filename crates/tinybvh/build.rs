@@ -4,7 +4,7 @@ fn main() {
         .file("ffi/src/tinybvh.cpp")
         .std("c++20");
 
-    if std::env::var("TARGET").map_or(false, |t| t.contains("x86_64") || t.contains("x86")) {
+    if std::env::var("TARGET").is_ok_and(|t| t.contains("x86_64") || t.contains("x86")) {
         build.flag("-march=native"); // SIMD for x86/x64 host optimization
     }
 

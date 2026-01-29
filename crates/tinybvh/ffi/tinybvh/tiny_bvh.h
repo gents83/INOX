@@ -5626,6 +5626,7 @@ void BVH4_CPU::ConvertFrom( const MBVH<4>& original )
 	bvh4 = original;
 	// prepare input bvh4
 	uint32_t firstIdx = 0;
+    (void)firstIdx; // suppress unused variable warning
 	// allocate if needed
 	uint32_t nodesNeeded = bvh4.usedNodes, leafsNeeded = bvh4.LeafCount();
 	uint32_t blocksNeeded = nodesNeeded * (sizeof( BVHNode ) / 64); // here, block = cacheline.
