@@ -169,6 +169,10 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
                         spirv_code,
                         ..Default::default()
                     };
+                    if !new_path.exists() {
+                        let result = create_dir_all(new_path.parent().unwrap());
+                        debug_assert!(result.is_ok());
+                    }
                     shader_data.save_to_file(new_path.as_path(), SerializationType::Binary);
                     send_reloaded_event(&self.message_hub, new_path.as_path());
                 }
@@ -305,13 +309,28 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
             let mut data = Vec::new();
             file.read_to_end(&mut data).unwrap();
             let shader_code = String::from_utf8(data).unwrap();
-            let preprocessed_code = Self::preprocess_code(path, shader_code);
+            let mut preprocessed_code = Self::preprocess_code(path, shader_code);
+            preprocessed_code = Self::remove_comments(&preprocessed_code);
+
+            let result = clean_unused_definitions(&preprocessed_code);
+            match result {
+                Ok(code) => {
+                    preprocessed_code = code;
+                }
+                Err(e) => {
+                    println!("Unable to optimize shader {path:?} with error: \n{}", e,);
+                }
+            }
 
             if self.validate_shader(&preprocessed_code, path, &new_path) {
                 let shader_data = ShaderData {
                     wgsl_code: preprocessed_code,
                     ..Default::default()
                 };
+                if !new_path.exists() {
+                    let result = create_dir_all(new_path.parent().unwrap());
+                    debug_assert!(result.is_ok());
+                }
                 shader_data.save_to_file(new_path.as_path(), SerializationType::Binary);
                 send_reloaded_event(&self.message_hub, new_path.as_path());
             }
