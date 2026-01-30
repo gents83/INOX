@@ -134,7 +134,7 @@ rspirv = { version = "0.11" }
 
 # wasm32
 js-sys = { version = "0.3.77" }
-wasm-bindgen = { version = "0.2.100" }
+wasm-bindgen = { version = "0.2.108" }
 wasm-bindgen-futures = { version = "0.4.43" }
 web-sys = { version = "0.3.77", features = [
     "Request",
