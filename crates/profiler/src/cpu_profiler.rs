@@ -161,7 +161,7 @@ impl CpuProfiler {
         let mut thread_data = HashMap::new();
         let locked_data = self.locked_data.lock().unwrap();
         let mut threads: Vec<(&RawThreadId, &ThreadInfo)> = locked_data.threads.iter().collect();
-        threads.sort_by_key(|&a| a.1.name.to_lowercase());
+        threads.sort_by(|&a, &b| a.1.name.to_lowercase().cmp(&b.1.name.to_lowercase()));
         for (&id, t) in threads.iter() {
             thread_data.insert(
                 id,
