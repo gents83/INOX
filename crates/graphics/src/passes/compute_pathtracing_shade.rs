@@ -1,58 +1,48 @@
 use std::path::PathBuf;
 
 use inox_render::{
-    BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData, ConstantDataRw, DEFAULT_HEIGHT, DEFAULT_WIDTH, GPUBuffer, GPUInstance, GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture, GPUTransform, GPUVector, GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, INSTANCE_DATA_ID, Pass, RenderContext, RenderContextRc, SamplerType, ShaderStage, TextureId, TextureView
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData, ConstantDataRw, DEFAULT_HEIGHT, DEFAULT_WIDTH, GPUBuffer, GPUInstance, GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture, GPUVector, GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, GPUTransform, INSTANCE_DATA_ID, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView,
 };
-
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
-use inox_uid::{generate_random_uid, INVALID_UID};
+use inox_uid::generate_random_uid;
 
-pub const COMPUTE_PATHTRACING_DIRECT_PIPELINE: &str =
-    "pipelines/ComputePathtracingDirect.compute_pipeline";
-pub const COMPUTE_PATHTRACING_DIRECT_NAME: &str = "ComputePathTracingDirectPass";
+use crate::passes::pathtracing_common::{PathTracingCounters, Ray, RayHit, ShadowRay, NEXT_RAYS_UID};
 
-pub const SIZE_OF_DATA_BUFFER_ELEMENT: usize = 4;
-#[repr(C)]
-#[derive(Default, PartialEq, Clone, Copy, Debug)]
-pub struct RayPackedData(pub f32);
-#[repr(C)]
-#[derive(Default, PartialEq, Clone, Copy, Debug)]
-pub struct RadiancePackedData(pub f32);
-#[repr(C)]
-#[derive(Default, PartialEq, Clone, Copy, Debug)]
-pub struct ThroughputPackedData(pub f32);
+pub const COMPUTE_PATHTRACING_SHADE_PIPELINE: &str =
+    "pipelines/ComputePathtracingShade.compute_pipeline";
+pub const COMPUTE_PATHTRACING_SHADE_NAME: &str = "ComputePathTracingShadePass";
 
-pub struct ComputePathTracingDirectPass {
+pub struct ComputePathTracingShadePass {
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
     indices: GPUBuffer<GPUVertexIndices>,
     vertices_positions: GPUBuffer<GPUVertexPosition>,
     vertices_attributes: GPUBuffer<GPUVertexAttributes>,
-    transforms: GPUVector<GPUTransform>,
     instances: GPUVector<GPUInstance>,
+    transforms: GPUVector<GPUTransform>,
     meshes: GPUBuffer<GPUMesh>,
     meshlets: GPUBuffer<GPUMeshlet>,
     materials: GPUBuffer<GPUMaterial>,
     textures: GPUBuffer<GPUTexture>,
     lights: GPUBuffer<GPULight>,
-    visibility_texture: TextureId,
-    depth_texture: TextureId,
-    data_buffer_0: GPUVector<RayPackedData>,
-    data_buffer_1: GPUVector<RadiancePackedData>,
-    data_buffer_2: GPUVector<ThroughputPackedData>,
-    dimensions: (u32, u32),
+    rays: GPUVector<Ray>,
+    next_rays: GPUVector<Ray>,
+    hits: GPUVector<RayHit>,
+    shadow_rays: GPUVector<ShadowRay>,
+    counters: GPUBuffer<PathTracingCounters>,
+    binding_names: Vec<String>,
 }
-unsafe impl Send for ComputePathTracingDirectPass {}
-unsafe impl Sync for ComputePathTracingDirectPass {}
+unsafe impl Send for ComputePathTracingShadePass {}
+unsafe impl Sync for ComputePathTracingShadePass {}
 
-impl Pass for ComputePathTracingDirectPass {
+impl Pass for ComputePathTracingShadePass {
     fn name(&self) -> &str {
-        COMPUTE_PATHTRACING_DIRECT_NAME
+        COMPUTE_PATHTRACING_SHADE_NAME
     }
     fn static_name() -> &'static str {
-        COMPUTE_PATHTRACING_DIRECT_NAME
+        COMPUTE_PATHTRACING_SHADE_NAME
     }
     fn is_active(&self, _render_context: &RenderContext) -> bool {
         true
@@ -62,29 +52,19 @@ impl Pass for ComputePathTracingDirectPass {
         Self: Sized,
     {
         let data = ComputePassData {
-            name: COMPUTE_PATHTRACING_DIRECT_NAME.to_string(),
-            pipelines: vec![PathBuf::from(COMPUTE_PATHTRACING_DIRECT_PIPELINE)],
+            name: COMPUTE_PATHTRACING_SHADE_NAME.to_string(),
+            pipelines: vec![PathBuf::from(COMPUTE_PATHTRACING_SHADE_PIPELINE)],
         };
 
-        let data_buffer_0 = render_context.global_buffers().vector::<RayPackedData>();
-        let data_buffer_1 = render_context
-            .global_buffers()
-            .vector::<RadiancePackedData>();
-        let data_buffer_2 = render_context
-            .global_buffers()
-            .vector::<ThroughputPackedData>();
+        let rays = render_context.global_buffers().vector::<Ray>();
+        let next_rays = render_context.global_buffers().vector_with_id::<Ray>(NEXT_RAYS_UID);
+        let hits = render_context.global_buffers().vector::<RayHit>();
+        let shadow_rays = render_context.global_buffers().vector::<ShadowRay>();
+        let counters = render_context.global_buffers().buffer::<PathTracingCounters>();
 
-        data_buffer_0.write().unwrap().resize(
-            SIZE_OF_DATA_BUFFER_ELEMENT * (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
-            RayPackedData(0.),
-        );
-        data_buffer_1.write().unwrap().resize(
-            SIZE_OF_DATA_BUFFER_ELEMENT * (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
-            RadiancePackedData(0.),
-        );
-        data_buffer_2.write().unwrap().resize(
-            SIZE_OF_DATA_BUFFER_ELEMENT * (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
-            ThroughputPackedData(0.),
+        shadow_rays.write().unwrap().resize(
+            (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
+            ShadowRay::default(),
         );
 
         Self {
@@ -103,35 +83,29 @@ impl Pass for ComputePathTracingDirectPass {
             vertices_attributes: render_context
                 .global_buffers()
                 .buffer::<GPUVertexAttributes>(),
-            transforms: render_context.global_buffers().vector::<GPUTransform>(),
             instances: render_context
                 .global_buffers()
                 .vector_with_id::<GPUInstance>(INSTANCE_DATA_ID),
+            transforms: render_context.global_buffers().vector::<GPUTransform>(),
             meshes: render_context.global_buffers().buffer::<GPUMesh>(),
             meshlets: render_context.global_buffers().buffer::<GPUMeshlet>(),
             materials: render_context.global_buffers().buffer::<GPUMaterial>(),
             textures: render_context.global_buffers().buffer::<GPUTexture>(),
             lights: render_context.global_buffers().buffer::<GPULight>(),
-            data_buffer_0,
-            data_buffer_1,
-            data_buffer_2,
-            binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_DIRECT_NAME),
-            visibility_texture: INVALID_UID,
-            depth_texture: INVALID_UID,
-            dimensions: (0, 0),
+            rays,
+            next_rays,
+            hits,
+            shadow_rays,
+            counters,
+            binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_SHADE_NAME),
+            binding_names: Vec::new(),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
-        inox_profiler::scoped_profile!("pathtracing_direct_pass::init");
+        inox_profiler::scoped_profile!("pathtracing_shade_pass::init");
 
-        if self.visibility_texture.is_nil()
-            || self.meshlets.read().unwrap().is_empty()
-            || self.instances.read().unwrap().is_empty()
-        {
-            return;
-        }
-
-        self.binding_data
+        // Bind common buffers
+         self.binding_data
             .add_buffer(
                 &mut *self.constant_data.write().unwrap(),
                 Some("ConstantData"),
@@ -253,79 +227,63 @@ impl Pass for ComputePathTracingDirectPass {
                     ..Default::default()
                 },
             )
-            .add_texture(
-                &self.visibility_texture,
-                0,
+            .add_buffer(
+                &mut *self.hits.write().unwrap(),
+                Some("Hits"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 3,
                     stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
-            .add_texture(
-                &self.depth_texture,
-                0,
+            .add_buffer(
+                &mut *self.shadow_rays.write().unwrap(),
+                Some("ShadowRays"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 4,
                     stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                     ..Default::default()
                 },
             )
             .add_buffer(
-                &mut *self.data_buffer_0.write().unwrap(),
-                Some("DataBuffer_0"),
+                &mut *self.counters.write().unwrap(),
+                Some("Counters"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 5,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.data_buffer_1.write().unwrap(),
-                Some("DataBuffer_1"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 6,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.data_buffer_2.write().unwrap(),
-                Some("DataBuffer_2"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 7,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                     ..Default::default()
                 },
             );
 
-        self.binding_data
-            .add_default_sampler(
-                BindingInfo {
-                    group_index: 2,
-                    binding_index: 0,
-                    stage: ShaderStage::Compute,
-                    ..Default::default()
-                },
-                SamplerType::Default,
-            )
-            .add_material_textures(BindingInfo {
-                group_index: 2,
-                binding_index: 1,
+        // Rays and NextRays
+        self.binding_data.add_buffer(
+            &mut *self.rays.write().unwrap(),
+            Some("Rays"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 6,
                 stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::Read,
                 ..Default::default()
-            });
-
-        let mut pass = self.compute_pass.get_mut();
-        pass.init(render_context, &mut self.binding_data, None);
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.next_rays.write().unwrap(),
+            Some("NextRays"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 7,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                ..Default::default()
+            },
+        );
     }
 
     fn update(
@@ -334,21 +292,14 @@ impl Pass for ComputePathTracingDirectPass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        if self.visibility_texture.is_nil()
-            || self.meshlets.read().unwrap().is_empty()
-            || self.instances.read().unwrap().is_empty()
-        {
-            return;
-        }
-
-        inox_profiler::scoped_profile!("pathtracing_direct_pass::update");
+        inox_profiler::scoped_profile!("pathtracing_shade_pass::update");
 
         let pass = self.compute_pass.get();
+        let width = render_context.global_buffers().constant_data.read().unwrap().screen_width();
+        let height = render_context.global_buffers().constant_data.read().unwrap().screen_height();
 
-        let x_pixels_managed_in_shader = 8;
-        let y_pixels_managed_in_shader = 8;
-        let x = self.dimensions.0.div_ceil(x_pixels_managed_in_shader);
-        let y = self.dimensions.1.div_ceil(y_pixels_managed_in_shader);
+        let x = width.div_ceil(8);
+        let y = height.div_ceil(8);
 
         pass.dispatch(
             render_context,
@@ -361,18 +312,32 @@ impl Pass for ComputePathTracingDirectPass {
     }
 }
 
-impl ComputePathTracingDirectPass {
-    pub fn set_visibility_texture(
-        &mut self,
-        texture_id: &TextureId,
-        dimensions: (u32, u32),
-    ) -> &mut Self {
-        self.dimensions = dimensions;
-        self.visibility_texture = *texture_id;
-        self
-    }
-    pub fn set_depth_texture(&mut self, texture_id: &TextureId) -> &mut Self {
-        self.depth_texture = *texture_id;
-        self
+impl ComputePathTracingShadePass {
+    pub fn set_ray_buffers(&mut self, rays: &GPUVector<Ray>, next_rays: &GPUVector<Ray>) {
+        self.rays = rays.clone();
+        self.next_rays = next_rays.clone();
+
+        self.binding_data.add_buffer(
+            &mut *self.rays.write().unwrap(),
+            Some("Rays"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 6,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.next_rays.write().unwrap(),
+            Some("NextRays"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 7,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                ..Default::default()
+            },
+        );
     }
 }
