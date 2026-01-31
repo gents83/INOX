@@ -175,11 +175,12 @@ impl Pass for ComputePathTracingShadowPass {
         for (i, texture_id) in self.render_targets.iter().enumerate() {
             self.binding_data.add_texture(
                 texture_id,
-                (BindingFlags::ReadWrite | BindingFlags::StorageBinding).into(),
+                0,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 2 + i as u32,
+                    binding_index: 2 + i,
                     stage: ShaderStage::Compute,
+                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                     ..Default::default()
                 },
             );
@@ -202,8 +203,9 @@ impl Pass for ComputePathTracingShadowPass {
         inox_profiler::scoped_profile!("pathtracing_shadow_pass::update");
 
         let pass = self.compute_pass.get();
-        let width = render_context.global_buffers().constant_data.read().unwrap().screen_width;
-        let height = render_context.global_buffers().constant_data.read().unwrap().screen_height;
+        let constant_data = render_context.global_buffers().constant_data.read().unwrap();
+        let width = constant_data.screen_size()[0] as u32;
+        let height = constant_data.screen_size()[1] as u32;
 
         let x = width.div_ceil(8);
         let y = height.div_ceil(8);

@@ -13,6 +13,8 @@ pub struct Ray {
     pub t_max: f32,
     pub throughput: [f32; 3],
     pub pixel_index: u32,
+    pub depth: u32,
+    pub padding: [f32; 3],
 }
 
 #[repr(C)]
@@ -38,13 +40,25 @@ pub struct ShadowRay {
     pub origin: [f32; 3],
     pub t_max: f32,
     pub direction: [f32; 3],
-    pub radiance: u32, // Packed RGBA or similar? Or just throughput?
-                       // Actually we usually accumulate radiance in the Shade pass if we know the light.
-                       // But for "Shadow Ray", we check visibility. If visible, we add contribution.
-                       // So we need to store the "Potential Contribution" (throughput * light_radiance * brdf * ndotl).
-                       // Let's store it as vec3.
+    pub radiance: u32,
     pub contribution: [f32; 3],
     pub pixel_index: u32,
+}
+
+#[repr(C)]
+#[derive(Default, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
+#[serde(crate = "inox_serialize")]
+pub struct SurfaceData {
+    pub position: [f32; 3],
+    pub material_index: i32,
+    pub normal: [f32; 3],
+    pub flags: u32,
+    pub uv: [f32; 2],
+    pub roughness: f32,
+    pub metallic: f32,
+    pub albedo: [f32; 3],
+    pub padding: f32,
+    pub tangent: [f32; 4],
 }
 
 #[repr(C)]

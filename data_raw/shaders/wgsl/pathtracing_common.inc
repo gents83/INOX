@@ -5,6 +5,10 @@ struct Ray {
     t_max: f32,
     throughput: vec3<f32>,
     pixel_index: u32,
+    depth: u32,
+    pad_a: f32,
+    pad_b: f32,
+    pad_c: f32,
 }
 
 struct RayHit {
@@ -27,6 +31,19 @@ struct ShadowRay {
     radiance: u32,
     contribution: vec3<f32>,
     pixel_index: u32,
+}
+
+struct SurfaceData {
+    position: vec3<f32>,
+    material_index: i32,
+    normal: vec3<f32>,
+    flags: u32,
+    uv: vec2<f32>,
+    roughness: f32,
+    metallic: f32,
+    albedo: vec3<f32>,
+    padding: f32,
+    tangent: vec4<f32>,
 }
 
 struct PathTracingCounters {

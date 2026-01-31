@@ -112,6 +112,7 @@ fn main(
     ray.t_max = distance;
     ray.throughput = vec3<f32>(1.0);
     ray.pixel_index = pixel_index;
+    ray.depth = 0u;
     rays[pixel_index] = ray;
 
     // Use atomic counter only if we compact. For now we use dense indexing matching pixel_index.

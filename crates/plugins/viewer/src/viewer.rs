@@ -4,7 +4,7 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
     BlitPass, CommandsPass, ComputeInstancesPass,
-    ComputePathTracingRayGenPass, ComputePathTracingTracePass, ComputePathTracingShadePass, ComputePathTracingShadowPass,
+    ComputePathTracingRayGenPass, ComputePathTracingTracePass, ComputePathTracingGeometryPass, ComputePathTracingLightingPass, ComputePathTracingShadowPass,
     CullingPass, DebugPass, DepthFirstPass, DepthPyramidPass, Ray,
     FinalizePass, VisibilityBufferPass, WireframePass, WIREFRAME_PASS_NAME,
 };
@@ -320,17 +320,22 @@ impl Viewer {
         let rays_b = render_context.global_buffers().vector_with_id::<Ray>(generate_static_uid_from_string("NEXT_RAYS_BUFFER"));
 
         // Loop Bounces
-        for i in 0..2 {
+        let num_bounces = 8;
+        for i in 0..num_bounces {
             let (input_rays, output_rays) = if i % 2 == 0 {
                 (rays_a.clone(), rays_b.clone())
             } else {
                 (rays_b.clone(), rays_a.clone())
             };
 
-            // Shade
-            let mut shade_pass = ComputePathTracingShadePass::create(context, render_context);
-            shade_pass.set_ray_buffers(&input_rays, &output_rays);
-            render_context.add_pass(shade_pass, true);
+            // Geometry
+            let geometry_pass = ComputePathTracingGeometryPass::create(context, render_context);
+            render_context.add_pass(geometry_pass, true);
+
+            // Lighting
+            let mut lighting_pass = ComputePathTracingLightingPass::create(context, render_context);
+            lighting_pass.set_ray_buffers(&input_rays, &output_rays);
+            render_context.add_pass(lighting_pass, true);
 
             // Shadow
             let mut shadow_pass = ComputePathTracingShadowPass::create(context, render_context);
@@ -342,8 +347,8 @@ impl Viewer {
             );
             render_context.add_pass(shadow_pass, true);
 
-            // Trace (prepare for next shade)
-            if i < 1 {
+            // Trace (prepare for next bounce)
+            if i < num_bounces - 1 {
                 let mut trace_pass = ComputePathTracingTracePass::create(context, render_context);
                 trace_pass.set_rays_buffer(&output_rays);
                 render_context.add_pass(trace_pass, true);

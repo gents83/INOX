@@ -37,7 +37,7 @@ fn main(
     let tlas_index = constant_data.tlas_starting_index;
     let result = traverse_bvh_optimized(ray.origin, ray.direction, tlas_index);
 
-    let hit_index = atomicAdd(&counters.hit_count, 1u);
+    atomicAdd(&counters.hit_count, 1u);
 
     var hit: RayHit;
     hit.pixel_index = ray.pixel_index;
@@ -54,5 +54,5 @@ fn main(
         hit.t = -1.0;
     }
 
-    hits[hit_index] = hit;
+    hits[index] = hit;
 }
