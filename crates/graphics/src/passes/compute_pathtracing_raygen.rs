@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use inox_render::{
-    BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData, ConstantDataRw, DEFAULT_HEIGHT, DEFAULT_WIDTH, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet, GPUTexture, GPUTransform, GPUVector, GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, INSTANCE_DATA_ID, Pass, RenderContext, RenderContextRc, ShaderStage, TextureId, TextureView
+    AsBinding, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData, ConstantDataRw, DEFAULT_HEIGHT, DEFAULT_WIDTH, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet, GPUTexture, GPUVector, GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, INSTANCE_DATA_ID, Pass, RenderContext, RenderContextRc, ShaderStage, TextureId, TextureView
 };
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
@@ -173,7 +173,7 @@ impl Pass for ComputePathTracingRayGenPass {
             )
             .add_texture(
                 &self.visibility_texture,
-                BindingFlags::Read | BindingFlags::Texture,
+                (BindingFlags::Read | BindingFlags::TextureBinding).into(),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 4,
@@ -183,7 +183,7 @@ impl Pass for ComputePathTracingRayGenPass {
             )
             .add_texture(
                 &self.depth_texture,
-                BindingFlags::Read | BindingFlags::Texture,
+                (BindingFlags::Read | BindingFlags::TextureBinding).into(),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 5,

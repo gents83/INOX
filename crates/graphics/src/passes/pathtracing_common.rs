@@ -1,4 +1,3 @@
-use inox_render::{GPUBuffer, GPUVector};
 use inox_serialize::{Deserialize, Serialize};
 use inox_uid::{generate_static_uid_from_string, Uid};
 

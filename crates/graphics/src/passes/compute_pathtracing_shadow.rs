@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use inox_render::{
-    BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData, ConstantDataRw, DEFAULT_HEIGHT, DEFAULT_WIDTH, GPUBuffer, GPUMesh, GPUMeshlet, GPUVector, GPUVertexPosition, Pass, RenderContext, RenderContextRc, ShaderStage, TextureId, TextureView,
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData, ConstantDataRw, GPUBuffer, GPUMesh, GPUMeshlet, GPUVector, GPUVertexPosition, Pass, RenderContext, RenderContextRc, ShaderStage, TextureId, TextureView,
 };
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
@@ -175,7 +175,7 @@ impl Pass for ComputePathTracingShadowPass {
         for (i, texture_id) in self.render_targets.iter().enumerate() {
             self.binding_data.add_texture(
                 texture_id,
-                BindingFlags::ReadWrite | BindingFlags::Storage,
+                (BindingFlags::ReadWrite | BindingFlags::StorageBinding).into(),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 2 + i as u32,
@@ -202,8 +202,8 @@ impl Pass for ComputePathTracingShadowPass {
         inox_profiler::scoped_profile!("pathtracing_shadow_pass::update");
 
         let pass = self.compute_pass.get();
-        let width = render_context.global_buffers().constant_data.read().unwrap().screen_width();
-        let height = render_context.global_buffers().constant_data.read().unwrap().screen_height();
+        let width = render_context.global_buffers().constant_data.read().unwrap().screen_width;
+        let height = render_context.global_buffers().constant_data.read().unwrap().screen_height;
 
         let x = width.div_ceil(8);
         let y = height.div_ceil(8);

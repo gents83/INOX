@@ -101,7 +101,7 @@ impl Pass for ComputePathTracingShadePass {
             binding_names: Vec::new(),
         }
     }
-    fn init(&mut self, render_context: &RenderContext) {
+    fn init(&mut self, _render_context: &RenderContext) {
         inox_profiler::scoped_profile!("pathtracing_shade_pass::init");
 
         // Bind common buffers
@@ -295,8 +295,8 @@ impl Pass for ComputePathTracingShadePass {
         inox_profiler::scoped_profile!("pathtracing_shade_pass::update");
 
         let pass = self.compute_pass.get();
-        let width = render_context.global_buffers().constant_data.read().unwrap().screen_width();
-        let height = render_context.global_buffers().constant_data.read().unwrap().screen_height();
+        let width = render_context.global_buffers().constant_data.read().unwrap().screen_width;
+        let height = render_context.global_buffers().constant_data.read().unwrap().screen_height;
 
         let x = width.div_ceil(8);
         let y = height.div_ceil(8);
