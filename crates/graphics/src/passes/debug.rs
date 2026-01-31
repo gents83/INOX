@@ -12,8 +12,26 @@ use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::{generate_random_uid, INVALID_UID};
 
-use super::compute_pathtracing_indirect::DebugPackedData;
-use crate::{RadiancePackedData, SIZE_OF_DATA_BUFFER_ELEMENT};
+use crate::RadiancePackedData;
+
+#[repr(C)]
+#[derive(Default, PartialEq, Clone, Copy, Debug)]
+pub struct DebugPackedData(pub f32);
+
+pub const SIZE_OF_DATA_BUFFER_ELEMENT: usize = std::mem::size_of::<DebugPackedData>();
+
+impl AsBinding for DebugPackedData {
+    fn is_dirty(&self) -> bool {
+        false
+    }
+    fn set_dirty(&mut self, _is_dirty: bool) {}
+    fn size(&self) -> u64 {
+        std::mem::size_of::<f32>() as u64
+    }
+    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut inox_render::BufferRef) {
+        buffer.add_to_gpu_buffer(render_context, &[self.0]);
+    }
+}
 
 pub const DEBUG_PIPELINE: &str = "pipelines/Debug.render_pipeline";
 pub const DEBUG_PASS_NAME: &str = "DebugPass";

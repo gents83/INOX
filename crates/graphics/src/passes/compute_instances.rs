@@ -8,7 +8,7 @@ use inox_render::{
 
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource, ResourceEvent, SharedDataRc};
-use inox_scene::{Object, ObjectId};
+use inox_core::{Object, ObjectId};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
 pub const COMPUTE_INSTANCES_PIPELINE: &str = "pipelines/ComputeInstances.compute_pipeline";
@@ -302,7 +302,7 @@ impl ComputeInstancesPass {
                             .get()
                             .components_of_type::<Mesh>()
                             .iter()
-                            .for_each(|mesh| {
+                            .for_each(|mesh: &Mesh| {
                                 let instances = self.transform_map.entry(*mesh.id()).or_default();
                                 let matrix = object.get().transform();
                                 let position = matrix.translation();

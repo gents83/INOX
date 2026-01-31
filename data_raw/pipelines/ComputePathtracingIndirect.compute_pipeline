@@ -1,0 +1,5 @@
+{
+    "data": [
+        "shaders/pathtracing_indirect.wgsl"
+    ]
+}
