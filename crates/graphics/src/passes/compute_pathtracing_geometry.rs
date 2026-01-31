@@ -5,15 +5,16 @@ use inox_render::{
 };
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
-use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
+use inox_uid::generate_random_uid;
 
-use crate::passes::pathtracing_common::{PathTracingCounters, RayHit, SurfaceData};
+use crate::{
+    passes::pathtracing_common::{PathTracingCounters, RayHit, SurfaceData, SURFACE_DATA_UID},
+    Ray,
+};
 
 pub const COMPUTE_PATHTRACING_GEOMETRY_PIPELINE: &str =
     "pipelines/ComputePathtracingGeometry.compute_pipeline";
 pub const COMPUTE_PATHTRACING_GEOMETRY_NAME: &str = "ComputePathTracingGeometryPass";
-
-pub const SURFACE_DATA_UID: Uid = generate_static_uid_from_string("SURFACE_DATA_BUFFER");
 
 pub struct ComputePathTracingGeometryPass {
     compute_pass: Resource<ComputePass>,
@@ -242,9 +243,9 @@ impl Pass for ComputePathTracingGeometryPass {
         inox_profiler::scoped_profile!("pathtracing_geometry_pass::update");
 
         let pass = self.compute_pass.get();
-        let constant_data = render_context.global_buffers().constant_data.read().unwrap();
-        let width = constant_data.screen_size()[0] as u32;
-        let height = constant_data.screen_size()[1] as u32;
+
+        let width = self.constant_data.read().unwrap().screen_size()[0] as u32;
+        let height = self.constant_data.read().unwrap().screen_size()[1] as u32;
 
         let x = width.div_ceil(8);
         let y = height.div_ceil(8);

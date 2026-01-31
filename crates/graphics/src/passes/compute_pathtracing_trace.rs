@@ -255,9 +255,8 @@ impl Pass for ComputePathTracingTracePass {
         let pass = self.compute_pass.get();
         // Assuming dispatch size based on max potential rays (screen size)
 
-        let constant_data = render_context.global_buffers().constant_data.read().unwrap();
-        let width = constant_data.screen_size()[0] as u32;
-        let height = constant_data.screen_size()[1] as u32;
+        let width = self.constant_data.read().unwrap().screen_size()[0] as u32;
+        let height = self.constant_data.read().unwrap().screen_size()[1] as u32;
 
         let x_pixels_managed_in_shader = 8;
         let y_pixels_managed_in_shader = 8;

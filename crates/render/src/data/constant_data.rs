@@ -215,4 +215,7 @@ impl ConstantData {
     pub fn inverse_view_proj(&self) -> [[f32; 4]; 4] {
         self.inverse_view_proj
     }
+    pub fn screen_size(&self) -> [f32; 2] {
+        self.screen_size
+    }
 }

@@ -7,7 +7,10 @@ use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
 
-use crate::passes::pathtracing_common::{PathTracingCounters, Ray, ShadowRay, SurfaceData, NEXT_RAYS_UID, SURFACE_DATA_UID};
+use crate::{
+    passes::pathtracing_common::{PathTracingCounters, Ray, ShadowRay, SurfaceData, NEXT_RAYS_UID, SURFACE_DATA_UID},
+    RadiancePackedData,
+};
 
 pub const COMPUTE_PATHTRACING_LIGHTING_PIPELINE: &str =
     "pipelines/ComputePathtracingLighting.compute_pipeline";
@@ -209,9 +212,8 @@ impl Pass for ComputePathTracingLightingPass {
         inox_profiler::scoped_profile!("pathtracing_lighting_pass::update");
 
         let pass = self.compute_pass.get();
-        let constant_data = render_context.global_buffers().constant_data.read().unwrap();
-        let width = constant_data.screen_size()[0] as u32;
-        let height = constant_data.screen_size()[1] as u32;
+        let width = self.constant_data.read().unwrap().screen_size()[0] as u32;
+        let height = self.constant_data.read().unwrap().screen_size()[1] as u32;
 
         let x = width.div_ceil(8);
         let y = height.div_ceil(8);

@@ -2,6 +2,7 @@ use inox_serialize::{Deserialize, Serialize};
 use inox_uid::{generate_static_uid_from_string, Uid};
 
 pub const NEXT_RAYS_UID: Uid = generate_static_uid_from_string("NEXT_RAYS_BUFFER");
+pub const SURFACE_DATA_UID: Uid = generate_static_uid_from_string("SURFACE_DATA_BUFFER");
 
 #[repr(C)]
 #[derive(Default, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
@@ -74,3 +75,16 @@ pub struct PathTracingCounters {
 #[repr(C)]
 #[derive(Default, PartialEq, Clone, Copy, Debug)]
 pub struct RadiancePackedData(pub f32);
+
+impl inox_render::AsBinding for RadiancePackedData {
+    fn is_dirty(&self) -> bool {
+        false
+    }
+    fn set_dirty(&mut self, _is_dirty: bool) {}
+    fn size(&self) -> u64 {
+        std::mem::size_of::<f32>() as u64
+    }
+    fn fill_buffer(&self, render_context: &inox_render::RenderContext, buffer: &mut inox_render::BufferRef) {
+        buffer.add_to_gpu_buffer(render_context, &[self.0]);
+    }
+}

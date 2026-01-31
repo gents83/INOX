@@ -203,9 +203,8 @@ impl Pass for ComputePathTracingShadowPass {
         inox_profiler::scoped_profile!("pathtracing_shadow_pass::update");
 
         let pass = self.compute_pass.get();
-        let constant_data = render_context.global_buffers().constant_data.read().unwrap();
-        let width = constant_data.screen_size()[0] as u32;
-        let height = constant_data.screen_size()[1] as u32;
+        let width = self.constant_data.read().unwrap().screen_size()[0] as u32;
+        let height = self.constant_data.read().unwrap().screen_size()[1] as u32;
 
         let x = width.div_ceil(8);
         let y = height.div_ceil(8);
