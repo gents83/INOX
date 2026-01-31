@@ -48,6 +48,14 @@ pub struct ConstantData {
     camera_near: f32,
     camera_far: f32,
     camera_fov: f32,
+    indices_offset: u32,
+    vertex_positions_offset: u32,
+    vertex_attributes_offset: u32,
+    meshes_offset: u32,
+    meshlets_offset: u32,
+    instances_offset: u32,
+    transforms_offset: u32,
+    bvh_offset: u32,
 }
 
 impl Default for ConstantData {
@@ -72,6 +80,14 @@ impl Default for ConstantData {
             camera_near: 0.,
             camera_far: 0.,
             camera_fov: DEFAULT_FOV,
+            indices_offset: 0,
+            vertex_positions_offset: 0,
+            vertex_attributes_offset: 0,
+            meshes_offset: 0,
+            meshlets_offset: 0,
+            instances_offset: 0,
+            transforms_offset: 0,
+            bvh_offset: 0,
         }
     }
 }
@@ -150,6 +166,52 @@ impl ConstantData {
     }
     pub fn forced_lod_level(&self) -> i32 {
         self.forced_lod_level
+    }
+    pub fn set_geometry_buffer_offsets(
+        &mut self,
+        render_context: &RenderContext,
+        indices_offset: u32,
+        vertex_positions_offset: u32,
+        vertex_attributes_offset: u32,
+    ) -> &mut Self {
+        if self.indices_offset != indices_offset
+            || self.vertex_positions_offset != vertex_positions_offset
+            || self.vertex_attributes_offset != vertex_attributes_offset
+        {
+            self.indices_offset = indices_offset;
+            self.vertex_positions_offset = vertex_positions_offset;
+            self.vertex_attributes_offset = vertex_attributes_offset;
+            self.mark_as_dirty(render_context);
+        }
+        self
+    }
+    pub fn set_scene_buffer_offsets(
+        &mut self,
+        render_context: &RenderContext,
+        meshes_offset: u32,
+        meshlets_offset: u32,
+        instances_offset: u32,
+        transforms_offset: u32,
+    ) -> &mut Self {
+        if self.meshes_offset != meshes_offset
+            || self.meshlets_offset != meshlets_offset
+            || self.instances_offset != instances_offset
+            || self.transforms_offset != transforms_offset
+        {
+            self.meshes_offset = meshes_offset;
+            self.meshlets_offset = meshlets_offset;
+            self.instances_offset = instances_offset;
+            self.transforms_offset = transforms_offset;
+            self.mark_as_dirty(render_context);
+        }
+        self
+    }
+    pub fn set_bvh_offset(&mut self, render_context: &RenderContext, offset: u32) -> &mut Self {
+        if self.bvh_offset != offset {
+            self.bvh_offset = offset;
+            self.mark_as_dirty(render_context);
+        }
+        self
     }
     #[allow(non_snake_case)]
     pub fn set_LUT(

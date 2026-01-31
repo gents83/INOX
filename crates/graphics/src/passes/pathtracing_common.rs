@@ -3,6 +3,30 @@ use inox_uid::{generate_static_uid_from_string, Uid};
 
 pub const NEXT_RAYS_UID: Uid = generate_static_uid_from_string("NEXT_RAYS_BUFFER");
 pub const SURFACE_DATA_UID: Uid = generate_static_uid_from_string("SURFACE_DATA_BUFFER");
+pub const GEOMETRY_BUFFER_UID: Uid = generate_static_uid_from_string("GEOMETRY_BUFFER");
+pub const SCENE_BUFFER_UID: Uid = generate_static_uid_from_string("SCENE_BUFFER");
+pub const DISPATCH_INDIRECT_BUFFER_UID: Uid = generate_static_uid_from_string("DISPATCH_INDIRECT_BUFFER");
+
+#[repr(C)]
+#[derive(Default, PartialEq, Clone, Copy, Debug)]
+pub struct DispatchIndirectArgs {
+    pub workgroup_count_x: u32,
+    pub workgroup_count_y: u32,
+    pub workgroup_count_z: u32,
+}
+
+impl inox_render::AsBinding for DispatchIndirectArgs {
+    fn is_dirty(&self) -> bool {
+        false
+    }
+    fn set_dirty(&mut self, _is_dirty: bool) {}
+    fn size(&self) -> u64 {
+        std::mem::size_of::<DispatchIndirectArgs>() as u64
+    }
+    fn fill_buffer(&self, render_context: &inox_render::RenderContext, buffer: &mut inox_render::BufferRef) {
+        buffer.add_to_gpu_buffer(render_context, &[self.workgroup_count_x, self.workgroup_count_y, self.workgroup_count_z]);
+    }
+}
 
 #[repr(C)]
 #[derive(Default, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
@@ -70,6 +94,7 @@ pub struct PathTracingCounters {
     pub hit_count: u32,
     pub shadow_ray_count: u32,
     pub extension_ray_count: u32,
+    pub next_ray_count: u32,
 }
 
 #[repr(C)]
