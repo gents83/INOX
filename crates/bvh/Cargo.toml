@@ -12,5 +12,6 @@ license.workspace = true
 crate-type = ["lib"]
 
 [dependencies]
+tinybvh-rs = { path = "../tinybvh" }
 inox_math = { path = "../math" }
 inox_serialize = { path = "../serialize" }

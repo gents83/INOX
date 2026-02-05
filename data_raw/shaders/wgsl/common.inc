@@ -183,9 +183,9 @@ struct Meshlet {
 
 struct BVHNode {
     min: vec3<f32>,
-    miss: i32,
+    left_node: i32,
     max: vec3<f32>,
-    reference: i32, //-1 or mesh_index or meshlet_index or triangle_index
+    primitive_index: i32, //-1 or mesh_index or meshlet_index or triangle_index
 };
 
 

@@ -24,6 +24,7 @@ members = [
     "scene",
     "serialize",
     "time",
+    "tinybvh",
     "ui",
     "uid",
 ]

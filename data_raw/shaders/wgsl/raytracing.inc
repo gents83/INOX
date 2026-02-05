@@ -96,10 +96,9 @@ fn traverse_blas_stack(
         let intersection = intersect_aabb(local_ray_origin, local_ray_direction, max_distance, node.min, node.max);
         
         if(intersection < max_distance) {
-            if(node.reference < 0) {
-                let left_index = node_index + 1;
-                let left_node = bvh.data[u32(left_index)];
-                let right_index = left_node.miss;
+            if(node.primitive_index < 0) {
+                let left_index = node.left_node;
+                let right_index = left_index + 1;
 
                 // Stack Check
                 if(stack_ptr < 62) {
@@ -113,7 +112,7 @@ fn traverse_blas_stack(
                     }
                 }
             } else {
-                let meshlet_id = meshlets_offset + u32(node.reference);
+                let meshlet_id = meshlets_offset + u32(node.primitive_index);
                 let meshlet = meshlets.data[meshlet_id];
                 let triangle_count = meshlet.indices_count / 3u;
 
@@ -168,11 +167,10 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
         let intersection = intersect_aabb(world_ray_origin, world_ray_direction, max_distance, node.min, node.max);
         
         if(intersection < max_distance) {
-            if(node.reference < 0) {
+            if(node.primitive_index < 0) {
                 // Internal TLAS Node
-                let left_index = node_index + 1;
-                let left_node = bvh.data[u32(left_index)];
-                let right_index = left_node.miss;
+                let left_index = node.left_node;
+                let right_index = left_index + 1;
 
                 if(stack_ptr < 62) {
                     if(right_index >= 0) {
@@ -186,7 +184,7 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
                 }
             } else {
                 // Instance Hit
-                let current_instance_id = u32(node.reference);
+                let current_instance_id = u32(node.primitive_index);
                 let instance = instances.data[current_instance_id];
                 let mesh = &meshes.data[instance.mesh_id];
                 let transform = transforms.data[instance.transform_id];
