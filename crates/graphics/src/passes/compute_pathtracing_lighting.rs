@@ -146,33 +146,11 @@ impl Pass for ComputePathTracingLightingPass {
                 },
             )
             .add_buffer(
-                &mut *self.materials.write().unwrap(),
-                Some("Materials"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 0,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Uniform | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
                 &mut *self.textures.write().unwrap(),
                 Some("Textures"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 1,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Uniform | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.lights.write().unwrap(),
-                Some("Lights"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 2,
+                    binding_index: 0,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
@@ -183,7 +161,7 @@ impl Pass for ComputePathTracingLightingPass {
                 Some("ShadowRays"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 3,
+                    binding_index: 1,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                     ..Default::default()
@@ -194,7 +172,7 @@ impl Pass for ComputePathTracingLightingPass {
                 Some("Counters"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 4,
+                    binding_index: 2,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                     ..Default::default()
@@ -206,7 +184,7 @@ impl Pass for ComputePathTracingLightingPass {
                 Some("Rays"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 5,
+                    binding_index: 3,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
@@ -217,7 +195,7 @@ impl Pass for ComputePathTracingLightingPass {
                 Some("NextRays"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 6,
+                    binding_index: 4,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                     ..Default::default()
@@ -228,7 +206,7 @@ impl Pass for ComputePathTracingLightingPass {
                 Some("DataBuffer1"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 7,
+                    binding_index: 5,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                     ..Default::default()
@@ -237,7 +215,7 @@ impl Pass for ComputePathTracingLightingPass {
             .add_default_sampler(
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 8,
+                    binding_index: 6,
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },

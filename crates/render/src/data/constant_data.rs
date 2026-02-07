@@ -56,6 +56,8 @@ pub struct ConstantData {
     instances_offset: u32,
     transforms_offset: u32,
     bvh_offset: u32,
+    materials_offset: u32,
+    lights_offset: u32,
 }
 
 impl Default for ConstantData {
@@ -88,6 +90,8 @@ impl Default for ConstantData {
             instances_offset: 0,
             transforms_offset: 0,
             bvh_offset: 0,
+            materials_offset: 0,
+            lights_offset: 0,
         }
     }
 }
@@ -209,6 +213,19 @@ impl ConstantData {
     pub fn set_bvh_offset(&mut self, render_context: &RenderContext, offset: u32) -> &mut Self {
         if self.bvh_offset != offset {
             self.bvh_offset = offset;
+            self.mark_as_dirty(render_context);
+        }
+        self
+    }
+    pub fn set_materials_lights_offsets(
+        &mut self,
+        render_context: &RenderContext,
+        materials_offset: u32,
+        lights_offset: u32,
+    ) -> &mut Self {
+        if self.materials_offset != materials_offset || self.lights_offset != lights_offset {
+            self.materials_offset = materials_offset;
+            self.lights_offset = lights_offset;
             self.mark_as_dirty(render_context);
         }
         self

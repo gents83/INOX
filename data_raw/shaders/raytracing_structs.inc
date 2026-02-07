@@ -26,6 +26,8 @@ struct ConstantData {
     instances_offset: u32,
     transforms_offset: u32,
     bvh_offset: u32,
+    materials_offset: u32,
+    lights_offset: u32,
 };
 
 struct Ray {
