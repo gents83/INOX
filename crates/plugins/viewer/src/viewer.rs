@@ -3,8 +3,9 @@ use std::path::PathBuf;
 use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
-    BlitPass, CommandsPass, ComputeInstancesPass, ComputePathTracingDirectPass,
-    ComputePathTracingIndirectPass, CullingPass, DebugPass, DepthFirstPass, DepthPyramidPass,
+    BlitPass, CommandsPass, ComputeInstancesPass,
+    ComputePathTracingRayGenPass, ComputePathTracingTracePass, ComputePathTracingGeometryPass, ComputePathTracingLightingPass, ComputePathTracingShadowPass,
+    CullingPass, DebugPass, DepthFirstPass, DepthPyramidPass, Ray,
     FinalizePass, VisibilityBufferPass, WireframePass, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
@@ -17,6 +18,7 @@ use inox_resources::ConfigBase;
 use inox_scene::{ObjectSystem, ScriptSystem};
 use inox_serialize::{read_from_file, SerializationType};
 use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
+use inox_uid::generate_static_uid_from_string;
 
 use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
@@ -32,6 +34,10 @@ enum RenderTargetType {
     HiZ = 2,
     Frame0 = 3,
     Frame1 = 4,
+    Diffuse = 5,
+    Specular = 6,
+    Shadow = 7,
+    AO = 8,
 }
 
 pub struct Viewer {
@@ -170,7 +176,8 @@ impl Viewer {
         let usage = TextureUsage::TextureBinding
             | TextureUsage::CopySrc
             | TextureUsage::CopyDst
-            | TextureUsage::RenderTarget;
+            | TextureUsage::RenderTarget
+            | TextureUsage::StorageBinding; // Need Storage for Compute
 
         //Visibility,
         let _visibility = render_context.create_render_target(
@@ -210,6 +217,35 @@ impl Viewer {
             usage,
         );
         debug_assert!(_frame1 == RenderTargetType::Frame1 as usize);
+
+        // Diffuse
+        let _diffuse = render_context.create_render_target(
+            (width, height, single_sample, 1, 1),
+            TextureFormat::Rgba32Float,
+            usage,
+        );
+        debug_assert!(_diffuse == RenderTargetType::Diffuse as usize);
+        // Specular
+        let _specular = render_context.create_render_target(
+            (width, height, single_sample, 1, 1),
+            TextureFormat::Rgba32Float,
+            usage,
+        );
+        debug_assert!(_specular == RenderTargetType::Specular as usize);
+        // Shadow
+        let _shadow = render_context.create_render_target(
+            (width, height, single_sample, 1, 1),
+            TextureFormat::R32Float,
+            usage,
+        );
+        debug_assert!(_shadow == RenderTargetType::Shadow as usize);
+        // AO
+        let _ao = render_context.create_render_target(
+            (width, height, single_sample, 1, 1),
+            TextureFormat::R32Float,
+            usage,
+        );
+        debug_assert!(_ao == RenderTargetType::AO as usize);
     }
     fn create_data_buffers(render_context: &RenderContextRc, _width: u32, _height: u32) {
         render_context
@@ -237,8 +273,10 @@ impl Viewer {
         Self::create_culling_pass(context, render_context);
 
         Self::create_visibility_pass(context, render_context);
-        Self::create_compute_pathtracing_direct_pass(context, render_context);
-        Self::create_compute_pathtracing_indirect_pass(context, render_context);
+
+        // Wavefront Path Tracing Passes
+        Self::create_pathtracing_passes(context, render_context);
+
         Self::create_finalize_pass(context, render_context);
         Self::create_blit_pass(context, render_context);
 
@@ -264,33 +302,60 @@ impl Viewer {
             .add_depth_target(&render_context.render_target(RenderTargetType::Depth as usize));
         render_context.add_pass(visibility_pass, true);
     }
-    fn create_compute_pathtracing_direct_pass(
-        context: &ContextRc,
-        render_context: &RenderContextRc,
-    ) {
-        let mut compute_pathtracing_direct_pass =
-            ComputePathTracingDirectPass::create(context, render_context);
+
+    fn create_pathtracing_passes(context: &ContextRc, render_context: &RenderContextRc) {
+        // RayGen
+        let mut raygen_pass = ComputePathTracingRayGenPass::create(context, render_context);
         let visibility_texture =
             render_context.render_target(RenderTargetType::Visibility as usize);
-        compute_pathtracing_direct_pass
+        raygen_pass
             .set_visibility_texture(
                 visibility_texture.id(),
                 visibility_texture.get().dimensions(),
             )
             .set_depth_texture(&render_context.render_target_id(RenderTargetType::Depth as usize));
-        render_context.add_pass(compute_pathtracing_direct_pass, true);
+        render_context.add_pass(raygen_pass, true);
+
+        let rays_a = render_context.global_buffers().vector::<Ray>();
+        let rays_b = render_context.global_buffers().vector_with_id::<Ray>(generate_static_uid_from_string("NEXT_RAYS_BUFFER"));
+
+        // Loop Bounces
+        let num_bounces = 8;
+        for i in 0..num_bounces {
+            let (input_rays, output_rays) = if i % 2 == 0 {
+                (rays_a.clone(), rays_b.clone())
+            } else {
+                (rays_b.clone(), rays_a.clone())
+            };
+
+            // Geometry
+            let geometry_pass = ComputePathTracingGeometryPass::create(context, render_context);
+            render_context.add_pass(geometry_pass, true);
+
+            // Lighting
+            let mut lighting_pass = ComputePathTracingLightingPass::create(context, render_context);
+            lighting_pass.set_ray_buffers(&input_rays, &output_rays);
+            render_context.add_pass(lighting_pass, true);
+
+            // Shadow
+            let mut shadow_pass = ComputePathTracingShadowPass::create(context, render_context);
+            shadow_pass.set_render_targets(
+                &render_context.render_target_id(RenderTargetType::Diffuse as usize),
+                &render_context.render_target_id(RenderTargetType::Specular as usize),
+                &render_context.render_target_id(RenderTargetType::Shadow as usize),
+                &render_context.render_target_id(RenderTargetType::AO as usize),
+            );
+            render_context.add_pass(shadow_pass, true);
+
+            // Trace (prepare for next bounce)
+            if i < num_bounces - 1 {
+                let mut trace_pass = ComputePathTracingTracePass::create(context, render_context);
+                trace_pass.set_rays_buffer(&output_rays);
+                render_context.add_pass(trace_pass, true);
+            }
+        }
     }
-    fn create_compute_pathtracing_indirect_pass(
-        context: &ContextRc,
-        render_context: &RenderContextRc,
-    ) {
-        let mut compute_pathtracing_indirect_pass =
-            ComputePathTracingIndirectPass::create(context, render_context);
-        let visibility_texture =
-            render_context.render_target(RenderTargetType::Visibility as usize);
-        compute_pathtracing_indirect_pass.set_dimensions(visibility_texture.get().dimensions());
-        render_context.add_pass(compute_pathtracing_indirect_pass, true);
-    }
+
     fn create_finalize_pass(context: &ContextRc, render_context: &RenderContextRc) {
         let mut finalize_pass = FinalizePass::create(context, render_context);
         finalize_pass.set_frame_textures([
