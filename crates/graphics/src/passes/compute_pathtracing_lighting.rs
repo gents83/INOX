@@ -1,14 +1,14 @@
 use std::path::PathBuf;
 
 use inox_render::{
-    BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData, ConstantDataRw, DEFAULT_HEIGHT, DEFAULT_WIDTH, GPUBuffer, GPULight, GPUMaterial, GPUTexture, GPUVector, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView,
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData, ConstantDataRw, DEFAULT_HEIGHT, DEFAULT_WIDTH, GPUBuffer, GPULight, GPUMaterial, GPUTexture, GPUVector, Pass, RenderContext, RenderContextRc, SamplerType, ShaderStage, TextureView,
 };
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
 
 use crate::{
-    passes::pathtracing_common::{PathTracingCounters, Ray, ShadowRay, SurfaceData, NEXT_RAYS_UID, SURFACE_DATA_UID},
+    passes::pathtracing_common::{PathTracingCounters, Ray, ShadowRay, SurfaceData, NEXT_RAYS_UID, SURFACE_DATA_UID, GEOMETRY_BUFFER_UID, SCENE_BUFFER_UID, DISPATCH_INDIRECT_BUFFER_UID, DispatchIndirectArgs},
     RadiancePackedData,
 };
 
@@ -27,8 +27,9 @@ pub struct ComputePathTracingLightingPass {
     next_rays: GPUVector<Ray>,
     surface_data: GPUVector<SurfaceData>,
     shadow_rays: GPUVector<ShadowRay>,
-    counters: GPUBuffer<PathTracingCounters>,
+    counters: inox_render::GPUBuffer<PathTracingCounters>,
     data_buffer_1: GPUVector<RadiancePackedData>,
+    dispatch_buffer: inox_render::GPUVector<DispatchIndirectArgs>,
 }
 unsafe impl Send for ComputePathTracingLightingPass {}
 unsafe impl Sync for ComputePathTracingLightingPass {}
@@ -58,6 +59,9 @@ impl Pass for ComputePathTracingLightingPass {
         let counters = render_context.global_buffers().buffer::<PathTracingCounters>();
         let surface_data = render_context.global_buffers().vector_with_id::<SurfaceData>(SURFACE_DATA_UID);
         let data_buffer_1 = render_context.global_buffers().vector::<RadiancePackedData>();
+        let dispatch_buffer = render_context
+            .global_buffers()
+            .vector_with_id::<DispatchIndirectArgs>(DISPATCH_INDIRECT_BUFFER_UID);
 
         shadow_rays.write().unwrap().resize(
             (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
@@ -82,11 +86,19 @@ impl Pass for ComputePathTracingLightingPass {
             shadow_rays,
             counters,
             data_buffer_1,
+            dispatch_buffer,
             binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_LIGHTING_NAME),
         }
     }
-    fn init(&mut self, _render_context: &RenderContext) {
+    fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("pathtracing_lighting_pass::init");
+
+        let geometry_buffer = render_context
+            .global_buffers()
+            .vector_with_id::<u32>(GEOMETRY_BUFFER_UID);
+        let scene_buffer = render_context
+            .global_buffers()
+            .vector_with_id::<u32>(SCENE_BUFFER_UID);
 
         self.binding_data
             .add_buffer(
@@ -101,11 +113,33 @@ impl Pass for ComputePathTracingLightingPass {
                 },
             )
             .add_buffer(
+                &mut *geometry_buffer.write().unwrap(),
+                Some("GeometryBuffer"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 1,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
+                    ..Default::default()
+                },
+            )
+            .add_buffer(
+                &mut *scene_buffer.write().unwrap(),
+                Some("SceneBuffer"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 2,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
+                    ..Default::default()
+                },
+            )
+            .add_buffer(
                 &mut *self.surface_data.write().unwrap(),
                 Some("SurfaceData"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 1,
+                    binding_index: 3,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
@@ -166,6 +200,29 @@ impl Pass for ComputePathTracingLightingPass {
                     ..Default::default()
                 },
             )
+            // Rays and NextRays
+            .add_buffer(
+                &mut *self.rays.write().unwrap(),
+                Some("Rays"),
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 5,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
+                    ..Default::default()
+                },
+            )
+            .add_buffer(
+                &mut *self.next_rays.write().unwrap(),
+                Some("NextRays"),
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 6,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                    ..Default::default()
+                },
+            )
             .add_buffer(
                 &mut *self.data_buffer_1.write().unwrap(),
                 Some("DataBuffer1"),
@@ -176,31 +233,16 @@ impl Pass for ComputePathTracingLightingPass {
                     flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                     ..Default::default()
                 },
+            )
+            .add_default_sampler(
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 8,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+                SamplerType::Unfiltered,
             );
-
-        // Rays and NextRays
-        self.binding_data.add_buffer(
-            &mut *self.rays.write().unwrap(),
-            Some("Rays"),
-            BindingInfo {
-                group_index: 1,
-                binding_index: 5,
-                stage: ShaderStage::Compute,
-                flags: BindingFlags::Storage | BindingFlags::Read,
-                ..Default::default()
-            },
-        );
-        self.binding_data.add_buffer(
-            &mut *self.next_rays.write().unwrap(),
-            Some("NextRays"),
-            BindingInfo {
-                group_index: 1,
-                binding_index: 6,
-                stage: ShaderStage::Compute,
-                flags: BindingFlags::Storage | BindingFlags::ReadWrite,
-                ..Default::default()
-            },
-        );
     }
 
     fn update(
@@ -212,19 +254,14 @@ impl Pass for ComputePathTracingLightingPass {
         inox_profiler::scoped_profile!("pathtracing_lighting_pass::update");
 
         let pass = self.compute_pass.get();
-        let width = self.constant_data.read().unwrap().screen_size()[0] as u32;
-        let height = self.constant_data.read().unwrap().screen_size()[1] as u32;
+        let dispatch_buffer = self.dispatch_buffer.read().unwrap();
 
-        let x = width.div_ceil(8);
-        let y = height.div_ceil(8);
-
-        pass.dispatch(
+        pass.dispatch_workgroups_indirect(
             render_context,
             &mut self.binding_data,
             command_buffer,
-            x,
-            y,
-            1,
+            dispatch_buffer.gpu_buffer().unwrap(),
+            0,
         );
     }
 }

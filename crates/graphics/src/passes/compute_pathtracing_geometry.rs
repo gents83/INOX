@@ -1,14 +1,14 @@
 use std::path::PathBuf;
 
 use inox_render::{
-    BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData, ConstantDataRw, DEFAULT_HEIGHT, DEFAULT_WIDTH, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet, GPUVector, GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, GPUTransform, INSTANCE_DATA_ID, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView,
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData, ConstantDataRw, DEFAULT_HEIGHT, DEFAULT_WIDTH, GPUVector, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView,
 };
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
 
 use crate::{
-    passes::pathtracing_common::{PathTracingCounters, RayHit, SurfaceData, SURFACE_DATA_UID},
+    passes::pathtracing_common::{PathTracingCounters, RayHit, SurfaceData, SURFACE_DATA_UID, GEOMETRY_BUFFER_UID, SCENE_BUFFER_UID, DISPATCH_INDIRECT_BUFFER_UID, DispatchIndirectArgs},
     Ray,
 };
 
@@ -20,17 +20,11 @@ pub struct ComputePathTracingGeometryPass {
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    indices: GPUBuffer<GPUVertexIndices>,
-    vertices_positions: GPUBuffer<GPUVertexPosition>,
-    vertices_attributes: GPUBuffer<GPUVertexAttributes>,
-    instances: GPUVector<GPUInstance>,
-    transforms: GPUVector<GPUTransform>,
-    meshes: GPUBuffer<GPUMesh>,
-    meshlets: GPUBuffer<GPUMeshlet>,
     hits: GPUVector<RayHit>,
     rays: GPUVector<Ray>,
     surface_data: GPUVector<SurfaceData>,
-    counters: GPUBuffer<PathTracingCounters>,
+    counters: inox_render::GPUBuffer<PathTracingCounters>,
+    dispatch_buffer: inox_render::GPUVector<DispatchIndirectArgs>,
 }
 unsafe impl Send for ComputePathTracingGeometryPass {}
 unsafe impl Sync for ComputePathTracingGeometryPass {}
@@ -58,6 +52,9 @@ impl Pass for ComputePathTracingGeometryPass {
         let rays = render_context.global_buffers().vector::<Ray>();
         let counters = render_context.global_buffers().buffer::<PathTracingCounters>();
         let surface_data = render_context.global_buffers().vector_with_id::<SurfaceData>(SURFACE_DATA_UID);
+        let dispatch_buffer = render_context
+            .global_buffers()
+            .vector_with_id::<DispatchIndirectArgs>(DISPATCH_INDIRECT_BUFFER_UID);
 
         surface_data.write().unwrap().resize(
             (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
@@ -73,28 +70,23 @@ impl Pass for ComputePathTracingGeometryPass {
                 None,
             ),
             constant_data: render_context.global_buffers().constant_data.clone(),
-            indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
-            vertices_positions: render_context
-                .global_buffers()
-                .buffer::<GPUVertexPosition>(),
-            vertices_attributes: render_context
-                .global_buffers()
-                .buffer::<GPUVertexAttributes>(),
-            instances: render_context
-                .global_buffers()
-                .vector_with_id::<GPUInstance>(INSTANCE_DATA_ID),
-            transforms: render_context.global_buffers().vector::<GPUTransform>(),
-            meshes: render_context.global_buffers().buffer::<GPUMesh>(),
-            meshlets: render_context.global_buffers().buffer::<GPUMeshlet>(),
             hits,
             rays,
             surface_data,
             counters,
+            dispatch_buffer,
             binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_GEOMETRY_NAME),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("pathtracing_geometry_pass::init");
+
+        let geometry_buffer = render_context
+            .global_buffers()
+            .vector_with_id::<u32>(GEOMETRY_BUFFER_UID);
+        let scene_buffer = render_context
+            .global_buffers()
+            .vector_with_id::<u32>(SCENE_BUFFER_UID);
 
         self.binding_data
             .add_buffer(
@@ -109,77 +101,22 @@ impl Pass for ComputePathTracingGeometryPass {
                 },
             )
             .add_buffer(
-                &mut *self.indices.write().unwrap(),
-                Some("Indices"),
+                &mut *geometry_buffer.write().unwrap(),
+                Some("GeometryBuffer"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read | BindingFlags::Index,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
             .add_buffer(
-                &mut *self.vertices_positions.write().unwrap(),
-                Some("Vertices Positions"),
+                &mut *scene_buffer.write().unwrap(),
+                Some("SceneBuffer"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read | BindingFlags::Vertex,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.vertices_attributes.write().unwrap(),
-                Some("Vertices Attributes"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 3,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.instances.write().unwrap(),
-                Some("Instances"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 4,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.transforms.write().unwrap(),
-                Some("Transforms"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 5,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.meshes.write().unwrap(),
-                Some("Meshes"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 6,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.meshlets.write().unwrap(),
-                Some("Meshlets"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 7,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
@@ -243,20 +180,14 @@ impl Pass for ComputePathTracingGeometryPass {
         inox_profiler::scoped_profile!("pathtracing_geometry_pass::update");
 
         let pass = self.compute_pass.get();
+        let dispatch_buffer = self.dispatch_buffer.read().unwrap();
 
-        let width = self.constant_data.read().unwrap().screen_size()[0] as u32;
-        let height = self.constant_data.read().unwrap().screen_size()[1] as u32;
-
-        let x = width.div_ceil(8);
-        let y = height.div_ceil(8);
-
-        pass.dispatch(
+        pass.dispatch_workgroups_indirect(
             render_context,
             &mut self.binding_data,
             command_buffer,
-            x,
-            y,
-            1,
+            dispatch_buffer.gpu_buffer().unwrap(),
+            0,
         );
     }
 }

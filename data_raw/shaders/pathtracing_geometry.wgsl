@@ -55,15 +55,11 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let uv2 = get_vertex_uv(idx_vec.z);
     let uv = uv0 * b.x + uv1 * b.y + uv2 * b.z;
 
-    // Tangent (reconstruct or interpolate?)
-    // Tangent is needed for Normal Mapping.
-    // If not stored, compute from UV?
-    // We store it in `vertex_attributes`.
-    // Assume stride 3 (Normal, Tangent, UV) or check layout.
-    // My previous assumption was Stride 3 (Normal, Tangent, UV).
-    // Let's implement `get_vertex_tangent`.
-    // For now, identity tangent.
-    let tangent = vec4<f32>(1.0, 0.0, 0.0, 1.0);
+    // Tangent
+    let t0 = get_vertex_tangent(idx_vec.x);
+    let t1 = get_vertex_tangent(idx_vec.y);
+    let t2 = get_vertex_tangent(idx_vec.z);
+    let tangent = normalize(t0 * b.x + t1 * b.y + t2 * b.z);
 
     var surface: SurfaceData;
     surface.position = position;

@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
 use inox_render::{
-    AsBinding, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData, ConstantDataRw, DEFAULT_HEIGHT, DEFAULT_WIDTH, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet, GPUTexture, GPUTransform, GPUVector, GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, INSTANCE_DATA_ID, Pass, RenderContext, RenderContextRc, ShaderStage, TextureId, TextureView
+    AsBinding, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData, ConstantDataRw, DEFAULT_HEIGHT, DEFAULT_WIDTH, GPUVector, Pass, RenderContext, RenderContextRc, ShaderStage, TextureId, TextureView
 };
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::{generate_random_uid, INVALID_UID};
 
-use crate::passes::pathtracing_common::{PathTracingCounters, Ray, RayHit};
+use crate::passes::pathtracing_common::{PathTracingCounters, Ray, RayHit, GEOMETRY_BUFFER_UID, SCENE_BUFFER_UID};
 use crate::RadiancePackedData;
 
 pub const COMPUTE_PATHTRACING_RAYGEN_PIPELINE: &str =
@@ -18,17 +18,9 @@ pub struct ComputePathTracingRayGenPass {
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    indices: GPUBuffer<GPUVertexIndices>,
-    vertices_positions: GPUBuffer<GPUVertexPosition>,
-    vertices_attributes: GPUBuffer<GPUVertexAttributes>,
-    instances: GPUVector<GPUInstance>,
-    transforms: GPUVector<GPUTransform>,
-    meshes: GPUBuffer<GPUMesh>,
-    meshlets: GPUBuffer<GPUMeshlet>,
-    textures: GPUBuffer<GPUTexture>,
     hits: GPUVector<RayHit>,
     rays: GPUVector<Ray>,
-    counters: GPUBuffer<PathTracingCounters>,
+    counters: inox_render::GPUBuffer<PathTracingCounters>,
     data_buffer_1: GPUVector<RadiancePackedData>,
     visibility_texture: TextureId,
     depth_texture: TextureId,
@@ -84,20 +76,6 @@ impl Pass for ComputePathTracingRayGenPass {
                 None,
             ),
             constant_data: render_context.global_buffers().constant_data.clone(),
-            indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
-            vertices_positions: render_context
-                .global_buffers()
-                .buffer::<GPUVertexPosition>(),
-            vertices_attributes: render_context
-                .global_buffers()
-                .buffer::<GPUVertexAttributes>(),
-            instances: render_context
-                .global_buffers()
-                .vector_with_id::<GPUInstance>(INSTANCE_DATA_ID),
-            transforms: render_context.global_buffers().vector::<GPUTransform>(),
-            meshes: render_context.global_buffers().buffer::<GPUMesh>(),
-            meshlets: render_context.global_buffers().buffer::<GPUMeshlet>(),
-            textures: render_context.global_buffers().buffer::<GPUTexture>(),
             hits,
             rays,
             counters,
@@ -115,6 +93,13 @@ impl Pass for ComputePathTracingRayGenPass {
             return;
         }
 
+        let geometry_buffer = render_context
+            .global_buffers()
+            .vector_with_id::<u32>(GEOMETRY_BUFFER_UID);
+        let scene_buffer = render_context
+            .global_buffers()
+            .vector_with_id::<u32>(SCENE_BUFFER_UID);
+
         self.binding_data
             .add_buffer(
                 &mut *self.constant_data.write().unwrap(),
@@ -128,13 +113,24 @@ impl Pass for ComputePathTracingRayGenPass {
                 },
             )
             .add_buffer(
-                &mut *self.data_buffer_1.write().unwrap(),
-                Some("DataBuffer1"),
+                &mut *geometry_buffer.write().unwrap(),
+                Some("GeometryBuffer"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 6,
+                    binding_index: 1,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
+                    ..Default::default()
+                },
+            )
+            .add_buffer(
+                &mut *scene_buffer.write().unwrap(),
+                Some("SceneBuffer"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 2,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             )
@@ -143,7 +139,7 @@ impl Pass for ComputePathTracingRayGenPass {
                 Some("Hits"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 1,
+                    binding_index: 3,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                     ..Default::default()
@@ -154,7 +150,7 @@ impl Pass for ComputePathTracingRayGenPass {
                 Some("Rays"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 2,
+                    binding_index: 4,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                     ..Default::default()
@@ -165,7 +161,7 @@ impl Pass for ComputePathTracingRayGenPass {
                 Some("Counters"),
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 3,
+                    binding_index: 5,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                     ..Default::default()
@@ -176,7 +172,7 @@ impl Pass for ComputePathTracingRayGenPass {
                 0,
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 4,
+                    binding_index: 6,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Read,
                     ..Default::default()
@@ -187,86 +183,20 @@ impl Pass for ComputePathTracingRayGenPass {
                 0,
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 5,
+                    binding_index: 7,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Read,
                     ..Default::default()
                 },
             )
             .add_buffer(
-                &mut *self.indices.write().unwrap(),
-                Some("Indices"),
+                &mut *self.data_buffer_1.write().unwrap(),
+                Some("DataBuffer1"),
                 BindingInfo {
-                    group_index: 1,
-                    binding_index: 0,
+                    group_index: 0,
+                    binding_index: 8,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read | BindingFlags::Index,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.vertices_positions.write().unwrap(),
-                Some("Vertices Positions"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 1,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read | BindingFlags::Vertex,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.vertices_attributes.write().unwrap(),
-                Some("Vertices Attributes"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 2,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.instances.write().unwrap(),
-                Some("Instances"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 3,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.transforms.write().unwrap(),
-                Some("Transforms"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 4,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.meshes.write().unwrap(),
-                Some("Meshes"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 5,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.meshlets.write().unwrap(),
-                Some("Meshlets"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 6,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
+                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                     ..Default::default()
                 },
             );

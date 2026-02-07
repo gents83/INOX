@@ -1,14 +1,13 @@
 use std::path::PathBuf;
 
 use inox_render::{
-    BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData, ConstantDataRw, GPUBuffer, GPUMesh, GPUMeshlet, GPUVector, GPUVertexPosition, Pass, RenderContext, RenderContextRc, ShaderStage, TextureId, TextureView,
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData, ConstantDataRw, GPUBuffer, GPUVector, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView,
 };
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
-use inox_uid::{generate_random_uid, INVALID_UID};
+use inox_uid::generate_random_uid;
 
-use crate::passes::pathtracing_common::{PathTracingCounters, ShadowRay};
-use inox_bvh::GPUBVHNode;
+use crate::passes::pathtracing_common::{PathTracingCounters, ShadowRay, GEOMETRY_BUFFER_UID, SCENE_BUFFER_UID};
 use crate::RadiancePackedData;
 
 pub const COMPUTE_PATHTRACING_SHADOW_PIPELINE: &str =
@@ -19,14 +18,9 @@ pub struct ComputePathTracingShadowPass {
     compute_pass: Resource<ComputePass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    meshes: GPUBuffer<GPUMesh>,
-    meshlets: GPUBuffer<GPUMeshlet>,
-    bvh: GPUBuffer<GPUBVHNode>,
-    vertices_positions: GPUBuffer<GPUVertexPosition>,
     shadow_rays: GPUVector<ShadowRay>,
     counters: GPUBuffer<PathTracingCounters>,
     data_buffer_1: GPUVector<RadiancePackedData>,
-    render_targets: [TextureId; 4], // Diffuse, Specular, Shadow, AO
 }
 unsafe impl Send for ComputePathTracingShadowPass {}
 unsafe impl Sync for ComputePathTracingShadowPass {}
@@ -63,23 +57,21 @@ impl Pass for ComputePathTracingShadowPass {
                 None,
             ),
             constant_data: render_context.global_buffers().constant_data.clone(),
-            meshes: render_context.global_buffers().buffer::<GPUMesh>(),
-            meshlets: render_context.global_buffers().buffer::<GPUMeshlet>(),
-            bvh: render_context.global_buffers().buffer::<GPUBVHNode>(),
-            vertices_positions: render_context.global_buffers().buffer::<GPUVertexPosition>(),
             shadow_rays,
             counters,
             data_buffer_1,
             binding_data: BindingData::new(render_context, COMPUTE_PATHTRACING_SHADOW_NAME),
-            render_targets: [INVALID_UID; 4],
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("pathtracing_shadow_pass::init");
 
-         if self.render_targets[0].is_nil() {
-            return;
-        }
+        let geometry_buffer = render_context
+            .global_buffers()
+            .vector_with_id::<u32>(GEOMETRY_BUFFER_UID);
+        let scene_buffer = render_context
+            .global_buffers()
+            .vector_with_id::<u32>(SCENE_BUFFER_UID);
 
         self.binding_data
             .add_buffer(
@@ -94,8 +86,8 @@ impl Pass for ComputePathTracingShadowPass {
                 },
             )
             .add_buffer(
-                &mut *self.meshes.write().unwrap(),
-                Some("Meshes"),
+                &mut *geometry_buffer.write().unwrap(),
+                Some("GeometryBuffer"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,
@@ -105,33 +97,11 @@ impl Pass for ComputePathTracingShadowPass {
                 },
             )
             .add_buffer(
-                &mut *self.meshlets.write().unwrap(),
-                Some("Meshlets"),
+                &mut *scene_buffer.write().unwrap(),
+                Some("SceneBuffer"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.bvh.write().unwrap(),
-                Some("BVH"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 3,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.vertices_positions.write().unwrap(),
-                Some("VerticesPositions"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 4,
                     stage: ShaderStage::Compute,
                     flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
@@ -149,8 +119,8 @@ impl Pass for ComputePathTracingShadowPass {
                 },
             )
             .add_buffer(
-                &mut *self.counters.write().unwrap(),
-                Some("Counters"),
+                &mut *self.data_buffer_1.write().unwrap(),
+                Some("DataBuffer1"),
                 BindingInfo {
                     group_index: 1,
                     binding_index: 1,
@@ -160,31 +130,16 @@ impl Pass for ComputePathTracingShadowPass {
                 },
             )
             .add_buffer(
-                &mut *self.data_buffer_1.write().unwrap(),
-                Some("DataBuffer1"),
+                &mut *self.counters.write().unwrap(),
+                Some("Counters"),
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 6,
+                    binding_index: 2,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                    flags: BindingFlags::Storage | BindingFlags::Read,
                     ..Default::default()
                 },
             );
-
-        // Add Render Targets (Storage Textures)
-        for (i, texture_id) in self.render_targets.iter().enumerate() {
-            self.binding_data.add_texture(
-                texture_id,
-                0,
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 2 + i,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
-                    ..Default::default()
-                },
-            );
-        }
 
         let mut pass = self.compute_pass.get_mut();
         pass.init(render_context, &mut self.binding_data, None);
