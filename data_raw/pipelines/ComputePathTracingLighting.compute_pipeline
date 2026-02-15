@@ -1,0 +1,1 @@
+{"shader": "shaders/wgsl/compute_pathtracing_lighting.wgsl"}
