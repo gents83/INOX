@@ -175,7 +175,6 @@ impl RenderContext {
             let surface = Self::create_surface(&instance, handle.clone());
 
             #[cfg(not(target_arch = "wasm32"))]
-            #[cfg(not(target_arch = "wasm32"))]
             Self::log_adapters(&instance, &backends).await;
 
             let adapter =

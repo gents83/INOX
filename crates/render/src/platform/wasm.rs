@@ -1,13 +1,9 @@
 pub fn required_gpu_features() -> wgpu::Features {
     wgpu::Features::default()
-        | wgpu::Features::POLYGON_MODE_LINE
-        | wgpu::Features::CLEAR_TEXTURE
-        | wgpu::Features::INDIRECT_FIRST_INSTANCE
-        | wgpu::Features::DEPTH32FLOAT_STENCIL8
 }
 
 pub fn platform_limits() -> wgpu::Limits {
-    wgpu::Limits::default()
+    wgpu::Limits::downlevel_webgl2_defaults()
 }
 
 pub fn setup_env() {

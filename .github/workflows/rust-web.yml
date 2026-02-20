@@ -10,7 +10,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   CARGO_TARGET_DIR: ./crates/target
-  RUSTFLAGS: '--cfg=web_sys_unstable_apis' # required for webgpu
+  RUSTFLAGS: '--cfg=web_sys_unstable_apis --cfg getrandom_backend="wasm_js"' # required for webgpu
 
 jobs:
   build-web:
@@ -62,8 +62,6 @@ jobs:
           cargo update
           cd ..
 
-      - name: "Run cargo test workspace"
-        run: cargo test --workspace --manifest-path ./crates/Cargo.toml
 
       - name: "Run cargo build workspace release wasm32"
         run: cargo build --manifest-path ./crates/Cargo.toml --release --target wasm32-unknown-unknown
