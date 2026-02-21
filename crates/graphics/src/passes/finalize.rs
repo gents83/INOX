@@ -137,6 +137,33 @@ impl Pass for FinalizePass {
 
         inox_profiler::scoped_profile!("finalize_pass::update");
 
+        let previous_frame_index = if self.frame_index == 0 {
+            NUM_FRAMES_OF_HISTORY - 1
+        } else {
+            self.frame_index - 1
+        };
+
+        {
+            let mut pass_mut = self.render_pass.get_mut();
+            pass_mut
+                .remove_all_render_targets()
+                .add_render_target(self.frame_textures[self.frame_index].as_ref().unwrap());
+        }
+
+        self.binding_data.add_texture(
+            self.frame_textures[previous_frame_index]
+                .as_ref()
+                .unwrap()
+                .id(),
+            0,
+            BindingInfo {
+                group_index: 0,
+                binding_index: 2,
+                stage: ShaderStage::Fragment,
+                ..Default::default()
+            },
+        );
+
         let pass = self.render_pass.get();
         let pipeline = pass.pipeline().get();
         if !pipeline.is_initialized() {

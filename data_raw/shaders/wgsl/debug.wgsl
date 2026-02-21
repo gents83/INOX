@@ -40,6 +40,8 @@ var depth_texture: texture_depth_2d;
 var<storage, read_write> data_buffer_1: array<f32>;
 @group(1) @binding(5)
 var<storage, read_write> data_buffer_debug: array<f32>;
+@group(1) @binding(6)
+var<uniform> lights: Lights;
 
 #import "texture_utils.inc"
 #import "geom_utils.inc"
@@ -352,7 +354,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
             var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
-            let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data);
+            let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data, 0xFFFFFFFFu);
             out_color = vec4<f32>(vec3<f32>(material_info.base_color.rgb), 1.);
         }
     } 
@@ -371,7 +373,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
             var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
-            let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data);
+            let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data, 0xFFFFFFFFu);
             out_color = vec4<f32>(vec3<f32>(material_info.metallic), 1.);
         }
     } 
@@ -390,7 +392,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         
         if (visibility_id != 0u && (visibility_id & 0xFFFFFFFFu) != 0xFF000000u) {
             var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
-            let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data);
+            let material_info = compute_color_from_material(pixel_data.material_id, &pixel_data, 0xFFFFFFFFu);
             out_color = vec4<f32>(vec3<f32>(material_info.perceptual_roughness), 1.);
         }
     } 

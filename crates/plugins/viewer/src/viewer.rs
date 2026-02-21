@@ -3,8 +3,9 @@ use std::path::PathBuf;
 use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
-    BlitPass, CommandsPass, ComputeInstancesPass, ComputePathTracingDirectPass,
-    ComputePathTracingIndirectPass, CullingPass, DebugPass, DepthFirstPass, DepthPyramidPass,
+    BlitPass, CommandsPass, ComputeDiffuseLightingPass, ComputeGBufferPass,
+    ComputeIndirectBouncePass, ComputeIndirectSetupPass, ComputeInstancesPass, ComputeShadowAOPass,
+    ComputeSpecularLightingPass, CullingPass, DebugPass, DepthFirstPass, DepthPyramidPass,
     FinalizePass, VisibilityBufferPass, WireframePass, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
@@ -199,14 +200,14 @@ impl Viewer {
         //Frame0,
         let _frame0 = render_context.create_render_target(
             (width, height, single_sample, 1, 1),
-            TextureFormat::Rgba8Unorm,
+            TextureFormat::Rgba32Float,
             usage,
         );
         debug_assert!(_frame0 == RenderTargetType::Frame0 as usize);
         //Frame1,
         let _frame1 = render_context.create_render_target(
             (width, height, single_sample, 1, 1),
-            TextureFormat::Rgba8Unorm,
+            TextureFormat::Rgba32Float,
             usage,
         );
         debug_assert!(_frame1 == RenderTargetType::Frame1 as usize);
@@ -237,8 +238,15 @@ impl Viewer {
         Self::create_culling_pass(context, render_context);
 
         Self::create_visibility_pass(context, render_context);
-        Self::create_compute_pathtracing_direct_pass(context, render_context);
-        Self::create_compute_pathtracing_indirect_pass(context, render_context);
+
+        // Wavefront pathtracer passes
+        Self::create_gbuffer_pass(context, render_context);
+        Self::create_shadow_ao_pass(context, render_context);
+        Self::create_diffuse_lighting_pass(context, render_context);
+        Self::create_specular_lighting_pass(context, render_context);
+        Self::create_indirect_setup_pass(context, render_context);
+        Self::create_indirect_bounce_pass(context, render_context);
+
         Self::create_finalize_pass(context, render_context);
         Self::create_blit_pass(context, render_context);
 
@@ -264,32 +272,52 @@ impl Viewer {
             .add_depth_target(&render_context.render_target(RenderTargetType::Depth as usize));
         render_context.add_pass(visibility_pass, true);
     }
-    fn create_compute_pathtracing_direct_pass(
-        context: &ContextRc,
-        render_context: &RenderContextRc,
-    ) {
-        let mut compute_pathtracing_direct_pass =
-            ComputePathTracingDirectPass::create(context, render_context);
+    fn create_gbuffer_pass(context: &ContextRc, render_context: &RenderContextRc) {
+        let mut gbuffer_pass = ComputeGBufferPass::create(context, render_context);
         let visibility_texture =
             render_context.render_target(RenderTargetType::Visibility as usize);
-        compute_pathtracing_direct_pass
+        gbuffer_pass
             .set_visibility_texture(
                 visibility_texture.id(),
                 visibility_texture.get().dimensions(),
             )
             .set_depth_texture(&render_context.render_target_id(RenderTargetType::Depth as usize));
-        render_context.add_pass(compute_pathtracing_direct_pass, true);
+        render_context.add_pass(gbuffer_pass, true);
     }
-    fn create_compute_pathtracing_indirect_pass(
-        context: &ContextRc,
-        render_context: &RenderContextRc,
-    ) {
-        let mut compute_pathtracing_indirect_pass =
-            ComputePathTracingIndirectPass::create(context, render_context);
+    fn create_shadow_ao_pass(context: &ContextRc, render_context: &RenderContextRc) {
+        let mut shadow_ao_pass = ComputeShadowAOPass::create(context, render_context);
         let visibility_texture =
             render_context.render_target(RenderTargetType::Visibility as usize);
-        compute_pathtracing_indirect_pass.set_dimensions(visibility_texture.get().dimensions());
-        render_context.add_pass(compute_pathtracing_indirect_pass, true);
+        shadow_ao_pass.set_dimensions(visibility_texture.get().dimensions());
+        render_context.add_pass(shadow_ao_pass, true);
+    }
+    fn create_diffuse_lighting_pass(context: &ContextRc, render_context: &RenderContextRc) {
+        let mut diffuse_pass = ComputeDiffuseLightingPass::create(context, render_context);
+        let visibility_texture =
+            render_context.render_target(RenderTargetType::Visibility as usize);
+        diffuse_pass.set_dimensions(visibility_texture.get().dimensions());
+        render_context.add_pass(diffuse_pass, true);
+    }
+    fn create_specular_lighting_pass(context: &ContextRc, render_context: &RenderContextRc) {
+        let mut specular_pass = ComputeSpecularLightingPass::create(context, render_context);
+        let visibility_texture =
+            render_context.render_target(RenderTargetType::Visibility as usize);
+        specular_pass.set_dimensions(visibility_texture.get().dimensions());
+        render_context.add_pass(specular_pass, true);
+    }
+    fn create_indirect_setup_pass(context: &ContextRc, render_context: &RenderContextRc) {
+        let mut indirect_setup_pass = ComputeIndirectSetupPass::create(context, render_context);
+        let visibility_texture =
+            render_context.render_target(RenderTargetType::Visibility as usize);
+        indirect_setup_pass.set_dimensions(visibility_texture.get().dimensions());
+        render_context.add_pass(indirect_setup_pass, true);
+    }
+    fn create_indirect_bounce_pass(context: &ContextRc, render_context: &RenderContextRc) {
+        let mut indirect_bounce_pass = ComputeIndirectBouncePass::create(context, render_context);
+        let visibility_texture =
+            render_context.render_target(RenderTargetType::Visibility as usize);
+        indirect_bounce_pass.set_dimensions(visibility_texture.get().dimensions());
+        render_context.add_pass(indirect_bounce_pass, true);
     }
     fn create_finalize_pass(context: &ContextRc, render_context: &RenderContextRc) {
         let mut finalize_pass = FinalizePass::create(context, render_context);

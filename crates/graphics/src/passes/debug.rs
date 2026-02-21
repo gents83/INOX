@@ -2,10 +2,11 @@ use std::path::PathBuf;
 
 use inox_render::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, GPUBuffer, GPUInstance,
-    GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture, GPUTransform, GPUVector, GPUVertexAttributes,
-    GPUVertexIndices, GPUVertexPosition, LoadOperation, Pass, RenderContext, RenderContextRc,
-    RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType, ShaderStage,
-    StoreOperation, TextureId, TextureView, DEFAULT_HEIGHT, DEFAULT_WIDTH, INSTANCE_DATA_ID,
+    GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture, GPUTransform, GPUVector,
+    GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, LoadOperation, Pass, RenderContext,
+    RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType,
+    ShaderStage, StoreOperation, TextureId, TextureView, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    INSTANCE_DATA_ID,
 };
 
 use inox_core::ContextRc;
@@ -31,6 +32,7 @@ pub struct DebugPass {
     vertices_attributes: GPUBuffer<GPUVertexAttributes>,
     textures: GPUBuffer<GPUTexture>,
     materials: GPUBuffer<GPUMaterial>,
+    lights: GPUBuffer<GPULight>,
     finalize_texture: TextureId,
     visibility_texture: TextureId,
     depth_texture: TextureId,
@@ -102,6 +104,7 @@ impl Pass for DebugPass {
                 .vector_with_id::<GPUInstance>(INSTANCE_DATA_ID),
             textures: render_context.global_buffers().buffer::<GPUTexture>(),
             materials: render_context.global_buffers().buffer::<GPUMaterial>(),
+            lights: render_context.global_buffers().buffer::<GPULight>(),
             indices: render_context.global_buffers().buffer::<GPUVertexIndices>(),
             vertices_position: render_context
                 .global_buffers()
@@ -278,6 +281,17 @@ impl Pass for DebugPass {
                     binding_index: 5,
                     stage: ShaderStage::Fragment,
                     flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                    ..Default::default()
+                },
+            )
+            .add_buffer(
+                &mut *self.lights.write().unwrap(),
+                Some("Lights"),
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 6,
+                    stage: ShaderStage::Fragment,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
                     ..Default::default()
                 },
             );

@@ -547,7 +547,7 @@ fn get_IBL_volume_refraction(n: vec3<f32>, v: vec3<f32>, perceptualRoughness: f3
 
 
 //Inspired from glTF-Sample-Viewer
-fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, PixelData>) -> MaterialInfo {
+fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, PixelData>, shadow_mask: u32) -> MaterialInfo {
     var material = materials.data[material_id];
 
     let v = normalize(view_pos() - (*pixel_data).world_pos);
@@ -593,7 +593,7 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
         compute_anisotropy(&material, &tbn, &material_info);
     }
 
-    material_info.perceptual_roughness = clamp(material_info.perceptual_roughness, 0.0, 1.0);
+    material_info.perceptual_roughness = clamp(material_info.perceptual_roughness, 0.045, 1.0);
     material_info.metallic = clamp(material_info.metallic, 0.0, 1.0);
     
     // Roughness is authored as perceptual roughness; as is convention,
@@ -665,16 +665,22 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
     var f_specular_ibl = f_specular;
     var f_sheen_ibl = f_sheen;
     var f_clearcoat_ibl = f_clearcoat;
-    f_diffuse = material_info.base_color.rgb;
+    f_diffuse = vec3<f32>(0.0);
     f_specular = vec3<f32>(0.0);
     f_sheen = vec3<f32>(0.0);
     f_clearcoat = vec3<f32>(0.0);
-    /*
-    let i = hash(constant_data.frame_index) % constant_data.num_lights;
-    
-    var light = lights.data[i];
-    if (light.light_type != LIGHT_TYPE_INVALID) { 
-        f_diffuse = vec3<f32>(0.0);
+
+    for (var light_i = 0u; light_i < constant_data.num_lights; light_i++) {
+        var light = lights.data[light_i];
+        if (light.light_type == LIGHT_TYPE_INVALID) { 
+            continue;
+        }
+
+        let is_lit = (light_i >= 32u) || ((shadow_mask & (1u << light_i)) != 0u);
+        if (!is_lit) {
+            continue;
+        }
+
         var pointToLight: vec3<f32>;
         if (light.light_type != LIGHT_TYPE_DIRECTIONAL) { 
             pointToLight = light.position - (*pixel_data).world_pos;
@@ -712,17 +718,14 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
                 albedo_sheen_scaling = min(1.0 - c * albedo_sheen_scaling_LUT(NdotV, material_info.sheen_color_and_roughness_factor.w),
                     1.0 - c * albedo_sheen_scaling_LUT(NdotL, material_info.sheen_color_and_roughness_factor.w));
             }
-        }
-            
-        if((material.flags & MATERIAL_FLAGS_CLEARCOAT) != 0u) {
-            f_clearcoat += intensity * get_punctual_radiance_clearcoat(material_info.clear_coat_normal, v, l, h, VdotH,
-                material_info.clear_coat_f0, material_info.clear_coat_f90, material_info.clear_coat_roughness_factor);
+            if((material.flags & MATERIAL_FLAGS_CLEARCOAT) != 0u) {
+                f_clearcoat += intensity * get_punctual_radiance_clearcoat(material_info.clear_coat_normal, v, l, h, VdotH,
+                    material_info.clear_coat_f0, material_info.clear_coat_f90, material_info.clear_coat_roughness_factor);
+            }
         }
         
         // BDTF
         if((material.flags & MATERIAL_FLAGS_TRANSMISSION) != 0u) {
-            // If the light ray travels through the geometry, use the point it exits the geometry again.
-            // That will change the angle to the light source, if the material refracts the light ray.
             let instance = &instances.data[(*pixel_data).instance_id];
             let transform = transforms.data[(*instance).transform_id];
             let instance_scale = max(max(transform.position_scale_x.w, transform.bb_min_scale_y.w), transform.bb_max_scale_z.w);
@@ -738,7 +741,6 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
             f_transmission += transmitted_light;
         }
     }
-    */
     f_emissive = material.emissive_color.rgb * material.emissive_strength;
     if (has_texture(&material, TEXTURE_TYPE_EMISSIVE)) {  
         let uv = material_texture_uv(&material, pixel_data, TEXTURE_TYPE_EMISSIVE);
@@ -786,6 +788,7 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
     var color = vec3<f32>(0.);
     if((material.flags & MATERIAL_FLAGS_UNLIT) != 0u) {
         color = material_info.base_color.rgb;
+        f_emissive = color;
     } else {
         color = f_emissive + diffuse + specular;
         color = sheen + color * albedo_sheen_scaling;
@@ -798,4 +801,41 @@ fn compute_color_from_material(material_id: u32, pixel_data: ptr<function, Pixel
     material_info.f_diffuse_ibl = f_diffuse_ibl;
     material_info.f_specular = f_specular;
     return material_info;
+}
+
+// Evaluate BRDF: choose between diffuse or specular based on material properties
+fn eval_brdf(
+    material_info: ptr<function, MaterialInfo>,
+    normal: vec3<f32>,
+    view: vec3<f32>,
+    direction: vec3<f32>,
+    is_specular: bool
+) -> vec3<f32> {
+    let NdotL = max(dot(normal, direction), 0.);
+    let NdotV = max(dot(normal, view), 0.);
+    if (NdotL <= 0. || NdotV <= 0.) {
+        return vec3<f32>(0.);
+    }
+
+    let h = normalize(view + direction);
+    let VdotH = max(dot(view, h), 0.);
+    let NdotH = max(dot(normal, h), 0.);
+    
+    let specular_weight_and_anisotropy_strength = unpack2x16float((*material_info).specular_weight_and_anisotropy_strength);
+    let specular_weight = specular_weight_and_anisotropy_strength.x;
+    
+    if (is_specular) {
+        return BRDF_specular_GGX(
+            (*material_info).f0, (*material_info).f90, 
+            (*material_info).alpha_roughness, 
+            specular_weight, 
+            VdotH, NdotL, NdotV, NdotH
+        );
+    } else {
+        return BRDF_lambertian(
+            (*material_info).f0, (*material_info).f90, 
+            (*material_info).c_diff, 
+            specular_weight, VdotH
+        );
+    }
 }

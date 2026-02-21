@@ -94,6 +94,17 @@ impl Pass for BlitPass {
 
         inox_profiler::scoped_profile!("blit_pass::update");
 
+        self.binding_data.add_texture(
+            &self.source_textures[self.frame_index],
+            0,
+            BindingInfo {
+                group_index: 0,
+                binding_index: 0,
+                stage: ShaderStage::Fragment,
+                ..Default::default()
+            },
+        );
+
         let pass = self.render_pass.get();
         let pipeline = pass.pipeline().get();
         if !pipeline.is_initialized() {

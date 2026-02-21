@@ -53,8 +53,5 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     }   
      
     var out_color = vec4<f32>(radiance, 1.);   
-    //out_color = vec4<f32>(tonemap_ACES_Hill(out_color.rgb), 1.);
-    //out_color = vec4<f32>(linearTosRGB(out_color.rgb), 1.); 
-
     return out_color;
 }

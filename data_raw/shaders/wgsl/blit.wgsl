@@ -11,6 +11,7 @@ struct FragmentOutput {
 var source_texture: texture_2d<f32>;
 
 #import "postfx_utils.inc"
+#import "color_utils.inc"
 
 @vertex
 fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
@@ -33,6 +34,8 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
 
     //out_color = textureLoad(source_texture, vec2<u32>(pixel_coords), 0); 
     out_color = vec4<f32>(fxaa(source_texture, pixel_coords, d), 1.);
+    out_color = vec4<f32>(tonemap_ACES_Hill(out_color.rgb), 1.);
+    out_color = vec4<f32>(linearTosRGB(out_color.rgb), 1.); 
 
     return out_color;
 }

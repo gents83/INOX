@@ -187,6 +187,7 @@ impl ConstantData {
             self.frame_index = 0;
         }
         self.view = v;
+        self.inv_view = matrix4_to_array(view_proj_near_far_fov.0.inverse());
         self.proj = p;
         self.camera_near = view_proj_near_far_fov.2;
         self.camera_far = view_proj_near_far_fov.3;
