@@ -25,11 +25,11 @@ var<uniform> textures: Textures;
 @group(1) @binding(2)
 var<uniform> lights: Lights;
 @group(1) @binding(3)
-var<storage, read_write> data_buffer_0: array<f32>;
+var<storage, read_write> data_buffer_0: array<RayPackedData>;
 @group(1) @binding(4)
-var<storage, read_write> data_buffer_1: array<f32>;
+var<storage, read_write> data_buffer_1: array<RadiancePackedData>;
 @group(1) @binding(5)
-var<storage, read_write> data_buffer_2: array<f32>;
+var<storage, read_write> data_buffer_2: array<ThroughputPackedData>;
 
 #import "texture_utils.inc"
 #import "matrix_utils.inc"
@@ -52,7 +52,7 @@ fn main(
         return;
     }
 
-    let data_index = (global_invocation_id.y * dimensions.x + global_invocation_id.x) * SIZE_OF_DATA_BUFFER_ELEMENT;
+    let data_index = global_invocation_id.y * dimensions.x + global_invocation_id.x;
 
     // Read G-buffer
     let world_pos = read_gbuffer_world_pos(data_index);
@@ -63,21 +63,13 @@ fn main(
 
     // Skip empty pixels
     if (length(normal) < 0.01) {
-        // Write zero diffuse radiance
-        data_buffer_1[data_index] = 0.;
-        data_buffer_1[data_index + 1u] = 0.;
-        data_buffer_1[data_index + 2u] = 0.;
-        data_buffer_1[data_index + 3u] = 0.;
+        data_buffer_1[data_index].data = vec4<f32>(0.);
         return;
     }
 
     // Read shadow + AO
     let shadow_mask = read_shadow_mask(data_index);
     let ao_factor = read_ao_factor(data_index);
-
-    // Save tangent_w sign before we overwrite data_buffer_1
-    let tangent_w = data_buffer_1[data_index + 1u];
-    let tangent_sign = select(0u, 1u, tangent_w > 0.0);
 
     // Reconstruct PixelData for material evaluation
     var uv_set: array<vec4<f32>, 4>;
@@ -91,18 +83,14 @@ fn main(
     );
 
     // Evaluate full PBR material (shadows are now applied inside this function)
-    let material_info = compute_color_from_material(material_id, &pixel_data, shadow_mask);
+    var material_info = compute_color_from_material(material_id, &pixel_data, shadow_mask);
 
     // Extract diffuse contribution and modulate by AO
-    var diffuse_radiance = vec3<f32>(0.);
-
     // Use the pre-computed diffuse which includes IBL + punctual lighting
     // Apply AO to the IBL component
-    diffuse_radiance = material_info.f_diffuse * ao_factor + material_info.f_diffuse_ibl * ao_factor;
+    let diffuse_radiance = material_info.f_diffuse * ao_factor + material_info.f_diffuse_ibl * ao_factor;
 
-    // Write diffuse radiance to data_buffer_1, packing material_id + tangent_sign for specular pass
-    data_buffer_1[data_index] = diffuse_radiance.x;
-    data_buffer_1[data_index + 1u] = diffuse_radiance.y;
-    data_buffer_1[data_index + 2u] = diffuse_radiance.z;
-    data_buffer_1[data_index + 3u] = f32(material_id | (tangent_sign << 8u)); // pack for specular pass
+    // Write diffuse radiance to data_buffer_1
+    // MaterialID and TangentW are safely stored in db0, so we don't need to pack them here.
+    write_radiance(data_index, diffuse_radiance, 0u);
 }

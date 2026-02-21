@@ -23,11 +23,11 @@ var visibility_texture: texture_2d<u32>;
 @group(1) @binding(1)
 var depth_texture: texture_depth_2d;
 @group(1) @binding(2)
-var<storage, read_write> data_buffer_0: array<f32>;
+var<storage, read_write> data_buffer_0: array<RayPackedData>;
 @group(1) @binding(3)
-var<storage, read_write> data_buffer_1: array<f32>;
+var<storage, read_write> data_buffer_1: array<RadiancePackedData>;
 @group(1) @binding(4)
-var<storage, read_write> data_buffer_2: array<f32>;
+var<storage, read_write> data_buffer_2: array<ThroughputPackedData>;
 
 #import "matrix_utils.inc"
 #import "geom_utils.inc"
@@ -47,21 +47,13 @@ fn main(
         return;
     }
 
-    let data_index = (global_invocation_id.y * dimensions.x + global_invocation_id.x) * SIZE_OF_DATA_BUFFER_ELEMENT;
+    let data_index = global_invocation_id.y * dimensions.x + global_invocation_id.x;
 
     // Default: clear G-buffer
-    data_buffer_0[data_index] = 0.;
-    data_buffer_0[data_index + 1u] = 0.;
-    data_buffer_0[data_index + 2u] = 0.;
-    data_buffer_0[data_index + 3u] = 0.;
-    data_buffer_1[data_index] = 0.;
-    data_buffer_1[data_index + 1u] = 0.;
-    data_buffer_1[data_index + 2u] = 0.;
-    data_buffer_1[data_index + 3u] = 0.;
-    data_buffer_2[data_index] = 0.;
-    data_buffer_2[data_index + 1u] = 0.;
-    data_buffer_2[data_index + 2u] = 0.;
-    data_buffer_2[data_index + 3u] = 0.;
+    data_buffer_0[data_index].origin_tmin = vec4<f32>(0.);
+    data_buffer_0[data_index].direction_tmax = vec4<f32>(0.);
+    data_buffer_1[data_index].data = vec4<f32>(0.);
+    data_buffer_2[data_index].data = vec4<f32>(0.);
 
     let visibility_dimensions = textureDimensions(visibility_texture);
     let visibility_scale = vec2<f32>(visibility_dimensions) / vec2<f32>(dimensions);

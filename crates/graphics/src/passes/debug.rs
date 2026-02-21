@@ -13,8 +13,11 @@ use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::{generate_random_uid, INVALID_UID};
 
-use super::compute_pathtracing_indirect::DebugPackedData;
-use crate::{RadiancePackedData, SIZE_OF_DATA_BUFFER_ELEMENT};
+use crate::RadiancePackedData;
+
+#[repr(C)]
+#[derive(Default, PartialEq, Clone, Copy, Debug)]
+pub struct DebugPackedData(pub f32);
 
 pub const DEBUG_PIPELINE: &str = "pipelines/Debug.render_pipeline";
 pub const DEBUG_PASS_NAME: &str = "DebugPass";
@@ -71,15 +74,15 @@ impl Pass for DebugPass {
 
         let data_buffer_debug = render_context.global_buffers().vector::<DebugPackedData>();
         data_buffer_debug.write().unwrap().resize(
-            SIZE_OF_DATA_BUFFER_ELEMENT * (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
+            (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
             DebugPackedData(0.),
         );
         let data_buffer_1 = render_context
             .global_buffers()
             .vector::<RadiancePackedData>();
         data_buffer_1.write().unwrap().resize(
-            SIZE_OF_DATA_BUFFER_ELEMENT * (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
-            RadiancePackedData(0.),
+            (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
+            RadiancePackedData::default(),
         );
 
         Self {

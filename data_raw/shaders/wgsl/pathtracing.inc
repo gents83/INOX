@@ -5,6 +5,19 @@ struct BRDFSample {
     is_specular: bool,
 }
 
+struct RayPackedData {
+    origin_tmin: vec4<f32>,
+    direction_tmax: vec4<f32>,
+}
+
+struct RadiancePackedData {
+    data: vec4<f32>,
+}
+
+struct ThroughputPackedData {
+    data: vec4<f32>,
+}
+
 fn pixarOnb(n: vec3f) -> mat3x3f {
     // https://www.jcgt.org/published/0006/01/01/paper-lowres.pdf
     let s = select(-1f, 1f, n.z >= 0f);
@@ -171,138 +184,170 @@ fn write_gbuffer(
     uv0: vec2<f32>,
     instance_id: u32
 ) {
-    // data_buffer_0: world_pos.xyz, packed_normal
-    data_buffer_0[data_index] = world_pos.x;
-    data_buffer_0[data_index + 1u] = world_pos.y;
-    data_buffer_0[data_index + 2u] = world_pos.z;
-    data_buffer_0[data_index + 3u] = f32(pack2x16float(octahedral_mapping(normal)));
+    // data_buffer_0: world_pos.xyz (origin), material_id (t_min)
+    data_buffer_0[data_index].origin_tmin = vec4<f32>(world_pos, f32(material_id));
+    // data_buffer_0: normal (direction), tangent.w (t_max)
+    data_buffer_0[data_index].direction_tmax = vec4<f32>(normal, tangent.w);
 
-    // data_buffer_1: material_id, tangent_w, (reserved for ao), (reserved for shadow)
-    data_buffer_1[data_index] = f32(material_id);
-    data_buffer_1[data_index + 1u] = tangent.w;
-    data_buffer_1[data_index + 2u] = 0.;
-    data_buffer_1[data_index + 3u] = 0.;
+    // data_buffer_1: initialized to 0 (Radiance)
+    data_buffer_1[data_index].data = vec4<f32>(0.);
 
     // data_buffer_2: packed_tangent, instance_id, packed_uv0, (reserved for shadow_mask)
-    data_buffer_2[data_index] = f32(pack2x16float(octahedral_mapping(tangent.xyz)));
-    data_buffer_2[data_index + 1u] = f32(instance_id);
-    data_buffer_2[data_index + 2u] = f32(pack2x16float(uv0));
-    data_buffer_2[data_index + 3u] = 0.;
+    data_buffer_2[data_index].data = vec4<f32>(
+        f32(pack2x16float(octahedral_mapping(tangent.xyz))),
+        f32(instance_id),
+        f32(pack2x16float(uv0)),
+        0.
+    );
 }
 
 // Read G-buffer world position from data_buffer_0
 fn read_gbuffer_world_pos(data_index: u32) -> vec3<f32> {
-    return vec3<f32>(
-        data_buffer_0[data_index],
-        data_buffer_0[data_index + 1u],
-        data_buffer_0[data_index + 2u]
-    );
+    return data_buffer_0[data_index].origin_tmin.xyz;
 }
 
 // Read G-buffer normal from data_buffer_0
 fn read_gbuffer_normal(data_index: u32) -> vec3<f32> {
-    return octahedral_unmapping(unpack2x16float(u32(data_buffer_0[data_index + 3u])));
+    return data_buffer_0[data_index].direction_tmax.xyz;
 }
 
-// Read G-buffer material ID from data_buffer_1
+// Read G-buffer material ID from data_buffer_0
 fn read_gbuffer_material_id(data_index: u32) -> u32 {
-    return u32(data_buffer_1[data_index]);
+    return u32(data_buffer_0[data_index].origin_tmin.w);
 }
 
-// Read G-buffer tangent from data_buffer_2[0] + data_buffer_1[1]
+// Read G-buffer tangent from data_buffer_2[0] + data_buffer_0
 fn read_gbuffer_tangent(data_index: u32) -> vec4<f32> {
-    let packed_tangent = octahedral_unmapping(unpack2x16float(u32(data_buffer_2[data_index])));
-    let tangent_w = data_buffer_1[data_index + 1u];
+    let packed_tangent = octahedral_unmapping(unpack2x16float(u32(data_buffer_2[data_index].data.x)));
+    let tangent_w = data_buffer_0[data_index].direction_tmax.w;
     return vec4<f32>(packed_tangent, tangent_w);
 }
 
 // Read G-buffer UV0 from data_buffer_2[2] (packed as 2xf16)
 fn read_gbuffer_uv0(data_index: u32) -> vec2<f32> {
-    return unpack2x16float(u32(data_buffer_2[data_index + 2u]));
+    return unpack2x16float(u32(data_buffer_2[data_index].data.z));
 }
 
 // Read G-buffer instance ID from data_buffer_2
 fn read_gbuffer_instance_id(data_index: u32) -> u32 {
-    return u32(data_buffer_2[data_index + 1u]);
+    return u32(data_buffer_2[data_index].data.y);
 }
 
 // Write shadow mask into data_buffer_2.w
 fn write_shadow_mask(data_index: u32, shadow_mask: u32) {
-    data_buffer_2[data_index + 3u] = bitcast<f32>(shadow_mask);
+    data_buffer_2[data_index].data.w = bitcast<f32>(shadow_mask);
 }
 
 // Read shadow mask from data_buffer_2.w
 fn read_shadow_mask(data_index: u32) -> u32 {
-    return bitcast<u32>(data_buffer_2[data_index + 3u]);
+    return bitcast<u32>(data_buffer_2[data_index].data.w);
 }
 
 // Write AO factor into data_buffer_1[2]
 fn write_ao_factor(data_index: u32, ao: f32) {
-    data_buffer_1[data_index + 2u] = ao;
+    data_buffer_1[data_index].data.z = ao;
 }
 
 // Read AO factor from data_buffer_1[2]
 fn read_ao_factor(data_index: u32) -> f32 {
-    return data_buffer_1[data_index + 2u];
+    return data_buffer_1[data_index].data.z;
 }
 
 // Write ray data for indirect bounces
 fn write_ray_data(data_index: u32, origin: vec3<f32>, direction: vec3<f32>) {
-    data_buffer_0[data_index] = origin.x;
-    data_buffer_0[data_index + 1u] = origin.y;
-    data_buffer_0[data_index + 2u] = origin.z;
-    data_buffer_0[data_index + 3u] = f32(pack2x16float(octahedral_mapping(direction)));
+    data_buffer_0[data_index].origin_tmin = vec4<f32>(origin, HIT_EPSILON);
+    data_buffer_0[data_index].direction_tmax = vec4<f32>(direction, MAX_TRACING_DISTANCE);
 }
 
 // Read ray origin from data_buffer_0
 fn read_ray_origin(data_index: u32) -> vec3<f32> {
-    return vec3<f32>(
-        data_buffer_0[data_index],
-        data_buffer_0[data_index + 1u],
-        data_buffer_0[data_index + 2u]
-    );
+    return data_buffer_0[data_index].origin_tmin.xyz;
+}
+
+// Read ray t_min from data_buffer_0
+fn read_ray_t_min(data_index: u32) -> f32 {
+    return data_buffer_0[data_index].origin_tmin.w;
 }
 
 // Read ray direction from data_buffer_0
 fn read_ray_direction(data_index: u32) -> vec3<f32> {
-    return octahedral_unmapping(unpack2x16float(u32(data_buffer_0[data_index + 3u])));
+    return data_buffer_0[data_index].direction_tmax.xyz;
+}
+
+// Read ray t_max from data_buffer_0
+fn read_ray_t_max(data_index: u32) -> f32 {
+    return data_buffer_0[data_index].direction_tmax.w;
+}
+
+// Write hit data (repurposes db0)
+fn write_hit_data(data_index: u32, hit_pos: vec3<f32>, visibility_id: u32) {
+    data_buffer_0[data_index].origin_tmin = vec4<f32>(hit_pos, 0.);
+    data_buffer_0[data_index].direction_tmax = vec4<f32>(0., 0., 0., f32(visibility_id));
+}
+
+// Read hit position from db0
+fn read_hit_position(data_index: u32) -> vec3<f32> {
+    return data_buffer_0[data_index].origin_tmin.xyz;
+}
+
+// Read hit visibility ID from db0
+fn read_hit_visibility_id(data_index: u32) -> u32 {
+    return u32(data_buffer_0[data_index].direction_tmax.w);
+}
+
+// Save incoming ray direction to db1.w
+fn save_incoming_direction(data_index: u32, direction: vec3<f32>) {
+    data_buffer_1[data_index].data.w = f32(pack2x16float(octahedral_mapping(direction)));
+}
+
+// Read incoming ray direction from db1.w
+fn read_incoming_direction(data_index: u32) -> vec3<f32> {
+    return octahedral_unmapping(unpack2x16float(u32(data_buffer_1[data_index].data.w)));
 }
 
 // Write radiance data
 fn write_radiance(data_index: u32, radiance: vec3<f32>, visibility_id: u32) {
-    data_buffer_1[data_index] = radiance.x;
-    data_buffer_1[data_index + 1u] = radiance.y;
-    data_buffer_1[data_index + 2u] = radiance.z;
-    data_buffer_1[data_index + 3u] = f32(visibility_id);
+    // Note: visibility_id here might be unused or stored in w?
+    // IndirectSetup wrote visibility_id to w?
+    // But save_incoming_direction writes to w.
+    // If we write radiance, we should preserve w if it matters.
+    // But Radiance is written by Shade pass, which generates Next Ray.
+    // Next Ray (IndirectBounce) starts with Traversal which reads Next Ray from db0.
+    // So db1 is just accumulation.
+    // save_incoming_direction is done by Traversal.
+    // So between Traversal and Shade, db1.w holds Direction.
+    // Shade reads Direction, computes Lighting, adds to db1.xyz.
+    // Does Shade need to preserve db1.w?
+    // No, once read, it's done.
+    // So write_radiance can overwrite w?
+    // Wait, write_radiance is used by Setup and Diffuse.
+    // They write 0 or material ID to w.
+    // Traversal overwrites w with Direction.
+    // Shade reads Direction.
+    // Shade accumulates to xyz. It should preserve w? Or doesn't matter?
+    // If Shade uses += for xyz, it needs to access components.
+    // data_buffer_1[index].data.x += ...
+
+    // This helper writes vec4.
+    data_buffer_1[data_index].data = vec4<f32>(radiance, f32(visibility_id));
 }
 
 // Read radiance
 fn read_radiance(data_index: u32) -> vec3<f32> {
-    return vec3<f32>(
-        data_buffer_1[data_index],
-        data_buffer_1[data_index + 1u],
-        data_buffer_1[data_index + 2u]
-    );
+    return data_buffer_1[data_index].data.xyz;
 }
 
 // Write throughput data
 fn write_throughput(data_index: u32, throughput: vec3<f32>, is_active: bool) {
-    data_buffer_2[data_index] = throughput.x;
-    data_buffer_2[data_index + 1u] = throughput.y;
-    data_buffer_2[data_index + 2u] = throughput.z;
-    data_buffer_2[data_index + 3u] = select(0., 1., is_active);
+    data_buffer_2[data_index].data = vec4<f32>(throughput, select(0., 1., is_active));
 }
 
 // Read throughput
 fn read_throughput(data_index: u32) -> vec3<f32> {
-    return vec3<f32>(
-        data_buffer_2[data_index],
-        data_buffer_2[data_index + 1u],
-        data_buffer_2[data_index + 2u]
-    );
+    return data_buffer_2[data_index].data.xyz;
 }
 
 // Read active flag
 fn read_ray_active(data_index: u32) -> bool {
-    return data_buffer_2[data_index + 3u] > 0.5;
+    return data_buffer_2[data_index].data.w > 0.5;
 }

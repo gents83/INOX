@@ -19,11 +19,11 @@ var<storage, read> meshlets: Meshlets;
 var<storage, read> bvh: BVH;
 
 @group(1) @binding(0)
-var<storage, read_write> data_buffer_0: array<f32>;
+var<storage, read_write> data_buffer_0: array<RayPackedData>;
 @group(1) @binding(1)
-var<storage, read_write> data_buffer_1: array<f32>;
+var<storage, read_write> data_buffer_1: array<RadiancePackedData>;
 @group(1) @binding(2)
-var<storage, read_write> data_buffer_2: array<f32>;
+var<storage, read_write> data_buffer_2: array<ThroughputPackedData>;
 
 #import "matrix_utils.inc"
 #import "geom_utils.inc"
@@ -43,7 +43,7 @@ fn main(
         return;
     }
 
-    let data_index = (global_invocation_id.y * dimensions.x + global_invocation_id.x) * SIZE_OF_DATA_BUFFER_ELEMENT;
+    let data_index = global_invocation_id.y * dimensions.x + global_invocation_id.x;
 
     // Check if this ray is still active
     if (!read_ray_active(data_index)) {
@@ -61,19 +61,13 @@ fn main(
 
     if (is_miss) {
         // Write miss as hit data — bounce shade will handle sky contribution
-        data_buffer_0[data_index] = origin.x;
-        data_buffer_0[data_index + 1u] = origin.y;
-        data_buffer_0[data_index + 2u] = origin.z;
-        // Encode miss with special distance value
-        data_buffer_0[data_index + 3u] = -1.0;
+        // Use origin as hit_point for now (unused for miss)
+        write_hit_data(data_index, origin, result.visibility_id);
     } else {
         // Write hit data
         let hit_point = origin + direction * result.distance;
-        data_buffer_0[data_index] = hit_point.x;
-        data_buffer_0[data_index + 1u] = hit_point.y;
-        data_buffer_0[data_index + 2u] = hit_point.z;
-        data_buffer_0[data_index + 3u] = f32(result.visibility_id);
+        write_hit_data(data_index, hit_point, result.visibility_id);
     }
     // Keep direction in buffer_1 for env map sampling and bounce brdf view evaluation
-    data_buffer_1[data_index + 3u] = f32(pack2x16float(octahedral_mapping(direction)));
+    save_incoming_direction(data_index, direction);
 }

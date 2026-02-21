@@ -21,11 +21,11 @@ var<storage, read> bvh: BVH;
 @group(1) @binding(0)
 var<uniform> lights: Lights;
 @group(1) @binding(1)
-var<storage, read_write> data_buffer_0: array<f32>;
+var<storage, read_write> data_buffer_0: array<RayPackedData>;
 @group(1) @binding(2)
-var<storage, read_write> data_buffer_1: array<f32>;
+var<storage, read_write> data_buffer_1: array<RadiancePackedData>;
 @group(1) @binding(3)
-var<storage, read_write> data_buffer_2: array<f32>;
+var<storage, read_write> data_buffer_2: array<ThroughputPackedData>;
 
 #import "matrix_utils.inc"
 #import "geom_utils.inc"
@@ -49,7 +49,7 @@ fn main(
         return;
     }
 
-    let data_index = (global_invocation_id.y * dimensions.x + global_invocation_id.x) * SIZE_OF_DATA_BUFFER_ELEMENT;
+    let data_index = global_invocation_id.y * dimensions.x + global_invocation_id.x;
 
     // Read G-buffer
     let world_pos = read_gbuffer_world_pos(data_index);

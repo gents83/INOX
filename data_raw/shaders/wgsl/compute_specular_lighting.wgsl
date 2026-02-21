@@ -25,11 +25,11 @@ var<uniform> textures: Textures;
 @group(1) @binding(2)
 var<uniform> lights: Lights;
 @group(1) @binding(3)
-var<storage, read_write> data_buffer_0: array<f32>;
+var<storage, read_write> data_buffer_0: array<RayPackedData>;
 @group(1) @binding(4)
-var<storage, read_write> data_buffer_1: array<f32>;
+var<storage, read_write> data_buffer_1: array<RadiancePackedData>;
 @group(1) @binding(5)
-var<storage, read_write> data_buffer_2: array<f32>;
+var<storage, read_write> data_buffer_2: array<ThroughputPackedData>;
 
 #import "texture_utils.inc"
 #import "matrix_utils.inc"
@@ -52,7 +52,7 @@ fn main(
         return;
     }
 
-    let data_index = (global_invocation_id.y * dimensions.x + global_invocation_id.x) * SIZE_OF_DATA_BUFFER_ELEMENT;
+    let data_index = global_invocation_id.y * dimensions.x + global_invocation_id.x;
 
     // Read G-buffer from db0 (intact)
     let world_pos = read_gbuffer_world_pos(data_index);
@@ -63,19 +63,10 @@ fn main(
         return;
     }
 
-    // Read material_id + tangent_sign packed by diffuse pass in db1[3]
-    let packed_mat = u32(data_buffer_1[data_index + 3u]);
-    let material_id = packed_mat & 0xFFu;
-    let tangent_sign = f32((packed_mat >> 8u) & 1u);
-    let tangent_w = select(-1.0, 1.0, tangent_sign > 0.5);
-
-    // Read G-buffer from db2 (intact - diffuse pass didn't touch db2)
-    let packed_tangent_xyz = octahedral_unmapping(unpack2x16float(u32(data_buffer_2[data_index])));
-    let tangent = vec4<f32>(packed_tangent_xyz, tangent_w);
-    let instance_id = u32(data_buffer_2[data_index + 1u]);
-    let uv0 = unpack2x16float(u32(data_buffer_2[data_index + 2u]));
-
-    // Read shadow mask from db2[3] (intact)
+    let material_id = read_gbuffer_material_id(data_index);
+    let tangent = read_gbuffer_tangent(data_index);
+    let instance_id = read_gbuffer_instance_id(data_index);
+    let uv0 = read_gbuffer_uv0(data_index);
     let shadow_mask = read_shadow_mask(data_index);
 
     // Reconstruct PixelData
@@ -96,8 +87,8 @@ fn main(
     let emissive = material_info.f_emissive;
 
     // Accumulate specular + emissive on top of diffuse already in db1
-    data_buffer_1[data_index] += specular_radiance.x + emissive.x;
-    data_buffer_1[data_index + 1u] += specular_radiance.y + emissive.y;
-    data_buffer_1[data_index + 2u] += specular_radiance.z + emissive.z;
-    // db1[3] keeps the packed material_id + tangent_sign
+    let diffuse = read_radiance(data_index);
+    let total = diffuse + specular_radiance + emissive;
+
+    write_radiance(data_index, total, 0u);
 }

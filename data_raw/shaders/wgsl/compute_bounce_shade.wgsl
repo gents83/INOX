@@ -27,11 +27,11 @@ var<uniform> lights: Lights;
 @group(1) @binding(3)
 var<storage, read> bvh: BVH;
 @group(1) @binding(4)
-var<storage, read_write> data_buffer_0: array<f32>;
+var<storage, read_write> data_buffer_0: array<RayPackedData>;
 @group(1) @binding(5)
-var<storage, read_write> data_buffer_1: array<f32>;
+var<storage, read_write> data_buffer_1: array<RadiancePackedData>;
 @group(1) @binding(6)
-var<storage, read_write> data_buffer_2: array<f32>;
+var<storage, read_write> data_buffer_2: array<ThroughputPackedData>;
 
 #import "texture_utils.inc"
 #import "matrix_utils.inc"
@@ -41,6 +41,7 @@ var<storage, read_write> data_buffer_2: array<f32>;
 #import "visibility_utils.inc"
 #import "raytracing.inc"
 #import "pathtracing.inc"
+#import "pathtracing_tracing.inc"
 
 const WORKGROUP_SIZE: u32 = 8u;
 
@@ -55,7 +56,7 @@ fn main(
         return;
     }
 
-    let data_index = (global_invocation_id.y * dimensions.x + global_invocation_id.x) * SIZE_OF_DATA_BUFFER_ELEMENT;
+    let data_index = global_invocation_id.y * dimensions.x + global_invocation_id.x;
 
     // Check if this ray is still active
     if (!read_ray_active(data_index)) {
@@ -63,12 +64,8 @@ fn main(
     }
 
     // Read hit results from traversal
-    let hit_point = vec3<f32>(
-        data_buffer_0[data_index],
-        data_buffer_0[data_index + 1u],
-        data_buffer_0[data_index + 2u]
-    );
-    let hit_or_vis = data_buffer_0[data_index + 3u];
+    let hit_point = read_hit_position(data_index);
+    let visibility_id = read_hit_visibility_id(data_index);
 
     // Read current accumulated radiance
     var radiance = read_radiance(data_index);
@@ -77,11 +74,11 @@ fn main(
     var seed = (pixel * dimensions) ^ vec2<u32>((constant_data.frame_index + 7u) << 16u);
 
     // Miss — sample sky / environment
-    if (hit_or_vis < 0.) {
+    if (visibility_id == 0u || (visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
         // Read the direction stored by traversal for env map sampling
-        let packed_dir = data_buffer_1[data_index + 3u];
+        let packed_dir = read_incoming_direction(data_index);
+
         // Sky contribution — simple ambient for now
-        // TODO: sample environment map using constant_data.environment_map_texture_index
         let sky_color = vec3<f32>(0.03);
         radiance += throughput * sky_color;
 
@@ -92,17 +89,43 @@ fn main(
     }
 
     // Hit — shade the intersection
-    let visibility_id = u32(hit_or_vis);
-    if (visibility_id == 0u || (visibility_id & 0xFFFFFFFFu) == 0xFF000000u) {
-        write_throughput(data_index, vec3<f32>(0.), false);
-        return;
-    }
 
     // Reconstruct G-buffer at hit point
     var pixel_data = visibility_to_gbuffer(visibility_id, hit_point);
     
-    // Evaluate full PBR material at hit
-    var material_info = compute_color_from_material(pixel_data.material_id, &pixel_data, 0xFFFFFFFFu);
+    // Evaluate full PBR material at hit with shadows
+
+    // === Shadow rays ===
+    var shadow_mask = 0u;
+    let num_lights_to_process = min(constant_data.num_lights, 32u);
+    for (var light_i = 0u; light_i < num_lights_to_process; light_i++) {
+        let light = lights.data[light_i];
+        if (light.light_type == LIGHT_TYPE_INVALID) {
+            shadow_mask |= (1u << light_i);
+            continue;
+        }
+
+        var to_light: vec3<f32>;
+        var max_distance: f32;
+        if (light.light_type == LIGHT_TYPE_DIRECTIONAL) {
+            to_light = -light.direction;
+            max_distance = MAX_TRACING_DISTANCE;
+        } else {
+            to_light = light.position - hit_point;
+            max_distance = length(to_light);
+        }
+
+        let shadow = trace_shadow_ray(hit_point + pixel_data.normal * HIT_EPSILON, to_light, max_distance, constant_data.tlas_starting_index);
+        if (shadow > 0.5) {
+            shadow_mask |= (1u << light_i);
+        }
+    }
+    // Fill remaining bits as lit
+    for (var i = num_lights_to_process; i < 32u; i++) {
+        shadow_mask |= (1u << i);
+    }
+
+    var material_info = compute_color_from_material(pixel_data.material_id, &pixel_data, shadow_mask);
 
     // Add emissive contribution
     radiance += throughput * material_info.f_emissive;
@@ -113,7 +136,7 @@ fn main(
 
     // The incoming ray direction was stored by compute_ray_traversal.wgsl
     // The view direction for this bounce is the negated incoming ray
-    let incoming_dir = octahedral_unmapping(unpack2x16float(u32(data_buffer_1[data_index + 3u])));
+    let incoming_dir = read_incoming_direction(data_index);
     let view = -incoming_dir;
 
     // Sample next bounce direction
@@ -132,6 +155,7 @@ fn main(
     }
 
     // Russian roulette (after first 2 bounces — controlled by frame logic)
+    // Here we just check throughput
     var is_active = NdotL > 0. && length(new_throughput) > MATH_EPSILON;
     if (is_active && length(new_throughput) < 0.5) {
         if (russian_roulette(new_throughput, &seed)) {

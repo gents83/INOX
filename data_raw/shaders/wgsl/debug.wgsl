@@ -37,7 +37,7 @@ var visibility_texture: texture_2d<u32>;
 @group(1) @binding(3)
 var depth_texture: texture_depth_2d;
 @group(1) @binding(4)
-var<storage, read_write> data_buffer_1: array<f32>;
+var<storage, read_write> data_buffer_1: array<RadiancePackedData>;
 @group(1) @binding(5)
 var<storage, read_write> data_buffer_debug: array<f32>;
 @group(1) @binding(6)
@@ -51,6 +51,7 @@ var<uniform> lights: Lights;
 #import "pbr_utils.inc"
 #import "visibility_utils.inc"
 #import "color_utils.inc"
+#import "pathtracing.inc"
 
 
 fn draw_triangle_from_visibility(visibility_id: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec3<f32>{
@@ -396,16 +397,15 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
             out_color = vec4<f32>(vec3<f32>(material_info.perceptual_roughness), 1.);
         }
     } 
-    /*
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER) != 0) {
         let data_dimensions = vec2<u32>(DEFAULT_WIDTH, DEFAULT_HEIGHT);
         let data_scale = vec2<f32>(data_dimensions) / vec2<f32>(dimensions);
         let data_pixel = vec2<u32>(pixel * data_scale);
-        let data_index = (data_pixel.y * data_dimensions.x + data_pixel.x) * SIZE_OF_DATA_BUFFER_ELEMENT;
-        let radiance = vec3<f32>(data_buffer_1[data_index], data_buffer_1[data_index + 1u], data_buffer_1[data_index + 2u]);
+        let data_index = data_pixel.y * data_dimensions.x + data_pixel.x;
+        let radiance = data_buffer_1[data_index].data.xyz;
         out_color = vec4<f32>(radiance, 1.);
     } 
-    */
+
     else if ((constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_DEPTH_BUFFER) != 0) {
         let depth_dimensions = textureDimensions(depth_texture);
         let depth_scale = vec2<f32>(depth_dimensions) / vec2<f32>(dimensions);
@@ -424,8 +424,8 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let data_dimensions = vec2<u32>(DEFAULT_WIDTH, DEFAULT_HEIGHT);
         let data_scale = vec2<f32>(data_dimensions) / vec2<f32>(dimensions);
         let data_pixel = vec2<u32>(pixel * data_scale);
-        let data_index = (data_pixel.y * data_dimensions.x + data_pixel.x) * SIZE_OF_DATA_BUFFER_ELEMENT;
-        let radiance = vec3<f32>(data_buffer_1[data_index], data_buffer_1[data_index + 1u], data_buffer_1[data_index + 2u]);
+        let data_index = data_pixel.y * data_dimensions.x + data_pixel.x;
+        let radiance = data_buffer_1[data_index].data.xyz;
         var color = radiance.rgb;        
         /*
         var debug_bvh_index = 100u;

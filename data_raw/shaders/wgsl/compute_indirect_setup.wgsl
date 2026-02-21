@@ -25,11 +25,11 @@ var<uniform> textures: Textures;
 @group(1) @binding(2)
 var<uniform> lights: Lights;
 @group(1) @binding(3)
-var<storage, read_write> data_buffer_0: array<f32>;
+var<storage, read_write> data_buffer_0: array<RayPackedData>;
 @group(1) @binding(4)
-var<storage, read_write> data_buffer_1: array<f32>;
+var<storage, read_write> data_buffer_1: array<RadiancePackedData>;
 @group(1) @binding(5)
-var<storage, read_write> data_buffer_2: array<f32>;
+var<storage, read_write> data_buffer_2: array<ThroughputPackedData>;
 
 #import "texture_utils.inc"
 #import "matrix_utils.inc"
@@ -52,7 +52,7 @@ fn main(
         return;
     }
 
-    let data_index = (global_invocation_id.y * dimensions.x + global_invocation_id.x) * SIZE_OF_DATA_BUFFER_ELEMENT;
+    let data_index = global_invocation_id.y * dimensions.x + global_invocation_id.x;
 
     // Read G-buffer from db0 (intact)
     let world_pos = read_gbuffer_world_pos(data_index);
@@ -64,7 +64,7 @@ fn main(
         write_ray_data(data_index, vec3<f32>(0.), vec3<f32>(0., 1., 0.));
         write_throughput(data_index, vec3<f32>(0.), false);
         // Read combined direct lighting from db1 (diffuse + specular + emissive already accumulated)
-        let total = vec3<f32>(data_buffer_1[data_index], data_buffer_1[data_index + 1u], data_buffer_1[data_index + 2u]);
+        let total = read_radiance(data_index);
         write_radiance(data_index, total, 0u);
         return;
     }
@@ -72,19 +72,15 @@ fn main(
     var seed = (pixel * dimensions) ^ vec2<u32>(constant_data.frame_index << 16u);
 
     // Read combined direct lighting from db1 (diffuse + specular + emissive already accumulated by previous passes)
-    let total_direct = vec3<f32>(data_buffer_1[data_index], data_buffer_1[data_index + 1u], data_buffer_1[data_index + 2u]);
+    let total_direct = read_radiance(data_index);
 
-    // Read material_id from db1[3] (packed by diffuse pass with tangent_sign)
-    let packed_mat = u32(data_buffer_1[data_index + 3u]);
-    let material_id = packed_mat & 0xFFu;
+    // Read material_id from GBuffer (was in db0)
+    let material_id = read_gbuffer_material_id(data_index);
 
     // Read G-buffer from db2 (intact) for BRDF sampling
-    let packed_tangent_xyz = octahedral_unmapping(unpack2x16float(u32(data_buffer_2[data_index])));
-    let tangent_sign = f32((packed_mat >> 8u) & 1u);
-    let tangent_w = select(-1.0, 1.0, tangent_sign > 0.5);
-    let tangent = vec4<f32>(packed_tangent_xyz, tangent_w);
-    let instance_id = u32(data_buffer_2[data_index + 1u]);
-    let uv0 = unpack2x16float(u32(data_buffer_2[data_index + 2u]));
+    let tangent = read_gbuffer_tangent(data_index);
+    let instance_id = read_gbuffer_instance_id(data_index);
+    let uv0 = read_gbuffer_uv0(data_index);
 
     var uv_set: array<vec4<f32>, 4>;
     uv_set[0] = vec4<f32>(uv0, 0., 0.);

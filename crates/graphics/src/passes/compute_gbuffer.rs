@@ -11,7 +11,7 @@ use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::{generate_random_uid, INVALID_UID};
 
-use crate::{RadiancePackedData, RayPackedData, ThroughputPackedData, SIZE_OF_DATA_BUFFER_ELEMENT};
+use crate::{RadiancePackedData, RayPackedData, ThroughputPackedData};
 
 pub const COMPUTE_GBUFFER_PIPELINE: &str = "pipelines/ComputeGBuffer.compute_pipeline";
 pub const COMPUTE_GBUFFER_NAME: &str = "ComputeGBufferPass";
@@ -62,16 +62,16 @@ impl Pass for ComputeGBufferPass {
             .vector::<ThroughputPackedData>();
 
         data_buffer_0.write().unwrap().resize(
-            SIZE_OF_DATA_BUFFER_ELEMENT * (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
-            RayPackedData(0.),
+            (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
+            RayPackedData::default(),
         );
         data_buffer_1.write().unwrap().resize(
-            SIZE_OF_DATA_BUFFER_ELEMENT * (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
-            RadiancePackedData(0.),
+            (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
+            RadiancePackedData::default(),
         );
         data_buffer_2.write().unwrap().resize(
-            SIZE_OF_DATA_BUFFER_ELEMENT * (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
-            ThroughputPackedData(0.),
+            (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
+            ThroughputPackedData::default(),
         );
 
         Self {
