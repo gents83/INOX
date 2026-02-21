@@ -78,7 +78,7 @@ fn traverse_blas_stack(
     var visibility_id = 0u;
     var result_instance_id = 0u;
 
-    var stack: array<i32, 64>;
+    var stack: array<i32, 32>;
     var stack_ptr = 0;
     
     stack[stack_ptr] = blas_index;
@@ -102,7 +102,7 @@ fn traverse_blas_stack(
                 let right_index = left_node.miss;
 
                 // Stack Check
-                if(stack_ptr < 62) {
+                if(stack_ptr < 30) {
                     if(right_index >= 0) {
                         stack[stack_ptr] = right_index;
                         stack_ptr++;
@@ -148,7 +148,7 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
     var visibility_id = 0u;
     var instance_id = 0u;
 
-    var stack: array<i32, 64>;
+    var stack: array<i32, 32>;
     var stack_ptr = 0;
     
     stack[stack_ptr] = i32(tlas_starting_index);
@@ -174,7 +174,7 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
                 let left_node = bvh.data[u32(left_index)];
                 let right_index = left_node.miss;
 
-                if(stack_ptr < 62) {
+                if(stack_ptr < 30) {
                     if(right_index >= 0) {
                         stack[stack_ptr] = right_index;
                         stack_ptr++;

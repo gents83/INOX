@@ -4,7 +4,6 @@ use std::{
         Arc,
     },
     thread::{self, JoinHandle},
-    time::Duration,
 };
 
 use crate::{JobReceiverRw, JobReceiverTrait};
@@ -44,7 +43,7 @@ impl Worker {
                             if !can_continue.load(Ordering::SeqCst) {
                                 return false;
                             }
-                            thread::park_timeout(Duration::from_millis(10));
+                            thread::park();
                         }
                     }
                 })
