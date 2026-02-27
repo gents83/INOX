@@ -13,7 +13,7 @@ use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::{generate_random_uid, INVALID_UID};
 
-use super::compute_pathtracing_indirect::DebugPackedData;
+use crate::DebugPackedData;
 use crate::{RadiancePackedData, SIZE_OF_DATA_BUFFER_ELEMENT};
 
 pub const DEBUG_PIPELINE: &str = "pipelines/Debug.render_pipeline";
