@@ -357,3 +357,23 @@ struct MaterialInfo {
     f_diffuse_ibl: vec3<f32>,
     f_specular: vec3<f32>,
 };
+
+struct BRDFSample {
+    direction: vec3<f32>,
+    pdf: f32,
+    weight: vec3<f32>,
+    is_specular: bool,
+}
+
+struct RayPackedData {
+    origin_tmin: vec4<f32>,
+    direction_tmax: vec4<f32>,
+}
+
+struct RadiancePackedData {
+    data: vec4<f32>,
+}
+
+struct ThroughputPackedData {
+    data: vec4<f32>,
+}
