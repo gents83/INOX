@@ -51,6 +51,7 @@ var<uniform> lights: Lights;
 #import "pbr_utils.inc"
 #import "visibility_utils.inc"
 #import "color_utils.inc"
+#import "pathtracing.inc"
 
 
 fn draw_triangle_from_visibility(visibility_id: u32, pixel: vec2<u32>, dimensions: vec2<u32>) -> vec3<f32>{

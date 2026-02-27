@@ -121,17 +121,18 @@ impl ComputePipeline {
         if self.is_initialized() {
             return true;
         }
+        let bind_group_layouts = binding_data
+            .bind_group_layouts()
+            .iter()
+            .map(|b| Some(b))
+            .collect::<Vec<_>>();
         let compute_pipeline_layout =
             context
                 .webgpu
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Compute Pipeline Layout"),
-                    bind_group_layouts: binding_data
-                        .bind_group_layouts()
-                        .iter()
-                        .collect::<Vec<_>>()
-                        .as_slice(),
+                    bind_group_layouts: bind_group_layouts.as_slice(),
                     ..Default::default()
                 });
 

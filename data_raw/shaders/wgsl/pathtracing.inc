@@ -1,3 +1,23 @@
+struct BRDFSample {
+    direction: vec3<f32>,
+    pdf: f32,
+    weight: vec3<f32>,
+    is_specular: bool,
+}
+
+struct RayPackedData {
+    origin_tmin: vec4<f32>,
+    direction_tmax: vec4<f32>,
+}
+
+struct RadiancePackedData {
+    data: vec4<f32>,
+}
+
+struct ThroughputPackedData {
+    data: vec4<f32>,
+}
+
 fn pixarOnb(n: vec3f) -> mat3x3f {
     // https://www.jcgt.org/published/0006/01/01/paper-lowres.pdf
     let s = select(-1f, 1f, n.z >= 0f);

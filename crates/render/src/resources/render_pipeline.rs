@@ -196,17 +196,18 @@ impl RenderPipeline {
                 })
                 .collect()
         };
+        let bind_group_layouts = binding_data
+            .bind_group_layouts()
+            .iter()
+            .map(|b| Some(b))
+            .collect::<Vec<_>>();
         let render_pipeline_layout =
             context
                 .webgpu
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Render Pipeline Layout"),
-                    bind_group_layouts: binding_data
-                        .bind_group_layouts()
-                        .iter()
-                        .collect::<Vec<_>>()
-                        .as_slice(),
+                    bind_group_layouts: bind_group_layouts.as_slice(),
                     ..Default::default()
                 });
 
@@ -298,8 +299,8 @@ impl RenderPipeline {
                     },
                     depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
                         format: (*format).into(),
-                        depth_write_enabled: self.data.depth_write_enabled,
-                        depth_compare: self.data.depth_compare.into(),
+                        depth_write_enabled: Some(self.data.depth_write_enabled),
+                        depth_compare: Some(self.data.depth_compare.into()),
                         stencil: wgpu::StencilState::default(),
                         bias: wgpu::DepthBiasState::default(),
                     }),
