@@ -116,6 +116,7 @@ impl TextureRef {
             mip_level_count: Some(1),
             base_array_layer: 0,
             array_layer_count: Some(layers_count),
+            swizzle: wgpu::TextureComponentSwizzle::default(),
         });
         self.views.push(view.into());
     }

@@ -23,24 +23,22 @@ impl NormalizedPath for Path {
                     ret.push(component.as_os_str());
                 }
                 Component::CurDir => {}
-                Component::ParentDir => {
-                    match ret.components().next_back() {
-                        Some(Component::Normal(_)) => {
-                            ret.pop();
-                        }
-                        Some(Component::RootDir) => {}
-                        Some(Component::Prefix(_)) => {
-                            ret.push(Component::ParentDir.as_os_str());
-                        }
-                        Some(Component::CurDir) => {}
-                        Some(Component::ParentDir) => {
-                            ret.push(Component::ParentDir.as_os_str());
-                        }
-                        None => {
-                            ret.push(Component::ParentDir.as_os_str());
-                        }
+                Component::ParentDir => match ret.components().next_back() {
+                    Some(Component::Normal(_)) => {
+                        ret.pop();
                     }
-                }
+                    Some(Component::RootDir) => {}
+                    Some(Component::Prefix(_)) => {
+                        ret.push(Component::ParentDir.as_os_str());
+                    }
+                    Some(Component::CurDir) => {}
+                    Some(Component::ParentDir) => {
+                        ret.push(Component::ParentDir.as_os_str());
+                    }
+                    None => {
+                        ret.push(Component::ParentDir.as_os_str());
+                    }
+                },
                 Component::Normal(c) => {
                     ret.push(c);
                 }

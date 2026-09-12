@@ -49,10 +49,9 @@ impl FileWatcher {
         let w = FileWatcherImpl::new(move |res: FileEvent| tx.send(format!("{res:?}")).unwrap())
             .unwrap();
         #[cfg(any(target_os = "android", target_os = "ios"))]
-        let w = FileWatcherImpl::new(
-            filepath.clone(),
-            move |res: &str| tx.send(res.to_string()).unwrap(),
-        )
+        let w = FileWatcherImpl::new(filepath.clone(), move |res: &str| {
+            tx.send(res.to_string()).unwrap()
+        })
         .unwrap();
         Self {
             rx,

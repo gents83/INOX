@@ -32,16 +32,15 @@ pub static GLOBAL_GPU_PROFILER: LazyLock<GlobalGpuProfiler> = LazyLock::new(|| {
 
 impl GpuProfiler {
     pub fn init(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) -> &mut Self {
-        self.wgpu_profiler = Some(wgpu_profiler::GpuProfiler::new(device, self.settings.clone()).unwrap());
+        self.wgpu_profiler =
+            Some(wgpu_profiler::GpuProfiler::new(device, self.settings.clone()).unwrap());
         let _ = queue;
         self
     }
     pub fn enable(&mut self, enabled: bool) -> &mut Self {
         self.settings.enable_timer_queries = enabled;
         if let Some(profiler) = &mut self.wgpu_profiler {
-            profiler
-                .change_settings(self.settings.clone())
-                .ok();
+            profiler.change_settings(self.settings.clone()).ok();
         }
         self
     }
@@ -75,8 +74,8 @@ impl GpuProfiler {
         if let Some(wgpu_profiler) = &mut self.wgpu_profiler {
             if wgpu_profiler.end_frame().is_ok() {
                 let mut wgpu_results = Vec::new();
-                while let Some(results) = wgpu_profiler
-                    .process_finished_frame(queue.get_timestamp_period())
+                while let Some(results) =
+                    wgpu_profiler.process_finished_frame(queue.get_timestamp_period())
                 {
                     let frame_cpu_time = self.cpu_frame_times.pop_front().unwrap_or(cpu_time);
                     if self.base_time_offset.is_none() && !results.is_empty() {

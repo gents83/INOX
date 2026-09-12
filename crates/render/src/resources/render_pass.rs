@@ -500,22 +500,21 @@ impl RenderPass {
                 if let Some(meshlets) = meshlets.get(mesh_id) {
                     let flags = (mesh.flags_and_vertices_attribute_layout & 0xFFFF0000) >> 16;
                     if MeshFlags::from(flags) == mesh_flags {
-                        let mut meshlet_index = mesh.meshlets_offset;
                         inox_profiler::scoped_profile!("render_pass::draw_mesh");
-                        for meshlet in meshlets {
+                        for (meshlet_offset, meshlet) in meshlets.iter().enumerate() {
                             inox_profiler::scoped_profile!("render_pass::draw_indexed");
                             inox_profiler::gpu_scoped_profile!(
                                 &mut render_pass,
                                 &render_context.webgpu.device,
                                 "render_pass::draw_indexed",
                             );
+                            let meshlet_index = mesh.meshlets_offset + meshlet_offset as u32;
                             render_pass.draw_indexed(
                                 meshlet.indices_offset as _
                                     ..(meshlet.indices_offset + meshlet.indices_count) as _,
                                 mesh.vertices_position_offset as _,
                                 meshlet_index as _..(meshlet_index + 1),
                             );
-                            meshlet_index += 1;
                         }
                     }
                 }

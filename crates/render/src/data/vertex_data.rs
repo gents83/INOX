@@ -146,6 +146,7 @@ pub enum VertexFormat {
     Float64x3 = wgpu::VertexFormat::Float64x3 as _,
     Float64x4 = wgpu::VertexFormat::Float64x4 as _,
     Unorm10_10_10_2 = wgpu::VertexFormat::Unorm10_10_10_2 as _,
+    Snorm10_10_10_2 = wgpu::VertexFormat::Snorm10_10_10_2 as _,
     Uint8 = wgpu::VertexFormat::Uint8 as _,
     Sint8 = wgpu::VertexFormat::Sint8 as _,
     Unorm8 = wgpu::VertexFormat::Unorm8 as _,
@@ -205,6 +206,7 @@ impl From<VertexFormat> for wgpu::VertexFormat {
             VertexFormat::Float64x3 => wgpu::VertexFormat::Float64x3,
             VertexFormat::Float64x4 => wgpu::VertexFormat::Float64x4,
             VertexFormat::Unorm10_10_10_2 => wgpu::VertexFormat::Unorm10_10_10_2,
+            VertexFormat::Snorm10_10_10_2 => wgpu::VertexFormat::Snorm10_10_10_2,
             VertexFormat::Unorm8x4Bgra => wgpu::VertexFormat::Unorm8x4Bgra,
         }
     }
@@ -257,6 +259,7 @@ impl From<wgpu::VertexFormat> for VertexFormat {
             wgpu::VertexFormat::Float64x3 => VertexFormat::Float64x3,
             wgpu::VertexFormat::Float64x4 => VertexFormat::Float64x4,
             wgpu::VertexFormat::Unorm10_10_10_2 => VertexFormat::Unorm10_10_10_2,
+            wgpu::VertexFormat::Snorm10_10_10_2 => VertexFormat::Snorm10_10_10_2,
             wgpu::VertexFormat::Unorm8x4Bgra => VertexFormat::Unorm8x4Bgra,
         }
     }

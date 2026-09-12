@@ -36,7 +36,9 @@ fn vs_main(
 
 @fragment
 fn fs_main(
+#ifdef FEATURES_PRIMITIVE_INDEX
     @builtin(primitive_index) primitive_index: u32,
+#endif
     v_in: VertexOutput,
 ) -> FragmentOutput {    
     var fragment_out: FragmentOutput;

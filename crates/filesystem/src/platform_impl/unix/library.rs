@@ -8,7 +8,8 @@ pub struct Library(*mut std::ffi::c_void);
 impl Library {
     pub fn load<S: AsRef<OsStr>>(filename: S) -> Library {
         let filename_cstr = CString::new(filename.as_ref().as_bytes()).unwrap();
-        let handle = unsafe { libc::dlopen(filename_cstr.as_ptr(), libc::RTLD_LAZY | libc::RTLD_LOCAL) };
+        let handle =
+            unsafe { libc::dlopen(filename_cstr.as_ptr(), libc::RTLD_LAZY | libc::RTLD_LOCAL) };
         if handle.is_null() {
             let error = unsafe { libc::dlerror() };
             if !error.is_null() {

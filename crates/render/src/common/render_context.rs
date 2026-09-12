@@ -9,7 +9,9 @@ use inox_platform::Handle;
 use inox_resources::{Resource, ResourceTrait, SharedDataRc};
 
 use crate::{
-    platform::{platform_limits, required_gpu_features, setup_env},
+    platform::{
+        platform_limits, platform_limits_from_adapter_limits, required_gpu_features, setup_env,
+    },
     BindingDataBuffer, BindingDataBufferRc, BufferId, BufferRef, ComputePipeline, GlobalBuffers,
     Material, Pass, RenderPass, RenderPipeline, Texture, TextureFormat, TextureHandler,
     TextureHandlerRc, TextureId, TextureUsage, DEFAULT_HEIGHT, DEFAULT_WIDTH,
@@ -169,7 +171,8 @@ impl RenderContext {
                 backends,
                 flags,
                 backend_options: wgpu::BackendOptions::from_env_or_default(),
-                ..Default::default()
+                memory_budget_thresholds: Default::default(),
+                display: None,
             };
             let instance = wgpu::Instance::new(instance_descriptor);
             let surface = Self::create_surface(&instance, handle.clone());
@@ -181,14 +184,17 @@ impl RenderContext {
                 wgpu::util::initialize_adapter_from_env_or_default(&instance, Some(&surface))
                     .await
                     .expect("No suitable GPU adapters found on the system!");
+            let required_limits =
+                platform_limits_from_adapter_limits(platform_limits(), &adapter.limits());
             let (device, queue) = adapter
                 .request_device(&wgpu::DeviceDescriptor {
                     label: None,
                     required_features: required_gpu_features(),
-                    required_limits: platform_limits(),
+                    required_limits,
                     memory_hints: wgpu::MemoryHints::Performance,
                     trace: wgpu::Trace::Off,
                     experimental_features: wgpu::ExperimentalFeatures::default(),
+                    default_queue: wgpu::QueueDescriptor::default(),
                 })
                 .await
                 .unwrap();
@@ -211,6 +217,7 @@ impl RenderContext {
             height: DEFAULT_HEIGHT,
             present_mode: wgpu::PresentMode::AutoNoVsync,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            color_space: wgpu::SurfaceColorSpace::Auto,
             desired_maximum_frame_latency: 2,
         };
 
@@ -374,26 +381,33 @@ impl RenderContext {
 
             self.webgpu.surface.get_current_texture()
         };
-        if let Ok(surface_texture) = screen_texture {
-            let surface_view = surface_texture
-                .texture
-                .create_view(&wgpu::TextureViewDescriptor::default());
-            let mut surface = self.surface.write().unwrap();
-            *surface = Some(SurfaceData {
-                surface_view: surface_view.into(),
-                surface_texture,
-            });
-            return true;
-        } else {
-            self.recreate();
+        match screen_texture {
+            wgpu::CurrentSurfaceTexture::Success(surface_texture)
+            | wgpu::CurrentSurfaceTexture::Suboptimal(surface_texture) => {
+                let surface_view = surface_texture
+                    .texture
+                    .create_view(&wgpu::TextureViewDescriptor::default());
+                let mut surface = self.surface.write().unwrap();
+                *surface = Some(SurfaceData {
+                    surface_view: surface_view.into(),
+                    surface_texture,
+                });
+                true
+            }
+            wgpu::CurrentSurfaceTexture::Timeout | wgpu::CurrentSurfaceTexture::Occluded => false,
+            wgpu::CurrentSurfaceTexture::Outdated
+            | wgpu::CurrentSurfaceTexture::Lost
+            | wgpu::CurrentSurfaceTexture::Validation => {
+                self.recreate();
+                false
+            }
         }
-        false
     }
 
     pub fn present(&self) {
         inox_profiler::scoped_profile!("renderer::present");
         if let Some(surface_data) = self.surface.write().unwrap().take() {
-            surface_data.surface_texture.present();
+            self.webgpu.queue.present(surface_data.surface_texture);
             inox_profiler::gpu_profiler_post_present!(&self.webgpu.queue);
         }
     }

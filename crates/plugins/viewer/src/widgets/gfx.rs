@@ -126,7 +126,7 @@ impl Gfx {
                     .vscroll(true)
                     .title_bar(true)
                     .resizable(true)
-                    .show(ui_context, |ui| {
+                    .show(ui_context.ctx(), |ui| {
                         ui.horizontal_wrapped(|ui| {
                             ui.horizontal_wrapped(|ui| {
                                 ui.label("Total vertices: ");

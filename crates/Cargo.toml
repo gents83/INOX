@@ -101,7 +101,7 @@ naga = { git = "https://github.com/gfx-rs/wgpu", features = [
     "serialize",
     "deserialize",
 ] }
-wgpu-profiler = { git = "https://github.com/gents83/wgpu-profiler.git", branch = "wgpu-updated" }
+wgpu-profiler = { git = "https://github.com/Wumpf/wgpu-profiler.git" }
 regex = { git = "https://github.com/rust-lang/regex" }
 gltf = { git = "https://github.com/gltf-rs/gltf", features = [
     "extras",
@@ -133,10 +133,10 @@ erased-serde = { version = "0.4.5" }
 rspirv = { version = "0.11" }
 
 # wasm32
-js-sys = { version = "=0.3.85" }
-wasm-bindgen = { version = "=0.2.108" }
-wasm-bindgen-futures = { version = "=0.4.58" }
-web-sys = { version = "=0.3.85", features = [
+js-sys = { version = "=0.3.104" }
+wasm-bindgen = { version = "=0.2.127" }
+wasm-bindgen-futures = { version = "=0.4.77" }
+web-sys = { version = "=0.3.104", features = [
     "Request",
     "Response",
     "Document",

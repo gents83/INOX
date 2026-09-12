@@ -491,7 +491,7 @@ impl Info {
                     .vscroll(true)
                     .title_bar(true)
                     .resizable(true)
-                    .show(ui_context, |ui| {
+                    .show(ui_context.ctx(), |ui| {
                         ui.label(format!("FPS: {} - ms: {:?}", data.fps, data.dt));
                         ui.label(format!(
                             "Mouse: ({},{}) - ({:.3},{:.3})",

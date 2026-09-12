@@ -1,10 +1,10 @@
-use std::path::Path;
 use android_activity::{MainEvent, PollEvent};
+use std::path::Path;
 
 use inox_messenger::MessageHubRc;
 
 use super::handle::*;
-use super::{ANDROID_APP, NATIVE_WINDOW, NativeWindowWrapper};
+use super::{NativeWindowWrapper, ANDROID_APP, NATIVE_WINDOW};
 use crate::handle::*;
 use crate::window::*;
 
@@ -63,10 +63,11 @@ impl Window {
                     can_continue = false;
                 }
                 PollEvent::Main(MainEvent::InitWindow { .. }) => {
-                     *NATIVE_WINDOW.write().unwrap() = NativeWindowWrapper(app.native_window().unwrap().ptr().as_ptr() as _);
+                    *NATIVE_WINDOW.write().unwrap() =
+                        NativeWindowWrapper(app.native_window().unwrap().ptr().as_ptr() as _);
                 }
                 PollEvent::Main(MainEvent::TerminateWindow { .. }) => {
-                     *NATIVE_WINDOW.write().unwrap() = NativeWindowWrapper(std::ptr::null_mut());
+                    *NATIVE_WINDOW.write().unwrap() = NativeWindowWrapper(std::ptr::null_mut());
                 }
                 // TODO: Handle Input events
                 _ => {}

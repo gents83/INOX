@@ -2,7 +2,7 @@ use inox_math::{Vector3, Vector4};
 use inox_resources::to_slice;
 use metis::Graph;
 
-use crate::mesh::MeshVertex;
+use inox_binarizer::MeshVertex;
 
 #[allow(dead_code)]
 fn simplify_test() {

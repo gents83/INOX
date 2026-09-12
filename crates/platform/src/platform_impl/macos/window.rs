@@ -1,8 +1,8 @@
-use std::path::Path;
-use inox_messenger::MessageHubRc;
 use super::handle::HandleImpl;
 use crate::handle::Handle;
 use crate::window::*;
+use inox_messenger::MessageHubRc;
+use std::path::Path;
 use std::ptr::null_mut;
 
 impl Window {

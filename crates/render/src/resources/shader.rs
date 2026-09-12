@@ -1,5 +1,8 @@
 use std::path::{Path, PathBuf};
 
+#[cfg(not(target_arch = "wasm32"))]
+use futures::executor::block_on;
+
 use inox_messenger::MessageHubRc;
 
 use inox_resources::{
@@ -139,6 +142,60 @@ impl DataTypeResource for Shader {
     }
 }
 
+pub fn format_compilation_info(path: &Path, info: &wgpu::CompilationInfo) -> String {
+    let mut diagnostics = format!("Shader compilation diagnostics for {}:", path.display());
+
+    for message in &info.messages {
+        let message_type = match message.message_type {
+            wgpu::CompilationMessageType::Error => "error",
+            wgpu::CompilationMessageType::Warning => "warning",
+            wgpu::CompilationMessageType::Info => "info",
+        };
+        let location = message
+            .location
+            .map(|location| {
+                format!(
+                    " at line {}, column {}",
+                    location.line_number, location.line_position
+                )
+            })
+            .unwrap_or_default();
+        diagnostics.push_str(&format!("\n{message_type}{location}: {}", message.message));
+    }
+
+    diagnostics
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn create_shader_module(
+    device: &wgpu::Device,
+    descriptor: wgpu::ShaderModuleDescriptor<'_>,
+    path: &Path,
+) -> wgpu::ShaderModule {
+    let error_scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
+    let module = device.create_shader_module(descriptor);
+    let compilation_info = block_on(module.get_compilation_info());
+    let validation_error = block_on(error_scope.pop());
+
+    if let Some(error) = validation_error {
+        panic!(
+            "wgpu shader validation error for {path:?}: {error}\n{}",
+            format_compilation_info(path, &compilation_info)
+        );
+    }
+
+    module
+}
+
+#[cfg(target_arch = "wasm32")]
+fn create_shader_module(
+    device: &wgpu::Device,
+    descriptor: wgpu::ShaderModuleDescriptor<'_>,
+    _path: &Path,
+) -> wgpu::ShaderModule {
+    device.create_shader_module(descriptor)
+}
+
 impl Shader {
     pub fn init(&mut self, context: &RenderContext) -> bool {
         if self.module.is_none() {
@@ -152,26 +209,26 @@ impl Shader {
                     .unwrap_or_default()
             );
             if !self.data.spirv_code.is_empty() {
-                let module =
-                    context
-                        .webgpu
-                        .device
-                        .create_shader_module(wgpu::ShaderModuleDescriptor {
-                            label: Some(shader_name.as_str()),
-                            source: wgpu::ShaderSource::SpirV(std::borrow::Cow::Borrowed(
-                                self.data.spirv_code.as_slice(),
-                            )),
-                        });
+                let module = create_shader_module(
+                    &context.webgpu.device,
+                    wgpu::ShaderModuleDescriptor {
+                        label: Some(shader_name.as_str()),
+                        source: wgpu::ShaderSource::SpirV(std::borrow::Cow::Borrowed(
+                            self.data.spirv_code.as_slice(),
+                        )),
+                    },
+                    &self.path,
+                );
                 self.module = Some(module);
             } else if !self.data.wgsl_code.is_empty() {
-                let module =
-                    context
-                        .webgpu
-                        .device
-                        .create_shader_module(wgpu::ShaderModuleDescriptor {
-                            label: Some(shader_name.as_str()),
-                            source: wgpu::ShaderSource::Wgsl(self.data.wgsl_code.clone().into()),
-                        });
+                let module = create_shader_module(
+                    &context.webgpu.device,
+                    wgpu::ShaderModuleDescriptor {
+                        label: Some(shader_name.as_str()),
+                        source: wgpu::ShaderSource::Wgsl(self.data.wgsl_code.clone().into()),
+                    },
+                    &self.path,
+                );
                 self.module = Some(module);
             }
         }

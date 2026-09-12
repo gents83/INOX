@@ -3,7 +3,9 @@ use std::{collections::HashMap, path::PathBuf};
 use inox_math::{Mat4Ops, Vector4};
 use inox_messenger::Listener;
 use inox_render::{
-    AsBinding, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet, GPUTransform, GPUVector, INSTANCE_DATA_ID, Mesh, MeshId, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView
+    AsBinding, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
+    DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet, GPUTransform, GPUVector, Mesh,
+    MeshId, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView, INSTANCE_DATA_ID,
 };
 
 use inox_core::ContextRc;

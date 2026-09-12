@@ -54,9 +54,7 @@ impl Add<Duration> for Instant {
 
     fn add(self, other: Duration) -> Instant {
         let new_val = self.inner + other.as_millis() as f64;
-        Instant {
-            inner: new_val,
-        }
+        Instant { inner: new_val }
     }
 }
 
@@ -65,9 +63,7 @@ impl Sub<Duration> for Instant {
 
     fn sub(self, other: Duration) -> Instant {
         let new_val = self.inner - other.as_millis() as f64;
-        Instant {
-            inner: new_val,
-        }
+        Instant { inner: new_val }
     }
 }
 
@@ -119,7 +115,10 @@ impl SystemTime {
         SystemTime { inner: val }
     }
 
-    pub fn duration_since(&self, earlier: SystemTime) -> Result<Duration, std::time::SystemTimeError> {
+    pub fn duration_since(
+        &self,
+        earlier: SystemTime,
+    ) -> Result<Duration, std::time::SystemTimeError> {
         let dur_ms = self.inner - earlier.inner;
         if dur_ms < 0.0 {
             return Err(unsafe { std::mem::zeroed() }); // Dummy error as we can't construct SystemTimeError easily
@@ -145,9 +144,7 @@ impl Add<Duration> for SystemTime {
 
     fn add(self, other: Duration) -> SystemTime {
         let new_val = self.inner + other.as_millis() as f64;
-        SystemTime {
-            inner: new_val,
-        }
+        SystemTime { inner: new_val }
     }
 }
 
@@ -156,9 +153,7 @@ impl Sub<Duration> for SystemTime {
 
     fn sub(self, other: Duration) -> SystemTime {
         let new_val = self.inner - other.as_millis() as f64;
-        SystemTime {
-            inner: new_val,
-        }
+        SystemTime { inner: new_val }
     }
 }
 

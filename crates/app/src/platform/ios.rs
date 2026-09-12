@@ -1,19 +1,28 @@
 #![allow(unexpected_cfgs)]
-use std::sync::Arc;
 use crate::launcher::Launcher;
-use objc::runtime::{Object, Sel};
-use objc::{msg_send, sel, sel_impl, class};
 use objc::declare::ClassDecl;
+use objc::runtime::{Object, Sel};
+use objc::{class, msg_send, sel, sel_impl};
+use std::sync::Arc;
 use std::sync::OnceLock;
 
 static LAUNCHER: OnceLock<Arc<Launcher>> = OnceLock::new();
 
 #[repr(C)]
-struct CGPoint { x: f64, y: f64 }
+struct CGPoint {
+    x: f64,
+    y: f64,
+}
 #[repr(C)]
-struct CGSize { width: f64, height: f64 }
+struct CGSize {
+    width: f64,
+    height: f64,
+}
 #[repr(C)]
-struct CGRect { origin: CGPoint, size: CGSize }
+struct CGRect {
+    origin: CGPoint,
+    size: CGSize,
+}
 
 pub fn setup_env() {}
 
@@ -23,7 +32,12 @@ pub fn load_plugins(launcher: &Arc<Launcher>) {
 }
 
 #[allow(unexpected_cfgs)]
-extern "C" fn did_finish_launching(this: &Object, _cmd: Sel, _app: *mut Object, _options: *mut Object) -> bool {
+extern "C" fn did_finish_launching(
+    this: &Object,
+    _cmd: Sel,
+    _app: *mut Object,
+    _options: *mut Object,
+) -> bool {
     unsafe {
         let launcher = LAUNCHER.get().unwrap();
 
@@ -56,9 +70,11 @@ extern "C" fn did_finish_launching(this: &Object, _cmd: Sel, _app: *mut Object, 
 
         // Setup display link
         #[allow(unexpected_cfgs)]
-        let display_link: *mut Object = msg_send![class!(CADisplayLink), displayLinkWithTarget:this selector:sel!(updateLoop:)];
+        let display_link: *mut Object =
+            msg_send![class!(CADisplayLink), displayLinkWithTarget:this selector:sel!(updateLoop:)];
         #[allow(unexpected_cfgs)]
-        let loop_mode: *mut Object = msg_send![class!(NSString), stringWithUTF8String:c"kCFRunLoopDefaultMode".as_ptr()];
+        let loop_mode: *mut Object =
+            msg_send![class!(NSString), stringWithUTF8String:c"kCFRunLoopDefaultMode".as_ptr()];
         #[allow(unexpected_cfgs)]
         let run_loop: *mut Object = msg_send![class!(NSRunLoop), mainRunLoop];
         #[allow(unexpected_cfgs)]
@@ -84,11 +100,15 @@ pub fn main_update(_launcher: Arc<Launcher>) {
         let mut decl = ClassDecl::new("AppDelegate", superclass).unwrap();
 
         #[allow(unexpected_cfgs)]
-        decl.add_method(sel!(application:didFinishLaunchingWithOptions:),
-            did_finish_launching as extern "C" fn(&Object, Sel, *mut Object, *mut Object) -> bool);
+        decl.add_method(
+            sel!(application:didFinishLaunchingWithOptions:),
+            did_finish_launching as extern "C" fn(&Object, Sel, *mut Object, *mut Object) -> bool,
+        );
         #[allow(unexpected_cfgs)]
-        decl.add_method(sel!(updateLoop:),
-            update_loop as extern "C" fn(&Object, Sel, *mut Object));
+        decl.add_method(
+            sel!(updateLoop:),
+            update_loop as extern "C" fn(&Object, Sel, *mut Object),
+        );
 
         decl.register();
 

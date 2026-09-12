@@ -1,21 +1,11 @@
-use std::{
-    borrow::Cow,
-    collections::HashMap,
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc,
-    },
-};
+use std::{borrow::Cow, collections::HashMap};
 
 use egui::{
     epaint::Primitive, ClippedPrimitive, Context, Event, Modifiers, PlatformOutput, PointerButton,
     RawInput, Rect, TextureId as eguiTextureId, TexturesDelta,
 };
 
-use inox_core::{
-    implement_unique_system_uid, ContextRc, JobHandlerRw, JobHandlerTrait, JobPriority, System,
-    SystemUID,
-};
+use inox_core::{implement_unique_system_uid, ContextRc, System};
 
 use inox_render::{Texture, TextureData, TextureFormat, TextureUsage};
 
@@ -35,7 +25,6 @@ use super::config::Config;
 pub struct UISystem {
     config: Config,
     shared_data: SharedDataRc,
-    job_handler: JobHandlerRw,
     message_hub: MessageHubRc,
     listener: Listener,
     ui_context: Context,
@@ -56,7 +45,6 @@ impl UISystem {
             config: Config::default(),
             shared_data: context.shared_data().clone(),
             message_hub: context.message_hub().clone(),
-            job_handler: context.job_handler().clone(),
             listener,
             ui_context: Context::default(),
             ui_textures: HashMap::new(),
@@ -216,43 +204,17 @@ impl UISystem {
         self
     }
 
-    fn show_ui(
-        shared_data: &SharedDataRc,
-        job_handler: &JobHandlerRw,
-        context: &Context,
-        use_multithreading: bool,
-    ) {
+    fn show_ui(shared_data: &SharedDataRc, ui: &mut egui::Ui) {
         inox_profiler::scoped_profile!("ui_system::show_ui");
-        let wait_count = Arc::new(AtomicUsize::new(0));
-        shared_data.for_each_resource_mut(|widget_handle, widget: &mut UIWidget| {
-            if use_multithreading {
-                let context = context.clone();
-                let widget_handle = widget_handle.clone();
-                let job_name = format!("ui_system::show_ui[{:?}]", widget_handle.id());
-                let wait_count = wait_count.clone();
-                wait_count.fetch_add(1, Ordering::SeqCst);
-                job_handler.add_job(
-                    &UISystem::system_id(),
-                    job_name.as_str(),
-                    JobPriority::Medium,
-                    move || {
-                        widget_handle.get_mut().execute(&context);
-                        wait_count.fetch_sub(1, Ordering::SeqCst);
-                    },
-                );
-            } else {
-                widget.execute(context);
-            }
+        shared_data.for_each_resource_mut(|_, widget: &mut UIWidget| {
+            widget.execute(ui);
         });
-        while wait_count.load(Ordering::SeqCst) > 0 {
-            std::thread::yield_now();
-        }
     }
 
     fn handle_output(
         &mut self,
         output: PlatformOutput,
-        textures_delta: TexturesDelta,
+        mut textures_delta: TexturesDelta,
     ) -> &mut Self {
         for command in output.commands {
             match command {
@@ -268,50 +230,55 @@ impl UISystem {
             }
         }
 
-        for (egui_texture_id, image_delta) in textures_delta.set {
-            let color32 = match &image_delta.image {
-                egui::ImageData::Color(image) => {
-                    assert_eq!(
-                        image_delta.image.width() * image_delta.image.height(),
-                        image.pixels.len(),
-                        "Mismatch between texture size and texel count"
-                    );
-                    Cow::Borrowed(&image.pixels)
-                }
-            };
-            let pixels: &[u8] = to_slice(color32.as_slice());
-            if let Some(pos) = image_delta.pos {
-                let texture = self.ui_textures.get(&egui_texture_id).unwrap();
-                texture.get_mut().update(
-                    [pos[0] as u32, pos[1] as u32].into(),
-                    [
-                        image_delta.image.width() as u32,
-                        image_delta.image.height() as u32,
-                    ]
-                    .into(),
-                    pixels,
-                );
-            } else {
-                let texture_data = TextureData {
-                    width: image_delta.image.width() as _,
-                    height: image_delta.image.height() as _,
-                    data: Some(pixels.to_vec()),
-                    format: TextureFormat::Rgba8Unorm,
-                    usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
-                    sample_count: 1,
-                    layer_count: 1,
-                    is_LUT: false,
-                    mips_count: 1,
+        for (egui_texture_id, image_deltas) in textures_delta.set.drain() {
+            for image_delta in image_deltas {
+                let color32 = match &image_delta.image {
+                    egui::ImageData::Color(image) => {
+                        assert_eq!(
+                            image_delta.image.width() * image_delta.image.height(),
+                            image.pixels.len(),
+                            "Mismatch between texture size and texel count"
+                        );
+                        Cow::Borrowed(&image.pixels)
+                    }
                 };
-                let texture = Texture::new_resource(
-                    &self.shared_data,
-                    &self.message_hub,
-                    generate_random_uid(),
-                    &texture_data,
-                    None,
-                );
-                self.ui_textures.insert(egui_texture_id, texture);
+                let pixels: &[u8] = to_slice(color32.as_slice());
+                if let Some(pos) = image_delta.pos {
+                    let texture = self.ui_textures.get(&egui_texture_id).unwrap();
+                    texture.get_mut().update(
+                        [pos[0] as u32, pos[1] as u32].into(),
+                        [
+                            image_delta.image.width() as u32,
+                            image_delta.image.height() as u32,
+                        ]
+                        .into(),
+                        pixels,
+                    );
+                } else {
+                    let texture_data = TextureData {
+                        width: image_delta.image.width() as _,
+                        height: image_delta.image.height() as _,
+                        data: Some(pixels.to_vec()),
+                        format: TextureFormat::Rgba8Unorm,
+                        usage: TextureUsage::TextureBinding | TextureUsage::CopyDst,
+                        sample_count: 1,
+                        layer_count: 1,
+                        is_LUT: false,
+                        mips_count: 1,
+                    };
+                    let texture = Texture::new_resource(
+                        &self.shared_data,
+                        &self.message_hub,
+                        generate_random_uid(),
+                        &texture_data,
+                        None,
+                    );
+                    self.ui_textures.insert(egui_texture_id, texture);
+                }
             }
+        }
+        for egui_texture_id in textures_delta.free.drain() {
+            self.ui_textures.remove(&egui_texture_id);
         }
 
         self
@@ -356,11 +323,8 @@ impl System for UISystem {
         let output = {
             inox_profiler::scoped_profile!("ui_context::run");
             let shared_data = self.shared_data.clone();
-            let job_handler = self.job_handler.clone();
-            let ui_context = self.ui_context.clone();
-            #[allow(deprecated)]
-            self.ui_context.run(self.ui_input.take(), move |_| {
-                Self::show_ui(&shared_data, &job_handler, &ui_context, false);
+            self.ui_context.run_ui(self.ui_input.take(), |ui| {
+                Self::show_ui(&shared_data, ui);
             })
         };
         /*

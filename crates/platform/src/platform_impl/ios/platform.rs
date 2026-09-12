@@ -1,9 +1,8 @@
-
 use std::sync::RwLock;
 
 pub mod handle;
-pub mod window;
 pub mod watcher;
+pub mod window;
 
 pub struct UIViewWrapper(*mut core::ffi::c_void);
 unsafe impl Send for UIViewWrapper {}

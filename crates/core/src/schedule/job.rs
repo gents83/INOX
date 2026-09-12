@@ -147,7 +147,8 @@ impl JobHandler {
             // High priority jobs are mandatory and should be executed as fast as possible
             // Low priority jobs are non-mandatory and should not block the frame
             // We can set a ratio of threads that can execute Low priority jobs
-            let num_low_priority_workers = (NUM_WORKER_THREADS as f32 * LOW_PRIORITY_THREAD_RATIO).ceil() as usize;
+            let num_low_priority_workers =
+                (NUM_WORKER_THREADS as f32 * LOW_PRIORITY_THREAD_RATIO).ceil() as usize;
             let num_low_priority_workers = num_low_priority_workers.max(1);
 
             for i in 0..NUM_WORKER_THREADS {
@@ -159,18 +160,14 @@ impl JobHandler {
                     receivers.push(self.channel[JobPriority::Low as usize].receiver.clone());
                 }
 
-                self.add_worker(
-                    format!("Worker{i}").as_str(),
-                    can_continue,
-                    receivers,
-                );
+                self.add_worker(format!("Worker{i}").as_str(), can_continue, receivers);
             }
         }
     }
 
     #[inline]
     fn clear(&mut self) {
-        for (_name, w) in self.workers.iter_mut() {
+        for w in self.workers.values_mut() {
             w.stop();
         }
         if let Ok(mut pending_jobs) = self.pending_jobs.write() {
@@ -187,13 +184,8 @@ impl JobHandler {
         });
     }
 
-    fn add_job<F>(
-        &self,
-        job_category: &JobId,
-        job_name: &str,
-        job_priority: JobPriority,
-        func: F,
-    ) where
+    fn add_job<F>(&self, job_category: &JobId, job_name: &str, job_priority: JobPriority, func: F)
+    where
         F: FnOnce() + Send + Sync + 'static,
     {
         inox_profiler::scoped_profile!("JobHandler::add_job[{}]", job_name);

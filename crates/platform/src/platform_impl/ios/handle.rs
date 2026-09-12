@@ -1,9 +1,9 @@
 use core::ffi::c_void;
-use std::ptr::NonNull;
 use raw_window_handle::{
-    DisplayHandle, RawDisplayHandle, RawWindowHandle, UiKitDisplayHandle,
-    UiKitWindowHandle, WindowHandle,
+    DisplayHandle, RawDisplayHandle, RawWindowHandle, UiKitDisplayHandle, UiKitWindowHandle,
+    WindowHandle,
 };
+use std::ptr::NonNull;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HandleImpl {

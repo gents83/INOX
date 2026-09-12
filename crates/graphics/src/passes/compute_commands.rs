@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
 use inox_render::{
-    BindingData, BindingFlags, BindingInfo, BufferId, CommandBuffer, ComputePass, ComputePassData, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet, GPUVector, INSTANCE_DATA_ID, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView, declare_as_binding
+    declare_as_binding, BindingData, BindingFlags, BindingInfo, BufferId, CommandBuffer,
+    ComputePass, ComputePassData, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet,
+    GPUVector, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView, INSTANCE_DATA_ID,
 };
 
 use inox_core::ContextRc;

@@ -3,8 +3,8 @@ use raw_window_handle::{
     DisplayHandle, RawDisplayHandle, RawWindowHandle, WindowHandle, XlibDisplayHandle,
     XlibWindowHandle,
 };
-use std::ptr::NonNull;
 use std::fmt;
+use std::ptr::NonNull;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -30,7 +30,9 @@ impl fmt::Debug for HandleImpl {
 
 impl PartialEq for HandleImpl {
     fn eq(&self, other: &Self) -> bool {
-        self.window == other.window && self.display == other.display && Arc::ptr_eq(&self.events_dispatcher, &other.events_dispatcher)
+        self.window == other.window
+            && self.display == other.display
+            && Arc::ptr_eq(&self.events_dispatcher, &other.events_dispatcher)
     }
 }
 

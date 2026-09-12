@@ -1,9 +1,9 @@
-use std::path::Path;
-use inox_messenger::MessageHubRc;
 use super::handle::HandleImpl;
-use crate::platform_impl::platform::UI_VIEW;
 use crate::handle::Handle;
+use crate::platform_impl::platform::UI_VIEW;
 use crate::window::*;
+use inox_messenger::MessageHubRc;
+use std::path::Path;
 
 impl Window {
     pub fn create_handle(
@@ -19,14 +19,12 @@ impl Window {
         let view = UI_VIEW.read().unwrap();
         let view_ptr = view.0;
         if view_ptr.is_null() {
-             panic!("iOS UI View not initialized");
+            panic!("iOS UI View not initialized");
         }
         *scale_factor = 1.0; // TODO: Get scale factor from screen
 
         Handle {
-            handle_impl: HandleImpl {
-                ui_view: view_ptr,
-            },
+            handle_impl: HandleImpl { ui_view: view_ptr },
         }
     }
 

@@ -32,6 +32,25 @@ const VERTEX_SHADER_EXTENSION: &str = "vert";
 const FRAGMENT_SHADER_EXTENSION: &str = "frag";
 const GEOMETRY_SHADER_EXTENSION: &str = "geom";
 
+struct WgslExtensionRule {
+    feature_define: &'static str,
+    source_pattern: &'static str,
+    directive: &'static str,
+}
+
+const WGSL_EXTENSION_RULES: &[WgslExtensionRule] = &[
+    WgslExtensionRule {
+        feature_define: "FEATURES_TEXTURE_BINDING_ARRAY",
+        source_pattern: "binding_array<",
+        directive: "enable wgpu_binding_array;",
+    },
+    WgslExtensionRule {
+        feature_define: "FEATURES_PRIMITIVE_INDEX",
+        source_pattern: "@builtin(primitive_index)",
+        directive: "enable primitive_index;",
+    },
+];
+
 pub struct ShaderCompiler<const PLATFORM_TYPE: PlatformType> {
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
@@ -199,6 +218,10 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
         file.read_to_end(&mut data).unwrap();
         let shader_code = String::from_utf8(data).unwrap();
         let preprocessed_code = Self::preprocess_code(&path, shader_code);
+        let preprocessed_code = Self::add_required_wgsl_extensions(
+            preprocessed_code,
+            &shader_preprocessor_defs::<PLATFORM_TYPE>(),
+        );
 
         let preprocessed_code = Self::remove_comments(&preprocessed_code);
         let preprocessed_code = clean_unused_definitions(&preprocessed_code).unwrap();
@@ -309,7 +332,11 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
             let mut data = Vec::new();
             file.read_to_end(&mut data).unwrap();
             let shader_code = String::from_utf8(data).unwrap();
-            let mut preprocessed_code = Self::preprocess_code(path, shader_code);
+            let preprocessed_code = Self::preprocess_code(path, shader_code);
+            let mut preprocessed_code = Self::add_required_wgsl_extensions(
+                preprocessed_code,
+                &shader_preprocessor_defs::<PLATFORM_TYPE>(),
+            );
             preprocessed_code = Self::remove_comments(&preprocessed_code);
 
             let result = clean_unused_definitions(&preprocessed_code);
@@ -335,6 +362,30 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
                 send_reloaded_event(&self.message_hub, new_path.as_path());
             }
         }
+    }
+
+    pub fn add_required_wgsl_extensions(mut code: String, available_defs: &[String]) -> String {
+        let mut directives = String::new();
+
+        for rule in WGSL_EXTENSION_RULES {
+            let feature_enabled = available_defs
+                .iter()
+                .any(|available_def| available_def == rule.feature_define);
+            let extension_used = code.contains(rule.source_pattern);
+            let directive_already_present = code.lines().any(|line| line.trim() == rule.directive);
+
+            if feature_enabled && extension_used && !directive_already_present {
+                directives.push_str(rule.directive);
+                directives.push('\n');
+            }
+        }
+
+        if !directives.is_empty() {
+            directives.push_str(&code);
+            code = directives;
+        }
+
+        code
     }
 
     fn remove_comments(code: &str) -> String {

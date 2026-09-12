@@ -27,4 +27,3 @@ impl HandleImpl {
         !self.ns_window.is_null()
     }
 }
-

@@ -31,6 +31,18 @@ pub mod ios;
 
 pub const WGPU_FIXED_ALIGNMENT: u64 = 16; // 4 bytes is min alignment for wgpu
 
+pub fn platform_limits_from_adapter_limits(
+    mut limits: wgpu::Limits,
+    adapter_limits: &wgpu::Limits,
+) -> wgpu::Limits {
+    limits.max_storage_buffers_per_shader_stage =
+        adapter_limits.max_storage_buffers_per_shader_stage;
+    limits.max_storage_buffers_in_vertex_stage = adapter_limits.max_storage_buffers_in_vertex_stage;
+    limits.max_storage_buffers_in_fragment_stage =
+        adapter_limits.max_storage_buffers_in_fragment_stage;
+    limits
+}
+
 pub fn shader_preprocessor_defs<const PLATFORM_TYPE: PlatformType>() -> Vec<String> {
     if PLATFORM_TYPE == PLATFORM_TYPE_PC {
         vec![
@@ -53,7 +65,7 @@ pub fn has_wireframe_support() -> bool {
     required_gpu_features().contains(wgpu::Features::POLYGON_MODE_LINE)
 }
 pub fn has_primitive_index_support() -> bool {
-    required_gpu_features().contains(wgpu::Features::SHADER_PRIMITIVE_INDEX)
+    required_gpu_features().contains(wgpu::Features::PRIMITIVE_INDEX)
 }
 pub fn is_indirect_mode_count_enabled() -> bool {
     required_gpu_features().contains(wgpu::Features::MULTI_DRAW_INDIRECT_COUNT)

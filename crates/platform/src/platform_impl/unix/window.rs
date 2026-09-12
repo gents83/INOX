@@ -2,13 +2,11 @@ use std::path::Path;
 use std::ptr::null_mut;
 use std::sync::OnceLock;
 
-use inox_messenger::MessageHubRc;
-use x11_dl::xlib::{
-    Display, Xlib,
-};
+use super::handle::HandleImpl;
 use crate::handle::Handle;
 use crate::window::*;
-use super::handle::HandleImpl;
+use inox_messenger::MessageHubRc;
+use x11_dl::xlib::{Display, Xlib};
 
 // Constants missing in x11-dl or needing explicit definition
 const CLIENT_MESSAGE: i32 = 33;
@@ -55,17 +53,7 @@ impl Window {
             let w = *width;
             let h = *height;
 
-            let window = (xlib.XCreateSimpleWindow)(
-                display,
-                root,
-                x as _,
-                y as _,
-                w,
-                h,
-                1,
-                0,
-                0,
-            );
+            let window = (xlib.XCreateSimpleWindow)(display, root, x as _, y as _, w, h, 1, 0, 0);
 
             let title_c = std::ffi::CString::new(title).unwrap();
             (xlib.XStoreName)(display, window, title_c.as_ptr());
@@ -102,16 +90,16 @@ impl Window {
 
     pub fn change_title(handle: &Handle, title: &str) {
         unsafe {
-             if let Some(xlib) = XLIB.get() {
+            if let Some(xlib) = XLIB.get() {
                 let display = handle.handle_impl.display as *mut Display;
                 let title_c = std::ffi::CString::new(title).unwrap();
                 (xlib.XStoreName)(display, handle.handle_impl.window, title_c.as_ptr());
-             }
+            }
         }
     }
     pub fn change_visibility(handle: &Handle, is_visible: bool) {
         unsafe {
-             if let Some(xlib) = XLIB.get() {
+            if let Some(xlib) = XLIB.get() {
                 let display = handle.handle_impl.display as *mut Display;
                 if is_visible {
                     (xlib.XMapWindow)(display, handle.handle_impl.window);
@@ -119,25 +107,25 @@ impl Window {
                     (xlib.XUnmapWindow)(display, handle.handle_impl.window);
                 }
                 (xlib.XFlush)(display);
-             }
+            }
         }
     }
     pub fn change_position(handle: &Handle, x: u32, y: u32) {
-         unsafe {
-             if let Some(xlib) = XLIB.get() {
+        unsafe {
+            if let Some(xlib) = XLIB.get() {
                 let display = handle.handle_impl.display as *mut Display;
                 (xlib.XMoveWindow)(display, handle.handle_impl.window, x as _, y as _);
                 (xlib.XFlush)(display);
-             }
+            }
         }
     }
     pub fn change_size(handle: &Handle, width: u32, height: u32) {
-         unsafe {
-             if let Some(xlib) = XLIB.get() {
+        unsafe {
+            if let Some(xlib) = XLIB.get() {
                 let display = handle.handle_impl.display as *mut Display;
                 (xlib.XResizeWindow)(display, handle.handle_impl.window, width as _, height as _);
                 (xlib.XFlush)(display);
-             }
+            }
         }
     }
 
@@ -151,15 +139,20 @@ impl Window {
                     (xlib.XNextEvent)(display, &mut event);
 
                     if event.type_ == CLIENT_MESSAGE {
-                        let data_ptr = &event.client_message.data as *const _ as *const std::os::raw::c_long;
+                        let data_ptr =
+                            &event.client_message.data as *const _ as *const std::os::raw::c_long;
                         let atom = *data_ptr.offset(0) as u64;
 
-                         if event.client_message.message_type == handle.handle_impl.wm_protocols
+                        if event.client_message.message_type == handle.handle_impl.wm_protocols
                             && event.client_message.format == 32
-                            && atom == handle.handle_impl.wm_delete_window {
-                                handle.handle_impl.events_dispatcher.send_event(WindowEvent::Close);
-                                return false;
-                            }
+                            && atom == handle.handle_impl.wm_delete_window
+                        {
+                            handle
+                                .handle_impl
+                                .events_dispatcher
+                                .send_event(WindowEvent::Close);
+                            return false;
+                        }
                     } else if event.type_ == KEY_PRESS || event.type_ == KEY_RELEASE {
                         // TODO: Implement key handling
                     } else if event.type_ == BUTTON_PRESS || event.type_ == BUTTON_RELEASE {

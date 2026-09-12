@@ -118,16 +118,11 @@ impl BufferRef {
                 while !is_ready.load(std::sync::atomic::Ordering::SeqCst) {
                     std::thread::sleep(std::time::Duration::from_millis(1));
                 }
-                let mut view = slice.get_mapped_range_mut();
-                let old_data = view.as_mut();
+                let mut view = slice
+                    .get_mapped_range_mut()
+                    .expect("Failed to map GPU buffer for writing");
                 let new_data = to_slice(data);
-                unsafe {
-                    std::ptr::copy_nonoverlapping(
-                        new_data.as_ptr(),
-                        old_data.as_mut_ptr(),
-                        new_data.len(),
-                    );
-                }
+                view.copy_from_slice(new_data);
                 self.size = data.len() as u64 * std::mem::size_of::<T>() as u64;
             }
             gpu_buffer.unmap();
@@ -215,7 +210,9 @@ impl BufferRef {
                 while !is_ready.load(std::sync::atomic::Ordering::SeqCst) {
                     std::thread::sleep(std::time::Duration::from_millis(1));
                 }
-                let view = slice.get_mapped_range();
+                let view = slice
+                    .get_mapped_range()
+                    .expect("Failed to map GPU buffer for reading");
                 let data = view.as_ref();
                 data.to_vec()
             };

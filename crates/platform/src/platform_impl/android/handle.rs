@@ -1,9 +1,9 @@
 use core::ffi::c_void;
-use std::ptr::NonNull;
 use raw_window_handle::{
-    AndroidDisplayHandle, AndroidNdkWindowHandle, DisplayHandle, RawDisplayHandle,
-    RawWindowHandle, WindowHandle,
+    AndroidDisplayHandle, AndroidNdkWindowHandle, DisplayHandle, RawDisplayHandle, RawWindowHandle,
+    WindowHandle,
 };
+use std::ptr::NonNull;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HandleImpl {

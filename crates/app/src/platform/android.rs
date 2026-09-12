@@ -1,6 +1,6 @@
-use std::sync::Arc;
-use android_activity::AndroidApp;
 use crate::launcher::Launcher;
+use android_activity::AndroidApp;
+use std::sync::Arc;
 
 #[no_mangle]
 fn android_main(app: AndroidApp) {

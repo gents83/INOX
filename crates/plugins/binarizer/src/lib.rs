@@ -2,6 +2,7 @@
 #![warn(clippy::all)]
 
 pub use crate::compilers::*;
+pub use crate::mesh::MeshVertex;
 pub use crate::plugin::*;
 pub use crate::system::*;
 pub use crate::utils::*;
@@ -12,5 +13,4 @@ mod config;
 mod mesh;
 pub mod plugin;
 mod system;
-mod tests;
 mod utils;

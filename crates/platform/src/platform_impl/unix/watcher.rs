@@ -1,5 +1,5 @@
-use std::path::Path;
 use crate::watcher::{EventFn, Result};
+use std::path::Path;
 
 pub struct FileWatcherImpl;
 
@@ -8,9 +8,7 @@ impl FileWatcherImpl {
         Ok(FileWatcherImpl)
     }
 
-    pub fn watch(&mut self, _path: &Path) {
-    }
+    pub fn watch(&mut self, _path: &Path) {}
 
-    pub fn unwatch(&mut self, _path: &Path) {
-    }
+    pub fn unwatch(&mut self, _path: &Path) {}
 }

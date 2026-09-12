@@ -130,6 +130,7 @@ impl ComputePipeline {
                     bind_group_layouts: binding_data
                         .bind_group_layouts()
                         .iter()
+                        .map(Some)
                         .collect::<Vec<_>>()
                         .as_slice(),
                     ..Default::default()

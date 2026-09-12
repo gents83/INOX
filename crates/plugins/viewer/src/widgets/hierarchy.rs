@@ -56,7 +56,7 @@ impl Hierarchy {
                     .vscroll(true)
                     .title_bar(true)
                     .resizable(true)
-                    .show(ui_context, |ui| {
+                    .show(ui_context.ctx(), |ui| {
                         CollapsingHeader::new("Scene")
                             .show_background(false)
                             .default_open(true)

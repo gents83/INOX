@@ -1,6 +1,6 @@
 use std::any::{type_name, Any};
 
-use egui::{CollapsingHeader, Context, Ui};
+use egui::{CollapsingHeader, Ui};
 use inox_messenger::MessageHubRc;
 use inox_resources::{Resource, ResourceId, ResourceTrait, SharedDataRc};
 use inox_uid::generate_random_uid;
@@ -41,12 +41,12 @@ impl Clone for Box<dyn UIWidgetData> {
     }
 }
 
-pub trait UIWidgetUpdateFn: FnMut(&mut dyn UIWidgetData, &Context) -> bool {
+pub trait UIWidgetUpdateFn: FnMut(&mut dyn UIWidgetData, &mut Ui) -> bool {
     fn as_boxed(&self) -> Box<dyn UIWidgetUpdateFn>;
 }
 impl<F> UIWidgetUpdateFn for F
 where
-    F: 'static + FnMut(&mut dyn UIWidgetData, &Context) -> bool + Clone,
+    F: 'static + FnMut(&mut dyn UIWidgetData, &mut Ui) -> bool + Clone,
 {
     fn as_boxed(&self) -> Box<dyn UIWidgetUpdateFn> {
         Box::new(self.clone())
@@ -115,7 +115,7 @@ impl UIWidget {
     ) -> Resource<Self>
     where
         D: UIWidgetData + Sized,
-        F: FnMut(&mut dyn UIWidgetData, &Context) -> bool + 'static + Clone,
+        F: FnMut(&mut dyn UIWidgetData, &mut Ui) -> bool + 'static + Clone,
     {
         let ui_page = Self {
             type_name: type_name::<D>().to_string(),
@@ -140,13 +140,10 @@ impl UIWidget {
         self.data.as_any_mut().downcast_mut::<D>()
     }
 
-    pub fn execute(&mut self, ui_context: &Context) {
+    pub fn execute(&mut self, ui: &mut Ui) {
         inox_profiler::scoped_profile!("{} {:?}", "ui_widget::execute", self.type_name);
-        self.is_interacting = (self.func)(self.data.as_mut(), ui_context);
-        #[allow(deprecated)]
-        {
-            self.is_interacting |= ui_context.is_using_pointer();
-        }
+        self.is_interacting = (self.func)(self.data.as_mut(), ui);
+        self.is_interacting |= ui.ctx().egui_is_using_pointer();
     }
     pub fn is_interacting(&self) -> bool {
         self.is_interacting

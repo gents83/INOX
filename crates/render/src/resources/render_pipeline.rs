@@ -205,6 +205,7 @@ impl RenderPipeline {
                     bind_group_layouts: binding_data
                         .bind_group_layouts()
                         .iter()
+                        .map(Some)
                         .collect::<Vec<_>>()
                         .as_slice(),
                     ..Default::default()
@@ -212,10 +213,10 @@ impl RenderPipeline {
 
         let mut vertex_state_buffers = Vec::new();
         if let Some(vertex_layout) = vertex_layout.as_ref() {
-            vertex_state_buffers.push(vertex_layout.build());
+            vertex_state_buffers.push(Some(vertex_layout.build()));
         }
         if let Some(instance_layout) = instance_layout.as_ref() {
-            vertex_state_buffers.push(instance_layout.build());
+            vertex_state_buffers.push(Some(instance_layout.build()));
         }
 
         let render_pipeline = {
@@ -298,8 +299,8 @@ impl RenderPipeline {
                     },
                     depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
                         format: (*format).into(),
-                        depth_write_enabled: self.data.depth_write_enabled,
-                        depth_compare: self.data.depth_compare.into(),
+                        depth_write_enabled: Some(self.data.depth_write_enabled),
+                        depth_compare: Some(self.data.depth_compare.into()),
                         stencil: wgpu::StencilState::default(),
                         bias: wgpu::DepthBiasState::default(),
                     }),

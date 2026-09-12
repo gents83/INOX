@@ -10,8 +10,8 @@ use std::{
 };
 
 use inox_core::{
-    JobHandler, JobHandlerTrait, JobPriority, Phases, Scheduler, System,
-    SystemUID, INDEPENDENT_JOB_ID,
+    JobHandler, JobHandlerTrait, JobPriority, Phases, Scheduler, System, SystemUID,
+    INDEPENDENT_JOB_ID,
 };
 use inox_uid::generate_uid_from_string;
 
@@ -22,9 +22,7 @@ struct TestSystem {
 
 impl TestSystem {
     fn new(_name: &str, counter: Arc<AtomicUsize>) -> Self {
-        Self {
-            counter,
-        }
+        Self { counter }
     }
 }
 
@@ -89,15 +87,10 @@ fn test_job_priorities() {
     let lc = low_counter.clone();
 
     // Add Low priority job that takes some time
-    job_handler.add_job(
-        &INDEPENDENT_JOB_ID,
-        "LowJob",
-        JobPriority::Low,
-        move || {
-            thread::sleep(Duration::from_millis(50));
-            lc.fetch_add(1, Ordering::SeqCst);
-        },
-    );
+    job_handler.add_job(&INDEPENDENT_JOB_ID, "LowJob", JobPriority::Low, move || {
+        thread::sleep(Duration::from_millis(50));
+        lc.fetch_add(1, Ordering::SeqCst);
+    });
 
     // Add High priority job
     job_handler.add_job(
@@ -174,11 +167,15 @@ fn test_scheduler_dependencies() {
 
     // System 1 increments to 1
     let c1 = counter.clone();
-    struct Sys1 { counter: Arc<AtomicUsize> }
+    struct Sys1 {
+        counter: Arc<AtomicUsize>,
+    }
     inox_core::implement_unique_system_uid!(Sys1);
     impl System for Sys1 {
         fn read_config(&mut self, _: &str) {}
-        fn should_run_when_not_focused(&self) -> bool { false }
+        fn should_run_when_not_focused(&self) -> bool {
+            false
+        }
         fn init(&mut self) {}
         fn run(&mut self) -> bool {
             self.counter.store(1, Ordering::SeqCst);
@@ -189,11 +186,15 @@ fn test_scheduler_dependencies() {
 
     // System 2 checks if counter is 1, then sets to 2
     let c2 = counter.clone();
-    struct Sys2 { counter: Arc<AtomicUsize> }
+    struct Sys2 {
+        counter: Arc<AtomicUsize>,
+    }
     inox_core::implement_unique_system_uid!(Sys2);
     impl System for Sys2 {
         fn read_config(&mut self, _: &str) {}
-        fn should_run_when_not_focused(&self) -> bool { false }
+        fn should_run_when_not_focused(&self) -> bool {
+            false
+        }
         fn init(&mut self) {}
         fn run(&mut self) -> bool {
             if self.counter.load(Ordering::SeqCst) == 1 {
@@ -204,12 +205,7 @@ fn test_scheduler_dependencies() {
         fn uninit(&mut self) {}
     }
 
-    scheduler.add_system(
-        Phases::Update,
-        Sys1 { counter: c1 },
-        None,
-        &job_handler,
-    );
+    scheduler.add_system(Phases::Update, Sys1 { counter: c1 }, None, &job_handler);
 
     // Add Sys2 with dependency on Sys1 (conceptually via phase order or explicit deps if supported within phase)
     // Note: The current scheduler implementation in memory runs phases sequentially.
@@ -248,11 +244,15 @@ fn test_phase_wait_logic() {
     // System that spawns a job and waits for it implicitly by being in a phase
     // In reality, the scheduler waits for jobs launched by the phase.
     // We can simulate a system that takes time.
-    struct SlowSystem { counter: Arc<AtomicUsize> }
+    struct SlowSystem {
+        counter: Arc<AtomicUsize>,
+    }
     inox_core::implement_unique_system_uid!(SlowSystem);
     impl System for SlowSystem {
         fn read_config(&mut self, _: &str) {}
-        fn should_run_when_not_focused(&self) -> bool { false }
+        fn should_run_when_not_focused(&self) -> bool {
+            false
+        }
         fn init(&mut self) {}
         fn run(&mut self) -> bool {
             thread::sleep(Duration::from_millis(100));

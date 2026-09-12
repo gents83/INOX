@@ -184,10 +184,12 @@ pub fn create_cylinder(
 
     //fill indices for sides
     for i in 0..num_stack + 1 {
-        let mut k1 = i * (num_slices); // bebinning of current stack
-        let mut k2 = k1 + num_slices; // beginning of next stack
+        let stack_start = i * num_slices;
+        let next_stack_start = stack_start + num_slices;
 
-        for _ in 0..num_slices + 1 {
+        for j in 0..num_slices + 1 {
+            let k1 = stack_start + j;
+            let k2 = next_stack_start + j;
             mesh_data.indices.push(k1);
             mesh_data.indices.push(k1 + 1);
             mesh_data.indices.push(k2);
@@ -195,15 +197,11 @@ pub fn create_cylinder(
             mesh_data.indices.push(k2);
             mesh_data.indices.push(k1 + 1);
             mesh_data.indices.push(k2 + 1);
-
-            k1 += 1;
-            k2 += 1;
         }
     }
 
     // fill indices for base
-    let mut k = base_vertex_index + 1;
-    for i in 0..num_slices + 1 {
+    for (i, k) in (0..num_slices + 1).zip(base_vertex_index + 1..) {
         mesh_data.indices.push(base_vertex_index);
         // last triangle
         if i >= (num_slices - 1) {
@@ -212,12 +210,10 @@ pub fn create_cylinder(
             mesh_data.indices.push(k + 1);
         }
         mesh_data.indices.push(k);
-        k += 1;
     }
 
     // fill indices for top
-    let mut k = top_vertex_index + 1;
-    for i in 0..num_slices + 1 {
+    for (i, k) in (0..num_slices + 1).zip(top_vertex_index + 1..) {
         mesh_data.indices.push(top_vertex_index);
         mesh_data.indices.push(k);
         // last triangle
@@ -226,7 +222,6 @@ pub fn create_cylinder(
         } else {
             mesh_data.indices.push(k + 1);
         }
-        k += 1;
     }
 
     let meshlet = MeshletData {
@@ -285,10 +280,12 @@ pub fn create_sphere(
     }
 
     for i in 0..num_stack {
-        let mut k1 = i * (num_slices + 1); // beginning of current stack
-        let mut k2 = k1 + num_slices + 1; // beginning of next stack
+        let stack_start = i * (num_slices + 1);
+        let next_stack_start = stack_start + num_slices + 1;
 
-        for _ in 0..num_slices {
+        for j in 0..num_slices {
+            let k1 = stack_start + j;
+            let k2 = next_stack_start + j;
             // 2 triangles per sector excluding 1st and last stacks
             if i != 0 {
                 mesh_data.indices.push(k1);
@@ -300,8 +297,6 @@ pub fn create_sphere(
                 mesh_data.indices.push(k2);
                 mesh_data.indices.push(k2 + 1);
             }
-            k1 += 1;
-            k2 += 1;
         }
     }
     let meshlet = MeshletData {
@@ -525,10 +520,12 @@ pub fn create_torus(
         }
     }
     for i in 0..num_main_slices + 1 {
-        let mut k1 = i * (num_main_slices); // bebinning of current stack
-        let mut k2 = k1 + num_main_slices; // beginning of next stack
+        let stack_start = i * num_main_slices;
+        let next_stack_start = stack_start + num_main_slices;
 
-        for _ in 0..num_tube_slices + 1 {
+        for j in 0..num_tube_slices + 1 {
+            let k1 = stack_start + j;
+            let k2 = next_stack_start + j;
             mesh_data.indices.push(k1);
             mesh_data.indices.push(k1 + 1);
             mesh_data.indices.push(k2);
@@ -536,9 +533,6 @@ pub fn create_torus(
             mesh_data.indices.push(k2);
             mesh_data.indices.push(k1 + 1);
             mesh_data.indices.push(k2 + 1);
-
-            k1 += 1;
-            k2 += 1;
         }
     }
 

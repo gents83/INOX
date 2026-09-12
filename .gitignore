@@ -17,3 +17,6 @@ dhat-heap.json
 *.wasm
 *.js
 *.preprocessed_shader
+/CLAUDE.md
+/tasks/todo.md
+/tasks/lessons.md
