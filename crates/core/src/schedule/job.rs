@@ -11,10 +11,9 @@ use inox_uid::Uid;
 
 use crate::Worker;
 
-#[cfg(target_arch = "wasm32")]
-const NUM_WORKER_THREADS: usize = 0;
 #[cfg(not(target_arch = "wasm32"))]
 const NUM_WORKER_THREADS: usize = 5;
+#[cfg(not(target_arch = "wasm32"))]
 const LOW_PRIORITY_THREAD_RATIO: f32 = 0.5;
 
 pub type JobId = Uid;
@@ -117,6 +116,7 @@ impl JobHandler {
         inox_profiler::scoped_profile!("JobReceiver::get_job_with_priority[{:?}]", job_priority);
         self.channel[job_priority as usize].receiver.get_job()
     }
+    #[cfg(target_arch = "wasm32")]
     #[inline]
     fn execute_all_jobs(&self) {
         inox_profiler::scoped_profile!("JobHandler::execute_all_jobs");
@@ -127,6 +127,7 @@ impl JobHandler {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn add_worker(
         &mut self,
         name: &str,
@@ -141,31 +142,33 @@ impl JobHandler {
         w
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[inline]
     fn setup_worker_threads(&mut self, can_continue: &Arc<AtomicBool>) {
-        if NUM_WORKER_THREADS > 0 {
-            // High priority jobs are mandatory and should be executed as fast as possible
-            // Low priority jobs are non-mandatory and should not block the frame
-            // We can set a ratio of threads that can execute Low priority jobs
-            let num_low_priority_workers =
-                (NUM_WORKER_THREADS as f32 * LOW_PRIORITY_THREAD_RATIO).ceil() as usize;
-            let num_low_priority_workers = num_low_priority_workers.max(1);
+        // High priority jobs are mandatory and should be executed as fast as possible
+        // Low priority jobs are non-mandatory and should not block the frame
+        // We can set a ratio of threads that can execute Low priority jobs
+        let num_low_priority_workers =
+            (NUM_WORKER_THREADS as f32 * LOW_PRIORITY_THREAD_RATIO).ceil() as usize;
+        let num_low_priority_workers = num_low_priority_workers.max(1);
 
-            for i in 0..NUM_WORKER_THREADS {
-                let mut receivers = vec![
-                    self.channel[JobPriority::High as usize].receiver.clone(),
-                    self.channel[JobPriority::Medium as usize].receiver.clone(),
-                ];
-                if i < num_low_priority_workers {
-                    receivers.push(self.channel[JobPriority::Low as usize].receiver.clone());
-                }
-
-                self.add_worker(format!("Worker{i}").as_str(), can_continue, receivers);
+        for i in 0..NUM_WORKER_THREADS {
+            let mut receivers = vec![
+                self.channel[JobPriority::High as usize].receiver.clone(),
+                self.channel[JobPriority::Medium as usize].receiver.clone(),
+            ];
+            if i < num_low_priority_workers {
+                receivers.push(self.channel[JobPriority::Low as usize].receiver.clone());
             }
+
+            self.add_worker(format!("Worker{i}").as_str(), can_continue, receivers);
         }
     }
 
+    #[cfg(target_arch = "wasm32")]
     #[inline]
+    fn setup_worker_threads(&mut self, _can_continue: &Arc<AtomicBool>) {}
+
     fn clear(&mut self) {
         for w in self.workers.values_mut() {
             w.stop();
@@ -251,8 +254,9 @@ impl JobHandlerTrait for JobHandlerRw {
     }
 
     fn update_workers(&self, can_continue: &Arc<AtomicBool>, is_enabled: bool) {
-        if NUM_WORKER_THREADS == 0 {
-            //no workers - need to handle events ourself
+        #[cfg(target_arch = "wasm32")]
+        {
+            // No workers - handle events on the main thread.
             self.read().unwrap().execute_all_jobs();
         }
         if can_continue.load(Ordering::SeqCst) && !is_enabled {

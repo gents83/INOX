@@ -1,4 +1,5 @@
 #![warn(clippy::all)]
+#![allow(clippy::missing_const_for_thread_local)]
 #![allow(dead_code)]
 
 #[cfg(feature = "superluminal")]

@@ -21,7 +21,9 @@ pub type GlobalCpuProfiler = Arc<CpuProfiler>;
 pub static GLOBAL_CPU_PROFILER: LazyLock<GlobalCpuProfiler> =
     LazyLock::new(|| Arc::new(CpuProfiler::new()));
 
-thread_local!(pub static THREAD_PROFILER: RefCell<Option<Arc<ThreadProfiler>>> = const { RefCell::new(None) });
+thread_local! {
+    pub static THREAD_PROFILER: RefCell<Option<Arc<ThreadProfiler>>> = const { RefCell::new(None) };
+}
 
 struct ThreadInfo {
     index: usize,
