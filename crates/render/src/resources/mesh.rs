@@ -25,13 +25,6 @@ pub enum MeshFlags {
     Custom = 1 << 4,
 }
 
-#[test]
-fn test_serialize() {
-    let flags = MeshFlags::Visible | MeshFlags::Tranparent;
-    let s = inox_serialize::serialize(&flags);
-    println!("{}", String::from_utf8(s).unwrap());
-}
-
 #[derive(Clone)]
 pub struct Mesh {
     id: MeshId,

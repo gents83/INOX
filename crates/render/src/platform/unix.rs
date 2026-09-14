@@ -15,7 +15,7 @@ pub fn required_gpu_features() -> wgpu::Features {
         | wgpu::Features::STORAGE_RESOURCE_BINDING_ARRAY
         | wgpu::Features::SAMPLED_TEXTURE_AND_STORAGE_BUFFER_ARRAY_NON_UNIFORM_INDEXING
         | wgpu::Features::STORAGE_TEXTURE_ARRAY_NON_UNIFORM_INDEXING
-        | wgpu::Features::SHADER_PRIMITIVE_INDEX
+        | wgpu::Features::PRIMITIVE_INDEX
         | wgpu::Features::PIPELINE_STATISTICS_QUERY
         | wgpu::Features::TIMESTAMP_QUERY
         | wgpu::Features::TIMESTAMP_QUERY_INSIDE_PASSES

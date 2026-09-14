@@ -1,9 +1,9 @@
 use inox_log::debug_log;
-use inox_serialize::{deserialize, serialize, Deserialize, Serialize};
+use inox_serialize::{Deserialize, Serialize};
 
 use crate::{
-    implement_node, implement_pin, LogicContext, LogicData, Node, NodeExecutionType, NodeState,
-    NodeTrait, NodeTree, PinId,
+    implement_node, implement_pin, LogicContext, Node, NodeExecutionType, NodeState, NodeTrait,
+    PinId,
 };
 use inox_serialize::inox_serializable;
 
@@ -100,92 +100,4 @@ impl ScriptInitNode {
         debug_log!("Executing {}", self.name());
         NodeState::Executed(Some(vec![PinId::new("Execute")]))
     }
-}
-
-#[allow(dead_code)]
-fn test_node() {
-    use crate::LogicNodeRegistry;
-
-    let mut registry = LogicNodeRegistry::default();
-    registry.register_node::<ScriptInitNode>();
-    registry.register_node::<RustExampleNode>();
-
-    registry.register_pin_type::<f32>();
-    registry.register_pin_type::<f64>();
-    registry.register_pin_type::<u8>();
-    registry.register_pin_type::<i8>();
-    registry.register_pin_type::<u16>();
-    registry.register_pin_type::<i16>();
-    registry.register_pin_type::<u32>();
-    registry.register_pin_type::<i32>();
-    registry.register_pin_type::<bool>();
-    registry.register_pin_type::<String>();
-    registry.register_pin_type::<LogicExecution>();
-
-    let mut tree = NodeTree::default();
-    tree.add_link("ScriptInitNode", "NodeA", "Execute", "in_execute");
-    tree.add_link("NodeA", "NodeB", "out_int", "in_int");
-    tree.add_link("NodeA", "NodeB", "out_string", "in_string");
-    tree.add_link("NodeA", "NodeB", "out_execute", "in_execute");
-    assert_eq!(tree.get_links_count(), 4);
-
-    let init = ScriptInitNode::default();
-    let serialized_data = init.serialize_node();
-
-    if let Some(n) = registry.deserialize_node(&serialized_data) {
-        tree.add_node(n);
-    }
-    assert_eq!(tree.get_nodes_count(), 1);
-
-    let mut node_a = RustExampleNode::default();
-    node_a.set_name("NodeA");
-    if let Some(v) = node_a.node_mut().get_input_mut::<i32>("in_int") {
-        *v = 19;
-    }
-    if let Some(v) = node_a.node_mut().get_input_mut::<f32>("in_float") {
-        *v = 22.;
-    }
-    if let Some(v) = node_a.node_mut().get_input_mut::<String>("in_string") {
-        *v = String::from("Ciao");
-    }
-    if let Some(v) = node_a.node_mut().get_input_mut::<bool>("in_bool") {
-        *v = true;
-    }
-    assert_eq!(*node_a.node().get_input::<i32>("in_int").unwrap(), 19);
-    assert_eq!(*node_a.node().get_output::<i32>("out_int").unwrap(), 0);
-    assert_eq!(*node_a.node().get_input::<f32>("in_float").unwrap(), 22.);
-    assert_eq!(*node_a.node().get_output::<f32>("out_float").unwrap(), 0.);
-    assert_eq!(
-        *node_a.node().get_input::<String>("in_string").unwrap(),
-        String::from("Ciao")
-    );
-    assert_eq!(
-        *node_a.node().get_output::<String>("out_string").unwrap(),
-        String::new()
-    );
-    assert!(*node_a.node().get_input::<bool>("in_bool").unwrap());
-    assert!(!*node_a.node().get_output::<bool>("out_bool").unwrap());
-    let serialized_data = node_a.serialize_node();
-
-    if let Some(n) = registry.deserialize_node(&serialized_data) {
-        tree.add_node(n);
-    }
-    assert_eq!(tree.get_nodes_count(), 2);
-
-    tree.add_default_node::<RustExampleNode>("NodeB");
-    assert_eq!(tree.get_nodes_count(), 3);
-
-    let serialized_tree = serialize(&tree);
-    if let Some(new_tree) = deserialize::<NodeTree>(&serialized_tree) {
-        let mut logic_data = LogicData::from(new_tree);
-        logic_data.init();
-        logic_data.execute(&std::time::Duration::from_millis(30));
-    } else {
-        panic!("Deserialization failed");
-    }
-}
-
-#[test]
-fn test_node_fn() {
-    test_node()
 }

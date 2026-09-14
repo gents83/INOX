@@ -1,3 +1,5 @@
+#![cfg(not(target_arch = "wasm32"))]
+
 use inox_binarizer::ShaderCompiler;
 use inox_platform::{PLATFORM_TYPE_PC, PLATFORM_TYPE_WEB};
 

@@ -1,3 +1,5 @@
+#![cfg(not(target_arch = "wasm32"))]
+
 use inox_math::{Vector3, Vector4};
 use inox_resources::to_slice;
 use metis::Graph;
