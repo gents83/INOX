@@ -133,10 +133,10 @@ erased-serde = { version = "0.4.5" }
 rspirv = { version = "0.11" }
 
 # wasm32
-js-sys = { version = "=0.3.104" }
-wasm-bindgen = { version = "=0.2.127" }
-wasm-bindgen-futures = { version = "=0.4.77" }
-web-sys = { version = "=0.3.104", features = [
+js-sys = { version = "=0.3.105" }
+wasm-bindgen = { version = "=0.2.128" }
+wasm-bindgen-futures = { version = "=0.4.78" }
+web-sys = { version = "=0.3.105", features = [
     "Request",
     "Response",
     "Document",

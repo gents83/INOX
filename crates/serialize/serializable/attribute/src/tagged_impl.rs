@@ -30,23 +30,23 @@ pub(crate) fn expand(args: ImplArgs, mut input: ItemImpl, mode: Mode) -> TokenSt
     if mode.de {
         input.items.push(parse_quote! {
             fn register_as_serializable()
-            where Self: Sized 
+            where Self: Sized
             {
                 let func = (|deserializer| std::result::Result::Ok(
                     std::boxed::Box::new(
                         inox_serializable::erased_serde::deserialize::<#this>(deserializer)?
                     ),
                 )) as inox_serializable::DeserializeFn<<dyn #object as inox_serializable::InheritTrait>::Object>;
-                
-                inox_serializable::SERIALIZABLE_REGISTRY.write().unwrap().register_type::< <dyn #object as inox_serializable::InheritTrait>::Object >(#name, func);  
-            
+
+                inox_serializable::SERIALIZABLE_REGISTRY.write().unwrap().register_type::< <dyn #object as inox_serializable::InheritTrait>::Object >(#name, func);
+
             }
         });
         input.items.push(parse_quote! {
             fn unregister_as_serializable()
-            where Self: Sized 
+            where Self: Sized
             {
-                inox_serializable::SERIALIZABLE_REGISTRY.write().unwrap().unregister_type::< <dyn #object as inox_serializable::InheritTrait>::Object >(#name);  
+                inox_serializable::SERIALIZABLE_REGISTRY.write().unwrap().unregister_type::< <dyn #object as inox_serializable::InheritTrait>::Object >(#name);
             }
         });
     }
