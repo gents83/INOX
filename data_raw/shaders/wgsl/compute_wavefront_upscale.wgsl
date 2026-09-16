@@ -17,12 +17,10 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let width = u32(constant_data.screen_width);
     let height = u32(constant_data.screen_height);
     if (id.x >= width || id.y >= height) { return; }
-    let scale = clamp(constant_data.render_scale, 0.25, 1.0);
-    let source_width = max(1u, u32(ceil(f32(width) * scale)));
-    let source_height = max(1u, u32(ceil(f32(height) * scale)));
-    let source_x = min(source_width - 1u, u32(f32(id.x) * scale));
-    let source_y = min(source_height - 1u, u32(f32(id.y) * scale));
-    let source_index = source_y * source_width + source_x;
-    let destination_index = id.y * width + id.x;
+    // Source and destination are both full-resolution accumulators.  Keep
+    // render_scale as a reconstruction-quality control rather than changing
+    // the storage stride (future filters may use it for kernel selection).
+    let source_index = id.y * width + id.x;
+    let destination_index = source_index;
     destination[destination_index] = source[source_index];
 }

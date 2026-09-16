@@ -203,6 +203,10 @@ fn wavefront_buffers_keep_full_resolution_with_non_native_render_scale() {
     let full_capacity = queue_capacity_for_resolution(dimensions, 1.0, usize::MAX);
     let scaled_capacity = queue_capacity_for_resolution(dimensions, 0.5, usize::MAX);
     assert!(scaled_capacity < full_capacity);
+    assert_eq!(
+        queue_capacity_for_resolution((1920, 1080), 1.0, usize::MAX),
+        2_073_600
+    );
 
     // Visibility, G-buffer, direct/indirect accumulators, and all wavefront
     // queues are full-resolution resources.  Render scale is reconstructed by
@@ -220,7 +224,13 @@ fn wavefront_buffers_keep_full_resolution_with_non_native_render_scale() {
         .unwrap();
         assert!(source.contains("queue_capacity_for_resolution(dimensions, 1.0"));
     }
+    let composite = shader("compute_wavefront_composite.wgsl");
+    let temporal = shader("compute_wavefront_denoise_temporal.wgsl");
+    let bilateral = shader("compute_wavefront_denoise_bilateral.wgsl");
     let upscale = shader("compute_wavefront_upscale.wgsl");
-    assert!(upscale.contains("constant_data.render_scale"));
-    assert!(upscale.contains("source_width"));
+    for source in [&composite, &temporal, &bilateral, &upscale] {
+        assert!(source.contains("u32(constant_data.screen_width)"));
+        assert!(!source.contains("screen_width * constant_data.render_scale"));
+    }
+    assert!(upscale.contains("let source_index = id.y * width + id.x"));
 }

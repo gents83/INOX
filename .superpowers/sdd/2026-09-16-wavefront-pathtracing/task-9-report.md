@@ -14,8 +14,9 @@
 - Strengthened the TIR regression to structurally extract the TIR and non-TIR branches, verify direct throughput assignment occurs before lobe selection, and verify the cosine-weighted estimator remains isolated to non-TIR paths.
 - Removed CPU queue-count activation gates from dispatch, traversal, next-bounce, and shade; static resource availability now schedules the pass while GPU-written indirect arguments perform empty-queue termination.
 - Corrected numeric material-index decoding to match the surface pass's `f32(material_id)` encoding, and added a cross-shader contract.
-- Unified all wavefront queue capacities on the full-resolution path (`render_scale = 1.0`); the existing upscale pass performs non-native render-scale reconstruction without undersizing G-buffer or queue resources.
-- Added focused contracts for static activation, material encoding, and non-native render-scale capacity behavior.
+- Unified all wavefront queue capacities on the actual full-resolution path (`render_scale = 1.0`) without a cap below the default 1920x1080 workload; the 2,073,600-pixel default is now fully represented.
+- Made composite, denoise, and upscale use full-resolution producer/consumer strides; render scale no longer changes storage indexing and remains a reconstruction-quality control.
+- Added focused contracts for static activation, default-resolution capacity, material encoding, and non-native render-scale stride behavior.
 
 ## Verification
 

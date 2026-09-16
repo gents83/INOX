@@ -32,8 +32,10 @@ fn sanitize_radiance(value: vec3<f32>) -> vec3<f32> {
 @compute
 @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
-    let width = u32(constant_data.screen_width * constant_data.render_scale);
-    let height = u32(constant_data.screen_height * constant_data.render_scale);
+    // All producers allocate full-resolution accumulators.  Keep the same
+    // stride here; render_scale is consumed only by reconstruction quality.
+    let width = u32(constant_data.screen_width);
+    let height = u32(constant_data.screen_height);
     if (id.x >= width || id.y >= height) { return; }
     let pixel = id.y * width + id.x;
     let direct = direct_accumulator[pixel].radiance_and_weight.xyz;

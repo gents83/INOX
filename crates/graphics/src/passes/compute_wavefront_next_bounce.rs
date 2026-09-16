@@ -275,7 +275,7 @@ impl ComputeWavefrontNextBouncePass {
 
     pub fn set_dimensions(&mut self, dimensions: (u32, u32)) -> &mut Self {
         self.dimensions = dimensions;
-        let capacity = queue_capacity_for_resolution(dimensions, 1.0, 1_048_576);
+        let capacity = queue_capacity_for_resolution(dimensions, 1.0, usize::MAX);
         self.next_queue
             .write()
             .unwrap()

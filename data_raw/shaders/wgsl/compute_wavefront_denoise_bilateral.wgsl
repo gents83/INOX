@@ -14,8 +14,9 @@ var<storage, read_write> final_accumulator: array<Accumulator>;
 @compute
 @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
-    let width = u32(constant_data.screen_width * constant_data.render_scale);
-    let height = u32(constant_data.screen_height * constant_data.render_scale);
+    // Denoise the full-resolution accumulator produced by wavefront tracing.
+    let width = u32(constant_data.screen_width);
+    let height = u32(constant_data.screen_height);
     if (id.x >= width || id.y >= height) {
         return;
     }

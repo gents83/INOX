@@ -20,7 +20,9 @@ pub const WAVEFRONT_PRIMARY_QUEUE_ID: Uid =
     generate_static_uid_from_string("WAVEFRONT_PRIMARY_QUEUE");
 pub const WAVEFRONT_PRIMARY_HEADER_ID: Uid =
     generate_static_uid_from_string("WAVEFRONT_PRIMARY_HEADER");
-const MAX_WAVEFRONT_QUEUE_CAPACITY: usize = 1_048_576;
+// Queue capacity follows the actual full-resolution target.  A fixed cap below
+// 1920x1080 would silently drop primary rays before traversal.
+const MAX_WAVEFRONT_QUEUE_CAPACITY: usize = usize::MAX;
 
 pub struct ComputeWavefrontPrimaryPass {
     compute_pass: Resource<ComputePass>,

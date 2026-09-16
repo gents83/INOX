@@ -19,7 +19,9 @@ pub const COMPUTE_WAVEFRONT_TRAVERSAL_NAME: &str = "ComputeWavefrontTraversalPas
 pub const WAVEFRONT_HIT_QUEUE_ID: Uid = generate_static_uid_from_string("WAVEFRONT_HIT_QUEUE");
 pub const WAVEFRONT_HIT_HEADER_ID: Uid = generate_static_uid_from_string("WAVEFRONT_HIT_HEADER");
 pub const WAVEFRONT_SCENE_ID: Uid = generate_static_uid_from_string("WAVEFRONT_PACKED_SCENE");
-const MAX_WAVEFRONT_QUEUE_CAPACITY: usize = 1_048_576;
+// Hit capacity follows the actual full-resolution target so traversal does
+// not silently discard hits at the default 1920x1080 resolution.
+const MAX_WAVEFRONT_QUEUE_CAPACITY: usize = usize::MAX;
 
 pub struct ComputeWavefrontTraversalPass {
     compute_pass: Resource<ComputePass>,
