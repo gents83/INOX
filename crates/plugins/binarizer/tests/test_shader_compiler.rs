@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use inox_binarizer::ShaderCompiler;
+use inox_binarizer::{ShaderCompiler, MAX_PORTABLE_STORAGE_BUFFERS};
 use inox_platform::{PLATFORM_TYPE_PC, PLATFORM_TYPE_WEB};
 
 fn pc_defs() -> Vec<String> {
@@ -156,4 +156,34 @@ fn leaves_binding_array_shader_unchanged_when_feature_is_unavailable() {
     );
 
     assert_eq!(result, source);
+}
+
+#[test]
+fn legacy_over_limit_shader_is_allowed_but_active_wavefront_shader_is_rejected() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../data_raw/shaders/wgsl");
+    let legacy = root.join("compute_bounce_shade.wgsl");
+    assert!(ShaderCompiler::<{ PLATFORM_TYPE_WEB }>::validate_wgsl_file(
+        &legacy
+    ));
+
+    let mut source = String::from("@compute\n@workgroup_size(1)\n");
+    for binding in 0..=MAX_PORTABLE_STORAGE_BUFFERS {
+        source.push_str(&format!(
+            "@group(0) @binding({binding}) var<storage, read> buffer_{binding}: array<u32>;\n"
+        ));
+    }
+    source.push_str("fn main(@builtin(global_invocation_id) id: vec3<u32>) {\n");
+    source.push_str("let value = buffer_0[0u]");
+    for binding in 1..=MAX_PORTABLE_STORAGE_BUFFERS {
+        source.push_str(&format!(" + buffer_{binding}[0u]"));
+    }
+    source.push_str(";\nif (value == id.x) { return; }\n}\n");
+
+    assert!(
+        ShaderCompiler::<{ PLATFORM_TYPE_WEB }>::validate_preprocessed_wgsl(
+            &source,
+            PathBuf::from("compute_wavefront_over_limit.wgsl").as_path()
+        )
+        .is_err()
+    );
 }

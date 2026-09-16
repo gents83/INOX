@@ -287,6 +287,30 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
         Self::extract_storage_bindings_with_limit(source, path, MAX_PORTABLE_STORAGE_BUFFERS)
     }
 
+    fn is_portable_production_shader(path: &Path) -> bool {
+        let shader_name = path
+            .file_stem()
+            .and_then(|name| name.to_str())
+            .unwrap_or_default();
+        shader_name.starts_with("compute_wavefront_")
+            || matches!(
+                shader_name,
+                "visibility" | "finalize" | "blit" | "wireframe"
+            )
+    }
+
+    fn extract_storage_bindings_for_shader(
+        source: &str,
+        path: &Path,
+    ) -> Result<StorageBindingReport, String> {
+        let storage_limit = if Self::is_portable_production_shader(path) {
+            MAX_PORTABLE_STORAGE_BUFFERS
+        } else {
+            usize::MAX
+        };
+        Self::extract_storage_bindings_with_limit(source, path, storage_limit)
+    }
+
     fn extract_storage_bindings_with_limit(
         source: &str,
         path: &Path,
@@ -360,7 +384,7 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
     }
 
     pub fn validate_preprocessed_wgsl(source: &str, path: &Path) -> Result<(), String> {
-        let report = Self::extract_storage_bindings(source, path)?;
+        let report = Self::extract_storage_bindings_for_shader(source, path)?;
         naga::front::wgsl::parse_str(source)
             .map_err(|error| format!("shader {path:?} WGSL parse failed: {error}"))
             .and_then(|module| {
@@ -372,14 +396,17 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
                 .map(|_| ())
                 .map_err(|error| format!("shader {path:?} WGSL validation failed: {error:?}"))
             })?;
-        debug_assert!(report.count() <= MAX_PORTABLE_STORAGE_BUFFERS);
+        debug_assert!(
+            !Self::is_portable_production_shader(path)
+                || report.count() <= MAX_PORTABLE_STORAGE_BUFFERS
+        );
         Ok(())
     }
 
     fn validate_shader(&self, preprocessed_code: &str, path: &Path, new_path: &Path) -> bool {
         let mut validated = false;
 
-        if let Err(error) = Self::extract_storage_bindings(preprocessed_code, path) {
+        if let Err(error) = Self::extract_storage_bindings_for_shader(preprocessed_code, path) {
             eprintln!("Unable to validate shader {path:?}: {error}");
             return false;
         }
@@ -561,24 +588,7 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
                 };
                 let preprocessed = Self::preprocess_code(&shader_path, shader_source);
                 let preprocessed = Self::remove_comments(&preprocessed);
-                let shader_name = shader_path
-                    .file_stem()
-                    .and_then(|name| name.to_str())
-                    .unwrap_or_default();
-                let is_portable_production = shader_name.starts_with("compute_wavefront_")
-                    || matches!(
-                        shader_name,
-                        "visibility" | "finalize" | "blit" | "wireframe"
-                    );
-                let result = if is_portable_production {
-                    Self::extract_storage_bindings(&preprocessed, &shader_path)
-                } else {
-                    Self::extract_storage_bindings_with_limit(
-                        &preprocessed,
-                        &shader_path,
-                        usize::MAX,
-                    )
-                };
+                let result = Self::extract_storage_bindings_for_shader(&preprocessed, &shader_path);
                 if let Err(error) = result {
                     errors.push(format!("pipeline {path:?} field {field}: {error}"));
                 }
@@ -612,7 +622,7 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
                 return false;
             }
         };
-        if let Err(error) = Self::extract_storage_bindings(&source, path) {
+        if let Err(error) = Self::extract_storage_bindings_for_shader(&source, path) {
             eprintln!("Unable to validate WGSL source {path:?}: {error}");
             return false;
         }
