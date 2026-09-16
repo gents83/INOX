@@ -100,22 +100,28 @@ impl ComputePass {
         binding_data: &mut BindingData,
         entry_point_name: Option<&str>,
     ) {
-        self.cached_pipelines.clear();
+        let previous_pipelines = self.cached_pipelines.clone();
+        let had_valid_cache =
+            self.is_initialized && previous_pipelines.len() == self.pipelines.len();
+        let mut next_pipelines = Vec::with_capacity(self.pipelines.len());
         binding_data.set_bind_group_layout();
-        let mut is_initialized = !self.pipelines.is_empty();
+        let mut all_initialized = !self.pipelines.is_empty();
         for pipeline in &self.pipelines {
             let mut pipeline = pipeline.get_mut();
             if pipeline.init(render_context, binding_data, entry_point_name) {
-                self.cached_pipelines
-                    .push(pipeline.compute_pipeline().clone());
+                next_pipelines.push(pipeline.compute_pipeline().clone());
             } else {
-                is_initialized = false;
+                all_initialized = false;
             }
         }
-        if !is_initialized {
+
+        if all_initialized && next_pipelines.len() == self.pipelines.len() {
+            self.cached_pipelines = next_pipelines;
+            self.is_initialized = true;
+        } else if !had_valid_cache {
             self.cached_pipelines.clear();
+            self.is_initialized = false;
         }
-        self.is_initialized = is_initialized;
     }
 
     pub fn dispatch<'a>(
@@ -242,5 +248,108 @@ impl ComputePass {
             0,
         );
         drop(compute_pass);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+    use std::sync::Arc;
+
+    use futures::executor::block_on;
+    use inox_messenger::MessageHub;
+    use inox_resources::{
+        DataTypeResource, ResourceHandle, ResourceTrait, SerializableResource, SharedData,
+    };
+    use inox_uid::generate_random_uid;
+
+    use crate::{ComputePipeline, Shader, ShaderData};
+
+    use super::ComputePass;
+
+    const VALID_SHADER: &str = "@compute @workgroup_size(1) fn main() {}";
+
+    #[test]
+    fn dispatch_retains_complete_cache_when_reload_fails() {
+        let shared_data = Arc::new(SharedData::default());
+        let message_hub = Arc::new(MessageHub::default());
+        let context = Arc::new(
+            block_on(crate::RenderContext::create_headless(
+                shared_data.clone(),
+                message_hub.clone(),
+            ))
+            .expect("headless WebGPU adapter/device required for compute pass tests"),
+        );
+
+        let shader_path = Path::new("compute_pass_reload.wgsl");
+        let mut shader = Shader::create_from_data(
+            &shared_data,
+            &message_hub,
+            generate_random_uid(),
+            &ShaderData {
+                spirv_code: Vec::new(),
+                wgsl_code: VALID_SHADER.to_string(),
+            },
+        );
+        shader.set_path(shader_path);
+        let shader = Arc::new(ResourceHandle::new(generate_random_uid(), shader));
+        assert!(shader.get_mut().init(&context).is_ok());
+
+        let pipeline = ComputePipeline::from_shader(
+            "compute_pass_reload.compute_pipeline".into(),
+            &shared_data,
+            &message_hub,
+            shader.clone(),
+        );
+        let pipeline = Arc::new(ResourceHandle::new(generate_random_uid(), pipeline));
+        let mut pass = <ComputePass as DataTypeResource>::new(
+            generate_random_uid(),
+            &shared_data,
+            &message_hub,
+        );
+        pass.pipelines.push(pipeline);
+
+        let mut binding_data = crate::BindingData::new(&context, "compute-pass-reload");
+        pass.init(&context, &mut binding_data, None);
+        assert!(pass.is_initialized());
+
+        let invalid = Shader::create_from_data(
+            &shared_data,
+            &message_hub,
+            generate_random_uid(),
+            &ShaderData {
+                spirv_code: Vec::new(),
+                wgsl_code: "@compute @workgroup_size(1) fn other() {}".to_string(),
+            },
+        );
+        let invalid = ResourceHandle::new(generate_random_uid(), invalid);
+        shader.get_mut().replace_from(&invalid.get());
+        pass.pipelines[0]
+            .get_mut()
+            .check_shaders_to_reload(shader_path.to_string_lossy().into_owned());
+
+        let mut binding_data = crate::BindingData::new(&context, "compute-pass-reload");
+        pass.init(&context, &mut binding_data, None);
+        assert!(pass.is_initialized());
+
+        let device = &context.webgpu.device;
+        let error_scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
+        let mut command_buffer = crate::CommandBuffer {
+            encoder: device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Compute Pass Reload Test Encoder"),
+            }),
+        };
+        pass.dispatch(&context, &mut binding_data, &mut command_buffer, 1, 1, 1);
+        context
+            .webgpu
+            .queue
+            .submit(Some(command_buffer.encoder.finish()));
+        device
+            .poll(wgpu::PollType::Wait {
+                submission_index: None,
+                timeout: Some(std::time::Duration::from_secs(10)),
+            })
+            .expect("compute submission must complete");
+        assert!(block_on(error_scope.pop()).is_none());
     }
 }

@@ -14,8 +14,15 @@ struct FragmentOutput {
 
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
+struct Accumulator {
+    radiance_and_weight: vec4<f32>,
+    first_and_second_moment: vec2<f32>,
+    history_length: u32,
+    flags: u32,
+};
+
 @group(0) @binding(1)
-var<storage, read_write> data_buffer_1: array<f32>;
+var<storage, read> final_accumulator: array<Accumulator>;
 @group(0) @binding(2)
 var previous_texture: texture_2d<f32>;
 
@@ -39,18 +46,21 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     let data_dimensions = vec2<u32>(DEFAULT_WIDTH, DEFAULT_HEIGHT);
     let data_scale = vec2<f32>(data_dimensions) / vec2<f32>(dimensions);
     let data_pixel = vec2<u32>(pixel * data_scale);
-    let data_index = (data_pixel.y * data_dimensions.x + data_pixel.x) * SIZE_OF_DATA_BUFFER_ELEMENT;
-    
-    var radiance = vec3<f32>(0.);
-    radiance.x = data_buffer_1[data_index];
-    radiance.y = data_buffer_1[data_index + 1u];
-    radiance.z = data_buffer_1[data_index + 2u];
+    let pixel_index = data_pixel.y * data_dimensions.x + data_pixel.x;
+
+    var radiance = final_accumulator[pixel_index].radiance_and_weight.xyz;
     if(constant_data.frame_index > 0u) {
         let prev_value = textureLoad(previous_texture, data_pixel, 0).rgb;
-        let frame_index = f32(min(constant_data.frame_index + 1u, 1000u));
-        let weight = 1. / frame_index;
-        radiance = mix(prev_value, radiance, weight);
-    }   
+        let moments = final_accumulator[pixel_index].first_and_second_moment;
+        let variance = max(moments.y - moments.x * moments.x, 0.0001);
+        let sigma = sqrt(variance) * 2.0;
+        let lower = max(radiance - vec3<f32>(sigma), vec3<f32>(0.0));
+        let upper = radiance + vec3<f32>(sigma);
+        let clamped_previous = clamp(prev_value, lower, upper);
+        let frame_index = f32(min(final_accumulator[pixel_index].history_length, 1000u));
+        let weight = 1.0 / max(frame_index, 1.0);
+        radiance = mix(clamped_previous, radiance, weight);
+    }
      
     var out_color = vec4<f32>(radiance, 1.);   
     return out_color;

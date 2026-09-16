@@ -3,31 +3,41 @@ use std::{any::Any, ops::Range};
 use crate::ResourceId;
 use inox_uid::{generate_random_uid, INVALID_UID};
 
+fn reinterpret_len<U: Sized>(byte_len: usize) -> usize {
+    let target_size = std::mem::size_of::<U>();
+    assert!(
+        target_size != 0,
+        "cannot reinterpret into a zero-sized type"
+    );
+    assert!(
+        byte_len.is_multiple_of(target_size),
+        "source size is not divisible by target size"
+    );
+    byte_len / target_size
+}
+
 pub fn to_slice_mut<T: Sized, U: Sized>(a: &mut [T]) -> &mut [U] {
-    if a.is_empty() {
-        inox_log::debug_log!("to_chunk_slice: empty slice");
+    let len = reinterpret_len::<U>(std::mem::size_of_val(a));
+    if len == 0 {
+        return &mut [];
     }
-    unsafe {
-        let len = ::std::mem::size_of_val(a) / ::std::mem::size_of::<U>();
-        ::std::slice::from_raw_parts_mut((&a[0] as *const T) as *mut U, len)
-    }
+    unsafe { std::slice::from_raw_parts_mut(a.as_mut_ptr() as *mut U, len) }
 }
 
 pub fn to_slice<T: Sized, U: Sized>(a: &[T]) -> &[U] {
-    if a.is_empty() {
-        inox_log::debug_log!("to_chunk_slice: empty slice");
+    let len = reinterpret_len::<U>(std::mem::size_of_val(a));
+    if len == 0 {
+        return &[];
     }
-    unsafe {
-        let len = ::std::mem::size_of_val(a) / ::std::mem::size_of::<U>();
-        ::std::slice::from_raw_parts((&a[0] as *const T) as *const U, len)
-    }
+    unsafe { std::slice::from_raw_parts(a.as_ptr() as *const U, len) }
 }
 
 pub fn as_slice<T: Sized, U: Sized>(a: &T) -> &[U] {
-    unsafe {
-        let len = ::std::mem::size_of::<T>() / ::std::mem::size_of::<U>();
-        ::std::slice::from_raw_parts((a as *const T) as *const U, len)
+    let len = reinterpret_len::<U>(std::mem::size_of::<T>());
+    if len == 0 {
+        return &[];
     }
+    unsafe { std::slice::from_raw_parts((a as *const T) as *const U, len) }
 }
 
 #[derive(Clone)]
@@ -225,6 +235,7 @@ where
         self.occupied.clear();
         self.data.clear();
         self.free.clear();
+        self.max_size = 0;
     }
     pub fn item_count(&self) -> usize {
         let mut count = 0;

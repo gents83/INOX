@@ -499,9 +499,9 @@ impl RenderPass {
         let mesh_flags = self.pipeline().get().data().mesh_flags;
         let meshes = render_context.global_buffers().buffer::<GPUMesh>();
         let meshlets = render_context.global_buffers().buffer::<GPUMeshlet>();
-        let mut commands = self.meshlet_commands.lock().unwrap();
-        commands.clear();
-        {
+        let commands = {
+            let mut scratch = self.meshlet_commands.lock().unwrap();
+            scratch.clear();
             let meshes = meshes.read().unwrap();
             let meshlets = meshlets.read().unwrap();
             meshes.for_each_data(|_i, mesh_id, mesh| {
@@ -510,7 +510,7 @@ impl RenderPass {
                     if MeshFlags::from(flags) == mesh_flags {
                         for (meshlet_offset, meshlet) in meshlets.iter().enumerate() {
                             let meshlet_index = mesh.meshlets_offset + meshlet_offset as u32;
-                            commands.push(DrawIndexedCommand {
+                            scratch.push(DrawIndexedCommand {
                                 vertex_count: meshlet.indices_count,
                                 instance_count: 1,
                                 base_index: meshlet.indices_offset,
@@ -521,7 +521,8 @@ impl RenderPass {
                     }
                 }
             });
-        }
+            std::mem::take(&mut *scratch)
+        };
         for command in commands.iter() {
             inox_profiler::scoped_profile!("render_pass::draw_indexed");
             inox_profiler::gpu_scoped_profile!(
@@ -535,6 +536,7 @@ impl RenderPass {
                 command.base_instance..(command.base_instance + command.instance_count),
             );
         }
+        *self.meshlet_commands.lock().unwrap() = commands;
     }
 
     #[allow(unused_variables, unused_mut)]
@@ -560,9 +562,9 @@ impl RenderPass {
         let mesh_flags = self.pipeline().get().data().mesh_flags;
         let meshlets = render_context.global_buffers().buffer::<GPUMeshlet>();
         let meshes = render_context.global_buffers().buffer::<GPUMesh>();
-        let mut commands = self.meshlet_commands.lock().unwrap();
-        commands.clear();
-        {
+        let commands = {
+            let mut scratch = self.meshlet_commands.lock().unwrap();
+            scratch.clear();
             let meshlets = meshlets.read().unwrap();
             let meshes = meshes.read().unwrap();
             meshes.for_each_data(|index, mesh_id, mesh| {
@@ -574,7 +576,7 @@ impl RenderPass {
                                 .iter()
                                 .map(|meshlet| meshlet.indices_count)
                                 .fold(first.indices_offset, |end, count| end + count);
-                            commands.push(DrawIndexedCommand {
+                            scratch.push(DrawIndexedCommand {
                                 vertex_count: end - first.indices_offset,
                                 instance_count: 1,
                                 base_index: first.indices_offset,
@@ -585,7 +587,8 @@ impl RenderPass {
                     }
                 }
             });
-        }
+            std::mem::take(&mut *scratch)
+        };
         for command in commands.iter() {
             inox_profiler::gpu_scoped_profile!(
                 &mut render_pass,
@@ -598,5 +601,6 @@ impl RenderPass {
                 command.base_instance..(command.base_instance + command.instance_count),
             );
         }
+        *self.meshlet_commands.lock().unwrap() = commands;
     }
 }

@@ -1,4 +1,14 @@
-use std::sync::atomic::AtomicBool;
+use std::{ops::Range, sync::atomic::AtomicBool};
+
+pub fn validate_buffer_overwrite_range(
+    capacity: u64,
+    logical_size: u64,
+) -> Result<Range<u64>, &'static str> {
+    if logical_size > capacity {
+        return Err("buffer overwrite exceeds allocated capacity");
+    }
+    Ok(0..logical_size)
+}
 
 use inox_resources::{as_slice, to_slice};
 
@@ -9,6 +19,7 @@ pub struct BufferRef {
     usage: wgpu::BufferUsages,
     offset: u64,
     size: u64,
+    logical_size: u64,
     name: String,
 }
 
@@ -19,6 +30,7 @@ impl Default for BufferRef {
             usage: wgpu::BufferUsages::empty(),
             offset: 0,
             size: 0,
+            logical_size: 0,
             name: String::new(),
         }
     }
@@ -34,6 +46,9 @@ impl BufferRef {
     pub fn size(&self) -> u64 {
         self.size
     }
+    pub fn logical_size(&self) -> u64 {
+        self.logical_size
+    }
     pub fn usage(&self) -> wgpu::BufferUsages {
         self.usage
     }
@@ -44,6 +59,11 @@ impl BufferRef {
         if let Some(buffer) = self.gpu_buffer.take() {
             buffer.destroy();
         }
+        self.offset = 0;
+        self.size = 0;
+        self.logical_size = 0;
+        self.usage = wgpu::BufferUsages::empty();
+        self.name.clear();
     }
     fn init(
         &mut self,
@@ -89,44 +109,35 @@ impl BufferRef {
             .to_string();
         self.init(render_context, size, usage, typename.as_str())
     }
-    pub fn overwrite_buffer<T>(&mut self, render_core_context: &WebGpuContext, data: &[T]) {
+    pub fn overwrite_buffer<T>(&mut self, render_core_context: &WebGpuContext, data: &[T]) -> bool {
         if data.is_empty() {
-            return;
+            self.logical_size = 0;
+            return true;
         }
         let data_size = data.len() as u64 * std::mem::size_of::<T>() as u64;
-        debug_assert!(
-            data_size <= self.size,
-            "Trying to overwrite a buffer exceeding its size"
-        );
+        let Ok(range) = validate_buffer_overwrite_range(self.size, data_size) else {
+            inox_log::debug_log!(
+                "Rejecting {} byte overwrite for {} byte buffer {}",
+                data_size,
+                self.size,
+                self.name
+            );
+            return false;
+        };
         inox_profiler::scoped_profile!("GpuBuffer::overwrite_buffer");
 
-        if let Some(gpu_buffer) = self.gpu_buffer.as_mut() {
-            {
-                let slice = gpu_buffer.slice(0..self.size);
-                let is_ready = std::sync::Arc::new(AtomicBool::new(false));
-                let is_ready_clone = is_ready.clone();
-                slice.map_async(wgpu::MapMode::Write, move |_v| {
-                    is_ready_clone.store(true, std::sync::atomic::Ordering::SeqCst);
-                });
-                render_core_context
-                    .device
-                    .poll(wgpu::PollType::Wait {
-                        submission_index: None,
-                        timeout: Some(std::time::Duration::from_secs(60)),
-                    })
-                    .ok();
-                while !is_ready.load(std::sync::atomic::Ordering::SeqCst) {
-                    std::thread::sleep(std::time::Duration::from_millis(1));
-                }
-                let mut view = slice
-                    .get_mapped_range_mut()
-                    .expect("Failed to map GPU buffer for writing");
-                let new_data = to_slice(data);
-                view.copy_from_slice(new_data);
-                self.size = data.len() as u64 * std::mem::size_of::<T>() as u64;
-            }
-            gpu_buffer.unmap();
+        let Some(gpu_buffer) = self.gpu_buffer.as_ref() else {
+            return false;
+        };
+        if !self.usage.contains(wgpu::BufferUsages::COPY_DST) {
+            return false;
         }
+        let new_data = to_slice(data);
+        render_core_context
+            .queue
+            .write_buffer(gpu_buffer, range.start, new_data);
+        self.logical_size = data_size;
+        true
     }
     pub fn add_to_gpu_buffer_with_offset<T>(
         &mut self,
@@ -184,17 +195,18 @@ impl BufferRef {
                 self.add_to_gpu_buffer_with_offset(render_context, &len, WGPU_FIXED_ALIGNMENT);
             }
             data.fill_buffer(render_context, self);
+            self.logical_size = size;
         }
         is_changed
     }
     pub fn read_from_gpu(&self, render_core_context: &WebGpuContext) -> Option<Vec<u8>> {
-        if self.size == 0 {
+        if self.logical_size == 0 {
             return None;
         }
         inox_profiler::scoped_profile!("GpuBuffer::read_from_gpu");
         self.gpu_buffer.as_ref().map(|gpu_buffer| {
             let result = {
-                let slice = gpu_buffer.slice(0..self.size);
+                let slice = gpu_buffer.slice(0..self.logical_size);
                 let is_ready = std::sync::Arc::new(AtomicBool::new(false));
                 let is_ready_clone = is_ready.clone();
                 slice.map_async(wgpu::MapMode::Read, move |_v| {

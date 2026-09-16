@@ -119,6 +119,10 @@ struct ConstantData {
     camera_near: f32,
     camera_far: f32,
     camera_fov: f32,
+    denoiser_mode: u32,
+    upscaler_mode: u32,
+    render_scale: f32,
+    max_transparency_layers: u32,
 };
 
 struct Instance {

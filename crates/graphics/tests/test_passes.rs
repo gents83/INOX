@@ -82,11 +82,15 @@ fn wavefront_dispatch_rounds_up_and_handles_empty_queues() {
 }
 
 #[test]
-fn dispatch_metadata_records_xyz_without_rebuilding_pipeline_storage() {
-    let args = DispatchArgs { x: 7, y: 11, z: 13 };
-    let recorded = [args];
+fn dispatch_metadata_records_independent_xyz_dimensions() {
+    let recorded = [DispatchArgs { x: 7, y: 11, z: 13 }];
 
-    assert_eq!(recorded[0], args);
+    assert_eq!(recorded[0].x, 7);
+    assert_eq!(recorded[0].y, 11);
+    assert_eq!(recorded[0].z, 13);
+    assert_eq!(std::mem::offset_of!(DispatchArgs, x), 0);
+    assert_eq!(std::mem::offset_of!(DispatchArgs, y), 4);
+    assert_eq!(std::mem::offset_of!(DispatchArgs, z), 8);
     assert_eq!(std::mem::size_of::<DispatchArgs>(), 12);
 }
 

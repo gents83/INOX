@@ -130,15 +130,18 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
         from_source_to_temp =
             from_source_to_temp.replace(source_ext.as_str(), destination_ext.as_str());
 
-        Command::new(self.glsl_compiler.to_str().unwrap())
+        match Command::new(self.glsl_compiler.to_str().unwrap())
             .args([
                 "--target-env=vulkan",
                 path.to_str().unwrap(),
                 "-o",
                 from_source_to_temp.as_str(),
             ])
-            .spawn()
-            .is_ok()
+            .status()
+        {
+            Ok(status) => status.success(),
+            Err(_) => false,
+        }
     }
     fn convert_in_spirv(&self, path: &Path) -> bool {
         let extension = path.extension().unwrap().to_str().unwrap();
@@ -160,44 +163,60 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
             from_source_to_compiled.replace(source_ext.as_str(), destination_ext.as_str());
         let temp_path = PathBuf::from(from_source_to_temp);
         let new_path = PathBuf::from(from_source_to_compiled);
-        if need_to_binarize(path, new_path.as_path()) {
-            debug_log!("Serializing {:?}", path);
-            if let Ok(mut command) = Command::new(self.glsl_validator.to_str().unwrap())
-                .args([
-                    "-Os",
-                    "--quiet",
-                    "-w",
-                    "-t",
-                    "-g0",
-                    "-V",
-                    path.to_str().unwrap(),
-                    "-o",
-                    temp_path.to_str().unwrap(),
-                ])
-                .spawn()
-            {
-                if command.wait().is_ok()
-                    && Command::new(self.spirv_validator.to_str().unwrap())
-                        .arg(temp_path.to_str().unwrap())
-                        .spawn()
-                        .is_ok()
-                {
-                    let mut file = std::fs::File::open(temp_path.to_str().unwrap()).unwrap();
-                    let spirv_code = read_spirv_from_bytes(&mut file);
-                    let shader_data = ShaderData {
-                        spirv_code,
-                        ..Default::default()
-                    };
-                    if !new_path.exists() {
-                        let result = create_dir_all(new_path.parent().unwrap());
-                        debug_assert!(result.is_ok());
-                    }
-                    shader_data.save_to_file(new_path.as_path(), SerializationType::Binary);
-                    send_reloaded_event(&self.message_hub, new_path.as_path());
-                }
+        if !need_to_binarize(path, new_path.as_path()) {
+            return true;
+        }
+        debug_log!("Serializing {:?}", path);
+        let validator_status = Command::new(self.glsl_validator.to_str().unwrap())
+            .args([
+                "-Os",
+                "--quiet",
+                "-w",
+                "-t",
+                "-g0",
+                "-V",
+                path.to_str().unwrap(),
+                "-o",
+                temp_path.to_str().unwrap(),
+            ])
+            .status();
+        let validator_ok = validator_status
+            .map(|status| status.success())
+            .unwrap_or(false);
+        if !validator_ok {
+            delete_file(temp_path);
+            return false;
+        }
+        let spirv_status = Command::new(self.spirv_validator.to_str().unwrap())
+            .arg(temp_path.to_str().unwrap())
+            .status();
+        let spirv_ok = spirv_status.map(|status| status.success()).unwrap_or(false);
+        if !spirv_ok || !temp_path.exists() {
+            delete_file(temp_path);
+            return false;
+        }
+        let mut file = match std::fs::File::open(temp_path.as_path()) {
+            Ok(file) => file,
+            Err(_) => {
                 delete_file(temp_path);
+                return false;
+            }
+        };
+        let spirv_code = read_spirv_from_bytes(&mut file);
+        let shader_data = ShaderData {
+            spirv_code,
+            ..Default::default()
+        };
+        if !new_path.exists() {
+            let result = create_dir_all(new_path.parent().unwrap());
+            if result.is_err() {
+                delete_file(temp_path);
+                return false;
             }
         }
+        shader_data.save_to_file(new_path.as_path(), SerializationType::Binary);
+        send_reloaded_event(&self.message_hub, new_path.as_path());
+        delete_file(temp_path);
         true
     }
 
@@ -225,6 +244,10 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
 
         let preprocessed_code = Self::remove_comments(&preprocessed_code);
         let preprocessed_code = clean_unused_definitions(&preprocessed_code).unwrap();
+        let preprocessed_code = Self::add_required_wgsl_extensions(
+            preprocessed_code,
+            &shader_preprocessor_defs::<PLATFORM_TYPE>(),
+        );
 
         debug_log!("into shader {:?}", new_path);
         std::fs::write(&new_path, &preprocessed_code).unwrap();
@@ -342,7 +365,10 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
             let result = clean_unused_definitions(&preprocessed_code);
             match result {
                 Ok(code) => {
-                    preprocessed_code = code;
+                    preprocessed_code = Self::add_required_wgsl_extensions(
+                        code,
+                        &shader_preprocessor_defs::<PLATFORM_TYPE>(),
+                    );
                 }
                 Err(e) => {
                     println!("Unable to optimize shader {path:?} with error: \n{}", e,);
@@ -364,6 +390,45 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
         }
     }
 
+    pub fn validate_wgsl_file(path: &Path) -> bool {
+        let Ok(source) = std::fs::read_to_string(path) else {
+            eprintln!("Unable to read WGSL source {path:?}");
+            return false;
+        };
+        let source = Self::preprocess_code(path, source);
+        let source = Self::add_required_wgsl_extensions(
+            source,
+            &shader_preprocessor_defs::<PLATFORM_TYPE>(),
+        );
+        let source = Self::remove_comments(&source);
+        let source = match clean_unused_definitions(&source) {
+            Ok(source) => Self::add_required_wgsl_extensions(
+                source,
+                &shader_preprocessor_defs::<PLATFORM_TYPE>(),
+            ),
+            Err(error) => {
+                eprintln!("Unable to remove unused WGSL definitions from {path:?}: {error:?}");
+                return false;
+            }
+        };
+        let Ok(module) = naga::front::wgsl::parse_str(&source) else {
+            eprintln!("Unable to parse WGSL source {path:?}:\n{source}");
+            return false;
+        };
+        match naga::valid::Validator::new(
+            naga::valid::ValidationFlags::default(),
+            naga::valid::Capabilities::all(),
+        )
+        .validate(&module)
+        {
+            Ok(_) => true,
+            Err(error) => {
+                eprintln!("Unable to validate WGSL source {path:?}: {error:?}");
+                false
+            }
+        }
+    }
+
     pub fn add_required_wgsl_extensions(mut code: String, available_defs: &[String]) -> String {
         let mut directives = String::new();
 
@@ -371,8 +436,21 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
             let feature_enabled = available_defs
                 .iter()
                 .any(|available_def| available_def == rule.feature_define);
-            let extension_used = code.contains(rule.source_pattern);
-            let directive_already_present = code.lines().any(|line| line.trim() == rule.directive);
+            let code_without_comments = Self::remove_comments(&code);
+            let extension_used = match rule.source_pattern {
+                "binding_array<" => code_without_comments.contains("binding_array"),
+                "@builtin(primitive_index)" => {
+                    code_without_comments.contains("@builtin")
+                        && code_without_comments.contains("primitive_index")
+                }
+                _ => code_without_comments.contains(rule.source_pattern),
+            };
+            let directive_already_present = code_without_comments.lines().any(|line| {
+                line.trim()
+                    .split_once("//")
+                    .map_or(line.trim(), |(directive, _)| directive.trim())
+                    == rule.directive
+            });
 
             if feature_enabled && extension_used && !directive_already_present {
                 directives.push_str(rule.directive);

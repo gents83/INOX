@@ -19,7 +19,7 @@ use inox_render::{
     CONSTANT_DATA_FLAGS_DISPLAY_TANGENT, CONSTANT_DATA_FLAGS_DISPLAY_UV_0,
     CONSTANT_DATA_FLAGS_DISPLAY_UV_1, CONSTANT_DATA_FLAGS_DISPLAY_UV_2,
     CONSTANT_DATA_FLAGS_DISPLAY_UV_3, CONSTANT_DATA_FLAGS_NONE, CONSTANT_DATA_FLAGS_USE_IBL,
-    MAX_LOD_LEVELS,
+    DENOISER_BILATERAL, DENOISER_NONE, MAX_LOD_LEVELS, UPSCALER_SPATIAL, UPSCALER_TEMPORAL,
 };
 use inox_resources::{DataTypeResourceEvent, Resource, ResourceEvent};
 use inox_scene::{Camera, Object, ObjectId, Scene};
@@ -534,9 +534,7 @@ impl Info {
                                 v
                             };
                             let is_changed = ui
-                                .add(
-                                    DragValue::new(&mut indirect_light_num_bounces).range(0..=1024),
-                                )
+                                .add(DragValue::new(&mut indirect_light_num_bounces).range(0..=8))
                                 .changed();
                             if is_changed {
                                 data.params
@@ -548,6 +546,116 @@ impl Info {
                                     .set_num_bounces(
                                         &data.params.render_context,
                                         indirect_light_num_bounces,
+                                    )
+                                    .set_frame_index(&data.params.render_context, 0);
+                            }
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Denoiser: ");
+                            let mut mode = data
+                                .params
+                                .render_context
+                                .global_buffers()
+                                .constant_data
+                                .read()
+                                .unwrap()
+                                .denoiser_mode();
+                            let changed = ui.add(DragValue::new(&mut mode).range(0..=2)).changed();
+                            if changed {
+                                data.params
+                                    .render_context
+                                    .global_buffers()
+                                    .constant_data
+                                    .write()
+                                    .unwrap()
+                                    .set_denoiser_mode(&data.params.render_context, mode)
+                                    .set_frame_index(&data.params.render_context, 0);
+                            }
+                            ui.small(
+                                (match mode {
+                                    DENOISER_NONE => "none",
+                                    DENOISER_BILATERAL => "bilateral",
+                                    _ => "temporal variance",
+                                })
+                                .to_string(),
+                            );
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Upscaler: ");
+                            let mut mode = data
+                                .params
+                                .render_context
+                                .global_buffers()
+                                .constant_data
+                                .read()
+                                .unwrap()
+                                .upscaler_mode();
+                            let changed = ui.add(DragValue::new(&mut mode).range(0..=2)).changed();
+                            if changed {
+                                data.params
+                                    .render_context
+                                    .global_buffers()
+                                    .constant_data
+                                    .write()
+                                    .unwrap()
+                                    .set_upscaler_mode(&data.params.render_context, mode)
+                                    .set_frame_index(&data.params.render_context, 0);
+                            }
+                            ui.small(
+                                (match mode {
+                                    UPSCALER_TEMPORAL => "temporal",
+                                    UPSCALER_SPATIAL => "spatial",
+                                    _ => "native",
+                                })
+                                .to_string(),
+                            );
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Render scale: ");
+                            let mut scale = data
+                                .params
+                                .render_context
+                                .global_buffers()
+                                .constant_data
+                                .read()
+                                .unwrap()
+                                .render_scale();
+                            let changed = ui
+                                .add(DragValue::new(&mut scale).range(0.25..=1.0).speed(0.01))
+                                .changed();
+                            if changed {
+                                data.params
+                                    .render_context
+                                    .global_buffers()
+                                    .constant_data
+                                    .write()
+                                    .unwrap()
+                                    .set_render_scale(&data.params.render_context, scale)
+                                    .set_frame_index(&data.params.render_context, 0);
+                            }
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Transparency layers: ");
+                            let mut layers = data
+                                .params
+                                .render_context
+                                .global_buffers()
+                                .constant_data
+                                .read()
+                                .unwrap()
+                                .max_transparency_layers();
+                            let changed =
+                                ui.add(DragValue::new(&mut layers).range(1..=16)).changed();
+                            if changed {
+                                data.params
+                                    .render_context
+                                    .global_buffers()
+                                    .constant_data
+                                    .write()
+                                    .unwrap()
+                                    .set_max_transparency_layers(
+                                        &data.params.render_context,
+                                        layers,
                                     )
                                     .set_frame_index(&data.params.render_context, 0);
                             }

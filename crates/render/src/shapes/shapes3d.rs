@@ -86,6 +86,9 @@ pub fn create_cylinder(
     num_stack: u32,
     color: Vector4,
 ) -> MeshData {
+    if num_slices < 3 || num_stack == 0 {
+        return MeshData::default();
+    }
     let mut mesh_data = MeshData {
         vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
         aabb_min: Vector3::new(
@@ -182,46 +185,35 @@ pub fn create_cylinder(
         );
     }
 
-    //fill indices for sides
-    for i in 0..num_stack + 1 {
-        let stack_start = i * num_slices;
-        let next_stack_start = stack_start + num_slices;
+    // fill indices for sides. Each row contains a duplicated seam vertex.
+    let row_stride = num_slices + 1;
+    for i in 0..num_stack {
+        let stack_start = i * row_stride;
+        let next_stack_start = stack_start + row_stride;
 
-        for j in 0..num_slices + 1 {
+        for j in 0..num_slices {
             let k1 = stack_start + j;
             let k2 = next_stack_start + j;
-            mesh_data.indices.push(k1);
-            mesh_data.indices.push(k1 + 1);
-            mesh_data.indices.push(k2);
-
-            mesh_data.indices.push(k2);
-            mesh_data.indices.push(k1 + 1);
-            mesh_data.indices.push(k2 + 1);
+            mesh_data
+                .indices
+                .extend_from_slice(&[k1, k1 + 1, k2, k2, k1 + 1, k2 + 1]);
         }
     }
 
-    // fill indices for base
-    for (i, k) in (0..num_slices + 1).zip(base_vertex_index + 1..) {
-        mesh_data.indices.push(base_vertex_index);
-        // last triangle
-        if i >= (num_slices - 1) {
-            mesh_data.indices.push(base_vertex_index + 1);
-        } else {
-            mesh_data.indices.push(k + 1);
-        }
-        mesh_data.indices.push(k);
+    // fill indices for base and top, wrapping the seam once.
+    for i in 0..num_slices {
+        let current = base_vertex_index + 1 + i;
+        let next = base_vertex_index + 1 + (i + 1) % num_slices;
+        mesh_data
+            .indices
+            .extend_from_slice(&[base_vertex_index, next, current]);
     }
-
-    // fill indices for top
-    for (i, k) in (0..num_slices + 1).zip(top_vertex_index + 1..) {
-        mesh_data.indices.push(top_vertex_index);
-        mesh_data.indices.push(k);
-        // last triangle
-        if i >= (num_slices - 1) {
-            mesh_data.indices.push(top_vertex_index + 1);
-        } else {
-            mesh_data.indices.push(k + 1);
-        }
+    for i in 0..num_slices {
+        let current = top_vertex_index + 1 + i;
+        let next = top_vertex_index + 1 + (i + 1) % num_slices;
+        mesh_data
+            .indices
+            .extend_from_slice(&[top_vertex_index, current, next]);
     }
 
     let meshlet = MeshletData {
@@ -475,6 +467,9 @@ pub fn create_torus(
     direction: Vector3,
     color: Vector4,
 ) -> MeshData {
+    if num_main_slices < 3 || num_tube_slices < 3 {
+        return MeshData::default();
+    }
     let mut mesh_data = MeshData {
         vertex_layout: VertexAttributeLayout::pos_color_normal_uv1(),
         aabb_min: Vector3::new(
@@ -519,20 +514,17 @@ pub fn create_torus(
             );
         }
     }
-    for i in 0..num_main_slices + 1 {
-        let stack_start = i * num_main_slices;
-        let next_stack_start = stack_start + num_main_slices;
+    let row_stride = num_tube_slices + 1;
+    for i in 0..num_main_slices {
+        let stack_start = i * row_stride;
+        let next_stack_start = ((i + 1) % num_main_slices) * row_stride;
 
-        for j in 0..num_tube_slices + 1 {
+        for j in 0..num_tube_slices {
             let k1 = stack_start + j;
             let k2 = next_stack_start + j;
-            mesh_data.indices.push(k1);
-            mesh_data.indices.push(k1 + 1);
-            mesh_data.indices.push(k2);
-
-            mesh_data.indices.push(k2);
-            mesh_data.indices.push(k1 + 1);
-            mesh_data.indices.push(k2 + 1);
+            mesh_data
+                .indices
+                .extend_from_slice(&[k1, k1 + 1, k2, k2, k1 + 1, k2 + 1]);
         }
     }
 

@@ -26,6 +26,13 @@ pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_1: u32 = 1 << 13;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_2: u32 = 1 << 14;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_UV_3: u32 = 1 << 15;
 
+pub const DENOISER_NONE: u32 = 0;
+pub const DENOISER_TEMPORAL_VARIANCE: u32 = 1;
+pub const DENOISER_BILATERAL: u32 = 2;
+pub const UPSCALER_NATIVE: u32 = 0;
+pub const UPSCALER_TEMPORAL: u32 = 1;
+pub const UPSCALER_SPATIAL: u32 = 2;
+
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct ConstantData {
@@ -48,6 +55,10 @@ pub struct ConstantData {
     camera_near: f32,
     camera_far: f32,
     camera_fov: f32,
+    denoiser_mode: u32,
+    upscaler_mode: u32,
+    render_scale: f32,
+    max_transparency_layers: u32,
 }
 
 impl Default for ConstantData {
@@ -63,7 +74,7 @@ impl Default for ConstantData {
             flags: 0,
             debug_uv_coords: [0.; 2],
             tlas_starting_index: 0,
-            num_bounces: 0,
+            num_bounces: 2,
             lut_pbr_charlie_texture_index: 0,
             lut_pbr_ggx_texture_index: 0,
             env_map_texture_index: 0,
@@ -72,6 +83,10 @@ impl Default for ConstantData {
             camera_near: 0.,
             camera_far: 0.,
             camera_fov: DEFAULT_FOV,
+            denoiser_mode: DENOISER_TEMPORAL_VARIANCE,
+            upscaler_mode: UPSCALER_NATIVE,
+            render_scale: 1.0,
+            max_transparency_layers: 4,
         }
     }
 }
@@ -150,6 +165,52 @@ impl ConstantData {
     }
     pub fn forced_lod_level(&self) -> i32 {
         self.forced_lod_level
+    }
+    pub fn set_denoiser_mode(&mut self, render_context: &RenderContext, mode: u32) -> &mut Self {
+        if self.denoiser_mode != mode {
+            self.denoiser_mode = mode;
+            self.mark_as_dirty(render_context);
+        }
+        self
+    }
+    pub fn denoiser_mode(&self) -> u32 {
+        self.denoiser_mode
+    }
+    pub fn set_upscaler_mode(&mut self, render_context: &RenderContext, mode: u32) -> &mut Self {
+        if self.upscaler_mode != mode {
+            self.upscaler_mode = mode;
+            self.mark_as_dirty(render_context);
+        }
+        self
+    }
+    pub fn upscaler_mode(&self) -> u32 {
+        self.upscaler_mode
+    }
+    pub fn set_render_scale(&mut self, render_context: &RenderContext, scale: f32) -> &mut Self {
+        let scale = scale.clamp(0.25, 1.0);
+        if self.render_scale != scale {
+            self.render_scale = scale;
+            self.mark_as_dirty(render_context);
+        }
+        self
+    }
+    pub fn render_scale(&self) -> f32 {
+        self.render_scale
+    }
+    pub fn set_max_transparency_layers(
+        &mut self,
+        render_context: &RenderContext,
+        layers: u32,
+    ) -> &mut Self {
+        let layers = layers.clamp(1, 16);
+        if self.max_transparency_layers != layers {
+            self.max_transparency_layers = layers;
+            self.mark_as_dirty(render_context);
+        }
+        self
+    }
+    pub fn max_transparency_layers(&self) -> u32 {
+        self.max_transparency_layers
     }
     #[allow(non_snake_case)]
     pub fn set_LUT(

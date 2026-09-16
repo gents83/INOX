@@ -10,7 +10,7 @@ use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Handle, Resource, ResourceTrait};
 use inox_uid::generate_random_uid;
 
-use crate::RadiancePackedData;
+use crate::{AccumulationRecord, WAVEFRONT_UPSCALED_ACCUMULATOR_ID};
 
 pub const FINALIZE_PIPELINE: &str = "pipelines/Finalize.render_pipeline";
 pub const FINALIZE_NAME: &str = "FinalizePass";
@@ -19,7 +19,7 @@ pub struct FinalizePass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
-    data_buffer_1: GPUVector<RadiancePackedData>,
+    final_accumulator: GPUVector<AccumulationRecord>,
     frame_textures: [Handle<Texture>; NUM_FRAMES_OF_HISTORY],
     frame_index: usize,
 }
@@ -61,9 +61,9 @@ impl Pass for FinalizePass {
             ),
             constant_data: render_context.global_buffers().constant_data.clone(),
             binding_data: BindingData::new(render_context, FINALIZE_NAME),
-            data_buffer_1: render_context
+            final_accumulator: render_context
                 .global_buffers()
-                .vector::<RadiancePackedData>(),
+                .vector_with_id(WAVEFRONT_UPSCALED_ACCUMULATOR_ID),
             frame_textures: [NONE_TEXTURE_VALUE; NUM_FRAMES_OF_HISTORY],
             frame_index: 0,
         }
@@ -98,13 +98,13 @@ impl Pass for FinalizePass {
                 },
             )
             .add_buffer(
-                &mut *self.data_buffer_1.write().unwrap(),
-                Some("DataBuffer_1"),
+                &mut *self.final_accumulator.write().unwrap(),
+                Some("Final Accumulator"),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,
                     stage: ShaderStage::Fragment,
-                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
+                    flags: BindingFlags::Read | BindingFlags::Storage,
                     ..Default::default()
                 },
             )
