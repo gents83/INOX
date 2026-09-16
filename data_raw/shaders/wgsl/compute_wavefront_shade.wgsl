@@ -1,5 +1,7 @@
 #import "common.inc"
+#import "utils.inc"
 #import "wavefront_records.inc"
+#import "texture_utils.inc"
 
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
@@ -23,6 +25,24 @@ struct Accumulator {
 
 @group(1) @binding(4)
 var<storage, read_write> indirect_accumulator: array<Accumulator>;
+@group(1) @binding(5)
+var<uniform> textures: Textures;
+
+fn analytic_sky(direction: vec3<f32>) -> vec3<f32> {
+    let height = clamp(direction.y * 0.5 + 0.5, 0.0, 1.0);
+    return mix(vec3<f32>(0.015, 0.02, 0.04), vec3<f32>(0.12, 0.22, 0.45), height);
+}
+
+fn environment_radiance(direction: vec3<f32>) -> vec3<f32> {
+    let fallback = analytic_sky(normalize(direction));
+    if (constant_data.environment_texture_index == 0xffffffffu) {
+        return fallback;
+    }
+    let d = normalize(direction);
+    let uv = vec2<f32>(atan2(d.z, d.x) / (2.0 * MATH_PI) + 0.5, asin(clamp(d.y, -1.0, 1.0)) / MATH_PI + 0.5);
+    let sampled = sample_texture(vec3<f32>(uv, f32(constant_data.environment_texture_index))).xyz;
+    return select(fallback, max(sampled, vec3<f32>(0.0)), length(sampled) > MATH_EPSILON);
+}
 
 fn table_offset(kind: u32) -> u32 {
     return scene_data[4u + kind * 4u];
@@ -48,7 +68,8 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
     let hit = hit_queue[hit_index];
     let ray = ray_queue[hit.ray_index];
     if (hit.visibility_id == 0u) {
-        let sky = vec3<f32>(0.03) * max(ray.throughput.xyz, vec3<f32>(0.0));
+        let environment = environment_radiance(ray.direction_and_t_max.xyz);
+        let sky = environment * max(ray.throughput.xyz, vec3<f32>(0.0));
         add_indirect(ray.pixel_index, sky);
         return;
     }

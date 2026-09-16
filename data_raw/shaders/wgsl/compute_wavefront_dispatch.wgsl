@@ -10,9 +10,10 @@ var<storage, read_write> dispatch_args: array<WavefrontDispatchArgs>;
 @workgroup_size(1, 1, 1)
 fn main() {
     let count = min(atomicLoad(&queue_header[0].count), queue_header[0].capacity);
+    let workgroups = select(0u, (count + 63u) / 64u, count > 0u);
     dispatch_args[0] = WavefrontDispatchArgs(
-        select(0u, (count + 63u) / 64u, count > 0u),
-        1u,
-        1u
+        workgroups,
+        select(0u, 1u, count > 0u),
+        select(0u, 1u, count > 0u)
     );
 }

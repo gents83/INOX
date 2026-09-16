@@ -59,6 +59,9 @@ pub struct ConstantData {
     upscaler_mode: u32,
     render_scale: f32,
     max_transparency_layers: u32,
+    max_path_depth: u32,
+    min_roulette_depth: u32,
+    environment_texture_index: u32,
 }
 
 impl Default for ConstantData {
@@ -87,6 +90,9 @@ impl Default for ConstantData {
             upscaler_mode: UPSCALER_NATIVE,
             render_scale: 1.0,
             max_transparency_layers: 4,
+            max_path_depth: 2,
+            min_roulette_depth: 2,
+            environment_texture_index: u32::MAX,
         }
     }
 }
@@ -137,8 +143,11 @@ impl ConstantData {
         self.frame_index
     }
     pub fn set_num_bounces(&mut self, render_context: &RenderContext, n: u32) -> &mut Self {
-        if self.num_bounces != n {
+        let n = n.min(8);
+        if self.num_bounces != n || self.max_path_depth != n {
             self.num_bounces = n;
+            self.max_path_depth = n;
+            self.min_roulette_depth = self.min_roulette_depth.min(n.saturating_sub(1));
             self.mark_as_dirty(render_context);
         }
         self
@@ -212,6 +221,48 @@ impl ConstantData {
     pub fn max_transparency_layers(&self) -> u32 {
         self.max_transparency_layers
     }
+    pub fn set_max_path_depth(&mut self, render_context: &RenderContext, depth: u32) -> &mut Self {
+        let depth = depth.min(8);
+        if self.max_path_depth != depth {
+            self.max_path_depth = depth;
+            self.num_bounces = depth;
+            self.mark_as_dirty(render_context);
+        }
+        self
+    }
+    pub fn max_path_depth(&self) -> u32 {
+        self.max_path_depth
+    }
+    pub fn set_min_roulette_depth(
+        &mut self,
+        render_context: &RenderContext,
+        depth: u32,
+    ) -> &mut Self {
+        let depth = depth.min(self.max_path_depth.saturating_sub(1));
+        if self.min_roulette_depth != depth {
+            self.min_roulette_depth = depth;
+            self.mark_as_dirty(render_context);
+        }
+        self
+    }
+    pub fn min_roulette_depth(&self) -> u32 {
+        self.min_roulette_depth
+    }
+    pub fn set_environment_texture_index(
+        &mut self,
+        render_context: &RenderContext,
+        index: u32,
+    ) -> &mut Self {
+        if self.environment_texture_index != index {
+            self.environment_texture_index = index;
+            self.env_map_texture_index = index;
+            self.mark_as_dirty(render_context);
+        }
+        self
+    }
+    pub fn environment_texture_index(&self) -> u32 {
+        self.environment_texture_index
+    }
     #[allow(non_snake_case)]
     pub fn set_LUT(
         &mut self,
@@ -227,6 +278,7 @@ impl ConstantData {
             self.mark_as_dirty(render_context);
         } else if *lut_id == ENV_MAP_UID {
             self.env_map_texture_index = texture_index;
+            self.environment_texture_index = texture_index;
             self.mark_as_dirty(render_context);
         }
         self

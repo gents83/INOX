@@ -60,7 +60,12 @@ impl Pass for ComputeWavefrontNextBouncePass {
         COMPUTE_WAVEFRONT_NEXT_BOUNCE_NAME
     }
     fn is_active(&self, _render_context: &RenderContext) -> bool {
-        !self.hit_queue.read().unwrap().is_empty() && !self.next_queue.read().unwrap().is_empty()
+        self.hit_queue_header
+            .read()
+            .unwrap()
+            .first()
+            .is_some_and(|header| header.count > 0 && header.capacity > 0)
+            && !self.next_queue.read().unwrap().is_empty()
     }
     fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self {
         Self::create_for_queues(
@@ -78,7 +83,7 @@ impl Pass for ComputeWavefrontNextBouncePass {
         )
     }
     fn init(&mut self, render_context: &RenderContext) {
-        if !self.is_active(render_context) {
+        if self.hit_queue.read().unwrap().is_empty() || self.next_queue.read().unwrap().is_empty() {
             return;
         }
         self.binding_data
@@ -191,7 +196,7 @@ impl Pass for ComputeWavefrontNextBouncePass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        if self.next_queue.read().unwrap().is_empty() {
+        if !self.is_active(render_context) {
             return;
         }
         {

@@ -157,7 +157,14 @@ impl Pass for ComputeWavefrontTraversalPass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        if self.scene_data.read().unwrap().is_empty() || self.ray_queue.read().unwrap().is_empty() {
+        if self.scene_data.read().unwrap().is_empty()
+            || self
+                .ray_queue_header
+                .read()
+                .unwrap()
+                .first()
+                .is_none_or(|header| header.count == 0)
+        {
             return;
         }
         {

@@ -39,7 +39,11 @@ impl Pass for ComputeWavefrontDispatchPass {
     }
 
     fn is_active(&self, _render_context: &RenderContext) -> bool {
-        !self.ray_queue_header.read().unwrap().is_empty()
+        self.ray_queue_header
+            .read()
+            .unwrap()
+            .first()
+            .is_some_and(|header| header.count > 0 && header.capacity > 0)
     }
 
     fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self {
@@ -90,7 +94,7 @@ impl Pass for ComputeWavefrontDispatchPass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        if self.ray_queue_header.read().unwrap().is_empty() {
+        if !self.is_active(render_context) {
             return;
         }
         self.compute_pass.get().dispatch(

@@ -336,6 +336,54 @@ pub fn dispatch_workgroups_for(item_count: u32, workgroup_size: u32) -> u32 {
     }
 }
 
+/// Clamp transport controls to the bounded queue graph supported by the renderer.
+pub fn bounded_path_depth(max_depth: u32) -> u32 {
+    max_depth.min(8)
+}
+
+/// Return the unbiased survival probability used by the shader roulette step.
+pub fn roulette_survival_probability(throughput: [f32; 3]) -> f32 {
+    let maximum = throughput
+        .into_iter()
+        .map(|value| {
+            if value.is_finite() {
+                value.max(0.0)
+            } else {
+                0.0
+            }
+        })
+        .fold(0.0, f32::max);
+    maximum.clamp(0.05, 0.99)
+}
+
+pub fn reflect_direction(incoming: [f32; 3], normal: [f32; 3]) -> [f32; 3] {
+    let dot = incoming[0] * normal[0] + incoming[1] * normal[1] + incoming[2] * normal[2];
+    [
+        incoming[0] - 2.0 * dot * normal[0],
+        incoming[1] - 2.0 * dot * normal[1],
+        incoming[2] - 2.0 * dot * normal[2],
+    ]
+}
+
+/// Compute refraction, returning None for total internal reflection.
+pub fn refract_direction(incoming: [f32; 3], normal: [f32; 3], eta: f32) -> Option<[f32; 3]> {
+    let eta = if eta.is_finite() {
+        eta.max(f32::EPSILON)
+    } else {
+        1.0
+    };
+    let cosine = -(incoming[0] * normal[0] + incoming[1] * normal[1] + incoming[2] * normal[2]);
+    let k = 1.0 - eta * eta * (1.0 - cosine * cosine);
+    if k <= 0.0 {
+        return None;
+    }
+    Some([
+        eta * incoming[0] + (eta * cosine - k.sqrt()) * normal[0],
+        eta * incoming[1] + (eta * cosine - k.sqrt()) * normal[1],
+        eta * incoming[2] + (eta * cosine - k.sqrt()) * normal[2],
+    ])
+}
+
 /// CPU-side mirror of the GPU append queue used for sizing and deterministic
 /// tests. The GPU implementation uses the same header semantics.
 pub struct RayQueue<T> {

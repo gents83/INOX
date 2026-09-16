@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use inox_core::ContextRc;
 use inox_render::{
     AsBinding, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, GPUVector, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView,
+    ConstantDataRw, GPUBuffer, GPUTexture, GPUVector, Pass, RenderContext, RenderContextRc,
+    SamplerType, ShaderStage, TextureView,
 };
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
@@ -23,6 +24,7 @@ pub struct ComputeWavefrontShadePass {
     binding_data: BindingData,
     constant_data: ConstantDataRw,
     scene_data: GPUVector<u32>,
+    textures: GPUBuffer<GPUTexture>,
     ray_queue: GPUVector<RayQueueRecord>,
     ray_queue_header: GPUVector<QueueHeader>,
     hit_queue: GPUVector<HitRecord>,
@@ -141,7 +143,33 @@ impl Pass for ComputeWavefrontShadePass {
                     flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                     ..Default::default()
                 },
-            );
+            )
+            .add_buffer(
+                &mut *self.textures.write().unwrap(),
+                Some("Textures"),
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 5,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Uniform | BindingFlags::Read,
+                    ..Default::default()
+                },
+            )
+            .add_default_sampler(
+                BindingInfo {
+                    group_index: 2,
+                    binding_index: 0,
+                    stage: ShaderStage::Compute,
+                    ..Default::default()
+                },
+                SamplerType::Unfiltered,
+            )
+            .add_material_textures(BindingInfo {
+                group_index: 2,
+                binding_index: 1,
+                stage: ShaderStage::Compute,
+                ..Default::default()
+            });
         self.compute_pass
             .get_mut()
             .init(render_context, &mut self.binding_data, None);
@@ -153,7 +181,14 @@ impl Pass for ComputeWavefrontShadePass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        if self.scene_data.read().unwrap().is_empty() || self.hit_queue.read().unwrap().is_empty() {
+        if self.scene_data.read().unwrap().is_empty()
+            || self
+                .hit_queue_header
+                .read()
+                .unwrap()
+                .first()
+                .is_none_or(|header| header.count == 0)
+        {
             return;
         }
         let buffers = render_context.buffers();
@@ -192,6 +227,7 @@ impl ComputeWavefrontShadePass {
             scene_data: render_context
                 .global_buffers()
                 .vector_with_id(WAVEFRONT_SCENE_ID),
+            textures: render_context.global_buffers().buffer::<GPUTexture>(),
             ray_queue: render_context
                 .global_buffers()
                 .vector_with_id(ids.ray_queue),

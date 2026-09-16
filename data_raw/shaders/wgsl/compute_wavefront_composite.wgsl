@@ -24,6 +24,11 @@ var<storage, read> ao_state: array<AoState>;
 @group(0) @binding(4)
 var<storage, read> indirect_accumulator: array<Accumulator>;
 
+fn sanitize_radiance(value: vec3<f32>) -> vec3<f32> {
+    let finite = all(value == value);
+    return select(vec3<f32>(0.0), clamp(value, vec3<f32>(0.0), vec3<f32>(65504.0)), finite);
+}
+
 @compute
 @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
@@ -34,7 +39,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let direct = direct_accumulator[pixel].radiance_and_weight.xyz;
     let indirect = indirect_accumulator[pixel].radiance_and_weight.xyz;
     let ao = clamp(ao_state[pixel].visibility, 0.0, 1.0);
-    let result = direct * ao + indirect;
+    let result = sanitize_radiance(direct * ao + indirect);
     let luminance = dot(result, vec3<f32>(0.2126, 0.7152, 0.0722));
     final_accumulator[pixel].radiance_and_weight = vec4<f32>(result, 1.0);
     final_accumulator[pixel].first_and_second_moment = vec2<f32>(luminance, luminance * luminance);

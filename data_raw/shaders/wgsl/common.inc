@@ -131,6 +131,9 @@ struct ConstantData {
     upscaler_mode: u32,
     render_scale: f32,
     max_transparency_layers: u32,
+    max_path_depth: u32,
+    min_roulette_depth: u32,
+    environment_texture_index: u32,
 };
 
 struct Instance {

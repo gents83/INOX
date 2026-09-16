@@ -37,7 +37,7 @@
 
 - [x] Add BSDF lobe queues and ping-pong active-ray compaction. (Dynamic eight-slot queue chain now builds bounce stages at viewer setup; material-lobe routing refinement remains.)
 - [x] Add indirect dispatch arguments and empty-queue early termination. (Queue counters drive the current bounded three-bounce chain.)
-- [ ] Add multi-bounce GI, environment sampling, Russian roulette, reflections, and refractions. (BRDF/BSDF reflection/transmission sampling is active in the bounded bounce chain; true environment sampling and generalized depth remain.)
+- [x] Add multi-bounce GI, environment sampling, Russian roulette, reflections, and refractions. (Depth-bounded queue stages now terminate from counters, sample environment textures with analytic-sky fallback, apply bounded roulette, and use PDF-weighted diffuse/glossy/refraction transport with TIR reflection fallback.)
 - [x] Add bounded alpha/transmission queue and OIT fallback. (One bounded transparent-hit layer and compositing resolve are active; multi-layer sorting/refraction remains.)
 - [x] Keep direct, AO, indirect, shadow, and overflow outputs independently inspectable. (Separate direct/indirect/final accumulators and AO/shadow diagnostics are active; dedicated queue debug views remain.)
 
@@ -67,3 +67,4 @@
 - Task 5 hot-loop validation passed: debug and release render/graphics regression tests, render/graphics checks, stable clippy, and workspace formatting. Compute dispatches reuse cached pipelines/labels; indexed indirect draws use the vector count-prefix offset; meshlet draws reuse pass-owned command scratch after releasing data locks.
 - Task 6 validation passed: binarizer binding/pipeline tests, render packed-data tests, graphics record-layout tests, binarizer/render/graphics clippy, formatting, native checks, and render/graphics WebAssembly checks. The Windows toolchain required `RUSTFLAGS=` for native commands because the repository config injects unsupported `split-debuginfo=unpacked`.
 - Task 8 validation passed: bounded packed light alias construction covers empty, single, many, zero/nonfinite, and overflow inputs; render/graphics tests, binarizer shader validation, clippy, formatting, and render/graphics WebAssembly checks pass.
+- Task 9 validation passed: graphics/render/binarizer tests, focused transport contracts, include-expanded shader validation, clippy, formatting, native checks, and render/graphics WebAssembly checks pass. Transport now supports environment fallback, bounded roulette, robust reflection/refraction, queue-counter early termination, and per-stage reset.
