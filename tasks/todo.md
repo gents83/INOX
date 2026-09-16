@@ -46,7 +46,7 @@
 - [x] Add temporal history/moments/variance invalidation. (Composite writes luminance moments; finalize clamps history by variance and frame history.)
 - [x] Add pure-WGSL temporal/bilateral denoisers. (Current baseline clamps separated final accumulation; variance-guided temporal history refinement remains.)
 - [x] Add pure-WGSL native/temporal/spatial upscaler baseline. (Current shader performs bounded spatial reconstruction; temporal mode remains a later quality refinement.)
-- [ ] Run PC binarizer, native smoke/profile, WASM build/bindgen, and browser WebGPU smoke in strict order. (The strict gate passed through bindgen generation; Chrome was found but returned no smoke DOM or engine signals.)
+- [ ] Run PC binarizer, native smoke/profile, WASM build/bindgen, and browser WebGPU smoke in strict order. (The strict gate passed through bindgen generation; Chrome at `C:\Program Files\Google\Chrome\Application\chrome.exe` was found but returned no smoke DOM or engine signals.)
 - [ ] Publish only artifacts produced after successful PC+Web binarization and generated-data validation. (No output was published because the unavailable browser dependency stopped the gate before final publication.)
 
 ## Review
