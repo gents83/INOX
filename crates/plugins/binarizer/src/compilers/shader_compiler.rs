@@ -273,11 +273,10 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
             &shader_preprocessor_defs::<PLATFORM_TYPE>(),
         );
 
-        debug_log!("into shader {:?}", new_path);
-        std::fs::write(&new_path, &preprocessed_code).unwrap();
-
+        debug_log!("validating shader {:?}", path);
         if self.validate_shader(&preprocessed_code, &path, &new_path) {
             debug_log!("and it's validated as well");
+            std::fs::write(&new_path, &preprocessed_code).unwrap();
         }
     }
 
@@ -293,10 +292,16 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
         path: &Path,
         storage_limit: usize,
     ) -> Result<StorageBindingReport, String> {
+        // Match an entire declaration, rather than one source line. WGSL permits
+        // attributes and the `var<storage>` declaration to be formatted across
+        // arbitrary lines. Capturing the complete attribute span also prevents
+        // attributes from a preceding non-storage declaration from leaking in.
+        let declaration_regex = Regex::new(
+            r"(?s)(?P<attributes>(?:@[A-Za-z_]\w*(?:\s*\([^)]*\))?\s*)*)var\s*<\s*storage(?:\s*,[^>]*)?>\s*(?P<name>[A-Za-z_]\w*)",
+        )
+        .unwrap();
         let group_regex = Regex::new(r"@group\s*\(\s*(\d+)\s*\)").unwrap();
         let binding_regex = Regex::new(r"@binding\s*\(\s*(\d+)\s*\)").unwrap();
-        let storage_regex =
-            Regex::new(r"var\s*<\s*storage(?:\s*,[^>]*)?>\s*([A-Za-z_]\w*)").unwrap();
         let stage = if source.contains("@compute") {
             "compute"
         } else if source.contains("@vertex") || source.contains("@fragment") {
@@ -304,48 +309,44 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
         } else {
             "unknown"
         };
-        let mut group = None;
-        let mut binding = None;
         let mut seen = HashSet::new();
         let mut bindings = Vec::new();
 
-        for (line_number, line) in source.lines().enumerate() {
-            if let Some(value) = group_regex.captures(line) {
-                group = Some(value[1].parse::<u32>().unwrap());
+        for declaration in declaration_regex.captures_iter(source) {
+            let attributes = &declaration["attributes"];
+            let name = &declaration["name"];
+            let line_number = source[..declaration.get(0).unwrap().start()]
+                .bytes()
+                .filter(|byte| *byte == b'\n')
+                .count()
+                + 1;
+            let Some(group) = group_regex
+                .captures(attributes)
+                .and_then(|value| value[1].parse::<u32>().ok())
+            else {
+                return Err(format!(
+                    "shader {path:?} stage {stage} storage binding for {name} is missing @group at line {line_number}"
+                ));
+            };
+            let Some(binding) = binding_regex
+                .captures(attributes)
+                .and_then(|value| value[1].parse::<u32>().ok())
+            else {
+                return Err(format!(
+                    "shader {path:?} stage {stage} storage binding {name} is missing @binding at line {line_number}"
+                ));
+            };
+            if !seen.insert((group, binding)) {
+                return Err(format!(
+                    "shader {path:?} stage {stage} has duplicate storage binding @group({group}) @binding({binding})"
+                ));
             }
-            if let Some(value) = binding_regex.captures(line) {
-                binding = Some(value[1].parse::<u32>().unwrap());
-            }
-            if let Some(value) = storage_regex.captures(line) {
-                let Some(group) = group.take() else {
-                    return Err(format!(
-                        "shader {path:?} stage {stage} storage binding for {} is missing @group at line {}",
-                        &value[1], line_number + 1
-                    ));
-                };
-                let Some(binding) = binding.take() else {
-                    return Err(format!(
-                        "shader {path:?} stage {stage} storage binding {} is missing @binding at line {}",
-                        &value[1], line_number + 1
-                    ));
-                };
-                if !seen.insert((group, binding)) {
-                    return Err(format!(
-                        "shader {path:?} stage {stage} has duplicate storage binding @group({group}) @binding({binding})"
-                    ));
-                }
-                bindings.push(StorageBinding {
-                    group,
-                    binding,
-                    name: value[1].to_string(),
-                    stage,
-                });
-            } else if line.contains("var") {
-                // Do not let a uniform/texture declaration lend its attributes
-                // to a following storage declaration.
-                group = None;
-                binding = None;
-            }
+            bindings.push(StorageBinding {
+                group,
+                binding,
+                name: name.to_string(),
+                stage,
+            });
         }
 
         if bindings.len() > storage_limit {

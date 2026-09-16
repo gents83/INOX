@@ -42,6 +42,18 @@ fn rejects_ninth_storage_buffer_with_path_stage_and_count() {
 }
 
 #[test]
+fn accepts_multiline_storage_declarations() {
+    let source = "@compute\n@group(0)\n@binding(3)\nvar<storage,\n    read_write>\nmultiline_buffer: array<u32>;";
+    let report = ShaderCompiler::<{ PLATFORM_TYPE_WEB }>::extract_storage_bindings(
+        source,
+        Path::new("multiline.wgsl"),
+    )
+    .unwrap();
+    assert_eq!(report.count(), 1);
+    assert_eq!(report.bindings[0].binding, 3);
+}
+
+#[test]
 fn rejects_duplicate_and_missing_storage_binding_attributes() {
     let duplicate = "@group(0) @binding(1) var<storage, read> a: array<u32>;\n@group(0) @binding(1) var<storage, read> b: array<u32>;";
     let duplicate_error = ShaderCompiler::<{ PLATFORM_TYPE_WEB }>::extract_storage_bindings(

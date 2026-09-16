@@ -61,6 +61,10 @@ impl Pass for ComputeWavefrontTraversalPass {
 
     fn init(&mut self, render_context: &RenderContext) {
         let packed_scene = render_context.global_buffers().packed_scene_data();
+        if let Err(error) = packed_scene.validate() {
+            eprintln!("Skipping invalid packed scene upload: {error}");
+            return;
+        }
         if packed_scene.words().len() <= std::mem::size_of::<inox_render::PackedSceneHeader>() / 4 {
             return;
         }

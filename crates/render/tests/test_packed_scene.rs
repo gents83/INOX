@@ -1,6 +1,6 @@
 use inox_render::{
     PackedSceneBuilder, PackedSceneHeader, PackedTableRange, SceneTableKind, PACKED_BUFFER_MAGIC,
-    PACKED_BUFFER_VERSION,
+    PACKED_BUFFER_VERSION, PACKED_SCENE_HEADER_WORDS,
 };
 
 #[test]
@@ -25,10 +25,28 @@ fn packed_scene_stores_aligned_ranges_for_each_table() {
 }
 
 #[test]
+fn packed_scene_rejects_ranges_that_overlap_header() {
+    let mut builder = PackedSceneBuilder::new();
+    builder.append_words(SceneTableKind::Indices, &[1, 2, 3, 4], 1);
+    let mut scene = builder.finish();
+    scene.words_mut()[4] = (PACKED_SCENE_HEADER_WORDS - 1) as u32;
+    assert!(scene.validate().is_err());
+}
+
+#[test]
+fn packed_scene_rejects_counts_that_are_not_stride_aligned() {
+    let mut builder = PackedSceneBuilder::new();
+    builder.append_words(SceneTableKind::Indices, &[1, 2, 3, 4], 2);
+    let mut scene = builder.finish();
+    scene.words_mut()[5] = 3;
+    assert!(scene.validate().is_err());
+}
+
+#[test]
 fn packed_scene_keeps_every_table_range_inside_the_payload() {
     let mut builder = PackedSceneBuilder::new();
-    builder.append_words(SceneTableKind::Meshes, &[1, 2], 4);
-    builder.append_words(SceneTableKind::Bvh, &[3, 4, 5], 4);
+    builder.append_words(SceneTableKind::Meshes, &[1, 2, 3, 4], 4);
+    builder.append_words(SceneTableKind::Bvh, &[3, 4, 5, 6], 4);
     let mut scene = builder.finish();
     assert!(scene.validate().is_ok());
 

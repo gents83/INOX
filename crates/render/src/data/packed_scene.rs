@@ -69,8 +69,14 @@ impl PackedSceneData {
             let offset = words[base] as usize;
             let count = words[base + 1] as usize;
             let stride = words[base + 2];
-            let end = offset + count;
-            if end > word_count || (count > 0 && stride == 0) {
+            let end = offset
+                .checked_add(count)
+                .ok_or("packed scene table range is invalid")?;
+            if end > word_count
+                || (count > 0 && offset < PACKED_SCENE_HEADER_WORDS)
+                || (count > 0 && stride == 0)
+                || (count > 0 && !count.is_multiple_of(stride as usize))
+            {
                 return Err("packed scene table range is invalid");
             }
         }

@@ -76,6 +76,10 @@ impl Pass for ComputeWavefrontSurfacePass {
             return;
         }
         let packed = render_context.global_buffers().packed_scene_data();
+        if let Err(error) = packed.validate() {
+            eprintln!("Skipping invalid packed scene upload: {error}");
+            return;
+        }
         if packed.words().len() <= std::mem::size_of::<inox_render::PackedSceneHeader>() / 4 {
             return;
         }

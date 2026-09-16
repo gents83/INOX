@@ -91,18 +91,15 @@ impl<const PLATFORM_TYPE: PlatformType> Binarizer<PLATFORM_TYPE> {
         data_raw_folder: &Path,
         data_folder: &Path,
         info: &BinarizerParameters,
-    ) -> DataWatcher {
+    ) -> Result<DataWatcher, String> {
         let shader_compiler = ShaderCompiler::<PLATFORM_TYPE>::new(
             shared_data.clone(),
             message_hub.clone(),
             data_raw_folder,
             data_folder,
         );
-        if let Err(error) =
-            ShaderCompiler::<PLATFORM_TYPE>::validate_pipeline_descriptors(data_raw_folder)
-        {
-            eprintln!("Production pipeline validation failed:\n{error}");
-        }
+        ShaderCompiler::<PLATFORM_TYPE>::validate_pipeline_descriptors(data_raw_folder)
+            .map_err(|error| format!("production pipeline validation failed:\n{error}"))?;
         if info.preprocess_shaders_paths.is_empty() {
             let font_compiler =
                 FontCompiler::new(message_hub.clone(), data_raw_folder, data_folder);
@@ -121,19 +118,25 @@ impl<const PLATFORM_TYPE: PlatformType> Binarizer<PLATFORM_TYPE> {
                 shader_compiler.preprocess_shader(Path::new(path));
             }
         }
-        binarizer
+        Ok(binarizer)
     }
 
     pub fn start(&mut self) {
         let binarizer = DataWatcher::new(self.data_raw_folder.clone());
-        let mut binarizer = Self::init_binarizer(
+        let mut binarizer = match Self::init_binarizer(
             binarizer,
             &self.shared_data,
             &self.message_hub,
             &self.data_raw_folder,
             &self.data_folder,
             &self.info,
-        );
+        ) {
+            Ok(binarizer) => binarizer,
+            Err(error) => {
+                eprintln!("Binarizer initialization failed: {error}");
+                return;
+            }
+        };
 
         if !self.info.preprocess_shaders_paths.is_empty() {
             return;
