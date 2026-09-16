@@ -112,6 +112,19 @@ impl DataTypeResource for ComputePipeline {
 }
 
 impl ComputePipeline {
+    #[doc(hidden)]
+    pub fn from_shader(
+        path: PathBuf,
+        shared_data: &SharedDataRc,
+        message_hub: &MessageHubRc,
+        shader: Resource<Shader>,
+    ) -> Self {
+        let mut pipeline = Self::new(ResourceId::default(), shared_data, message_hub);
+        pipeline.path = path;
+        pipeline.shader = Some(shader);
+        pipeline
+    }
+
     pub fn compute_pipeline(&self) -> &wgpu::ComputePipeline {
         self.compute_pipeline.as_ref().unwrap()
     }

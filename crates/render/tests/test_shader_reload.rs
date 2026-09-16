@@ -2,9 +2,15 @@ use std::path::{Path, PathBuf};
 
 use std::sync::Arc;
 
+use futures::executor::block_on;
 use inox_messenger::MessageHub;
-use inox_render::{ComputePipeline, RenderPipeline, Shader, ShaderData};
-use inox_resources::{DataTypeResource, ResourceTrait, SharedData};
+use inox_render::{
+    BindingData, ComputePipeline, RenderContext, RenderPipeline, RenderPipelineData, Shader,
+    ShaderData, TextureFormat,
+};
+use inox_resources::{
+    DataTypeResource, ResourceHandle, ResourceTrait, SerializableResource, SharedData,
+};
 use inox_uid::generate_random_uid;
 
 use inox_render::resources::shader::{is_shader, ReloadError};
@@ -43,89 +49,196 @@ fn reload_context() -> (Arc<SharedData>, Arc<MessageHub>) {
     )
 }
 
+fn headless_render_context(
+    shared_data: &Arc<SharedData>,
+    message_hub: &Arc<MessageHub>,
+) -> Arc<RenderContext> {
+    Arc::new(
+        block_on(RenderContext::create_headless(
+            shared_data.clone(),
+            message_hub.clone(),
+        ))
+        .expect("headless WebGPU adapter/device required for reload integration tests"),
+    )
+}
+
+fn shader_resource(
+    shared_data: &Arc<SharedData>,
+    message_hub: &Arc<MessageHub>,
+    path: &Path,
+    wgsl_code: &str,
+) -> Arc<ResourceHandle<Shader>> {
+    let mut shader = Shader::create_from_data(
+        shared_data,
+        message_hub,
+        generate_random_uid(),
+        &ShaderData {
+            spirv_code: Vec::new(),
+            wgsl_code: wgsl_code.to_string(),
+        },
+    );
+    shader.set_path(path);
+    Arc::new(ResourceHandle::new(generate_random_uid(), shader))
+}
+
+const VALID_COMPUTE_WGSL: &str = "@compute @workgroup_size(1) fn main() {}";
+const VALID_VERTEX_ONLY_WGSL: &str = "
+@vertex
+fn vs_main(@builtin(vertex_index) index: u32) -> @builtin(position) vec4<f32> {
+    return vec4<f32>(0.0, 0.0, 0.0, 1.0);
+}
+";
+const VALID_RENDER_WGSL: &str = "
+@vertex
+fn vs_main(@builtin(vertex_index) index: u32) -> @builtin(position) vec4<f32> {
+    let x = select(-1.0, 1.0, (index & 1u) == 1u);
+    let y = select(-1.0, 1.0, (index & 2u) == 2u);
+    return vec4<f32>(x, y, 0.0, 1.0);
+}
+
+@fragment
+fn fs_main() -> @location(0) vec4<f32> {
+    return vec4<f32>(1.0, 0.0, 1.0, 1.0);
+}
+";
+
 #[test]
-fn concrete_shader_retains_active_state_across_failed_candidate() {
+fn concrete_shader_init_retains_module_across_invalid_reload_then_commits() {
     let (shared_data, message_hub) = reload_context();
-    let mut active = Shader::new(generate_random_uid(), &shared_data, &message_hub);
-    let candidate = Shader::create_from_data(
+    let context = headless_render_context(&shared_data, &message_hub);
+    let path = Path::new("reload_shader.wgsl");
+    let mut shader = Shader::create_from_data(
         &shared_data,
         &message_hub,
         generate_random_uid(),
         &ShaderData {
             spirv_code: Vec::new(),
-            wgsl_code: "invalid wgsl".to_string(),
+            wgsl_code: VALID_COMPUTE_WGSL.to_string(),
         },
     );
+    shader.set_path(path);
+    assert!(shader.init(&context).is_ok());
+    let active_module = shader.module() as *const _;
 
-    active.reload_state_mut().activate();
-    active.replace_from(&candidate);
-    let error = ReloadError::new(
-        Path::new("data/shaders/lighting.wgsl"),
-        "shader",
-        "expected expression",
-        true,
+    let mut invalid = Shader::create_from_data(
+        &shared_data,
+        &message_hub,
+        generate_random_uid(),
+        &ShaderData {
+            spirv_code: Vec::new(),
+            wgsl_code: "@compute @workgroup_size(1) fn main( {".to_string(),
+        },
     );
-    active.record_reload_failure(error.clone());
+    invalid.set_path(path);
+    shader.replace_from(&invalid);
+    let error = shader.init(&context).expect_err("invalid shader must fail");
+    assert!(shader.module() as *const _ == active_module);
+    assert!(shader.last_reload_error().is_some());
+    assert!(error.previous_resource_active);
 
-    assert!(active.reload_state().active());
-    assert!(active.reload_state().pending());
-    assert_eq!(active.last_reload_error(), Some(&error));
-
-    active.replace_from(&candidate);
-    active.reload_state_mut().commit();
-    assert!(active.reload_state().active());
-    assert!(!active.reload_state().pending());
-    assert!(active.reload_state().last_error().is_none());
+    let valid = Shader::create_from_data(
+        &shared_data,
+        &message_hub,
+        generate_random_uid(),
+        &ShaderData {
+            spirv_code: Vec::new(),
+            wgsl_code: VALID_COMPUTE_WGSL.to_string(),
+        },
+    );
+    shader.replace_from(&valid);
+    assert!(shader.init(&context).is_ok());
+    assert!(shader.last_reload_error().is_none());
+    let _committed_module = shader.module();
 }
 
 #[test]
-fn concrete_compute_pipeline_retains_active_state_then_commits() {
+fn concrete_compute_pipeline_init_retains_pipeline_across_invalid_reload_then_commits() {
     let (shared_data, message_hub) = reload_context();
-    let mut active = ComputePipeline::new(generate_random_uid(), &shared_data, &message_hub);
-    let candidate = ComputePipeline::new(generate_random_uid(), &shared_data, &message_hub);
-
-    active.reload_state_mut().activate();
-    active.replace_from(&candidate);
-    let error = ReloadError::new(
-        Path::new("data/pipelines/lighting.compute_pipeline"),
-        "compute pipeline",
-        "pipeline layout mismatch",
-        true,
+    let context = headless_render_context(&shared_data, &message_hub);
+    let shader_path = Path::new("reload_compute.wgsl");
+    let shader = shader_resource(&shared_data, &message_hub, shader_path, VALID_COMPUTE_WGSL);
+    assert!(shader.get_mut().init(&context).is_ok());
+    let mut pipeline = ComputePipeline::from_shader(
+        PathBuf::from("reload.compute_pipeline"),
+        &shared_data,
+        &message_hub,
+        shader.clone(),
     );
-    active.record_reload_failure(error.clone());
+    let binding_data = BindingData::new(&context, "reload");
+    assert!(pipeline.init(&context, &binding_data, None));
+    let active_pipeline = pipeline.compute_pipeline() as *const _;
 
-    assert!(active.reload_state().active());
-    assert!(active.reload_state().pending());
-    assert_eq!(active.last_reload_error(), Some(&error));
+    let invalid = shader_resource(
+        &shared_data,
+        &message_hub,
+        shader_path,
+        "@compute @workgroup_size(1) fn other() {}",
+    );
+    shader.get_mut().replace_from(&invalid.get());
+    pipeline.check_shaders_to_reload(shader_path.to_string_lossy().into_owned());
+    assert!(!pipeline.init(&context, &binding_data, None));
+    assert!(pipeline.compute_pipeline() as *const _ == active_pipeline);
+    assert_eq!(
+        pipeline
+            .last_reload_error()
+            .map(|error| error.stage.as_str()),
+        Some("compute pipeline")
+    );
 
-    active.replace_from(&candidate);
-    active.reload_state_mut().commit();
-    assert!(active.reload_state().active());
-    assert!(!active.reload_state().pending());
+    let valid = shader_resource(&shared_data, &message_hub, shader_path, VALID_COMPUTE_WGSL);
+    shader.get_mut().replace_from(&valid.get());
+    pipeline.check_shaders_to_reload(shader_path.to_string_lossy().into_owned());
+    assert!(pipeline.init(&context, &binding_data, None));
+    assert!(pipeline.last_reload_error().is_none());
+    let _committed_pipeline = pipeline.compute_pipeline();
 }
 
 #[test]
-fn concrete_render_pipeline_retains_active_state_then_commits() {
+fn concrete_render_pipeline_init_retains_pipeline_across_invalid_reload_then_commits() {
     let (shared_data, message_hub) = reload_context();
-    let mut active = RenderPipeline::new(generate_random_uid(), &shared_data, &message_hub);
-    let candidate = RenderPipeline::new(generate_random_uid(), &shared_data, &message_hub);
-
-    active.reload_state_mut().activate();
-    active.replace_from(&candidate);
-    let error = ReloadError::new(
-        Path::new("data/pipelines/lighting.render_pipeline"),
-        "render pipeline",
-        "fragment target mismatch",
-        true,
+    let context = headless_render_context(&shared_data, &message_hub);
+    let shader_path = Path::new("reload_render.wgsl");
+    let shader = shader_resource(&shared_data, &message_hub, shader_path, VALID_RENDER_WGSL);
+    assert!(shader.get_mut().init(&context).is_ok());
+    let data = RenderPipelineData {
+        vertex_shader: shader_path.to_path_buf(),
+        fragment_shader: shader_path.to_path_buf(),
+        ..RenderPipelineData::default()
+    };
+    let mut pipeline = RenderPipeline::from_shaders(
+        PathBuf::from("reload.render_pipeline"),
+        data,
+        &shared_data,
+        &message_hub,
+        shader.clone(),
+        shader.clone(),
     );
-    active.record_reload_failure(error.clone());
+    let binding_data = BindingData::new(&context, "reload");
+    let format = TextureFormat::Bgra8UnormSrgb;
+    assert!(pipeline.init(&context, vec![&format], None, &binding_data, None, None));
+    let active_pipeline = pipeline.render_pipeline() as *const _;
 
-    assert!(active.reload_state().active());
-    assert!(active.reload_state().pending());
-    assert_eq!(active.last_reload_error(), Some(&error));
+    let invalid = shader_resource(
+        &shared_data,
+        &message_hub,
+        shader_path,
+        VALID_VERTEX_ONLY_WGSL,
+    );
+    shader.get_mut().replace_from(&invalid.get());
+    pipeline.check_shaders_to_reload(shader_path.to_string_lossy().into_owned());
+    assert!(!pipeline.init(&context, vec![&format], None, &binding_data, None, None));
+    assert!(pipeline.render_pipeline() as *const _ == active_pipeline);
+    assert_eq!(
+        pipeline
+            .last_reload_error()
+            .map(|error| error.stage.as_str()),
+        Some("render pipeline")
+    );
 
-    active.replace_from(&candidate);
-    active.reload_state_mut().commit();
-    assert!(active.reload_state().active());
-    assert!(!active.reload_state().pending());
+    let valid = shader_resource(&shared_data, &message_hub, shader_path, VALID_RENDER_WGSL);
+    shader.get_mut().replace_from(&valid.get());
+    pipeline.check_shaders_to_reload(shader_path.to_string_lossy().into_owned());
+    assert!(pipeline.init(&context, vec![&format], None, &binding_data, None, None));
+    assert!(pipeline.last_reload_error().is_none());
+    let _committed_pipeline = pipeline.render_pipeline();
 }

@@ -36,7 +36,7 @@ pub struct CommandBuffer {
 
 pub struct WebGpuContext {
     pub instance: wgpu::Instance,
-    pub surface: wgpu::Surface<'static>,
+    pub surface: Option<wgpu::Surface<'static>>,
     pub adapter: wgpu::Adapter,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
@@ -63,8 +63,9 @@ impl WebGpuContext {
     }
     pub fn configure(&self) {
         inox_profiler::scoped_profile!("render_context::configure");
-        self.surface
-            .configure(&self.device, &self.config.read().unwrap());
+        if let Some(surface) = self.surface.as_ref() {
+            surface.configure(&self.device, &self.config.read().unwrap());
+        }
     }
 }
 
@@ -244,7 +245,7 @@ impl RenderContext {
             device.on_uncaptured_error(Arc::new(Self::default_error_handler));
             (
                 instance,
-                surface,
+                Some(surface),
                 adapter,
                 device,
                 queue,
@@ -254,7 +255,7 @@ impl RenderContext {
 
         inox_log::debug_log!("Using {:?}", adapter.get_info());
 
-        let surface_capabilities = surface.get_capabilities(&adapter);
+        let surface_capabilities = surface.as_ref().unwrap().get_capabilities(&adapter);
         let format = surface_capabilities
             .formats
             .iter()
@@ -306,8 +307,8 @@ impl RenderContext {
         };
 
         //debug_log!("Surface format: {:?}", config.format);
-        surface.configure(&device, &config);
-        let _ = surface.get_current_texture();
+        surface.as_ref().unwrap().configure(&device, &config);
+        let _ = surface.as_ref().unwrap().get_current_texture();
 
         let webgpu = WebGpuContext {
             instance,
@@ -332,6 +333,73 @@ impl RenderContext {
             passes: RwLock::new(Vec::new()),
             capabilities,
         }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[doc(hidden)]
+    pub async fn create_headless(
+        shared_data: SharedDataRc,
+        message_hub: MessageHubRc,
+    ) -> Option<Self> {
+        setup_env();
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::all(),
+            flags: wgpu::InstanceFlags::empty(),
+            backend_options: wgpu::BackendOptions::from_env_or_default(),
+            memory_budget_thresholds: Default::default(),
+            display: None,
+        });
+        let adapter = wgpu::util::initialize_adapter_from_env_or_default(&instance, None)
+            .await
+            .ok()?;
+        let (device, queue) = adapter
+            .request_device(&wgpu::DeviceDescriptor {
+                label: Some("Reload Test Device"),
+                required_features: wgpu::Features::empty(),
+                required_limits: wgpu::Limits::downlevel_defaults(),
+                memory_hints: wgpu::MemoryHints::Performance,
+                trace: wgpu::Trace::Off,
+                experimental_features: wgpu::ExperimentalFeatures::default(),
+                default_queue: wgpu::QueueDescriptor::default(),
+            })
+            .await
+            .ok()?;
+        device.on_uncaptured_error(Arc::new(Self::default_error_handler));
+        let format = wgpu::TextureFormat::Bgra8UnormSrgb;
+        let webgpu = WebGpuContext {
+            instance,
+            surface: None,
+            adapter,
+            device,
+            queue,
+            config: RwLock::new(wgpu::SurfaceConfiguration {
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                format,
+                view_formats: vec![format],
+                width: DEFAULT_WIDTH,
+                height: DEFAULT_HEIGHT,
+                present_mode: wgpu::PresentMode::Fifo,
+                alpha_mode: wgpu::CompositeAlphaMode::Opaque,
+                color_space: wgpu::SurfaceColorSpace::Auto,
+                desired_maximum_frame_latency: 2,
+            }),
+        };
+        let capabilities =
+            RenderCapabilities::from_adapter(&webgpu.adapter.limits(), webgpu.adapter.features());
+        Some(Self {
+            texture_handler: Arc::new(TextureHandler::create(&webgpu.device)),
+            shared_data,
+            message_hub,
+            state: RwLock::new(RendererState::Submitted),
+            webgpu: Arc::new(webgpu),
+            binding_data_buffer: Arc::new(BindingDataBuffer::default()),
+            global_buffers: GlobalBuffers::default(),
+            command_buffer: RwLock::new(None),
+            surface: RwLock::new(None),
+            render_targets: RwLock::new(Vec::new()),
+            passes: RwLock::new(Vec::new()),
+            capabilities,
+        })
     }
 
     pub fn resolution(&self) -> (u32, u32) {
@@ -464,7 +532,13 @@ impl RenderContext {
         let screen_texture = {
             inox_profiler::scoped_profile!("wgpu::get_current_texture");
 
-            self.webgpu.surface.get_current_texture()
+            self.webgpu
+                .surface
+                .as_ref()
+                .map(wgpu::Surface::get_current_texture)
+        };
+        let Some(screen_texture) = screen_texture else {
+            return false;
         };
         match screen_texture {
             wgpu::CurrentSurfaceTexture::Success(surface_texture)

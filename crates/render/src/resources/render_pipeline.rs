@@ -132,6 +132,23 @@ impl DataTypeResource for RenderPipeline {
 }
 
 impl RenderPipeline {
+    #[doc(hidden)]
+    pub fn from_shaders(
+        path: PathBuf,
+        data: RenderPipelineData,
+        shared_data: &SharedDataRc,
+        message_hub: &MessageHubRc,
+        vertex_shader: Resource<Shader>,
+        fragment_shader: Resource<Shader>,
+    ) -> Self {
+        let mut pipeline = Self::new(ResourceId::default(), shared_data, message_hub);
+        pipeline.path = path;
+        pipeline.data = data;
+        pipeline.vertex_shader = Some(vertex_shader);
+        pipeline.fragment_shader = Some(fragment_shader);
+        pipeline
+    }
+
     pub fn data(&self) -> &RenderPipelineData {
         &self.data
     }
