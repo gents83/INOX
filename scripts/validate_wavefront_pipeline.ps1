@@ -119,6 +119,7 @@ function Invoke-NativeViewerSmoke {
 
 function Invoke-BrowserSmoke {
     $browser = Find-BrowserExecutable
+    Write-Host "Using browser executable: $browser"
     $python = (Get-Command python.exe -ErrorAction SilentlyContinue).Source
     if (-not $python) {
         throw "Browser WebGPU smoke is unavailable: python.exe is required for a local static server."
