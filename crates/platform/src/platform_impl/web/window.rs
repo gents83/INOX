@@ -9,6 +9,41 @@ use crate::handle::*;
 use crate::window::*;
 use crate::{InputState, Key, MouseButton, MouseState};
 
+const CANVAS_HANDLE_ID: u32 = 1;
+
+fn positive_dimension(value: Option<f64>, fallback: u32, scale_factor: f32) -> u32 {
+    let css_dimension = value
+        .filter(|value| value.is_finite() && *value > 0.0)
+        .unwrap_or(fallback.max(1) as f64);
+    let pixels = css_dimension * f64::from(scale_factor);
+    pixels.ceil().clamp(1.0, f64::from(u32::MAX)) as u32
+}
+
+fn canvas_dimensions(
+    window: &web_sys::Window,
+    requested_width: u32,
+    requested_height: u32,
+) -> (u32, u32, f32) {
+    let device_pixel_ratio = window.device_pixel_ratio();
+    let scale_factor = if device_pixel_ratio.is_finite() && device_pixel_ratio > 0.0 {
+        device_pixel_ratio
+    } else {
+        1.0
+    }
+    .max(1.0) as f32;
+    let width = positive_dimension(
+        window.inner_width().ok().and_then(|value| value.as_f64()),
+        requested_width,
+        scale_factor,
+    );
+    let height = positive_dimension(
+        window.inner_height().ok().and_then(|value| value.as_f64()),
+        requested_height,
+        scale_factor,
+    );
+    (width, height, scale_factor)
+}
+
 impl Window {
     pub fn create_handle(
         _title: String,
@@ -22,19 +57,17 @@ impl Window {
     ) -> Handle {
         let window = web_sys::window().unwrap();
         let document = window.document().unwrap();
-        let canvas = document.get_element_by_id("canvas").unwrap();
-        canvas.set_attribute("tabindex", "0").ok();
-        canvas.set_attribute("data-raw-handle", "0").ok();
-        let canvas: web_sys::HtmlCanvasElement =
-            canvas.dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
-        let device_pixel_ratio = window.device_pixel_ratio();
-        *scale_factor = device_pixel_ratio.max(1.) as _;
-        let window_width =
-            (window.inner_width().unwrap().as_f64().unwrap()).max(*width as f64) as f32;
-        let window_height =
-            (window.inner_height().unwrap().as_f64().unwrap()).max(*height as f64) as f32;
-        *width = window_width as u32;
-        *height = window_height as u32;
+        let element = document.get_element_by_id("canvas").unwrap();
+        element.set_attribute("tabindex", "0").ok();
+        element
+            .set_attribute("data-raw-handle", &CANVAS_HANDLE_ID.to_string())
+            .ok();
+        let canvas: web_sys::HtmlCanvasElement = element.dyn_into().unwrap();
+        let (canvas_width, canvas_height, canvas_scale_factor) =
+            canvas_dimensions(&window, *width, *height);
+        *width = canvas_width;
+        *height = canvas_height;
+        *scale_factor = canvas_scale_factor;
         canvas.set_width(*width);
         canvas.set_height(*height);
         events_dispatcher.send_event(WindowEvent::PosChanged(0, 0));
@@ -44,12 +77,29 @@ impl Window {
         Self::add_mouse_event_listener(events_dispatcher, &canvas, "mousemove", MouseState::Move);
         Self::add_mouse_event_listener(events_dispatcher, &canvas, "mousedown", MouseState::Down);
         Self::add_mouse_event_listener(events_dispatcher, &canvas, "mouseup", MouseState::Up);
-
         Self::add_key_event_listener(events_dispatcher, &canvas, "keyup", InputState::Released);
         Self::add_key_event_listener(events_dispatcher, &canvas, "keydown", InputState::Pressed);
 
+        let resize_events = events_dispatcher.clone();
+        let resize_canvas = canvas.clone();
+        let resize_window = window.clone();
+        let resize_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
+            let (width, height, scale_factor) = canvas_dimensions(&resize_window, 1, 1);
+            resize_canvas.set_width(width);
+            resize_canvas.set_height(height);
+            resize_events.send_event(WindowEvent::SizeChanged(width, height));
+            resize_events.send_event(WindowEvent::ScaleFactorChanged(scale_factor));
+        }) as Box<dyn FnMut(_)>);
+        window
+            .add_event_listener_with_callback("resize", resize_closure.as_ref().unchecked_ref())
+            .ok();
+        resize_closure.forget();
+
         Handle {
-            handle_impl: HandleImpl { id: 0 },
+            handle_impl: HandleImpl {
+                id: CANVAS_HANDLE_ID,
+                canvas,
+            },
         }
     }
 
@@ -60,29 +110,30 @@ impl Window {
         state: MouseState,
     ) {
         let events_dispatcher = events_dispatcher.clone();
+        let callback_canvas = canvas.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
-            let window = web_sys::window().unwrap();
-            let document = window.document().unwrap();
-            let canvas = document.get_element_by_id("canvas").unwrap();
-            let canvas: web_sys::HtmlCanvasElement =
-                canvas.dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
-            let rect = canvas.get_bounding_client_rect();
-            let width = canvas.width() as f32;
-            let height = canvas.height() as f32;
-            let x = event.offset_x() as f32 * (width / rect.width() as f32);
-            let y = event.offset_y() as f32 * (height / rect.height() as f32);
+            let rect = callback_canvas.get_bounding_client_rect();
+            let (x, y, normalized_x, normalized_y) = map_canvas_mouse_coordinates(
+                event.client_x() as f64,
+                event.client_y() as f64,
+                rect.left(),
+                rect.top(),
+                rect.width(),
+                rect.height(),
+                callback_canvas.width(),
+                callback_canvas.height(),
+            );
             let button = match event.button() {
-                0 => MouseButton::None,
-                1 => MouseButton::Left,
+                0 => MouseButton::Left,
+                1 => MouseButton::Middle,
                 2 => MouseButton::Right,
-                4 => MouseButton::Middle,
-                index => MouseButton::Other(index.try_into().unwrap()),
+                index => MouseButton::Other(u16::try_from(index).unwrap_or_default()),
             };
             events_dispatcher.send_event(crate::MouseEvent {
-                x: x as _,
-                y: y as _,
-                normalized_x: x / width,
-                normalized_y: y / height,
+                x,
+                y,
+                normalized_x,
+                normalized_y,
                 button,
                 state,
             });

@@ -6,6 +6,50 @@ use inox_messenger::{implement_message, Listener, MessageHubRc};
 
 pub const DEFAULT_DPI: f32 = 96.0;
 
+/// Converts CSS-space pointer coordinates into device-pixel coordinates.
+///
+/// Browser layout dimensions may be zero while a canvas is hidden or before its
+/// first layout pass. Keep the conversion finite and clamp the normalized
+/// coordinates so input outside the canvas cannot produce invalid render input.
+#[inline]
+pub fn map_canvas_mouse_coordinates(
+    client_x: f64,
+    client_y: f64,
+    left: f64,
+    top: f64,
+    css_width: f64,
+    css_height: f64,
+    pixel_width: u32,
+    pixel_height: u32,
+) -> (f64, f64, f32, f32) {
+    let css_width = if css_width.is_finite() && css_width > 0.0 {
+        css_width
+    } else {
+        1.0
+    };
+    let css_height = if css_height.is_finite() && css_height > 0.0 {
+        css_height
+    } else {
+        1.0
+    };
+    let normalized_x = if client_x.is_finite() && left.is_finite() {
+        ((client_x - left) / css_width).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    let normalized_y = if client_y.is_finite() && top.is_finite() {
+        ((client_y - top) / css_height).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    (
+        normalized_x * pixel_width.max(1) as f64,
+        normalized_y * pixel_height.max(1) as f64,
+        normalized_x as f32,
+        normalized_y as f32,
+    )
+}
+
 #[derive(Debug, PartialOrd, PartialEq, Clone)]
 pub enum WindowEvent {
     Show,

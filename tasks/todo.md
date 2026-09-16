@@ -5,7 +5,7 @@
 - [x] Fix `BufferRef` logical-size/capacity/overwrite behavior and add shrink/grow/release tests. (Range contract and nonblocking logical writes implemented; GPU integration coverage remains.)
 - [x] Fix cylinder and torus indexing and add bounds/connectivity tests.
 - [x] Restore allocator, packing, BVH, node, common-script, viewer-config, and pass-order regression coverage. (Focused integration coverage passes for all listed contracts.)
-- [ ] Fix Web canvas ownership, mouse mapping, resize, valid handle, and surface setup.
+- [x] Fix Web canvas ownership, mouse mapping, resize, valid handle, and surface setup. (Retained canvas ownership, device-pixel sizing, finite/clamped pointer mapping, stable raw handle, and resize event path implemented.)
 - [ ] Negotiate adapter features/limits instead of unconditionally requesting optional capabilities.
 - [ ] Make shader reload and binarizer failures nonfatal but observable; preserve last-known-good resources.
 - [ ] Remove hot-loop allocations and repeated locks/lookups covered by the production plan. (Per-dispatch pipeline Vec allocation removed; indirect draw stride corrected; render-target/meshlet lock audits remain.)

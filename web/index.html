@@ -15,9 +15,11 @@
         }
 
         canvas {
-            width: 100vw !important;
-            height: 100vh !important;
-            aspect-ratio: 16 / 9;
+            display: block;
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
         }
     </style>
 </head>
@@ -38,47 +40,14 @@
             <a href="test_canvas.html">Canvas info test</a>
         </li>
     </ul>
-    <canvas id="canvas"></canvas>
-    <canvas id="wgpu_canvas" width="10" height="10"></canvas>
+    <div id="status" role="status"></div>
+    <canvas id="canvas" width="1" height="1" tabindex="0"></canvas>
     <script type="module">
-        var wgpu_canvas = document.getElementById('wgpu_canvas');
-        var is_wgpu_enabled = false;
-        is_wgpu_enabled = wgpu_canvas.getContext('webgpu') != null;
-
-        var canvas = document.getElementById('canvas');
-        var ctx = canvas.getContext('2d');
-        // Set actual size in memory (scaled to account for extra pixel density).
-        const scale = window.devicePixelRatio; // Change to 1 on retina screens to see blurry canvas.
-        canvas.width = Math.floor(canvas.width * scale);
-        canvas.height = Math.floor(canvas.height * scale);
-
-        function write_text(text, x, y) {
-            ctx.strokeStyle = "black";
-            ctx.fillStyle = 'white';
-            ctx.lineWidth = 3;
-            ctx.font = '14px Sans-serif';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'top';
-            ctx.strokeText(text, x, y);
-            ctx.fillText(text, x, y);
-        }
-
-        if (is_wgpu_enabled) {
-            write_text("WebGPU available <3", 5, 10);
-        } else {
-            write_text("WebGPU not supported!", 5, 10);
-            write_text("Make sure you are on a system with WebGPU enabled", 5, 30);
-
-            write_text("In Google Chrome Canary on desktop you can use an experimental flag", 5, 60);
-            write_text("You can enable it at chrome://flags/#enable-unsafe-webgpu", 5, 80);
-
-            write_text("In Mozilla Firefox Nightle on desktop you can use an experimental flag", 5, 110);
-            write_text("You can set in preferences 'dom.webgpu.enabled = true' and 'gfx.webrender.all = true'", 5, 130);
-
-            write_text("In Safari, first make sure the Developer Menu is visible", 5, 160);
-            write_text("(Preferences > Advanced), then ensure Develop > Experimental Features > WebGPU", 5, 180);
-
-        }
+        const status = document.getElementById('status');
+        const is_wgpu_enabled = 'gpu' in navigator;
+        status.textContent = is_wgpu_enabled
+            ? 'WebGPU available'
+            : 'WebGPU is not available. Enable WebGPU in a supported browser.';
     </script>
 </body>
 

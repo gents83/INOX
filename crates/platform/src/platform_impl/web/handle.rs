@@ -1,11 +1,8 @@
-use wasm_bindgen::JsCast;
-
 use raw_window_handle::{
     DisplayHandle, RawDisplayHandle, RawWindowHandle, WebDisplayHandle, WebWindowHandle,
     WindowHandle,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HandleImpl {
     /// An ID value inserted into the data attributes of the canvas element as 'raw-handle'
     ///
@@ -14,7 +11,34 @@ pub struct HandleImpl {
     /// Each canvas created by the windowing system should be assigned their own unique ID.
     /// 0 should be reserved for invalid / null IDs.
     pub id: u32,
+    pub(crate) canvas: web_sys::HtmlCanvasElement,
 }
+
+impl Clone for HandleImpl {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            canvas: self.canvas.clone(),
+        }
+    }
+}
+
+impl std::fmt::Debug for HandleImpl {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("HandleImpl")
+            .field("id", &self.id)
+            .finish()
+    }
+}
+
+impl PartialEq for HandleImpl {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for HandleImpl {}
 
 impl HandleImpl {
     pub fn as_window_handle(&self) -> WindowHandle<'_> {
@@ -29,11 +53,6 @@ impl HandleImpl {
         self.id != 0
     }
     pub fn canvas(&self) -> web_sys::HtmlCanvasElement {
-        let window = web_sys::window().unwrap();
-        let document = window.document().unwrap();
-        let canvas = document.get_element_by_id("canvas").unwrap();
-        let canvas: web_sys::HtmlCanvasElement =
-            canvas.dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
-        canvas
+        self.canvas.clone()
     }
 }
