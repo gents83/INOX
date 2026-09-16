@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{handle::*, KeyEvent, KeyTextEvent, MouseEvent};
+use crate::{handle::*, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState};
 use inox_commands::CommandParser;
 use inox_messenger::{implement_message, Listener, MessageHubRc};
 
@@ -48,6 +48,24 @@ pub fn map_canvas_mouse_coordinates(
         normalized_x as f32,
         normalized_y as f32,
     )
+}
+
+/// Returns the button associated with a browser mouse event.
+///
+/// Movement events do not represent a button press, even though browsers
+/// report a default button index for them.
+#[inline]
+pub fn canvas_mouse_button(state: MouseState, button: i16) -> MouseButton {
+    if state == MouseState::Move {
+        MouseButton::None
+    } else {
+        match button {
+            0 => MouseButton::Left,
+            1 => MouseButton::Middle,
+            2 => MouseButton::Right,
+            index => MouseButton::Other(u16::try_from(index).unwrap_or_default()),
+        }
+    }
 }
 
 #[derive(Debug, PartialOrd, PartialEq, Clone)]

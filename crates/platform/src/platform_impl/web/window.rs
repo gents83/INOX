@@ -7,7 +7,7 @@ use wasm_bindgen::JsCast;
 use super::handle::*;
 use crate::handle::*;
 use crate::window::*;
-use crate::{InputState, Key, MouseButton, MouseState};
+use crate::{InputState, Key, MouseState};
 
 const CANVAS_HANDLE_ID: u32 = 1;
 
@@ -123,12 +123,7 @@ impl Window {
                 callback_canvas.width(),
                 callback_canvas.height(),
             );
-            let button = match event.button() {
-                0 => MouseButton::Left,
-                1 => MouseButton::Middle,
-                2 => MouseButton::Right,
-                index => MouseButton::Other(u16::try_from(index).unwrap_or_default()),
-            };
+            let button = canvas_mouse_button(state, event.button());
             events_dispatcher.send_event(crate::MouseEvent {
                 x,
                 y,

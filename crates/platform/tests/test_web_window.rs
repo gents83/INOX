@@ -1,4 +1,4 @@
-use inox_platform::map_canvas_mouse_coordinates;
+use inox_platform::{canvas_mouse_button, map_canvas_mouse_coordinates, MouseButton, MouseState};
 
 #[test]
 fn maps_css_coordinates_to_device_pixels() {
@@ -14,6 +14,13 @@ fn clamps_coordinates_and_prevents_zero_dimension_division() {
         map_canvas_mouse_coordinates(-10.0, f64::INFINITY, 0.0, 0.0, 0.0, 0.0, 0, 0);
     assert_eq!((x, y), (0.0, 0.0));
     assert_eq!((normalized_x, normalized_y), (0.0, 0.0));
+}
+
+#[test]
+fn movement_does_not_report_a_button_press() {
+    assert_eq!(canvas_mouse_button(MouseState::Move, 0), MouseButton::None);
+    assert_eq!(canvas_mouse_button(MouseState::Down, 0), MouseButton::Left);
+    assert_eq!(canvas_mouse_button(MouseState::Up, 2), MouseButton::Right);
 }
 
 #[cfg(target_arch = "wasm32")]
