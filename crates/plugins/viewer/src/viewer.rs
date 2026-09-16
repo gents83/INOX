@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
-    BlitPass, CommandsPass, ComputeDiffuseLightingPass, ComputeGBufferPass,
+    wavefront_bounce_stage, BlitPass, CommandsPass, ComputeDiffuseLightingPass, ComputeGBufferPass,
     ComputeIndirectBouncePass, ComputeIndirectSetupPass, ComputeInstancesPass, ComputeShadowAOPass,
     ComputeSpecularLightingPass, ComputeWavefrontAoResolvePass, ComputeWavefrontCompositePass,
     ComputeWavefrontDenoisePass, ComputeWavefrontDirectCandidatesPass,
@@ -30,7 +30,6 @@ use inox_resources::ConfigBase;
 use inox_scene::{ObjectSystem, ScriptSystem};
 use inox_serialize::{read_from_file, SerializationType};
 use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
-use inox_uid::generate_uid_from_string;
 
 use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
@@ -561,74 +560,49 @@ impl Viewer {
             render_context.render_target(RenderTargetType::Visibility as usize);
         let mut source_queue = WAVEFRONT_PRIMARY_QUEUE_ID;
         let mut source_dispatch = WAVEFRONT_HIT_DISPATCH_ARGS_ID;
-        for bounce in 0..8u32 {
-            let destination_queue =
-                generate_uid_from_string(&format!("WAVEFRONT_BOUNCE_{}_QUEUE", bounce));
-            let destination_header =
-                generate_uid_from_string(&format!("WAVEFRONT_BOUNCE_{}_HEADER", bounce));
-            let destination_dispatch =
-                generate_uid_from_string(&format!("WAVEFRONT_BOUNCE_{}_DISPATCH", bounce));
-            let bounce_name = format!("ComputeWavefrontBounce{}", bounce + 1);
+        for bounce in 1..=8u32 {
+            let stage = wavefront_bounce_stage(bounce, source_queue, source_dispatch);
             let mut next = ComputeWavefrontNextBouncePass::create_for_queues(
                 context,
                 render_context,
-                WavefrontBounceBindingIds {
-                    source_ray_queue: source_queue,
-                    source_hit_queue: WAVEFRONT_HIT_QUEUE_ID,
-                    source_hit_header: WAVEFRONT_HIT_HEADER_ID,
-                    destination_ray_queue: destination_queue,
-                    destination_ray_header: destination_header,
-                    dispatch_args: source_dispatch,
-                },
-                bounce_name.as_str(),
+                stage.bindings,
+                stage.name.as_str(),
             );
             next.set_dimensions(visibility_texture.get().dimensions());
             render_context.add_pass(next, true);
             let dispatch = ComputeWavefrontDispatchPass::create_for_header(
                 context,
                 render_context,
-                destination_header,
-                destination_dispatch,
-                format!("ComputeWavefrontBounce{}Dispatch", bounce + 1).as_str(),
+                stage.bindings.destination_ray_header,
+                stage.destination_dispatch_args,
+                stage.dispatch_name.as_str(),
             );
             render_context.add_pass(dispatch, true);
             let mut traversal = ComputeWavefrontTraversalPass::create_for_queues(
                 context,
                 render_context,
-                WavefrontQueueBindingIds {
-                    ray_queue: destination_queue,
-                    ray_header: destination_header,
-                    hit_queue: WAVEFRONT_HIT_QUEUE_ID,
-                    hit_header: WAVEFRONT_HIT_HEADER_ID,
-                    dispatch_args: destination_dispatch,
-                },
-                format!("ComputeWavefrontBounce{}Traversal", bounce + 1).as_str(),
+                stage.traversal_bindings,
+                stage.traversal_name.as_str(),
             );
             traversal.set_dimensions(visibility_texture.get().dimensions());
             render_context.add_pass(traversal, true);
             let hit_dispatch = ComputeWavefrontDispatchPass::create_for_header(
                 context,
                 render_context,
-                WAVEFRONT_HIT_HEADER_ID,
+                stage.bindings.source_hit_header,
                 WAVEFRONT_HIT_DISPATCH_ARGS_ID,
-                format!("ComputeWavefrontBounce{}HitDispatch", bounce + 1).as_str(),
+                stage.hit_dispatch_name.as_str(),
             );
             render_context.add_pass(hit_dispatch, true);
             let mut shade = ComputeWavefrontShadePass::create_for_queues(
                 context,
                 render_context,
-                WavefrontQueueBindingIds {
-                    ray_queue: destination_queue,
-                    ray_header: destination_header,
-                    hit_queue: WAVEFRONT_HIT_QUEUE_ID,
-                    hit_header: WAVEFRONT_HIT_HEADER_ID,
-                    dispatch_args: WAVEFRONT_HIT_DISPATCH_ARGS_ID,
-                },
-                format!("ComputeWavefrontBounce{}Shade", bounce + 1).as_str(),
+                stage.shade_bindings,
+                stage.shade_name.as_str(),
             );
             shade.set_dimensions(visibility_texture.get().dimensions());
             render_context.add_pass(shade, true);
-            source_queue = destination_queue;
+            source_queue = stage.bindings.destination_ray_queue;
             source_dispatch = WAVEFRONT_HIT_DISPATCH_ARGS_ID;
         }
     }
