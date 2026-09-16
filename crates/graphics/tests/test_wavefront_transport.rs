@@ -230,6 +230,16 @@ fn wavefront_buffers_keep_full_resolution_with_non_native_render_scale() {
         assert!(source.contains("queue_capacity_for_resolution"));
         assert!(!source.contains("usize::MAX"));
     }
+    let transparency_pass = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("src/passes/compute_wavefront_transparency.rs"),
+    )
+    .unwrap();
+    assert!(transparency_pass.contains("MAX_WAVEFRONT_QUEUE_CAPACITY"));
+    assert!(transparency_pass.contains("saturating_mul(4)"));
+    assert!(!transparency_pass.contains("MAX_TRANSPARENT_QUEUE_CAPACITY"));
+    assert!(!transparency_pass.contains("1_048_576"));
+
     let denoise_pass = fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/passes/compute_wavefront_denoise.rs"),
     )

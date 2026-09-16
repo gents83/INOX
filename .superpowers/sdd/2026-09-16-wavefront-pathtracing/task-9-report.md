@@ -16,8 +16,8 @@
 - Corrected numeric material-index decoding to match the surface pass's `f32(material_id)` encoding, and added a cross-shader contract.
 - Unified all wavefront queue capacities on the actual full-resolution path (`render_scale = 1.0`) with a documented finite 2,097,152-entry cap; the 2,073,600-pixel default is fully represented and larger workloads set the GPU overflow marker.
 - Made composite, denoise, and upscale use full-resolution producer/consumer strides, and made CPU denoise dispatch cover the same full dimensions; render scale no longer changes storage indexing and remains a reconstruction-quality control.
-- Bounded queue header capacities through checked `u32` conversion and retained overflow signaling for over-cap workloads.
-- Added focused contracts for static activation, default-resolution and over-cap capacity, checked header conversion, material encoding, and non-native render-scale dispatch/stride behavior.
+- Bounded queue header capacities through checked `u32` conversion and retained overflow signaling for over-cap workloads; transparency now shares the same 2,097,152-entry finite budget as every wavefront queue.
+- Added focused contracts for static activation, default-resolution and over-cap capacity, transparency capacity parity, checked header conversion, material encoding, and non-native render-scale dispatch/stride behavior.
 
 ## Verification
 

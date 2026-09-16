@@ -10,7 +10,7 @@ use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
 use crate::{
     queue_capacity_u32, wavefront_auxiliary_bindings, AccumulationRecord, QueueHeader,
-    RadiancePackedData, TransparentHitRecord, WAVEFRONT_SCENE_ID,
+    RadiancePackedData, TransparentHitRecord, MAX_WAVEFRONT_QUEUE_CAPACITY, WAVEFRONT_SCENE_ID,
 };
 
 pub const COMPUTE_WAVEFRONT_TRANSPARENCY_PIPELINE: &str =
@@ -24,7 +24,6 @@ pub const WAVEFRONT_TRANSPARENT_QUEUE_ID: Uid =
     generate_static_uid_from_string("WAVEFRONT_TRANSPARENT_QUEUE");
 pub const WAVEFRONT_TRANSPARENT_HEADER_ID: Uid =
     generate_static_uid_from_string("WAVEFRONT_TRANSPARENT_HEADER");
-const MAX_TRANSPARENT_QUEUE_CAPACITY: usize = 1_048_576;
 
 pub struct ComputeWavefrontTransparencyPass {
     compute_pass: Resource<ComputePass>,
@@ -186,8 +185,10 @@ impl Pass for ComputeWavefrontTransparencyPass {
 impl ComputeWavefrontTransparencyPass {
     pub fn set_dimensions(&mut self, dimensions: (u32, u32)) -> &mut Self {
         self.dimensions = dimensions;
-        let capacity =
-            (dimensions.0 as usize * dimensions.1 as usize * 4).min(MAX_TRANSPARENT_QUEUE_CAPACITY);
+        let capacity = (dimensions.0 as usize)
+            .saturating_mul(dimensions.1 as usize)
+            .saturating_mul(4)
+            .min(MAX_WAVEFRONT_QUEUE_CAPACITY);
         self.queue
             .write()
             .unwrap()
