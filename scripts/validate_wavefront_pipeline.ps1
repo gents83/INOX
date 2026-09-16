@@ -71,13 +71,19 @@ function Find-BrowserExecutable {
 
     $chromeCommand = Get-Command chrome.exe -ErrorAction SilentlyContinue
     $edgeCommand = Get-Command msedge.exe -ErrorAction SilentlyContinue
-    $candidates = @(
-        if ($chromeCommand) { $chromeCommand.Source }
-        if ($edgeCommand) { $edgeCommand.Source }
-        (Join-Path ${env:ProgramFiles} "Google/Chrome/Application/chrome.exe")
-        (Join-Path ${env:ProgramFiles} "Microsoft/Edge/Application/msedge.exe")
-        (Join-Path ${env:LOCALAPPDATA} "Google/Chrome/Application/chrome.exe")
-    )
+    $candidates = @()
+    if ($chromeCommand) { $candidates += $chromeCommand.Source }
+    if ($edgeCommand) { $candidates += $edgeCommand.Source }
+    foreach ($programFilesRoot in @(${env:ProgramFiles}, ${env:ProgramFiles(x86)})) {
+        if ($programFilesRoot) {
+            $candidates += Join-Path $programFilesRoot "Google/Chrome/Application/chrome.exe"
+            $candidates += Join-Path $programFilesRoot "Microsoft/Edge/Application/msedge.exe"
+        }
+    }
+    if (${env:LOCALAPPDATA}) {
+        $candidates += Join-Path ${env:LOCALAPPDATA} "Google/Chrome/Application/chrome.exe"
+        $candidates += Join-Path ${env:LOCALAPPDATA} "Microsoft/Edge/Application/msedge.exe"
+    }
     $candidates = @($candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) })
 
     if ($candidates.Count -eq 0) {
@@ -96,23 +102,53 @@ function Invoke-NativeViewerSmoke {
     New-Item -ItemType Directory -Path $smokeRoot -Force | Out-Null
     $stdout = Join-Path $smokeRoot "stdout.log"
     $stderr = Join-Path $smokeRoot "stderr.log"
+    $startupMarker = "INOX_NATIVE_VIEWER_STARTUP_OK"
     $process = $null
+    $startupSucceeded = $false
     try {
         Write-Host "Starting native viewer for $NativeViewerSmokeSeconds seconds."
         $process = Start-Process -FilePath $viewer -ArgumentList @("-plugin", "inox_viewer") `
             -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru -WindowStyle Hidden
-        if ($process.WaitForExit($NativeViewerSmokeSeconds * 1000)) {
-            if ($process.ExitCode -ne 0) {
-                $errorText = if (Test-Path -LiteralPath $stderr) { Get-Content -LiteralPath $stderr -Raw } else { "" }
-                throw "Native viewer exited with code $($process.ExitCode). $errorText"
+        $deadline = (Get-Date).AddSeconds($NativeViewerSmokeSeconds)
+        $markerObserved = $false
+        while ((Get-Date) -lt $deadline) {
+            if ($process.HasExited) {
+                $stdoutText = if (Test-Path -LiteralPath $stdout) { Get-Content -LiteralPath $stdout -Raw } else { "" }
+                $stderrText = if (Test-Path -LiteralPath $stderr) { Get-Content -LiteralPath $stderr -Raw } else { "" }
+                throw "Native viewer exited with code $($process.ExitCode) before startup marker. stdout=$stdoutText stderr=$stderrText"
             }
-            throw "Native viewer exited before the startup smoke interval completed."
+            if (Test-Path -LiteralPath $stdout -PathType Leaf) {
+                $stdoutText = Get-Content -LiteralPath $stdout -Raw
+                if ($stdoutText -match [regex]::Escape($startupMarker)) {
+                    $markerObserved = $true
+                    break
+                }
+            }
+            Start-Sleep -Milliseconds 250
         }
-        Write-Host "Native viewer remained running through startup smoke."
+        if (-not $markerObserved) {
+            $stdoutText = if (Test-Path -LiteralPath $stdout) { Get-Content -LiteralPath $stdout -Raw } else { "" }
+            $stderrText = if (Test-Path -LiteralPath $stderr) { Get-Content -LiteralPath $stderr -Raw } else { "" }
+            throw "Native viewer did not emit $startupMarker before the smoke deadline. stdout=$stdoutText stderr=$stderrText"
+        }
+        while ((Get-Date) -lt $deadline) {
+            if ($process.HasExited) {
+                $stdoutText = Get-Content -LiteralPath $stdout -Raw
+                $stderrText = if (Test-Path -LiteralPath $stderr) { Get-Content -LiteralPath $stderr -Raw } else { "" }
+                throw "Native viewer exited with code $($process.ExitCode) after startup marker. stdout=$stdoutText stderr=$stderrText"
+            }
+            Start-Sleep -Milliseconds 250
+        }
+        $startupSucceeded = $true
+        Write-Host "Native viewer emitted $startupMarker and remained running through startup smoke."
     } finally {
         if ($process -and -not $process.HasExited) { Stop-Process -Id $process.Id -Force }
-        if (Test-Path -LiteralPath $smokeRoot -PathType Container) {
-            Remove-Item -LiteralPath $smokeRoot -Recurse -Force -ErrorAction SilentlyContinue
+        if ($startupSucceeded) {
+            if (Test-Path -LiteralPath $smokeRoot -PathType Container) {
+                Remove-Item -LiteralPath $smokeRoot -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        } else {
+            Write-Host "Native viewer diagnostics preserved at $smokeRoot" -ForegroundColor Yellow
         }
     }
 }
@@ -149,7 +185,7 @@ function Invoke-BrowserSmoke {
             "--user-data-dir=$browserProfile", "--virtual-time-budget=$($BrowserSmokeSeconds * 1000)",
             "--dump-dom", $url
         )
-        $browserOutput = & $browser @arguments 2>&1
+        $browserOutput = @(& $browser @arguments 2>&1)
         if ($LASTEXITCODE -ne 0) {
             throw "Browser WebGPU smoke failed with exit code $LASTEXITCODE. Browser output: $($browserOutput | Out-String)"
         }

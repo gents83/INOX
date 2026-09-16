@@ -320,6 +320,8 @@ impl RenderContext {
         //debug_log!("Surface format: {:?}", config.format);
         surface.as_ref().unwrap().configure(&device, &config);
         let _ = surface.as_ref().unwrap().get_current_texture();
+        #[cfg(not(target_arch = "wasm32"))]
+        inox_log::debug_log!("INOX_NATIVE_VIEWER_STARTUP_OK format={:?}", format);
         #[cfg(target_arch = "wasm32")]
         signal_browser_smoke("device");
 
