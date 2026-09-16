@@ -6,13 +6,23 @@ use inox_graphics::{
     WAVEFRONT_HIT_HEADER_ID, WAVEFRONT_HIT_QUEUE_ID, WAVEFRONT_PRIMARY_QUEUE_ID,
     WAVEFRONT_TRANSPARENT_HEADER_ID, WAVEFRONT_TRANSPARENT_QUEUE_ID,
 };
-use inox_viewer::viewer::PRODUCTION_PASS_ORDER;
+use inox_viewer::viewer::production_pass_metadata;
+
+fn active_pass_names() -> Vec<String> {
+    production_pass_metadata()
+        .into_iter()
+        .filter(|pass| pass.enabled)
+        .map(|pass| pass.name)
+        .collect()
+}
 
 #[test]
-fn production_pass_order_has_unique_entries_and_complete_queue_chain() {
-    let names: HashSet<_> = PRODUCTION_PASS_ORDER.iter().copied().collect();
-    assert_eq!(names.len(), PRODUCTION_PASS_ORDER.len());
-    assert_eq!(PRODUCTION_PASS_ORDER.len(), 63);
+fn production_metadata_has_unique_entries_and_complete_queue_chain() {
+    let metadata = production_pass_metadata();
+    let active = active_pass_names();
+    let names: HashSet<_> = active.iter().map(String::as_str).collect();
+    assert_eq!(names.len(), active.len());
+    assert_eq!(active.len(), 63);
 
     let fixed_prefix = [
         "DepthFirstPass",
@@ -32,7 +42,7 @@ fn production_pass_order_has_unique_entries_and_complete_queue_chain() {
         "ComputeWavefrontHitDispatchPass",
         "ComputeWavefrontShadePass",
     ];
-    assert_eq!(&PRODUCTION_PASS_ORDER[..fixed_prefix.len()], fixed_prefix);
+    assert_eq!(&active[..fixed_prefix.len()], fixed_prefix);
 
     let mut position = fixed_prefix.len();
     let mut source_queue = WAVEFRONT_PRIMARY_QUEUE_ID;
@@ -46,19 +56,16 @@ fn production_pass_order_has_unique_entries_and_complete_queue_chain() {
             stage.hit_dispatch_name.as_str(),
             stage.shade_name.as_str(),
         ];
-        assert_eq!(
-            &PRODUCTION_PASS_ORDER[position..position + expected.len()],
-            expected
-        );
-        for name in expected {
-            assert!(names.contains(name));
-        }
+        assert_eq!(&active[position..position + expected.len()], expected);
         position += expected.len();
         source_queue = stage.bindings.destination_ray_queue;
         source_dispatch = WAVEFRONT_HIT_DISPATCH_ARGS_ID;
     }
     assert_eq!(
-        PRODUCTION_PASS_ORDER[position..],
+        active[position..]
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
         [
             "ComputeWavefrontCompositePass",
             "ComputeWavefrontTransparencyResolvePass",
@@ -68,6 +75,26 @@ fn production_pass_order_has_unique_entries_and_complete_queue_chain() {
             "FinalizePass",
             "BlitPass",
         ]
+    );
+
+    let disabled = metadata
+        .into_iter()
+        .filter(|pass| !pass.enabled)
+        .map(|pass| pass.name)
+        .collect::<HashSet<_>>();
+    assert_eq!(
+        disabled,
+        [
+            "ComputeGBufferPass",
+            "ComputeShadowAOPass",
+            "ComputeDiffuseLightingPass",
+            "ComputeSpecularLightingPass",
+            "ComputeIndirectSetupPass",
+            "ComputeIndirectBouncePass",
+        ]
+        .into_iter()
+        .map(str::to_owned)
+        .collect()
     );
 }
 
@@ -94,7 +121,6 @@ fn wavefront_graph_contract_connects_queues_headers_and_dispatch_resources() {
 
     let mut source_queue = WAVEFRONT_PRIMARY_QUEUE_ID;
     let mut source_dispatch = WAVEFRONT_HIT_DISPATCH_ARGS_ID;
-
     for index in 1..=8 {
         let stage = wavefront_bounce_stage(index, source_queue, source_dispatch);
         assert_eq!(stage.bindings.source_ray_queue, source_queue);
@@ -129,7 +155,6 @@ fn wavefront_graph_contract_connects_queues_headers_and_dispatch_resources() {
             stage.shade_bindings.dispatch_args,
             WAVEFRONT_HIT_DISPATCH_ARGS_ID
         );
-
         source_queue = stage.bindings.destination_ray_queue;
         source_dispatch = WAVEFRONT_HIT_DISPATCH_ARGS_ID;
     }
@@ -144,21 +169,23 @@ fn wavefront_graph_contract_connects_queues_headers_and_dispatch_resources() {
 }
 
 #[test]
-fn production_pass_contract_keeps_visibility_before_lighting_and_composite_before_finalize() {
-    let position = |name: &str| {
-        PRODUCTION_PASS_ORDER
-            .iter()
-            .position(|pass| *pass == name)
-            .unwrap()
-    };
+fn production_pass_contract_keeps_dependencies_and_reconstruction_tail_ordered() {
+    let active = active_pass_names();
+    let position = |name: &str| active.iter().position(|pass| pass == name).unwrap();
     assert!(position("DepthFirstPass") < position("VisibilityBufferPass"));
     assert!(
         position("ComputeWavefrontSurfacePass") < position("ComputeWavefrontDirectCandidatesPass")
     );
     assert!(
         position("ComputeWavefrontDirectCandidatesPass")
-            < position("ComputeWavefrontCompositePass")
+            < position("ComputeWavefrontVisibilityPass")
     );
+    assert!(position("ComputeWavefrontVisibilityPass") < position("ComputeWavefrontCompositePass"));
     assert!(position("ComputeWavefrontCompositePass") < position("FinalizePass"));
     assert!(position("ComputeWavefrontUpscalePass") < position("FinalizePass"));
+    assert!(
+        position("ComputeWavefrontTransparencyPass")
+            < position("ComputeWavefrontTransparencyResolvePass")
+    );
+    assert!(position("ComputeWavefrontAoResolvePass") < position("ComputeWavefrontCompositePass"));
 }

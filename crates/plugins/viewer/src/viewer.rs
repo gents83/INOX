@@ -38,78 +38,92 @@ const MAX_NUM_LIGHTS: usize = 512;
 const MAX_NUM_TEXTURES: usize = 2048;
 const MAX_NUM_MATERIALS: usize = 256;
 
-pub const PRODUCTION_PASS_ORDER: &[&str] = &[
-    "DepthFirstPass",
-    "DepthPyramidPass",
-    "ComputeInstancesPass",
-    "CullingPass",
-    "CommandsPass",
-    "VisibilityBufferPass",
-    "ComputeWavefrontSurfacePass",
-    "ComputeWavefrontTransparencyPass",
-    "ComputeWavefrontAoResolvePass",
-    "ComputeWavefrontDirectCandidatesPass",
-    "ComputeWavefrontVisibilityPass",
-    "ComputeWavefrontPrimaryPass",
-    "ComputeWavefrontDispatchPass",
-    "ComputeWavefrontTraversalPass",
-    "ComputeWavefrontHitDispatchPass",
-    "ComputeWavefrontShadePass",
-    "ComputeWavefrontBounce1",
-    "ComputeWavefrontBounce1Dispatch",
-    "ComputeWavefrontBounce1Traversal",
-    "ComputeWavefrontBounce1HitDispatch",
-    "ComputeWavefrontBounce1Shade",
-    "ComputeWavefrontBounce2",
-    "ComputeWavefrontBounce2Dispatch",
-    "ComputeWavefrontBounce2Traversal",
-    "ComputeWavefrontBounce2HitDispatch",
-    "ComputeWavefrontBounce2Shade",
-    "ComputeWavefrontBounce3",
-    "ComputeWavefrontBounce3Dispatch",
-    "ComputeWavefrontBounce3Traversal",
-    "ComputeWavefrontBounce3HitDispatch",
-    "ComputeWavefrontBounce3Shade",
-    "ComputeWavefrontBounce4",
-    "ComputeWavefrontBounce4Dispatch",
-    "ComputeWavefrontBounce4Traversal",
-    "ComputeWavefrontBounce4HitDispatch",
-    "ComputeWavefrontBounce4Shade",
-    "ComputeWavefrontBounce5",
-    "ComputeWavefrontBounce5Dispatch",
-    "ComputeWavefrontBounce5Traversal",
-    "ComputeWavefrontBounce5HitDispatch",
-    "ComputeWavefrontBounce5Shade",
-    "ComputeWavefrontBounce6",
-    "ComputeWavefrontBounce6Dispatch",
-    "ComputeWavefrontBounce6Traversal",
-    "ComputeWavefrontBounce6HitDispatch",
-    "ComputeWavefrontBounce6Shade",
-    "ComputeWavefrontBounce7",
-    "ComputeWavefrontBounce7Dispatch",
-    "ComputeWavefrontBounce7Traversal",
-    "ComputeWavefrontBounce7HitDispatch",
-    "ComputeWavefrontBounce7Shade",
-    "ComputeWavefrontBounce8",
-    "ComputeWavefrontBounce8Dispatch",
-    "ComputeWavefrontBounce8Traversal",
-    "ComputeWavefrontBounce8HitDispatch",
-    "ComputeWavefrontBounce8Shade",
-    "ComputeWavefrontCompositePass",
-    "ComputeWavefrontTransparencyResolvePass",
-    "ComputeWavefrontDenoiseTemporalPass",
-    "ComputeWavefrontDenoiseBilateralPass",
-    "ComputeWavefrontUpscalePass",
-    "FinalizePass",
-    "BlitPass",
-];
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProductionPassMetadata {
+    pub name: String,
+    pub enabled: bool,
+}
+
+/// Canonical metadata for the passes that the viewer registers.
+///
+/// This is consumed by the registration assertion and by integration tests;
+/// tests do not maintain a second expected pass-name list. Generated bounces
+/// are expanded from the same stage metadata used by registration.
+pub fn production_pass_metadata() -> Vec<ProductionPassMetadata> {
+    let mut metadata = Vec::new();
+    let mut add = |name: &str, enabled| {
+        metadata.push(ProductionPassMetadata {
+            name: name.to_owned(),
+            enabled,
+        });
+    };
+
+    add("DepthFirstPass", true);
+    add("DepthPyramidPass", true);
+    add("ComputeInstancesPass", true);
+    add("CullingPass", true);
+    add("CommandsPass", true);
+    add("VisibilityBufferPass", true);
+    add("ComputeGBufferPass", false);
+    add("ComputeWavefrontSurfacePass", true);
+    add("ComputeWavefrontTransparencyPass", true);
+    add("ComputeShadowAOPass", false);
+    add("ComputeWavefrontAoResolvePass", true);
+    add("ComputeWavefrontDirectCandidatesPass", true);
+    add("ComputeWavefrontVisibilityPass", true);
+    add("ComputeDiffuseLightingPass", false);
+    add("ComputeSpecularLightingPass", false);
+    add("ComputeIndirectSetupPass", false);
+    add("ComputeIndirectBouncePass", false);
+    add("ComputeWavefrontPrimaryPass", true);
+    add("ComputeWavefrontDispatchPass", true);
+    add("ComputeWavefrontTraversalPass", true);
+    add("ComputeWavefrontHitDispatchPass", true);
+    add("ComputeWavefrontShadePass", true);
+
+    let mut source_queue = WAVEFRONT_PRIMARY_QUEUE_ID;
+    let mut source_dispatch = WAVEFRONT_HIT_DISPATCH_ARGS_ID;
+    for bounce in 1..=8 {
+        let stage = wavefront_bounce_stage(bounce, source_queue, source_dispatch);
+        add(&stage.name, true);
+        add(&stage.dispatch_name, true);
+        add(&stage.traversal_name, true);
+        add(&stage.hit_dispatch_name, true);
+        add(&stage.shade_name, true);
+        source_queue = stage.bindings.destination_ray_queue;
+        source_dispatch = WAVEFRONT_HIT_DISPATCH_ARGS_ID;
+    }
+    for name in [
+        "ComputeWavefrontCompositePass",
+        "ComputeWavefrontTransparencyResolvePass",
+        "ComputeWavefrontDenoiseTemporalPass",
+        "ComputeWavefrontDenoiseBilateralPass",
+        "ComputeWavefrontUpscalePass",
+        "FinalizePass",
+        "BlitPass",
+    ] {
+        add(name, true);
+    }
+    metadata
+}
 
 pub fn active_registered_pass_names(render_context: &RenderContext) -> Vec<String> {
+    registered_pass_metadata(render_context)
+        .into_iter()
+        .filter(|pass| pass.enabled)
+        .map(|pass| pass.name)
+        .collect()
+}
+
+/// Read the pass metadata recorded by the actual render-context registration.
+pub fn registered_pass_metadata(render_context: &RenderContext) -> Vec<ProductionPassMetadata> {
     render_context
         .passes()
         .iter()
-        .filter(|(_, enabled)| *enabled)
-        .map(|(pass, _)| pass.name().to_owned())
+        .map(|(pass, enabled)| ProductionPassMetadata {
+            name: pass.name().to_owned(),
+            enabled: *enabled,
+        })
         .collect()
 }
 
@@ -399,13 +413,14 @@ impl Viewer {
         Self::create_blit_pass(context, render_context);
 
         let registered_passes = active_registered_pass_names(render_context);
+        let expected_passes = production_pass_metadata()
+            .into_iter()
+            .filter(|pass| pass.enabled)
+            .map(|pass| pass.name)
+            .collect::<Vec<_>>();
         assert_eq!(
-            registered_passes,
-            PRODUCTION_PASS_ORDER
-                .iter()
-                .map(|name| (*name).to_owned())
-                .collect::<Vec<_>>(),
-            "active production pass registration diverged from PRODUCTION_PASS_ORDER"
+            registered_passes, expected_passes,
+            "active production pass registration diverged from production_pass_metadata"
         );
 
         //Self::create_debug_pass(context, render_context);

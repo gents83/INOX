@@ -128,6 +128,29 @@ pub fn wavefront_auxiliary_bindings() -> WavefrontAuxiliaryBindings {
     }
 }
 
+/// Shader sources used by every active wavefront production pipeline.
+///
+/// The viewer creates generated bounce passes from the same next-bounce,
+/// dispatch, traversal, and shade pipelines, so each source appears once in
+/// this inventory even when it is used by multiple registered passes.
+pub const WAVEFRONT_PRODUCTION_SHADER_FILES: &[&str] = &[
+    "compute_wavefront_surface.wgsl",
+    "compute_wavefront_transparency.wgsl",
+    "compute_wavefront_ao_resolve.wgsl",
+    "compute_wavefront_direct_candidates.wgsl",
+    "compute_wavefront_visibility.wgsl",
+    "compute_wavefront_primary.wgsl",
+    "compute_wavefront_dispatch.wgsl",
+    "compute_wavefront_traversal.wgsl",
+    "compute_wavefront_shade.wgsl",
+    "compute_wavefront_next_bounce.wgsl",
+    "compute_wavefront_composite.wgsl",
+    "compute_wavefront_transparency_resolve.wgsl",
+    "compute_wavefront_denoise_temporal.wgsl",
+    "compute_wavefront_denoise_bilateral.wgsl",
+    "compute_wavefront_upscale.wgsl",
+];
+
 #[repr(C)]
 #[derive(Default, PartialEq, Clone, Copy, Debug)]
 pub struct RayPackedData(pub f32);

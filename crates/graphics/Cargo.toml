@@ -23,3 +23,7 @@ inox_resources = { path = "../resources" }
 inox_profiler = { path = "../profiler" }
 inox_scene = { path = "../scene" }
 inox_uid = { path = "../uid" }
+
+[dev-dependencies]
+inox_binarizer = { path = "../plugins/binarizer" }
+inox_platform = { path = "../platform" }

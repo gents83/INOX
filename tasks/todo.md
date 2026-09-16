@@ -22,8 +22,8 @@
 - [x] Typed queue/counter/dispatch foundation exists.
 - [x] Packed scene foundation exists.
 - [x] Replace legacy G-buffer/direct/indirect active passes with packed-scene stages. (Legacy lighting/indirect passes are disabled; packed surface/direct/visibility/three-bounce stages are active.)
-- [ ] Prove every active production stage is within the portable eight-storage-buffer budget.
-- [ ] Add explicit pass-order/dependency graph tests.
+- [x] Prove every active production stage is within the portable eight-storage-buffer budget. (Viewer registration metadata inventories every active wavefront shader; focused graphics validation runs the binarizer's WebGPU binding checks and eight-buffer budget for each source.)
+- [x] Add explicit pass-order/dependency graph tests. (Canonical viewer registration metadata covers the full generated bounce chain, transparency/AO, disabled legacy passes, reconstruction tail, and queue/header/dispatch dependencies.)
 
 ## Phase 4 — direct lighting
 
@@ -59,6 +59,7 @@
 - Shader reload retention passes focused and complete render/resource tests, render/resource library clippy, formatting, graphics crate checks, and the render WASM check; storage-boundary candidates retain active resources and diagnostics until a later valid commit.
 - Native device-backed Shader, ComputePipeline, and RenderPipeline reload tests cover real module/pipeline initialization, invalid-candidate retention, diagnostic observability, and later valid commits; a headless context helper keeps the tests surface-independent.
 - Adapter negotiation tests pass; render clippy and the render WebAssembly check pass with the negotiated capability path.
+- Task 7 focused validation passes: viewer registration metadata tests prove the full active queue/reconstruction graph and disabled legacy registrations; graphics binding tests validate every active wavefront shader against the portable eight-storage-buffer WebGPU profile.
 - Final separated direct/indirect/final accumulator, denoiser, and pure-WGSL spatial reconstruction build and binarizer gates passed.
 - Full workspace tests and stable clippy pass after the three-bounce graph and final accumulator changes.
 - Final release workspace build and PC/Web binarizer gate completed after strict compiler-status handling.
