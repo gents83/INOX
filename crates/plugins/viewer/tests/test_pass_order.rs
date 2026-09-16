@@ -6,7 +6,9 @@ use inox_graphics::{
     WAVEFRONT_HIT_HEADER_ID, WAVEFRONT_HIT_QUEUE_ID, WAVEFRONT_PRIMARY_QUEUE_ID,
     WAVEFRONT_TRANSPARENT_HEADER_ID, WAVEFRONT_TRANSPARENT_QUEUE_ID,
 };
-use inox_viewer::viewer::{production_pass_registrations, ProductionPassMetadata};
+use inox_viewer::viewer::{
+    production_construction_records, production_pass_registrations, ProductionPassMetadata,
+};
 
 fn pass_metadata() -> Vec<ProductionPassMetadata> {
     production_pass_registrations()
@@ -108,6 +110,40 @@ fn production_metadata_has_unique_entries_and_complete_queue_chain() {
 #[test]
 fn registration_table_exposes_actual_auxiliary_and_bounce_handoffs() {
     let registrations = production_pass_registrations();
+    let construction = production_construction_records();
+    let construction_for = |pass: &str| {
+        construction
+            .iter()
+            .find(|record| record.pass == pass)
+            .unwrap_or_else(|| panic!("missing construction record for {pass}"))
+    };
+    let auxiliary = wavefront_auxiliary_bindings();
+    assert_eq!(
+        construction_for("ComputeWavefrontTransparencyPass").resources,
+        vec![auxiliary.transparent_queue, auxiliary.transparent_header]
+    );
+    assert_eq!(
+        construction_for("ComputeWavefrontTransparencyResolvePass").resources,
+        vec![auxiliary.transparent_queue, auxiliary.transparent_header]
+    );
+    assert_eq!(
+        construction_for("ComputeWavefrontDirectCandidatesPass").resources,
+        vec![auxiliary.ao_state]
+    );
+    assert_eq!(
+        construction_for("ComputeWavefrontAoResolvePass").resources,
+        vec![auxiliary.ao_state]
+    );
+    for legacy in [
+        "ComputeGBufferPass",
+        "ComputeShadowAOPass",
+        "ComputeDiffuseLightingPass",
+        "ComputeSpecularLightingPass",
+        "ComputeIndirectSetupPass",
+        "ComputeIndirectBouncePass",
+    ] {
+        assert!(!construction_for(legacy).enabled);
+    }
     let dependency = |pass: &str| {
         registrations
             .iter()
@@ -127,6 +163,25 @@ fn registration_table_exposes_actual_auxiliary_and_bounce_handoffs() {
         .expect("missing generated bounce registration");
     assert_eq!(bounce_registration.passes.len(), 40);
     assert_eq!(bounce_registration.dependencies.len(), 40);
+    for stage in inox_graphics::wavefront_bounce_stages() {
+        assert_eq!(
+            construction_for(&stage.name).resources,
+            vec![
+                stage.bindings.source_ray_queue,
+                stage.bindings.source_hit_header,
+                stage.bindings.destination_ray_queue,
+                stage.bindings.destination_ray_header,
+                stage.bindings.dispatch_args,
+            ]
+        );
+        assert_eq!(
+            construction_for(&stage.dispatch_name).resources,
+            vec![
+                stage.bindings.destination_ray_header,
+                stage.destination_dispatch_args
+            ]
+        );
+    }
     assert_eq!(
         dependency("ComputeWavefrontTransparencyResolvePass").predecessor,
         "ComputeWavefrontTransparencyPass"

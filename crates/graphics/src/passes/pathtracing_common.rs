@@ -111,6 +111,21 @@ pub fn wavefront_bounce_stage(
     }
 }
 
+/// Build the complete generated bounce graph using the same stage inputs that
+/// the viewer's bounce factory consumes.
+pub fn wavefront_bounce_stages() -> Vec<WavefrontBounceStage> {
+    let mut stages = Vec::with_capacity(8);
+    let mut source_queue = crate::WAVEFRONT_PRIMARY_QUEUE_ID;
+    let mut source_dispatch = crate::WAVEFRONT_HIT_DISPATCH_ARGS_ID;
+    for index in 1..=8 {
+        let stage = wavefront_bounce_stage(index, source_queue, source_dispatch);
+        source_queue = stage.bindings.destination_ray_queue;
+        source_dispatch = crate::WAVEFRONT_HIT_DISPATCH_ARGS_ID;
+        stages.push(stage);
+    }
+    stages
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WavefrontAuxiliaryBindings {
     pub transparent_queue: Uid,

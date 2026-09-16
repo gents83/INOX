@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
-    wavefront_auxiliary_bindings, wavefront_bounce_stage, BlitPass, CommandsPass,
+    wavefront_auxiliary_bindings, wavefront_bounce_stages, BlitPass, CommandsPass,
     ComputeDiffuseLightingPass, ComputeGBufferPass, ComputeIndirectBouncePass,
     ComputeIndirectSetupPass, ComputeInstancesPass, ComputeShadowAOPass,
     ComputeSpecularLightingPass, ComputeWavefrontAoResolvePass, ComputeWavefrontCompositePass,
@@ -86,6 +86,125 @@ fn dependency(pass: &str, predecessor: &str, resource: Uid) -> ProductionGraphDe
         predecessor: predecessor.to_owned(),
         resource,
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProductionConstructionRecord {
+    pub pass: String,
+    pub enabled: bool,
+    pub resources: Vec<Uid>,
+}
+
+/// Construction inputs shared by the production factories and graph tests.
+/// The bounce factory consumes `wavefront_bounce_stages()` directly; auxiliary
+/// factories consume the same `wavefront_auxiliary_bindings()` values below.
+pub fn production_construction_records() -> Vec<ProductionConstructionRecord> {
+    let auxiliary = wavefront_auxiliary_bindings();
+    let mut records = vec![
+        ProductionConstructionRecord {
+            pass: "ComputeWavefrontTransparencyPass".to_owned(),
+            enabled: true,
+            resources: vec![auxiliary.transparent_queue, auxiliary.transparent_header],
+        },
+        ProductionConstructionRecord {
+            pass: "ComputeWavefrontTransparencyResolvePass".to_owned(),
+            enabled: true,
+            resources: vec![auxiliary.transparent_queue, auxiliary.transparent_header],
+        },
+        ProductionConstructionRecord {
+            pass: "ComputeWavefrontDirectCandidatesPass".to_owned(),
+            enabled: true,
+            resources: vec![auxiliary.ao_state],
+        },
+        ProductionConstructionRecord {
+            pass: "ComputeWavefrontAoResolvePass".to_owned(),
+            enabled: true,
+            resources: vec![auxiliary.ao_state],
+        },
+    ];
+    for stage in wavefront_bounce_stages() {
+        records.extend([
+            ProductionConstructionRecord {
+                pass: stage.name,
+                enabled: true,
+                resources: vec![
+                    stage.bindings.source_ray_queue,
+                    stage.bindings.source_hit_header,
+                    stage.bindings.destination_ray_queue,
+                    stage.bindings.destination_ray_header,
+                    stage.bindings.dispatch_args,
+                ],
+            },
+            ProductionConstructionRecord {
+                pass: stage.dispatch_name,
+                enabled: true,
+                resources: vec![
+                    stage.bindings.destination_ray_header,
+                    stage.destination_dispatch_args,
+                ],
+            },
+            ProductionConstructionRecord {
+                pass: stage.traversal_name,
+                enabled: true,
+                resources: vec![
+                    stage.traversal_bindings.ray_queue,
+                    stage.traversal_bindings.ray_header,
+                    stage.traversal_bindings.dispatch_args,
+                ],
+            },
+            ProductionConstructionRecord {
+                pass: stage.hit_dispatch_name,
+                enabled: true,
+                resources: vec![
+                    stage.bindings.source_hit_header,
+                    WAVEFRONT_HIT_DISPATCH_ARGS_ID,
+                ],
+            },
+            ProductionConstructionRecord {
+                pass: stage.shade_name,
+                enabled: true,
+                resources: vec![
+                    stage.shade_bindings.ray_queue,
+                    stage.shade_bindings.ray_header,
+                    stage.shade_bindings.hit_queue,
+                    stage.shade_bindings.hit_header,
+                    stage.shade_bindings.dispatch_args,
+                ],
+            },
+        ]);
+    }
+    records.extend(
+        [
+            "ComputeGBufferPass",
+            "ComputeShadowAOPass",
+            "ComputeDiffuseLightingPass",
+            "ComputeSpecularLightingPass",
+            "ComputeIndirectSetupPass",
+            "ComputeIndirectBouncePass",
+        ]
+        .into_iter()
+        .map(|pass| ProductionConstructionRecord {
+            pass: pass.to_owned(),
+            enabled: false,
+            resources: Vec::new(),
+        }),
+    );
+    records
+}
+
+fn validate_construction_record(pass: &str, enabled: bool, resources: &[Uid]) {
+    let record = production_construction_records()
+        .into_iter()
+        .find(|record| record.pass == pass)
+        .unwrap_or_else(|| panic!("missing construction record for {pass}"));
+    assert_eq!(
+        record.enabled, enabled,
+        "construction flag diverged for {pass}"
+    );
+    assert_eq!(
+        record.resources, resources,
+        "construction inputs diverged for {pass}"
+    );
 }
 
 /// The single production registration table. Its factories construct the
@@ -224,13 +343,10 @@ pub fn production_pass_registrations() -> Vec<ProductionPassRegistration> {
         Viewer::create_wavefront_shade_pass,
     );
 
-    let mut source_queue = WAVEFRONT_PRIMARY_QUEUE_ID;
-    let mut source_dispatch = WAVEFRONT_HIT_DISPATCH_ARGS_ID;
     let mut previous_shade = "ComputeWavefrontShadePass".to_owned();
     let mut bounce_names = Vec::new();
     let mut bounce_dependencies = Vec::new();
-    for bounce in 1..=8 {
-        let stage = wavefront_bounce_stage(bounce, source_queue, source_dispatch);
+    for stage in wavefront_bounce_stages() {
         bounce_names.extend([
             stage.name.clone(),
             stage.dispatch_name.clone(),
@@ -266,8 +382,6 @@ pub fn production_pass_registrations() -> Vec<ProductionPassRegistration> {
             ),
         ]);
         previous_shade = stage.shade_name;
-        source_queue = stage.bindings.destination_ray_queue;
-        source_dispatch = WAVEFRONT_HIT_DISPATCH_ARGS_ID;
     }
     registrations.push(ProductionPassRegistration::new(
         bounce_names,
@@ -684,6 +798,7 @@ impl Viewer {
         render_context.add_pass(visibility_pass, true);
     }
     fn create_gbuffer_pass(context: &ContextRc, render_context: &RenderContextRc) {
+        validate_construction_record("ComputeGBufferPass", false, &[]);
         let mut gbuffer_pass = ComputeGBufferPass::create(context, render_context);
         let visibility_texture =
             render_context.render_target(RenderTargetType::Visibility as usize);
@@ -697,6 +812,7 @@ impl Viewer {
         render_context.add_pass(gbuffer_pass, false);
     }
     fn create_shadow_ao_pass(context: &ContextRc, render_context: &RenderContextRc) {
+        validate_construction_record("ComputeShadowAOPass", false, &[]);
         let mut shadow_ao_pass = ComputeShadowAOPass::create(context, render_context);
         let visibility_texture =
             render_context.render_target(RenderTargetType::Visibility as usize);
@@ -705,6 +821,7 @@ impl Viewer {
         render_context.add_pass(shadow_ao_pass, false);
     }
     fn create_diffuse_lighting_pass(context: &ContextRc, render_context: &RenderContextRc) {
+        validate_construction_record("ComputeDiffuseLightingPass", false, &[]);
         let mut diffuse_pass = ComputeDiffuseLightingPass::create(context, render_context);
         let visibility_texture =
             render_context.render_target(RenderTargetType::Visibility as usize);
@@ -712,6 +829,7 @@ impl Viewer {
         render_context.add_pass(diffuse_pass, false);
     }
     fn create_specular_lighting_pass(context: &ContextRc, render_context: &RenderContextRc) {
+        validate_construction_record("ComputeSpecularLightingPass", false, &[]);
         let mut specular_pass = ComputeSpecularLightingPass::create(context, render_context);
         let visibility_texture =
             render_context.render_target(RenderTargetType::Visibility as usize);
@@ -719,6 +837,7 @@ impl Viewer {
         render_context.add_pass(specular_pass, false);
     }
     fn create_indirect_setup_pass(context: &ContextRc, render_context: &RenderContextRc) {
+        validate_construction_record("ComputeIndirectSetupPass", false, &[]);
         let mut indirect_setup_pass = ComputeIndirectSetupPass::create(context, render_context);
         let visibility_texture =
             render_context.render_target(RenderTargetType::Visibility as usize);
@@ -726,6 +845,7 @@ impl Viewer {
         render_context.add_pass(indirect_setup_pass, false);
     }
     fn create_indirect_bounce_pass(context: &ContextRc, render_context: &RenderContextRc) {
+        validate_construction_record("ComputeIndirectBouncePass", false, &[]);
         let mut indirect_bounce_pass = ComputeIndirectBouncePass::create(context, render_context);
         let visibility_texture =
             render_context.render_target(RenderTargetType::Visibility as usize);
@@ -762,6 +882,12 @@ impl Viewer {
         render_context.add_pass(pass, true);
     }
     fn create_wavefront_transparency_pass(context: &ContextRc, render_context: &RenderContextRc) {
+        let auxiliary = wavefront_auxiliary_bindings();
+        validate_construction_record(
+            "ComputeWavefrontTransparencyPass",
+            true,
+            &[auxiliary.transparent_queue, auxiliary.transparent_header],
+        );
         let mut pass = ComputeWavefrontTransparencyPass::create(context, render_context);
         let visibility_texture =
             render_context.render_target(RenderTargetType::Visibility as usize);
@@ -777,6 +903,8 @@ impl Viewer {
         render_context.add_pass(pass, true);
     }
     fn create_wavefront_ao_resolve_pass(context: &ContextRc, render_context: &RenderContextRc) {
+        let auxiliary = wavefront_auxiliary_bindings();
+        validate_construction_record("ComputeWavefrontAoResolvePass", true, &[auxiliary.ao_state]);
         let mut pass = ComputeWavefrontAoResolvePass::create(context, render_context);
         let visibility_texture =
             render_context.render_target(RenderTargetType::Visibility as usize);
@@ -787,6 +915,12 @@ impl Viewer {
         context: &ContextRc,
         render_context: &RenderContextRc,
     ) {
+        let auxiliary = wavefront_auxiliary_bindings();
+        validate_construction_record(
+            "ComputeWavefrontDirectCandidatesPass",
+            true,
+            &[auxiliary.ao_state],
+        );
         let mut pass = ComputeWavefrontDirectCandidatesPass::create(context, render_context);
         let visibility_texture =
             render_context.render_target(RenderTargetType::Visibility as usize);
@@ -810,10 +944,54 @@ impl Viewer {
     fn create_wavefront_bounce_chain(context: &ContextRc, render_context: &RenderContextRc) {
         let visibility_texture =
             render_context.render_target(RenderTargetType::Visibility as usize);
-        let mut source_queue = WAVEFRONT_PRIMARY_QUEUE_ID;
-        let mut source_dispatch = WAVEFRONT_HIT_DISPATCH_ARGS_ID;
-        for bounce in 1..=8u32 {
-            let stage = wavefront_bounce_stage(bounce, source_queue, source_dispatch);
+        for stage in wavefront_bounce_stages() {
+            validate_construction_record(
+                &stage.name,
+                true,
+                &[
+                    stage.bindings.source_ray_queue,
+                    stage.bindings.source_hit_header,
+                    stage.bindings.destination_ray_queue,
+                    stage.bindings.destination_ray_header,
+                    stage.bindings.dispatch_args,
+                ],
+            );
+            validate_construction_record(
+                &stage.dispatch_name,
+                true,
+                &[
+                    stage.bindings.destination_ray_header,
+                    stage.destination_dispatch_args,
+                ],
+            );
+            validate_construction_record(
+                &stage.traversal_name,
+                true,
+                &[
+                    stage.traversal_bindings.ray_queue,
+                    stage.traversal_bindings.ray_header,
+                    stage.traversal_bindings.dispatch_args,
+                ],
+            );
+            validate_construction_record(
+                &stage.hit_dispatch_name,
+                true,
+                &[
+                    stage.bindings.source_hit_header,
+                    WAVEFRONT_HIT_DISPATCH_ARGS_ID,
+                ],
+            );
+            validate_construction_record(
+                &stage.shade_name,
+                true,
+                &[
+                    stage.shade_bindings.ray_queue,
+                    stage.shade_bindings.ray_header,
+                    stage.shade_bindings.hit_queue,
+                    stage.shade_bindings.hit_header,
+                    stage.shade_bindings.dispatch_args,
+                ],
+            );
             let mut next = ComputeWavefrontNextBouncePass::create_for_queues(
                 context,
                 render_context,
@@ -854,8 +1032,6 @@ impl Viewer {
             );
             shade.set_dimensions(visibility_texture.get().dimensions());
             render_context.add_pass(shade, true);
-            source_queue = stage.bindings.destination_ray_queue;
-            source_dispatch = WAVEFRONT_HIT_DISPATCH_ARGS_ID;
         }
     }
     fn create_wavefront_next_bounce_pass(context: &ContextRc, render_context: &RenderContextRc) {
@@ -1100,6 +1276,12 @@ impl Viewer {
         context: &ContextRc,
         render_context: &RenderContextRc,
     ) {
+        let auxiliary = wavefront_auxiliary_bindings();
+        validate_construction_record(
+            "ComputeWavefrontTransparencyResolvePass",
+            true,
+            &[auxiliary.transparent_queue, auxiliary.transparent_header],
+        );
         let mut pass = ComputeWavefrontTransparencyResolvePass::create(context, render_context);
         let visibility_texture =
             render_context.render_target(RenderTargetType::Visibility as usize);
