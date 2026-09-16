@@ -86,11 +86,19 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     var bsdf = vec3<f32>(1.0);
     var p_lobe = 1.0;
     var p_direction = 1.0;
-    if (!tir && selector < p_transmission && transmission_probability > 0.0) {
+    if (tir) {
+        // Total internal reflection collapses every transmission choice into a
+        // single delta reflection event. Its lobe and direction probabilities
+        // are therefore both one, independent of the original transmission mix.
+        direction = reflection;
+        bsdf = vec3<f32>(1.0);
+        p_lobe = 1.0;
+        p_direction = 1.0;
+    } else if (selector < p_transmission && transmission_probability > 0.0) {
         direction = safe_normalize(candidate_refraction, reflection);
         bsdf = base_color;
         p_lobe = p_transmission;
-    } else if (!tir && selector < p_transmission + p_specular && p_specular > 0.0) {
+    } else if (selector < p_transmission + p_specular && p_specular > 0.0) {
         p_lobe = p_specular;
         if (roughness >= 0.2 && metallic < 0.999) {
             direction = cosine_sample(reflection, seed ^ 0xa511e9b3u);

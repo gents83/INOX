@@ -9,6 +9,7 @@
 - Added finite guards for material values, directions, BSDF/PDF terms, throughput, roulette, and spawned-ray origin, plus finite radiance sanitization at composite.
 - Corrected generated bounce dispatch handoffs, moved traversal hit-header reset before all early returns, clamped roulette depth when max depth changes, and bounded environment texture indices while preserving valid black textures.
 - Added focused contracts for dispatch chaining, lobe PDFs, finite guards, environment bounds, queue reset, depth/roulette, reflection/refraction/TIR, and accumulator separation.
+- Follow-up review fix: total internal reflection now executes before lobe selection and collapses transmission into a unit-probability delta reflection, preventing diffuse fallback and estimator bias.
 
 ## Verification
 

@@ -80,6 +80,16 @@ fn bounce_dispatches_chain_through_previous_destination() {
 }
 
 #[test]
+fn tir_forces_reflection_before_lobe_selection() {
+    let source = shader("compute_wavefront_next_bounce.wgsl");
+    assert!(source.contains("if (tir) {"));
+    assert!(source.contains("direction = reflection;"));
+    assert!(source.contains("p_lobe = 1.0;"));
+    assert!(source.contains("p_direction = 1.0;"));
+    assert!(source.contains("else if (selector < p_transmission"));
+}
+
+#[test]
 fn next_bounce_uses_explicit_lobe_pdf_and_finite_guards() {
     let source = shader("compute_wavefront_next_bounce.wgsl");
     assert!(source.contains("p_lobe"));
@@ -87,7 +97,7 @@ fn next_bounce_uses_explicit_lobe_pdf_and_finite_guards() {
     assert!(source.contains("bsdf * cosine_out / (p_lobe * p_direction)"));
     assert!(source.contains("finite_scalar"));
     assert!(source.contains("finite_vector"));
-    assert!(source.contains("if (!tir"));
+    assert!(source.contains("if (tir) {"));
     assert!(source.contains("throughput /= survival"));
 }
 
