@@ -17,12 +17,15 @@ pub struct ComputePass {
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
     name: String,
+    label: String,
     pipelines: Vec<Resource<ComputePipeline>>,
+    cached_pipelines: Vec<wgpu::ComputePipeline>,
     is_initialized: bool,
 }
 
 impl ResourceTrait for ComputePass {
     fn invalidate(&mut self) -> &mut Self {
+        self.cached_pipelines.clear();
         self.is_initialized = false;
         self
     }
@@ -39,7 +42,9 @@ impl DataTypeResource for ComputePass {
             shared_data: shared_data.clone(),
             message_hub: message_hub.clone(),
             name: String::new(),
+            label: "ComputePass".to_string(),
             pipelines: Vec::new(),
+            cached_pipelines: Vec::new(),
             is_initialized: false,
         }
     }
@@ -57,7 +62,9 @@ impl DataTypeResource for ComputePass {
             shared_data: shared_data.clone(),
             message_hub: message_hub.clone(),
             name: data.name.clone(),
+            label: format!("ComputePass {}", data.name),
             pipelines: Vec::new(),
+            cached_pipelines: Vec::new(),
             is_initialized: false,
         };
         pass.set_pipelines(&data.pipelines);
@@ -71,6 +78,8 @@ impl ComputePass {
     }
     pub fn set_pipelines(&mut self, pipelines: &[PathBuf]) -> &mut Self {
         self.pipelines.clear();
+        self.cached_pipelines.clear();
+        self.is_initialized = false;
         pipelines.iter().for_each(|path| {
             if !path.as_os_str().is_empty() {
                 let pipeline = ComputePipeline::request_load(
@@ -91,14 +100,21 @@ impl ComputePass {
         binding_data: &mut BindingData,
         entry_point_name: Option<&str>,
     ) {
-        let mut is_initialized = false;
+        self.cached_pipelines.clear();
         binding_data.set_bind_group_layout();
-        self.pipelines.iter().for_each(|pipeline| {
-            is_initialized |=
-                pipeline
-                    .get_mut()
-                    .init(render_context, binding_data, entry_point_name);
-        });
+        let mut is_initialized = !self.pipelines.is_empty();
+        for pipeline in &self.pipelines {
+            let mut pipeline = pipeline.get_mut();
+            if pipeline.init(render_context, binding_data, entry_point_name) {
+                self.cached_pipelines
+                    .push(pipeline.compute_pipeline().clone());
+            } else {
+                is_initialized = false;
+            }
+        }
+        if !is_initialized {
+            self.cached_pipelines.clear();
+        }
         self.is_initialized = is_initialized;
     }
 
@@ -111,10 +127,10 @@ impl ComputePass {
         y: u32,
         z: u32,
     ) {
-        let mut is_ready = true;
+        if !self.is_initialized {
+            return;
+        }
 
-        let label = format!("ComputePass {}", self.name);
-        let pipelines = self.pipelines().iter().map(|h| h.get()).collect::<Vec<_>>();
         let mut compute_pass = {
             inox_profiler::gpu_scoped_profile!(
                 &mut command_buffer.encoder,
@@ -124,25 +140,18 @@ impl ComputePass {
             command_buffer
                 .encoder
                 .begin_compute_pass(&wgpu::ComputePassDescriptor {
-                    label: Some(label.as_str()),
+                    label: Some(self.label.as_str()),
                     ..Default::default()
                 })
         };
 
-        pipelines.iter().for_each(|pipeline| {
-            is_ready &= pipeline.is_initialized();
-            if is_ready {
-                inox_profiler::gpu_scoped_profile!(
-                    &mut compute_pass,
-                    &_render_context.webgpu.device,
-                    "compute_pass::set_pipeline",
-                );
-                compute_pass.set_pipeline(pipeline.compute_pipeline());
-            }
-        });
-
-        if !is_ready {
-            return;
+        for pipeline in &self.cached_pipelines {
+            inox_profiler::gpu_scoped_profile!(
+                &mut compute_pass,
+                &_render_context.webgpu.device,
+                "compute_pass::set_pipeline",
+            );
+            compute_pass.set_pipeline(pipeline);
         }
 
         binding_data.set_bind_groups();
@@ -177,10 +186,10 @@ impl ComputePass {
         buffers: &'a HashMap<BufferId, BufferRef>,
         indirect_args_id: BufferId,
     ) {
-        let mut is_ready = true;
+        if !self.is_initialized {
+            return;
+        }
 
-        let label = format!("ComputePass {}", self.name);
-        let pipelines = self.pipelines().iter().map(|h| h.get()).collect::<Vec<_>>();
         let mut compute_pass = {
             inox_profiler::gpu_scoped_profile!(
                 &mut command_buffer.encoder,
@@ -190,25 +199,18 @@ impl ComputePass {
             command_buffer
                 .encoder
                 .begin_compute_pass(&wgpu::ComputePassDescriptor {
-                    label: Some(label.as_str()),
+                    label: Some(self.label.as_str()),
                     ..Default::default()
                 })
         };
 
-        pipelines.iter().for_each(|pipeline| {
-            is_ready &= pipeline.is_initialized();
-            if is_ready {
-                inox_profiler::gpu_scoped_profile!(
-                    &mut compute_pass,
-                    &_render_context.webgpu.device,
-                    "compute_pass::set_pipeline",
-                );
-                compute_pass.set_pipeline(pipeline.compute_pipeline());
-            }
-        });
-
-        if !is_ready {
-            return;
+        for pipeline in &self.cached_pipelines {
+            inox_profiler::gpu_scoped_profile!(
+                &mut compute_pass,
+                &_render_context.webgpu.device,
+                "compute_pass::set_pipeline",
+            );
+            compute_pass.set_pipeline(pipeline);
         }
 
         binding_data.set_bind_groups();

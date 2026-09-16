@@ -8,7 +8,7 @@
 - [x] Fix Web canvas ownership, mouse mapping, resize, valid handle, and surface setup. (Retained canvas ownership, device-pixel sizing, finite/clamped pointer mapping, stable raw handle, and resize event path implemented.)
 - [x] Negotiate adapter features/limits instead of unconditionally requesting optional capabilities. (Baseline feature validation, optional feature filtering, portable limit checks, and capability-driven pass fallbacks implemented.)
 - [x] Make shader reload and binarizer failures nonfatal but observable; preserve last-known-good resources. (Structured shader/pipeline diagnostics, transactional pipeline replacement, and resilient reload path handling implemented.)
-- [ ] Remove hot-loop allocations and repeated locks/lookups covered by the production plan. (Per-dispatch pipeline Vec allocation removed; indirect draw stride corrected; render-target/meshlet lock audits remain.)
+- [x] Remove hot-loop allocations and repeated locks/lookups covered by the production plan. (Compute pipelines and labels are cached; meshlet commands reuse pass-owned scratch; render-target lookups and indirect count-prefix handling are corrected.)
 
 ## Phase 2 — binarizer-first portable foundation
 
@@ -63,3 +63,4 @@
 - Full workspace tests and stable clippy pass after the three-bounce graph and final accumulator changes.
 - Final release workspace build and PC/Web binarizer gate completed after strict compiler-status handling.
 - Native viewer smoke selected the RTX 4090 Laptop GPU and configured `Bgra8UnormSrgb` without a startup panic; the 20-second smoke was stopped by timeout.
+- Task 5 hot-loop validation passed: debug and release render/graphics regression tests, render/graphics checks, stable clippy, and workspace formatting. Compute dispatches reuse cached pipelines/labels; indexed indirect draws use the vector count-prefix offset; meshlet draws reuse pass-owned command scratch after releasing data locks.

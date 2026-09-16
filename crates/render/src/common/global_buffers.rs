@@ -65,8 +65,13 @@ impl GlobalBuffers {
             let any = Arc::into_raw(buffer.clone());
             return unsafe { Arc::from_raw(any as *const RwLock<Buffer<T>>) };
         }
+        let mut buffers = self.buffers.write().unwrap();
+        if let Some(buffer) = buffers.get(&id) {
+            let any = Arc::into_raw(buffer.clone());
+            return unsafe { Arc::from_raw(any as *const RwLock<Buffer<T>>) };
+        }
         let buffer = Arc::new(RwLock::new(Buffer::<T>::default()));
-        self.buffers.write().unwrap().insert(id, buffer.clone());
+        buffers.insert(id, buffer.clone());
         buffer
     }
     pub fn vector_with_id<T>(&self, id: Uid) -> Arc<RwLock<Vec<T>>>
@@ -77,8 +82,13 @@ impl GlobalBuffers {
             let any = Arc::into_raw(vector.clone());
             return unsafe { Arc::from_raw(any as *const RwLock<Vec<T>>) };
         }
+        let mut vectors = self.vectors.write().unwrap();
+        if let Some(vector) = vectors.get(&id) {
+            let any = Arc::into_raw(vector.clone());
+            return unsafe { Arc::from_raw(any as *const RwLock<Vec<T>>) };
+        }
         let vector = Arc::new(RwLock::new(Vec::<T>::default()));
-        self.vectors.write().unwrap().insert(id, vector.clone());
+        vectors.insert(id, vector.clone());
         vector
     }
     pub fn buffer<T>(&self) -> Arc<RwLock<Buffer<T>>>

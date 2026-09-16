@@ -2,8 +2,8 @@ use inox_bitmask::bitmask;
 use inox_math::{quantize_half, MatBase, Matrix4};
 
 use crate::{
-    AsBinding, BufferRef, MaterialFlags, RenderContext, VertexBufferLayoutBuilder, VertexFormat,
-    INVALID_INDEX,
+    platform::WGPU_FIXED_ALIGNMENT, AsBinding, BufferRef, MaterialFlags, RenderContext,
+    VertexBufferLayoutBuilder, VertexFormat, INVALID_INDEX,
 };
 
 pub const MAX_LOD_LEVELS: usize = 8;
@@ -36,6 +36,10 @@ pub struct DrawIndexedCommand {
     pub vertex_offset: i32,
     pub base_instance: u32,
 }
+
+pub const DRAW_INDEXED_COMMAND_STRIDE: u64 = std::mem::size_of::<DrawIndexedCommand>() as u64;
+/// The command vector stores its draw records after the fixed count prefix.
+pub const DRAW_INDEXED_COMMAND_OFFSET: u64 = WGPU_FIXED_ALIGNMENT;
 
 #[repr(C)]
 #[derive(Default, PartialEq, Eq, Clone, Copy, Debug)]

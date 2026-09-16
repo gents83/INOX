@@ -614,13 +614,16 @@ impl RenderContext {
         render_targets.len() - 1
     }
     pub fn num_render_targets(&self) -> usize {
-        self.render_targets.read().unwrap().len()
+        let render_targets = self.render_targets.read().unwrap();
+        render_targets.len()
     }
     pub fn render_target(&self, index: usize) -> Resource<Texture> {
-        self.render_targets.read().unwrap()[index].clone()
+        let render_targets = self.render_targets.read().unwrap();
+        render_targets[index].clone()
     }
     pub fn render_target_id(&self, index: usize) -> TextureId {
-        *self.render_targets.read().unwrap()[index].id()
+        let render_targets = self.render_targets.read().unwrap();
+        *render_targets[index].id()
     }
     pub fn num_passes(&self) -> usize {
         self.passes.read().unwrap().len()
