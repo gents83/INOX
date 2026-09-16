@@ -9,8 +9,8 @@ use inox_resources::{DataTypeResource, Resource};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
 use crate::{
-    queue_capacity_for_resolution, wavefront_primary_bindings, DispatchArgs, HitRecord,
-    QueueHeader, RayQueueRecord, WavefrontQueueBindingIds,
+    queue_capacity_for_resolution, queue_capacity_u32, wavefront_primary_bindings, DispatchArgs,
+    HitRecord, QueueHeader, RayQueueRecord, WavefrontQueueBindingIds, MAX_WAVEFRONT_QUEUE_CAPACITY,
 };
 
 pub const COMPUTE_WAVEFRONT_TRAVERSAL_PIPELINE: &str =
@@ -19,9 +19,6 @@ pub const COMPUTE_WAVEFRONT_TRAVERSAL_NAME: &str = "ComputeWavefrontTraversalPas
 pub const WAVEFRONT_HIT_QUEUE_ID: Uid = generate_static_uid_from_string("WAVEFRONT_HIT_QUEUE");
 pub const WAVEFRONT_HIT_HEADER_ID: Uid = generate_static_uid_from_string("WAVEFRONT_HIT_HEADER");
 pub const WAVEFRONT_SCENE_ID: Uid = generate_static_uid_from_string("WAVEFRONT_PACKED_SCENE");
-// Hit capacity follows the actual full-resolution target so traversal does
-// not silently discard hits at the default 1920x1080 resolution.
-const MAX_WAVEFRONT_QUEUE_CAPACITY: usize = usize::MAX;
 
 pub struct ComputeWavefrontTraversalPass {
     compute_pass: Resource<ComputePass>,
@@ -163,7 +160,7 @@ impl Pass for ComputeWavefrontTraversalPass {
             let mut header = self.hit_queue_header.write().unwrap();
             header[0].count = 0;
             header[0].overflowed = 0;
-            header[0].capacity = self.hit_queue.read().unwrap().len() as u32;
+            header[0].capacity = queue_capacity_u32(self.hit_queue.read().unwrap().len());
             render_context.mark_as_dirty(header.buffer_id());
         }
         if self.scene_data.read().unwrap().is_empty()
@@ -245,7 +242,7 @@ impl ComputeWavefrontTraversalPass {
                 hit_queue.resize(capacity, HitRecord::default());
             }
         }
-        self.hit_queue_header.write().unwrap()[0].capacity = capacity as u32;
+        self.hit_queue_header.write().unwrap()[0].capacity = queue_capacity_u32(capacity);
         self
     }
 }

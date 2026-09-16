@@ -98,9 +98,10 @@ impl Pass for ComputeWavefrontDenoisePass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        let scale = self.constant_data.read().unwrap().render_scale();
-        let width = (self.dimensions.0 as f32 * scale).ceil() as u32;
-        let height = (self.dimensions.1 as f32 * scale).ceil() as u32;
+        // The final accumulator is full resolution, matching composite and
+        // upscale. Render scale affects reconstruction quality, not dispatch
+        // dimensions or storage strides.
+        let (width, height) = self.dimensions;
         self.compute_pass.get().dispatch(
             render_context,
             &mut self.binding_data,

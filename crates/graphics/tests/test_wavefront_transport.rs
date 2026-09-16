@@ -2,8 +2,9 @@ use std::fs;
 use std::path::PathBuf;
 
 use inox_graphics::passes::pathtracing_common::{
-    bounded_path_depth, reflect_direction, refract_direction, roulette_survival_probability,
-    wavefront_bounce_stages, RayQueue,
+    bounded_path_depth, queue_capacity_for_resolution, queue_capacity_u32, reflect_direction,
+    refract_direction, roulette_survival_probability, wavefront_bounce_stages, RayQueue,
+    MAX_WAVEFRONT_QUEUE_CAPACITY,
 };
 
 fn shader(name: &str) -> String {
@@ -197,16 +198,20 @@ fn material_ids_are_numeric_between_surface_and_bounce() {
 
 #[test]
 fn wavefront_buffers_keep_full_resolution_with_non_native_render_scale() {
-    use inox_graphics::passes::pathtracing_common::queue_capacity_for_resolution;
-
     let dimensions = (1920, 1080);
     let full_capacity = queue_capacity_for_resolution(dimensions, 1.0, usize::MAX);
     let scaled_capacity = queue_capacity_for_resolution(dimensions, 0.5, usize::MAX);
     assert!(scaled_capacity < full_capacity);
     assert_eq!(
-        queue_capacity_for_resolution((1920, 1080), 1.0, usize::MAX),
+        queue_capacity_for_resolution((1920, 1080), 1.0, MAX_WAVEFRONT_QUEUE_CAPACITY),
         2_073_600
     );
+    assert_eq!(MAX_WAVEFRONT_QUEUE_CAPACITY, 2_097_152);
+    assert_eq!(
+        queue_capacity_for_resolution((3840, 2160), 1.0, MAX_WAVEFRONT_QUEUE_CAPACITY),
+        MAX_WAVEFRONT_QUEUE_CAPACITY
+    );
+    assert_eq!(queue_capacity_u32(usize::MAX), u32::MAX);
 
     // Visibility, G-buffer, direct/indirect accumulators, and all wavefront
     // queues are full-resolution resources.  Render scale is reconstructed by
@@ -222,8 +227,15 @@ fn wavefront_buffers_keep_full_resolution_with_non_native_render_scale() {
                 .join(pass),
         )
         .unwrap();
-        assert!(source.contains("queue_capacity_for_resolution(dimensions, 1.0"));
+        assert!(source.contains("queue_capacity_for_resolution"));
+        assert!(!source.contains("usize::MAX"));
     }
+    let denoise_pass = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/passes/compute_wavefront_denoise.rs"),
+    )
+    .unwrap();
+    assert!(denoise_pass.contains("let (width, height) = self.dimensions"));
+    assert!(!denoise_pass.contains("render_scale()"));
     let composite = shader("compute_wavefront_composite.wgsl");
     let temporal = shader("compute_wavefront_denoise_temporal.wgsl");
     let bilateral = shader("compute_wavefront_denoise_bilateral.wgsl");

@@ -9,8 +9,9 @@ use inox_resources::{DataTypeResource, Resource};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
 use crate::{
-    dispatch_workgroups_for, queue_capacity_for_resolution, wavefront_primary_bindings,
-    QueueHeader, RadiancePackedData, RayPackedData, RayQueueRecord, ThroughputPackedData,
+    dispatch_workgroups_for, queue_capacity_for_resolution, queue_capacity_u32,
+    wavefront_primary_bindings, QueueHeader, RadiancePackedData, RayPackedData, RayQueueRecord,
+    ThroughputPackedData, MAX_WAVEFRONT_QUEUE_CAPACITY,
 };
 
 pub const COMPUTE_WAVEFRONT_PRIMARY_PIPELINE: &str =
@@ -20,9 +21,6 @@ pub const WAVEFRONT_PRIMARY_QUEUE_ID: Uid =
     generate_static_uid_from_string("WAVEFRONT_PRIMARY_QUEUE");
 pub const WAVEFRONT_PRIMARY_HEADER_ID: Uid =
     generate_static_uid_from_string("WAVEFRONT_PRIMARY_HEADER");
-// Queue capacity follows the actual full-resolution target.  A fixed cap below
-// 1920x1080 would silently drop primary rays before traversal.
-const MAX_WAVEFRONT_QUEUE_CAPACITY: usize = usize::MAX;
 
 pub struct ComputeWavefrontPrimaryPass {
     compute_pass: Resource<ComputePass>,
@@ -188,7 +186,7 @@ impl Pass for ComputeWavefrontPrimaryPass {
             let mut header = self.ray_queue_header.write().unwrap();
             header[0].count = 0;
             header[0].overflowed = 0;
-            header[0].capacity = self.ray_queue.read().unwrap().len() as u32;
+            header[0].capacity = queue_capacity_u32(self.ray_queue.read().unwrap().len());
             render_context.mark_as_dirty(header.buffer_id());
         }
 
@@ -214,7 +212,7 @@ impl ComputeWavefrontPrimaryPass {
                 queue.resize(capacity, RayQueueRecord::default());
             }
         }
-        self.ray_queue_header.write().unwrap()[0].capacity = capacity as u32;
+        self.ray_queue_header.write().unwrap()[0].capacity = queue_capacity_u32(capacity);
         self
     }
 }

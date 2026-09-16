@@ -317,6 +317,11 @@ pub struct QueueHeader {
     pub overflowed: u32,
 }
 
+/// Finite per-queue budget supported by the portable renderer.  It covers
+/// the default 1920x1080 frame (2,073,600 entries) while bounding GPU memory
+/// and keeping header capacities representable as `u32`.
+pub const MAX_WAVEFRONT_QUEUE_CAPACITY: usize = 2_097_152;
+
 pub fn queue_capacity_for_resolution(
     dimensions: (u32, u32),
     render_scale: f32,
@@ -325,7 +330,17 @@ pub fn queue_capacity_for_resolution(
     let scale = render_scale.clamp(0.01, 1.0);
     let width = ((dimensions.0 as f32 * scale).ceil() as usize).max(1);
     let height = ((dimensions.1 as f32 * scale).ceil() as usize).max(1);
-    width.saturating_mul(height).min(max_capacity.max(1))
+    width
+        .saturating_mul(height)
+        .min(max_capacity.max(1))
+        .min(u32::MAX as usize)
+}
+
+/// Convert a queue length to the GPU header's bounded `u32` capacity field.
+/// Values above the representable range are saturated; append shaders retain
+/// their overflow marker for work beyond that capacity.
+pub fn queue_capacity_u32(capacity: usize) -> u32 {
+    u32::try_from(capacity).unwrap_or(u32::MAX)
 }
 
 pub fn dispatch_workgroups_for(item_count: u32, workgroup_size: u32) -> u32 {

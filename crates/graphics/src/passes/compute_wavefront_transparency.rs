@@ -9,8 +9,8 @@ use inox_resources::{DataTypeResource, Resource};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
 use crate::{
-    wavefront_auxiliary_bindings, AccumulationRecord, QueueHeader, RadiancePackedData,
-    TransparentHitRecord, WAVEFRONT_SCENE_ID,
+    queue_capacity_u32, wavefront_auxiliary_bindings, AccumulationRecord, QueueHeader,
+    RadiancePackedData, TransparentHitRecord, WAVEFRONT_SCENE_ID,
 };
 
 pub const COMPUTE_WAVEFRONT_TRANSPARENCY_PIPELINE: &str =
@@ -170,7 +170,7 @@ impl Pass for ComputeWavefrontTransparencyPass {
         let mut header = self.header.write().unwrap();
         header[0].count = 0;
         header[0].overflowed = 0;
-        header[0].capacity = self.queue.read().unwrap().len() as u32;
+        header[0].capacity = queue_capacity_u32(self.queue.read().unwrap().len());
         render_context.mark_as_dirty(header.buffer_id());
         self.compute_pass.get().dispatch(
             render_context,
@@ -192,7 +192,7 @@ impl ComputeWavefrontTransparencyPass {
             .write()
             .unwrap()
             .resize(capacity, TransparentHitRecord::default());
-        self.header.write().unwrap()[0].capacity = capacity as u32;
+        self.header.write().unwrap()[0].capacity = queue_capacity_u32(capacity);
         self
     }
 }
