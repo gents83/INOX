@@ -332,6 +332,7 @@ fn invalid_material_ids_are_rejected_before_packed_access() {
             < transparency.find("table_offset(8u) + material_id").unwrap()
     );
     assert!(shade.contains("material_index == INVALID_INDEX"));
+    assert!(shade.contains("material_index < 0"));
     assert!(shade.contains("material_index >= i32(MAX_NUM_MATERIALS)"));
     assert!(!shade.contains("max(bitcast<i32>(scene_data[mesh_base + 3u]), 0)"));
     assert!(
