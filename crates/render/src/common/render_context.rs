@@ -3,6 +3,9 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
+#[cfg(not(target_arch = "wasm32"))]
+use futures::executor::block_on;
+
 use inox_core::ContextRc;
 use inox_messenger::MessageHubRc;
 use inox_platform::Handle;
@@ -119,6 +122,40 @@ impl RenderContext {
 
     pub fn new_command_buffer(&self) -> CommandBuffer {
         self.webgpu.new_command_buffer()
+    }
+
+    pub fn create_compute_pipeline(
+        &self,
+        descriptor: &wgpu::ComputePipelineDescriptor<'_>,
+    ) -> Result<wgpu::ComputePipeline, String> {
+        #[cfg(not(target_arch = "wasm32"))]
+        let error_scope = self
+            .webgpu
+            .device
+            .push_error_scope(wgpu::ErrorFilter::Validation);
+        let pipeline = self.webgpu.device.create_compute_pipeline(descriptor);
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(error) = block_on(error_scope.pop()) {
+            return Err(error.to_string());
+        }
+        Ok(pipeline)
+    }
+
+    pub fn create_render_pipeline(
+        &self,
+        descriptor: &wgpu::RenderPipelineDescriptor<'_>,
+    ) -> Result<wgpu::RenderPipeline, String> {
+        #[cfg(not(target_arch = "wasm32"))]
+        let error_scope = self
+            .webgpu
+            .device
+            .push_error_scope(wgpu::ErrorFilter::Validation);
+        let pipeline = self.webgpu.device.create_render_pipeline(descriptor);
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(error) = block_on(error_scope.pop()) {
+            return Err(error.to_string());
+        }
+        Ok(pipeline)
     }
 
     pub fn mark_as_dirty(&self, buffer_id: BufferId) {

@@ -8,7 +8,9 @@ use inox_resources::{
 };
 use inox_serialize::{read_from_file, SerializationType, SerializeFile};
 
-use crate::{BindingData, ComputePipelineData, RenderContext, Shader, SHADER_ENTRY_POINT};
+use crate::{
+    BindingData, ComputePipelineData, ReloadError, RenderContext, Shader, SHADER_ENTRY_POINT,
+};
 
 pub type ComputePipelineId = ResourceId;
 
@@ -18,6 +20,8 @@ pub struct ComputePipeline {
     message_hub: MessageHubRc,
     shader: Handle<Shader>,
     compute_pipeline: Option<wgpu::ComputePipeline>,
+    reload_pending: bool,
+    last_reload_error: Option<ReloadError>,
 }
 
 impl Clone for ComputePipeline {
@@ -28,6 +32,8 @@ impl Clone for ComputePipeline {
             message_hub: self.message_hub.clone(),
             shader: self.shader.clone(),
             compute_pipeline: None,
+            reload_pending: self.reload_pending,
+            last_reload_error: self.last_reload_error.clone(),
         }
     }
 }
@@ -35,6 +41,7 @@ impl Clone for ComputePipeline {
 impl ResourceTrait for ComputePipeline {
     fn invalidate(&mut self) -> &mut Self {
         self.compute_pipeline = None;
+        self.reload_pending = false;
         self
     }
     fn is_initialized(&self) -> bool {
@@ -69,6 +76,8 @@ impl DataTypeResource for ComputePipeline {
             message_hub: message_hub.clone(),
             shader: None,
             compute_pipeline: None,
+            reload_pending: false,
+            last_reload_error: None,
         }
     }
 
@@ -112,13 +121,13 @@ impl ComputePipeline {
         }
         if let Some(shader) = self.shader.as_ref() {
             if !shader.get().is_initialized() {
-                if !shader.get_mut().init(context) {
+                if let Err(error) = shader.get_mut().init(context) {
+                    self.last_reload_error = Some(error);
                     return false;
                 }
-                self.compute_pipeline = None;
             }
         }
-        if self.is_initialized() {
+        if self.is_initialized() && !self.reload_pending {
             return true;
         }
         let compute_pipeline_layout =
@@ -138,40 +147,61 @@ impl ComputePipeline {
 
         let compute_pipeline = {
             inox_profiler::scoped_profile!("compute_pipeline::create[{}]", self.name());
-            context
-                .webgpu
-                .device
-                .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                    label: Some(
-                        format!(
-                            "Compute Pipeline [{:?}]",
-                            self.path
-                                .file_stem()
-                                .unwrap_or_default()
-                                .to_str()
-                                .unwrap_or_default()
-                        )
-                        .as_str(),
-                    ),
-                    layout: Some(&compute_pipeline_layout),
-                    cache: None,
-                    module: self.shader.as_ref().unwrap().get().module(),
-                    compilation_options: wgpu::PipelineCompilationOptions::default(),
-                    entry_point: Some(entry_point_name.unwrap_or(SHADER_ENTRY_POINT)),
-                })
+            context.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                label: Some(
+                    format!(
+                        "Compute Pipeline [{:?}]",
+                        self.path
+                            .file_stem()
+                            .unwrap_or_default()
+                            .to_str()
+                            .unwrap_or_default()
+                    )
+                    .as_str(),
+                ),
+                layout: Some(&compute_pipeline_layout),
+                cache: None,
+                module: self.shader.as_ref().unwrap().get().module(),
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                entry_point: Some(entry_point_name.unwrap_or(SHADER_ENTRY_POINT)),
+            })
         };
-        self.compute_pipeline = Some(compute_pipeline);
-        true
+        match compute_pipeline {
+            Ok(compute_pipeline) => {
+                self.compute_pipeline = Some(compute_pipeline);
+                self.reload_pending = false;
+                self.last_reload_error = None;
+                true
+            }
+            Err(diagnostic) => {
+                let error = ReloadError::new(
+                    &self.path,
+                    "compute pipeline",
+                    diagnostic,
+                    self.compute_pipeline.is_some(),
+                );
+                debug_log!(
+                    "Compute pipeline reload failed for {:?}: {}",
+                    error.path,
+                    error.diagnostic
+                );
+                self.last_reload_error = Some(error);
+                false
+            }
+        }
     }
 
     pub fn check_shaders_to_reload(&mut self, path_as_string: String) {
         if let Some(shader) = &self.shader {
-            if path_as_string.contains(shader.get().path().to_str().unwrap())
-                && !shader.get().path().to_str().unwrap().is_empty()
-            {
-                self.invalidate();
+            let shader_path = shader.get().path().to_string_lossy().into_owned();
+            if !shader_path.is_empty() && path_as_string.contains(shader_path.as_str()) {
+                self.reload_pending = true;
                 debug_log!("Compute Shader {:?} will be reloaded", path_as_string);
             }
         }
+    }
+
+    pub fn last_reload_error(&self) -> Option<&ReloadError> {
+        self.last_reload_error.as_ref()
     }
 }

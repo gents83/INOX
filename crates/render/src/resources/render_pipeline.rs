@@ -9,8 +9,8 @@ use inox_resources::{
 use inox_serialize::{read_from_file, SerializationType, SerializeFile};
 
 use crate::{
-    BindingData, BlendFactor, RenderContext, RenderPipelineData, Shader, TextureFormat,
-    VertexBufferLayoutBuilder, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT,
+    BindingData, BlendFactor, ReloadError, RenderContext, RenderPipelineData, Shader,
+    TextureFormat, VertexBufferLayoutBuilder, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT,
     VERTEX_SHADER_ENTRY_POINT,
 };
 
@@ -25,6 +25,8 @@ pub struct RenderPipeline {
     vertex_shader: Handle<Shader>,
     fragment_shader: Handle<Shader>,
     render_pipeline: Option<wgpu::RenderPipeline>,
+    reload_pending: bool,
+    last_reload_error: Option<ReloadError>,
 }
 
 impl Clone for RenderPipeline {
@@ -40,6 +42,8 @@ impl Clone for RenderPipeline {
             fragment_shader: Some(fragment_shader),
             formats: Vec::new(),
             render_pipeline: None,
+            reload_pending: self.reload_pending,
+            last_reload_error: self.last_reload_error.clone(),
         }
     }
 }
@@ -47,6 +51,7 @@ impl Clone for RenderPipeline {
 impl ResourceTrait for RenderPipeline {
     fn invalidate(&mut self) -> &mut Self {
         self.formats = Vec::new();
+        self.reload_pending = false;
         self
     }
     fn is_initialized(&self) -> bool {
@@ -87,6 +92,8 @@ impl DataTypeResource for RenderPipeline {
             vertex_shader: None,
             fragment_shader: None,
             render_pipeline: None,
+            reload_pending: false,
+            last_reload_error: None,
         }
     }
 
@@ -151,20 +158,18 @@ impl RenderPipeline {
         }
         if let Some(shader) = self.vertex_shader.as_ref() {
             if !shader.get().is_initialized() {
-                if !shader.get_mut().init(context) {
+                if let Err(error) = shader.get_mut().init(context) {
+                    self.last_reload_error = Some(error);
                     return false;
                 }
-                self.render_pipeline = None;
-                self.formats = Vec::new();
             }
         }
         if let Some(shader) = self.fragment_shader.as_ref() {
             if !shader.get().is_initialized() {
-                if !shader.get_mut().init(context) {
+                if let Err(error) = shader.get_mut().init(context) {
+                    self.last_reload_error = Some(error);
                     return false;
                 }
-                self.render_pipeline = None;
-                self.formats = Vec::new();
             }
         }
         let is_same_format = if render_formats.is_empty() {
@@ -179,7 +184,7 @@ impl RenderPipeline {
                 .count();
             count == self.formats.len() && count == render_formats.len()
         };
-        if is_same_format {
+        if is_same_format && !self.reload_pending {
             return true;
         }
         let pipeline_render_formats = if render_formats.is_empty() {
@@ -221,115 +226,137 @@ impl RenderPipeline {
 
         let render_pipeline = {
             inox_profiler::scoped_profile!("render_pipeline::create[{}]", self.name());
-            context
-                .webgpu
-                .device
-                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some(
-                        format!(
-                            "Render Pipeline [{:?}]",
-                            self.path
-                                .file_stem()
-                                .unwrap_or_default()
-                                .to_str()
-                                .unwrap_or_default()
-                        )
-                        .as_str(),
-                    ),
-                    cache: None,
-                    layout: Some(&render_pipeline_layout),
-                    vertex: wgpu::VertexState {
-                        module: self.vertex_shader.as_ref().unwrap().get().module(),
-                        compilation_options: wgpu::PipelineCompilationOptions::default(),
-                        entry_point: if self.data.vertex_shader == self.data.fragment_shader {
-                            Some(VERTEX_SHADER_ENTRY_POINT)
-                        } else {
-                            Some(SHADER_ENTRY_POINT)
-                        },
-                        buffers: vertex_state_buffers.as_slice(),
+            context.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some(
+                    format!(
+                        "Render Pipeline [{:?}]",
+                        self.path
+                            .file_stem()
+                            .unwrap_or_default()
+                            .to_str()
+                            .unwrap_or_default()
+                    )
+                    .as_str(),
+                ),
+                cache: None,
+                layout: Some(&render_pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: self.vertex_shader.as_ref().unwrap().get().module(),
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    entry_point: if self.data.vertex_shader == self.data.fragment_shader {
+                        Some(VERTEX_SHADER_ENTRY_POINT)
+                    } else {
+                        Some(SHADER_ENTRY_POINT)
                     },
-                    fragment: Some(wgpu::FragmentState {
-                        module: self.fragment_shader.as_ref().unwrap().get().module(),
-                        compilation_options: wgpu::PipelineCompilationOptions::default(),
-                        entry_point: if self.data.vertex_shader == self.data.fragment_shader {
-                            Some(FRAGMENT_SHADER_ENTRY_POINT)
-                        } else {
-                            Some(SHADER_ENTRY_POINT)
-                        },
-                        targets: pipeline_render_formats
-                            .iter()
-                            .map(|&render_format| {
-                                Some(wgpu::ColorTargetState {
-                                    format: render_format,
-                                    blend: if self.data.src_color_blend_factor == BlendFactor::Zero
-                                        && self.data.dst_color_blend_factor == BlendFactor::Zero
-                                    {
-                                        None
-                                    } else {
-                                        Some(wgpu::BlendState {
-                                            color: wgpu::BlendComponent {
-                                                src_factor: self.data.src_color_blend_factor.into(),
-                                                dst_factor: self.data.dst_color_blend_factor.into(),
-                                                operation: self.data.color_blend_operation.into(),
-                                            },
-                                            alpha: wgpu::BlendComponent {
-                                                src_factor: self.data.src_alpha_blend_factor.into(),
-                                                dst_factor: self.data.dst_alpha_blend_factor.into(),
-                                                operation: self.data.alpha_blend_operation.into(),
-                                            },
-                                        })
-                                    },
-                                    write_mask: wgpu::ColorWrites::ALL,
-                                })
+                    buffers: vertex_state_buffers.as_slice(),
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: self.fragment_shader.as_ref().unwrap().get().module(),
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    entry_point: if self.data.vertex_shader == self.data.fragment_shader {
+                        Some(FRAGMENT_SHADER_ENTRY_POINT)
+                    } else {
+                        Some(SHADER_ENTRY_POINT)
+                    },
+                    targets: pipeline_render_formats
+                        .iter()
+                        .map(|&render_format| {
+                            Some(wgpu::ColorTargetState {
+                                format: render_format,
+                                blend: if self.data.src_color_blend_factor == BlendFactor::Zero
+                                    && self.data.dst_color_blend_factor == BlendFactor::Zero
+                                {
+                                    None
+                                } else {
+                                    Some(wgpu::BlendState {
+                                        color: wgpu::BlendComponent {
+                                            src_factor: self.data.src_color_blend_factor.into(),
+                                            dst_factor: self.data.dst_color_blend_factor.into(),
+                                            operation: self.data.color_blend_operation.into(),
+                                        },
+                                        alpha: wgpu::BlendComponent {
+                                            src_factor: self.data.src_alpha_blend_factor.into(),
+                                            dst_factor: self.data.dst_alpha_blend_factor.into(),
+                                            operation: self.data.alpha_blend_operation.into(),
+                                        },
+                                    })
+                                },
+                                write_mask: wgpu::ColorWrites::ALL,
                             })
-                            .collect::<Vec<_>>()
-                            .as_slice(),
-                    }),
-                    primitive: wgpu::PrimitiveState {
-                        topology: wgpu::PrimitiveTopology::TriangleList,
-                        strip_index_format: None,
-                        front_face: self.data.front_face.into(),
-                        cull_mode: self.data.culling.into(),
-                        // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
-                        polygon_mode: self.data.mode.into(),
-                        // Requires Features::DEPTH_CLIP_CONTROL
-                        unclipped_depth: false,
-                        // Requires Features::CONSERVATIVE_RASTERIZATION
-                        conservative: false,
-                    },
-                    depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
-                        format: (*format).into(),
-                        depth_write_enabled: Some(self.data.depth_write_enabled),
-                        depth_compare: Some(self.data.depth_compare.into()),
-                        stencil: wgpu::StencilState::default(),
-                        bias: wgpu::DepthBiasState::default(),
-                    }),
-                    multisample: wgpu::MultisampleState {
-                        count: self.data.sampling_count,
-                        ..Default::default()
-                    },
-                    // If the pipeline will be used with a multiview render pass, this
-                    // indicates how many array layers the attachments will have.
-                    multiview_mask: None,
-                })
+                        })
+                        .collect::<Vec<_>>()
+                        .as_slice(),
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: self.data.front_face.into(),
+                    cull_mode: self.data.culling.into(),
+                    // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
+                    polygon_mode: self.data.mode.into(),
+                    // Requires Features::DEPTH_CLIP_CONTROL
+                    unclipped_depth: false,
+                    // Requires Features::CONSERVATIVE_RASTERIZATION
+                    conservative: false,
+                },
+                depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
+                    format: (*format).into(),
+                    depth_write_enabled: Some(self.data.depth_write_enabled),
+                    depth_compare: Some(self.data.depth_compare.into()),
+                    stencil: wgpu::StencilState::default(),
+                    bias: wgpu::DepthBiasState::default(),
+                }),
+                multisample: wgpu::MultisampleState {
+                    count: self.data.sampling_count,
+                    ..Default::default()
+                },
+                // If the pipeline will be used with a multiview render pass, this
+                // indicates how many array layers the attachments will have.
+                multiview_mask: None,
+            })
         };
-        self.formats = pipeline_render_formats.iter().map(|&f| f.into()).collect();
-        self.render_pipeline = Some(render_pipeline);
-        true
+        match render_pipeline {
+            Ok(render_pipeline) => {
+                self.formats = pipeline_render_formats.iter().map(|&f| f.into()).collect();
+                self.render_pipeline = Some(render_pipeline);
+                self.reload_pending = false;
+                self.last_reload_error = None;
+                true
+            }
+            Err(diagnostic) => {
+                let error = ReloadError::new(
+                    &self.path,
+                    "render pipeline",
+                    diagnostic,
+                    self.render_pipeline.is_some(),
+                );
+                debug_log!(
+                    "Render pipeline reload failed for {:?}: {}",
+                    error.path,
+                    error.diagnostic
+                );
+                self.last_reload_error = Some(error);
+                false
+            }
+        }
     }
 
     pub fn check_shaders_to_reload(&mut self, path_as_string: String) {
-        if path_as_string.contains(self.data.vertex_shader.to_str().unwrap())
-            && !self.data.vertex_shader.to_str().unwrap().is_empty()
-        {
-            self.invalidate();
+        let vertex_shader_path = self.data.vertex_shader.to_string_lossy();
+        if !vertex_shader_path.is_empty() && path_as_string.contains(vertex_shader_path.as_ref()) {
+            self.reload_pending = true;
             debug_log!("Vertex Shader {:?} will be reloaded", path_as_string);
         }
-        if path_as_string.contains(self.data.fragment_shader.to_str().unwrap())
-            && !self.data.fragment_shader.to_str().unwrap().is_empty()
+        let fragment_shader_path = self.data.fragment_shader.to_string_lossy();
+        if !fragment_shader_path.is_empty()
+            && path_as_string.contains(fragment_shader_path.as_ref())
         {
-            self.invalidate();
+            self.reload_pending = true;
             debug_log!("Fragment Shader {:?} will be reloaded", path_as_string);
         }
+    }
+
+    pub fn last_reload_error(&self) -> Option<&ReloadError> {
+        self.last_reload_error.as_ref()
     }
 }

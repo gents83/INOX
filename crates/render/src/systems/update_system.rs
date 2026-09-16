@@ -68,16 +68,17 @@ impl UpdateSystem {
             .process_messages(|e: &ReloadEvent| {
                 let ReloadEvent::Reload(path) = e;
                 if is_shader(path) {
+                    let path_string = path.to_string_lossy().into_owned();
                     SharedData::for_each_resource_mut(
                         &self.shared_data,
                         |_, p: &mut RenderPipeline| {
-                            p.check_shaders_to_reload(path.to_str().unwrap().to_string());
+                            p.check_shaders_to_reload(path_string.clone());
                         },
                     );
                     SharedData::for_each_resource_mut(
                         &self.shared_data,
                         |_, p: &mut ComputePipeline| {
-                            p.check_shaders_to_reload(path.to_str().unwrap().to_string());
+                            p.check_shaders_to_reload(path_string.clone());
                         },
                     );
                 }
