@@ -39,11 +39,11 @@ impl Pass for ComputeWavefrontDispatchPass {
     }
 
     fn is_active(&self, _render_context: &RenderContext) -> bool {
-        self.ray_queue_header
-            .read()
-            .unwrap()
-            .first()
-            .is_some_and(|header| header.count > 0 && header.capacity > 0)
+        // Queue counts are written by an earlier GPU pass in the same command
+        // buffer.  They are not available to the CPU until readback, so the
+        // indirect dispatch shader must decide whether to launch workgroups.
+        !self.ray_queue_header.read().unwrap().is_empty()
+            && !self.dispatch_args.read().unwrap().is_empty()
     }
 
     fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self {

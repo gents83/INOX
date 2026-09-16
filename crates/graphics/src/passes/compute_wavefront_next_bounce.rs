@@ -9,9 +9,10 @@ use inox_resources::{DataTypeResource, Resource};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
 use crate::{
-    DispatchArgs, HitRecord, QueueHeader, RadiancePackedData, RayPackedData, RayQueueRecord,
-    WavefrontBounceBindingIds, WAVEFRONT_HIT_DISPATCH_ARGS_ID, WAVEFRONT_HIT_HEADER_ID,
-    WAVEFRONT_HIT_QUEUE_ID, WAVEFRONT_PRIMARY_QUEUE_ID, WAVEFRONT_SCENE_ID,
+    queue_capacity_for_resolution, DispatchArgs, HitRecord, QueueHeader, RadiancePackedData,
+    RayPackedData, RayQueueRecord, WavefrontBounceBindingIds, WAVEFRONT_HIT_DISPATCH_ARGS_ID,
+    WAVEFRONT_HIT_HEADER_ID, WAVEFRONT_HIT_QUEUE_ID, WAVEFRONT_PRIMARY_QUEUE_ID,
+    WAVEFRONT_SCENE_ID,
 };
 
 pub const COMPUTE_WAVEFRONT_NEXT_BOUNCE_PIPELINE: &str =
@@ -60,12 +61,11 @@ impl Pass for ComputeWavefrontNextBouncePass {
         COMPUTE_WAVEFRONT_NEXT_BOUNCE_NAME
     }
     fn is_active(&self, _render_context: &RenderContext) -> bool {
-        self.hit_queue_header
-            .read()
-            .unwrap()
-            .first()
-            .is_some_and(|header| header.count > 0 && header.capacity > 0)
+        // The hit count is GPU-written and cannot gate a later pass in this
+        // command buffer.  Dispatch metadata handles the empty-queue case.
+        !self.hit_queue_header.read().unwrap().is_empty()
             && !self.next_queue.read().unwrap().is_empty()
+            && !self.dispatch_args.read().unwrap().is_empty()
     }
     fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self {
         Self::create_for_queues(
@@ -275,13 +275,12 @@ impl ComputeWavefrontNextBouncePass {
 
     pub fn set_dimensions(&mut self, dimensions: (u32, u32)) -> &mut Self {
         self.dimensions = dimensions;
-        let count = dimensions.0 as usize * dimensions.1 as usize;
+        let capacity = queue_capacity_for_resolution(dimensions, 1.0, 1_048_576);
         self.next_queue
             .write()
             .unwrap()
-            .resize(count.min(1_048_576), RayQueueRecord::default());
-        self.next_queue_header.write().unwrap()[0].capacity =
-            self.next_queue.read().unwrap().len() as u32;
+            .resize(capacity, RayQueueRecord::default());
+        self.next_queue_header.write().unwrap()[0].capacity = capacity as u32;
         self
     }
 }

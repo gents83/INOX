@@ -54,7 +54,9 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 
     let offset = ray.pixel_index * SIZE_OF_DATA_BUFFER_ELEMENT;
     let surface_normal = safe_normalize(octahedral_unmapping(unpack2x16float(bitcast<u32>(gbuffer_world[offset + 3u]))), vec3<f32>(0.0, 1.0, 0.0));
-    let material_id = max(bitcast<i32>(bitcast<u32>(gbuffer_material[offset])), 0);
+    // Surface stores the material index as a numeric f32.  Decode the value
+    // numerically; bitcasting would reinterpret 1.0 as 0x3f800000.
+    let material_id = u32(max(gbuffer_material[offset], 0.0));
     let roughness = clamp(finite_or(load_material(u32(material_id), 16u), 1.0), 0.045, 1.0);
     let metallic = clamp(finite_or(load_material(u32(material_id), 17u), 0.0), 0.0, 1.0);
     let transmission = clamp(finite_or(load_material(u32(material_id), 19u), 0.0), 0.0, 1.0) * (1.0 - metallic);

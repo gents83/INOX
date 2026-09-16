@@ -164,3 +164,63 @@ fn queue_reset_happens_before_each_append_stage() {
     .unwrap();
     assert!(traversal_pass.contains("header[0].count = 0"));
 }
+
+#[test]
+fn cpu_activation_uses_static_resources_not_gpu_queue_counts() {
+    for pass in [
+        "compute_wavefront_dispatch.rs",
+        "compute_wavefront_next_bounce.rs",
+        "compute_wavefront_shade.rs",
+        "compute_wavefront_traversal.rs",
+    ] {
+        let source = fs::read_to_string(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("src/passes")
+                .join(pass),
+        )
+        .unwrap();
+        assert!(
+            !source.contains("header.count > 0") && !source.contains("header.count == 0"),
+            "{pass} must not use a GPU-written count as a CPU activation gate"
+        );
+    }
+}
+
+#[test]
+fn material_ids_are_numeric_between_surface_and_bounce() {
+    let surface = shader("compute_wavefront_surface.wgsl");
+    let next = shader("compute_wavefront_next_bounce.wgsl");
+    assert!(surface.contains("data_buffer_1[o] = f32(material_id)"));
+    assert!(next.contains("u32(max(gbuffer_material[offset], 0.0))"));
+    assert!(!next.contains("bitcast<i32>(bitcast<u32>(gbuffer_material[offset]))"));
+}
+
+#[test]
+fn wavefront_buffers_keep_full_resolution_with_non_native_render_scale() {
+    use inox_graphics::passes::pathtracing_common::queue_capacity_for_resolution;
+
+    let dimensions = (1920, 1080);
+    let full_capacity = queue_capacity_for_resolution(dimensions, 1.0, usize::MAX);
+    let scaled_capacity = queue_capacity_for_resolution(dimensions, 0.5, usize::MAX);
+    assert!(scaled_capacity < full_capacity);
+
+    // Visibility, G-buffer, direct/indirect accumulators, and all wavefront
+    // queues are full-resolution resources.  Render scale is reconstructed by
+    // the final upscale pass, so queue capacity must not silently use it.
+    for pass in [
+        "compute_wavefront_primary.rs",
+        "compute_wavefront_traversal.rs",
+        "compute_wavefront_next_bounce.rs",
+    ] {
+        let source = fs::read_to_string(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("src/passes")
+                .join(pass),
+        )
+        .unwrap();
+        assert!(source.contains("queue_capacity_for_resolution(dimensions, 1.0"));
+    }
+    let upscale = shader("compute_wavefront_upscale.wgsl");
+    assert!(upscale.contains("constant_data.render_scale"));
+    assert!(upscale.contains("source_width"));
+}

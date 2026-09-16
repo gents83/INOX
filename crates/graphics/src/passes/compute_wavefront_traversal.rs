@@ -165,12 +165,8 @@ impl Pass for ComputeWavefrontTraversalPass {
             render_context.mark_as_dirty(header.buffer_id());
         }
         if self.scene_data.read().unwrap().is_empty()
-            || self
-                .ray_queue_header
-                .read()
-                .unwrap()
-                .first()
-                .is_none_or(|header| header.count == 0)
+            || self.ray_queue.read().unwrap().is_empty()
+            || self.dispatch_args.read().unwrap().is_empty()
         {
             return;
         }

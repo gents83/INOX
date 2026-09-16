@@ -182,12 +182,8 @@ impl Pass for ComputeWavefrontShadePass {
         command_buffer: &mut CommandBuffer,
     ) {
         if self.scene_data.read().unwrap().is_empty()
-            || self
-                .hit_queue_header
-                .read()
-                .unwrap()
-                .first()
-                .is_none_or(|header| header.count == 0)
+            || self.hit_queue.read().unwrap().is_empty()
+            || self.dispatch_args.read().unwrap().is_empty()
         {
             return;
         }

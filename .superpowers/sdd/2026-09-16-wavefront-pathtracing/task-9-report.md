@@ -12,6 +12,10 @@
 - Follow-up review fix: total internal reflection now executes before lobe selection and collapses transmission into a unit-probability delta reflection, preventing diffuse fallback and estimator bias.
 - Follow-up energy fix: TIR throughput now bypasses the cosine-weighted BSDF estimator and preserves the finite incoming throughput for oblique reflection; a focused regression contract covers this path.
 - Strengthened the TIR regression to structurally extract the TIR and non-TIR branches, verify direct throughput assignment occurs before lobe selection, and verify the cosine-weighted estimator remains isolated to non-TIR paths.
+- Removed CPU queue-count activation gates from dispatch, traversal, next-bounce, and shade; static resource availability now schedules the pass while GPU-written indirect arguments perform empty-queue termination.
+- Corrected numeric material-index decoding to match the surface pass's `f32(material_id)` encoding, and added a cross-shader contract.
+- Unified all wavefront queue capacities on the full-resolution path (`render_scale = 1.0`); the existing upscale pass performs non-native render-scale reconstruction without undersizing G-buffer or queue resources.
+- Added focused contracts for static activation, material encoding, and non-native render-scale capacity behavior.
 
 ## Verification
 
