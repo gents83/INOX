@@ -59,6 +59,22 @@ fn registers_serializes_and_executes_example_nodes() {
     let restored = deserialize::<NodeTree>(&bytes).expect("node tree should deserialize");
     assert_eq!(restored.get_nodes_count(), 3);
     assert_eq!(restored.get_links_count(), 4);
+    assert_eq!(restored.get_links_from("NodeA").len(), 3);
+    assert_eq!(restored.get_links_to("NodeB").len(), 3);
+    let restored_node = restored
+        .find_node_as::<RustExampleNode>("NodeA")
+        .expect("serialized example node should retain its name and type");
+    assert_eq!(
+        *restored_node.node().get_input::<i32>("in_int").unwrap(),
+        19
+    );
+    assert_eq!(
+        restored_node
+            .node()
+            .get_input::<String>("in_string")
+            .unwrap(),
+        "Ciao"
+    );
 
     let mut data = LogicData::from(restored);
     data.init();
