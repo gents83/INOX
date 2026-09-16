@@ -10,6 +10,7 @@
 - Corrected generated bounce dispatch handoffs, moved traversal hit-header reset before all early returns, clamped roulette depth when max depth changes, and bounded environment texture indices while preserving valid black textures.
 - Added focused contracts for dispatch chaining, lobe PDFs, finite guards, environment bounds, queue reset, depth/roulette, reflection/refraction/TIR, and accumulator separation.
 - Follow-up review fix: total internal reflection now executes before lobe selection and collapses transmission into a unit-probability delta reflection, preventing diffuse fallback and estimator bias.
+- Follow-up energy fix: TIR throughput now bypasses the cosine-weighted BSDF estimator and preserves the finite incoming throughput for oblique reflection; a focused regression contract covers this path.
 
 ## Verification
 

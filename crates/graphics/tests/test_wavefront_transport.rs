@@ -80,12 +80,13 @@ fn bounce_dispatches_chain_through_previous_destination() {
 }
 
 #[test]
-fn tir_forces_reflection_before_lobe_selection() {
+fn tir_forces_reflection_and_preserves_throughput() {
     let source = shader("compute_wavefront_next_bounce.wgsl");
     assert!(source.contains("if (tir) {"));
     assert!(source.contains("direction = reflection;"));
     assert!(source.contains("p_lobe = 1.0;"));
     assert!(source.contains("p_direction = 1.0;"));
+    assert!(source.contains("throughput = ray.throughput.xyz;"));
     assert!(source.contains("else if (selector < p_transmission"));
 }
 

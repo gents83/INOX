@@ -117,11 +117,18 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
         bsdf = base_color / MATH_PI;
     }
 
-    let cosine_out = abs(dot(normal, direction));
     if (!finite_vector(direction) || !finite_vector(bsdf) || !finite_scalar(p_lobe) || !finite_scalar(p_direction)
-        || p_lobe <= MATH_EPSILON || p_direction <= MATH_EPSILON || cosine_out <= MATH_EPSILON) { return; }
-    var throughput = ray.throughput.xyz * bsdf * cosine_out / (p_lobe * p_direction);
-    if (!finite_vector(throughput)) { return; }
+        || p_lobe <= MATH_EPSILON || p_direction <= MATH_EPSILON) { return; }
+    var throughput: vec3<f32>;
+    if (tir) {
+        throughput = ray.throughput.xyz;
+        if (!finite_vector(throughput)) { return; }
+    } else {
+        let cosine_out = abs(dot(normal, direction));
+        if (!finite_scalar(cosine_out) || cosine_out <= MATH_EPSILON) { return; }
+        throughput = ray.throughput.xyz * bsdf * cosine_out / (p_lobe * p_direction);
+        if (!finite_vector(throughput)) { return; }
+    }
     throughput = clamp(throughput, vec3<f32>(0.0), vec3<f32>(65504.0));
     if (length(throughput) <= MATH_EPSILON) { return; }
     if (ray.bounce >= constant_data.min_roulette_depth) {
