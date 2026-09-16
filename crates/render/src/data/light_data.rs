@@ -53,6 +53,18 @@ impl Default for GPULight {
 }
 
 impl GPULight {
+    /// Returns the finite, non-negative importance used by packed light sampling.
+    pub fn sampling_power(&self) -> f32 {
+        let color_luminance =
+            self.color[0] * 0.2126 + self.color[1] * 0.7152 + self.color[2] * 0.0722;
+        let power = self.intensity * color_luminance;
+        if power.is_finite() && power > 0.0 {
+            power
+        } else {
+            0.0
+        }
+    }
+
     #[allow(deref_nullptr)]
     pub fn debug_size(alignment_size: usize) {
         let total_size = std::mem::size_of::<Self>();

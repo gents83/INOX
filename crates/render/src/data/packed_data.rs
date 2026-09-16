@@ -1,7 +1,12 @@
 pub const PACKED_BUFFER_MAGIC: u32 = 0x584F_4E49;
 pub const PACKED_BUFFER_VERSION: u32 = 1;
 pub const PACKED_BUFFER_HEADER_WORDS: usize = 4;
-pub const PACKED_SCENE_HEADER_WORDS: usize = 48;
+pub const PACKED_SCENE_HEADER_WORDS: usize = 52;
+pub const PACKED_LIGHT_ALIAS_VERSION: u32 = 1;
+pub const PACKED_LIGHT_ALIAS_HEADER_WORDS: usize = 4;
+pub const PACKED_LIGHT_ALIAS_RECORD_STRIDE_WORDS: usize = 4;
+pub const PACKED_LIGHT_ALIAS_CAPACITY: usize = 1024;
+pub const PACKED_LIGHT_ALIAS_FLAG_OVERFLOW: u32 = 1;
 pub const WAVEFRONT_RECORD_VERSION: u32 = 1;
 pub const WAVEFRONT_RAY_QUEUE_RECORD_STRIDE_WORDS: usize = 16;
 pub const WAVEFRONT_HIT_RECORD_STRIDE_WORDS: usize = 8;
@@ -125,6 +130,136 @@ impl PackedTableRange {
             stride_words: stride_words as u32,
             flags,
         }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct PackedLightAliasHeader {
+    pub version: u32,
+    pub count: u32,
+    pub flags: u32,
+    pub total_power: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct PackedLightAliasRecord {
+    pub alias_index: u32,
+    pub selection_probability: f32,
+    pub proposal_pdf: f32,
+    pub _padding: u32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct PackedLightAliasData {
+    words: Vec<u32>,
+}
+
+impl PackedLightAliasData {
+    pub fn from_lights(lights: &[crate::GPULight]) -> Self {
+        let powers = lights
+            .iter()
+            .map(crate::GPULight::sampling_power)
+            .collect::<Vec<_>>();
+        Self::from_powers(&powers)
+    }
+
+    pub fn from_powers(powers: &[f32]) -> Self {
+        let count = powers.len().min(PACKED_LIGHT_ALIAS_CAPACITY);
+        let overflowed = powers.len() > PACKED_LIGHT_ALIAS_CAPACITY;
+        let sanitized = powers[..count]
+            .iter()
+            .map(|power| {
+                if power.is_finite() && *power > 0.0 {
+                    *power
+                } else {
+                    0.0
+                }
+            })
+            .collect::<Vec<_>>();
+        let total_power: f32 = sanitized.iter().sum();
+        let probabilities = if count == 0 {
+            Vec::new()
+        } else if total_power.is_finite() && total_power > 0.0 {
+            sanitized.iter().map(|power| *power / total_power).collect()
+        } else {
+            vec![1.0 / count as f32; count]
+        };
+
+        let mut scaled = probabilities
+            .iter()
+            .map(|probability| probability * count as f32)
+            .collect::<Vec<_>>();
+        let mut alias = (0..count).collect::<Vec<_>>();
+        let mut small = (0..count)
+            .filter(|index| scaled[*index] < 1.0)
+            .collect::<Vec<_>>();
+        let mut large = (0..count)
+            .filter(|index| scaled[*index] >= 1.0)
+            .collect::<Vec<_>>();
+        while let (Some(small_index), Some(large_index)) = (small.pop(), large.pop()) {
+            alias[small_index] = large_index;
+            scaled[large_index] = (scaled[large_index] + scaled[small_index] - 1.0).max(0.0);
+            if scaled[large_index] < 1.0 {
+                small.push(large_index);
+            } else {
+                large.push(large_index);
+            }
+        }
+
+        let mut words = Vec::with_capacity(
+            PACKED_LIGHT_ALIAS_HEADER_WORDS + count * PACKED_LIGHT_ALIAS_RECORD_STRIDE_WORDS,
+        );
+        words.extend_from_slice(&[
+            PACKED_LIGHT_ALIAS_VERSION,
+            count as u32,
+            if overflowed {
+                PACKED_LIGHT_ALIAS_FLAG_OVERFLOW
+            } else {
+                0
+            },
+            if total_power.is_finite() && total_power > 0.0 {
+                total_power.to_bits()
+            } else {
+                0
+            },
+        ]);
+        for index in 0..count {
+            words.extend_from_slice(&[
+                alias[index] as u32,
+                scaled[index].clamp(0.0, 1.0).to_bits(),
+                probabilities[index].to_bits(),
+                0,
+            ]);
+        }
+        Self { words }
+    }
+
+    pub fn words(&self) -> &[u32] {
+        &self.words
+    }
+
+    pub fn header(&self) -> PackedLightAliasHeader {
+        PackedLightAliasHeader {
+            version: self.words[0],
+            count: self.words[1],
+            flags: self.words[2],
+            total_power: self.words[3],
+        }
+    }
+
+    pub fn record(&self, index: usize) -> Option<PackedLightAliasRecord> {
+        if index >= self.header().count as usize {
+            return None;
+        }
+        let base = PACKED_LIGHT_ALIAS_HEADER_WORDS + index * PACKED_LIGHT_ALIAS_RECORD_STRIDE_WORDS;
+        Some(PackedLightAliasRecord {
+            alias_index: self.words[base],
+            selection_probability: f32::from_bits(self.words[base + 1]),
+            proposal_pdf: f32::from_bits(self.words[base + 2]),
+            _padding: self.words[base + 3],
+        })
     }
 }
 

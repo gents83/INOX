@@ -15,8 +15,8 @@ use crate::{
     AsBinding, ConstantDataRw, GPUInstance, GPULight, GPUMaterial, GPUMesh, GPUMeshlet,
     GPUPrimitiveIndices, GPUTexture, GPUTransform, GPUVertexAttributes, GPUVertexIndices,
     GPUVertexPosition, Light, LightId, Material, MaterialData, MaterialFlags, MaterialId, Mesh,
-    MeshData, MeshFlags, MeshId, PackedSceneBuilder, PackedSceneData, RenderContext,
-    SceneTableKind, TextureId, TextureType, INVALID_INDEX, MAX_LOD_LEVELS,
+    MeshData, MeshFlags, MeshId, PackedLightAliasData, PackedSceneBuilder, PackedSceneData,
+    RenderContext, SceneTableKind, TextureId, TextureType, INVALID_INDEX, MAX_LOD_LEVELS,
 };
 
 pub const INSTANCE_DATA_ID: Uid = generate_static_uid_from_string("INSTANCE_DATA_ID");
@@ -172,11 +172,14 @@ impl GlobalBuffers {
             std::mem::size_of::<GPUTexture>() / 4,
         );
         let lights = self.buffer::<GPULight>();
+        let light_data = lights.read().unwrap();
         builder.append_typed(
             SceneTableKind::Lights,
-            lights.read().unwrap().data(),
+            light_data.data(),
             std::mem::size_of::<GPULight>() / 4,
         );
+        let aliases = PackedLightAliasData::from_lights(light_data.data());
+        builder.append_light_aliases(&aliases);
 
         builder.finish()
     }

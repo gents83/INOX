@@ -5,7 +5,7 @@ fn assert_valid_indices(mesh: &inox_render::MeshData) {
     let vertex_count = mesh.vertex_count() as u32;
     assert!(mesh.indices.iter().all(|index| *index < vertex_count));
     assert_eq!(mesh.indices.len() % 3, 0);
-    for triangle in mesh.indices.chunks_exact(3) {
+    for triangle in mesh.indices.as_chunks::<3>().0 {
         assert!(triangle[0] != triangle[1] || triangle[1] != triangle[2]);
     }
 }

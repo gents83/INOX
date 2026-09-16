@@ -43,7 +43,7 @@ fn packed_record_descriptors_are_versioned_and_word_addressable() {
         assert_eq!(layout.stride_words, stride);
         assert_eq!(layout.alignment_bytes, 4);
     }
-    assert_eq!(PACKED_SCENE_HEADER_WORDS, 48);
+    assert_eq!(PACKED_SCENE_HEADER_WORDS, 52);
 }
 
 #[test]

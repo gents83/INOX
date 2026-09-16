@@ -27,7 +27,7 @@
 
 ## Phase 4 — direct lighting
 
-- [ ] Add packed light hierarchy/alias-table updates.
+- [x] Add packed light hierarchy/alias-table updates. (Bounded deterministic alias table is packed with version/count/overflow metadata; direct candidates use alias PDFs with an empty-table uniform fallback.)
 - [x] Add AO state and independent AO accumulator. (Packed visibility now traces one bounded AO ray; spatial/temporal AO reuse remains.)
 - [x] Add MegaLights-style bounded candidate generation. (Initial bounded light hierarchy candidate stage.)
 - [x] Add ReSTIR-DI temporal/spatial reservoir reuse with validity and weighted candidates. (Four-neighbor reuse, proposal PDFs, bounded Jacobian correction, and confidence weighting are active.)
@@ -66,3 +66,4 @@
 - Native viewer smoke selected the RTX 4090 Laptop GPU and configured `Bgra8UnormSrgb` without a startup panic; the 20-second smoke was stopped by timeout.
 - Task 5 hot-loop validation passed: debug and release render/graphics regression tests, render/graphics checks, stable clippy, and workspace formatting. Compute dispatches reuse cached pipelines/labels; indexed indirect draws use the vector count-prefix offset; meshlet draws reuse pass-owned command scratch after releasing data locks.
 - Task 6 validation passed: binarizer binding/pipeline tests, render packed-data tests, graphics record-layout tests, binarizer/render/graphics clippy, formatting, native checks, and render/graphics WebAssembly checks. The Windows toolchain required `RUSTFLAGS=` for native commands because the repository config injects unsupported `split-debuginfo=unpacked`.
+- Task 8 validation passed: bounded packed light alias construction covers empty, single, many, zero/nonfinite, and overflow inputs; render/graphics tests, binarizer shader validation, clippy, formatting, and render/graphics WebAssembly checks pass.

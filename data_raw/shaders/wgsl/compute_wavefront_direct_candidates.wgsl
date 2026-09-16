@@ -55,6 +55,22 @@ fn hash_u32(v: u32) -> u32 {
     return x ^ (x >> 16u);
 }
 fn load_scene_f32(offset: u32) -> f32 { return bitcast<f32>(scene_data[offset]); }
+fn light_alias_count() -> u32 {
+    let words = table_words(11u);
+    let offset = table_offset(11u);
+    if (words < PACKED_LIGHT_ALIAS_HEADER_WORDS || scene_data[offset] != PACKED_LIGHT_ALIAS_VERSION) { return 0u; }
+    return min(scene_data[offset + 1u], (words - PACKED_LIGHT_ALIAS_HEADER_WORDS) / PACKED_LIGHT_ALIAS_RECORD_STRIDE_WORDS);
+}
+fn sample_light_alias(seed: u32, count: u32) -> vec2<u32> {
+    let table = table_offset(11u) + PACKED_LIGHT_ALIAS_HEADER_WORDS;
+    let bucket = hash_u32(seed) % count;
+    let record = table + bucket * PACKED_LIGHT_ALIAS_RECORD_STRIDE_WORDS;
+    let q = load_scene_f32(record + 1u);
+    let coin = f32(hash_u32(seed ^ 0x9e3779b9u)) / 4294967296.0;
+    let selected = select(bucket, scene_data[record], coin >= q);
+    let selected_record = table + selected * PACKED_LIGHT_ALIAS_RECORD_STRIDE_WORDS;
+    return vec2<u32>(selected, bitcast<u32>(load_scene_f32(selected_record + 2u)));
+}
 fn evaluate_light(position: vec3<f32>, normal: vec3<f32>, light_id: u32) -> vec3<f32> {
     let light_base = table_offset(10u) + light_id * 16u;
     let light_position = vec3<f32>(load_scene_f32(light_base), load_scene_f32(light_base + 1u), load_scene_f32(light_base + 2u));
@@ -75,8 +91,8 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let data_index = pixel * SIZE_OF_DATA_BUFFER_ELEMENT;
     let scene_light_words = table_words(10u);
     let light_count = scene_light_words / 16u;
-    let candidates = min(light_count, 4u);
-    let proposal_pdf = select(1.0, 1.0 / f32(candidates), candidates > 0u);
+    let alias_count = light_alias_count();
+    let candidates = select(min(light_count, 4u), min(alias_count, 4u), alias_count > 0u);
     var reservoir = Reservoir(0u, 0u, 0.0, 0.0, 0.0, 0u, 0u, 0.0);
     var selected = vec3<f32>(0.0);
     var selected_weight = 0.0;
@@ -130,7 +146,18 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     }
 
     for (var candidate = 0u; candidate < candidates; candidate += 1u) {
-        let light_id = hash_u32(pixel ^ (constant_data.frame_index + candidate * 17u)) % light_count;
+        let seed = pixel ^ (constant_data.frame_index + candidate * 17u);
+        var light_id = 0u;
+        var proposal_pdf = 0.0;
+        if (alias_count > 0u) {
+            let sample = sample_light_alias(seed, alias_count);
+            light_id = sample.x;
+            proposal_pdf = max(bitcast<f32>(sample.y), 0.000001);
+        } else if (light_count > 0u) {
+            light_id = hash_u32(seed) % light_count;
+            proposal_pdf = 1.0 / f32(light_count);
+        }
+        if (proposal_pdf <= 0.0 || light_id >= light_count) { continue; }
         let contribution = evaluate_light(position, normal, light_id);
         let target_value = max(max(contribution.x, contribution.y), contribution.z) + 0.000001;
         let weight = target_value / proposal_pdf;

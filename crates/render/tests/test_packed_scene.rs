@@ -1,12 +1,13 @@
 use inox_render::{
-    PackedSceneBuilder, PackedSceneHeader, PackedTableRange, SceneTableKind, PACKED_BUFFER_MAGIC,
-    PACKED_BUFFER_VERSION, PACKED_SCENE_HEADER_WORDS,
+    PackedLightAliasData, PackedSceneBuilder, PackedSceneHeader, PackedTableRange, SceneTableKind,
+    PACKED_BUFFER_MAGIC, PACKED_BUFFER_VERSION, PACKED_LIGHT_ALIAS_CAPACITY,
+    PACKED_LIGHT_ALIAS_FLAG_OVERFLOW, PACKED_SCENE_HEADER_WORDS,
 };
 
 #[test]
 fn packed_scene_header_has_an_exact_word_addressable_layout() {
-    assert_eq!(std::mem::size_of::<PackedSceneHeader>(), 192);
-    assert_eq!(std::mem::size_of::<PackedSceneHeader>() / 4, 48);
+    assert_eq!(std::mem::size_of::<PackedSceneHeader>(), 208);
+    assert_eq!(std::mem::size_of::<PackedSceneHeader>() / 4, 52);
     assert_eq!(std::mem::size_of::<PackedTableRange>(), 16);
 }
 
@@ -62,6 +63,7 @@ fn packed_scene_keeps_every_table_range_inside_the_payload() {
         SceneTableKind::Materials,
         SceneTableKind::Textures,
         SceneTableKind::Lights,
+        SceneTableKind::LightAliases,
     ] {
         let range = scene.range(kind);
         assert!(range.offset_words as usize + range.count_words as usize <= scene.words().len());
@@ -70,4 +72,52 @@ fn packed_scene_keeps_every_table_range_inside_the_payload() {
 
     scene.words_mut()[2] = 4;
     assert!(scene.validate().is_err());
+}
+
+#[test]
+fn light_alias_table_handles_empty_and_single_power() {
+    let empty = PackedLightAliasData::from_powers(&[]);
+    assert_eq!(empty.header().count, 0);
+    assert_eq!(empty.words().len(), 4);
+
+    let single = PackedLightAliasData::from_powers(&[3.0]);
+    assert_eq!(single.header().count, 1);
+    let record = single.record(0).unwrap();
+    assert_eq!(record.alias_index, 0);
+    assert_eq!(record.selection_probability, 1.0);
+    assert_eq!(record.proposal_pdf, 1.0);
+}
+
+#[test]
+fn light_alias_table_sanitizes_zero_nonfinite_and_marks_overflow() {
+    let values = [0.0, f32::NAN, f32::INFINITY, 2.0, 1.0];
+    let aliases = PackedLightAliasData::from_powers(&values);
+    assert_eq!(aliases.header().count, values.len() as u32);
+    assert!(aliases.record(3).unwrap().proposal_pdf > 0.0);
+    assert_eq!(aliases.record(0).unwrap().proposal_pdf, 0.0);
+    assert_eq!(aliases.record(1).unwrap().proposal_pdf, 0.0);
+    assert_eq!(aliases.record(2).unwrap().proposal_pdf, 0.0);
+
+    let oversized = PackedLightAliasData::from_powers(&vec![1.0; PACKED_LIGHT_ALIAS_CAPACITY + 1]);
+    assert_eq!(
+        oversized.header().count as usize,
+        PACKED_LIGHT_ALIAS_CAPACITY
+    );
+    assert_ne!(
+        oversized.header().flags & PACKED_LIGHT_ALIAS_FLAG_OVERFLOW,
+        0
+    );
+}
+
+#[test]
+fn packed_scene_validates_light_alias_header_and_range() {
+    let aliases = PackedLightAliasData::from_powers(&[1.0, 2.0, 4.0]);
+    let mut builder = PackedSceneBuilder::new();
+    builder.append_light_aliases(&aliases);
+    let scene = builder.finish();
+    assert_eq!(
+        scene.range(SceneTableKind::LightAliases).count_words,
+        aliases.words().len() as u32
+    );
+    assert!(scene.validate().is_ok());
 }
