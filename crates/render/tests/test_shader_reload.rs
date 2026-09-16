@@ -102,6 +102,106 @@ fn fs_main() -> @location(0) vec4<f32> {
 }
 ";
 
+fn submit_compute_pass(context: &RenderContext, pipeline: &wgpu::ComputePipeline) {
+    let device = &context.webgpu.device;
+    let error_scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
+    let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        label: Some("Reload Compute Test Encoder"),
+    });
+    {
+        let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+            label: Some("Reload Compute Test Pass"),
+            timestamp_writes: None,
+        });
+        pass.set_pipeline(pipeline);
+        pass.dispatch_workgroups(1, 1, 1);
+    }
+    context.webgpu.queue.submit(Some(encoder.finish()));
+    device
+        .poll(wgpu::PollType::Wait {
+            submission_index: None,
+            timeout: Some(std::time::Duration::from_secs(10)),
+        })
+        .expect("compute submission must complete");
+    assert!(
+        block_on(error_scope.pop()).is_none(),
+        "retained compute pipeline must remain usable"
+    );
+}
+
+fn submit_shader_module(context: &RenderContext, module: &wgpu::ShaderModule) {
+    let layout = context
+        .webgpu
+        .device
+        .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Reload Shader Test Layout"),
+            bind_group_layouts: &[],
+            immediate_size: 0,
+        });
+    let pipeline = context
+        .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("Reload Shader Test Pipeline"),
+            layout: Some(&layout),
+            module,
+            entry_point: Some("main"),
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            cache: None,
+        })
+        .expect("retained shader module must create a pipeline");
+    submit_compute_pass(context, &pipeline);
+}
+
+fn submit_render_pass(context: &RenderContext, pipeline: &wgpu::RenderPipeline) {
+    let device = &context.webgpu.device;
+    let target = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("Reload Render Test Target"),
+        size: wgpu::Extent3d {
+            width: 1,
+            height: 1,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Bgra8UnormSrgb,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+        view_formats: &[],
+    });
+    let view = target.create_view(&wgpu::TextureViewDescriptor::default());
+    let error_scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
+    let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        label: Some("Reload Render Test Encoder"),
+    });
+    {
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Reload Render Test Pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &view,
+                depth_slice: None,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            ..Default::default()
+        });
+        pass.set_pipeline(pipeline);
+        pass.draw(0..3, 0..1);
+    }
+    context.webgpu.queue.submit(Some(encoder.finish()));
+    device
+        .poll(wgpu::PollType::Wait {
+            submission_index: None,
+            timeout: Some(std::time::Duration::from_secs(10)),
+        })
+        .expect("render submission must complete");
+    assert!(
+        block_on(error_scope.pop()).is_none(),
+        "retained render pipeline must remain usable"
+    );
+}
+
 #[test]
 fn concrete_shader_init_retains_module_across_invalid_reload_then_commits() {
     let (shared_data, message_hub) = reload_context();
@@ -118,7 +218,7 @@ fn concrete_shader_init_retains_module_across_invalid_reload_then_commits() {
     );
     shader.set_path(path);
     assert!(shader.init(&context).is_ok());
-    let active_module = shader.module() as *const _;
+    submit_shader_module(&context, shader.module());
 
     let mut invalid = Shader::create_from_data(
         &shared_data,
@@ -132,7 +232,7 @@ fn concrete_shader_init_retains_module_across_invalid_reload_then_commits() {
     invalid.set_path(path);
     shader.replace_from(&invalid);
     let error = shader.init(&context).expect_err("invalid shader must fail");
-    assert!(shader.module() as *const _ == active_module);
+    submit_shader_module(&context, shader.module());
     assert!(shader.last_reload_error().is_some());
     assert!(error.previous_resource_active);
 
@@ -166,7 +266,7 @@ fn concrete_compute_pipeline_init_retains_pipeline_across_invalid_reload_then_co
     );
     let binding_data = BindingData::new(&context, "reload");
     assert!(pipeline.init(&context, &binding_data, None));
-    let active_pipeline = pipeline.compute_pipeline() as *const _;
+    submit_compute_pass(&context, pipeline.compute_pipeline());
 
     let invalid = shader_resource(
         &shared_data,
@@ -177,7 +277,7 @@ fn concrete_compute_pipeline_init_retains_pipeline_across_invalid_reload_then_co
     shader.get_mut().replace_from(&invalid.get());
     pipeline.check_shaders_to_reload(shader_path.to_string_lossy().into_owned());
     assert!(!pipeline.init(&context, &binding_data, None));
-    assert!(pipeline.compute_pipeline() as *const _ == active_pipeline);
+    submit_compute_pass(&context, pipeline.compute_pipeline());
     assert_eq!(
         pipeline
             .last_reload_error()
@@ -190,7 +290,7 @@ fn concrete_compute_pipeline_init_retains_pipeline_across_invalid_reload_then_co
     pipeline.check_shaders_to_reload(shader_path.to_string_lossy().into_owned());
     assert!(pipeline.init(&context, &binding_data, None));
     assert!(pipeline.last_reload_error().is_none());
-    let _committed_pipeline = pipeline.compute_pipeline();
+    submit_compute_pass(&context, pipeline.compute_pipeline());
 }
 
 #[test]
@@ -216,7 +316,7 @@ fn concrete_render_pipeline_init_retains_pipeline_across_invalid_reload_then_com
     let binding_data = BindingData::new(&context, "reload");
     let format = TextureFormat::Bgra8UnormSrgb;
     assert!(pipeline.init(&context, vec![&format], None, &binding_data, None, None));
-    let active_pipeline = pipeline.render_pipeline() as *const _;
+    submit_render_pass(&context, pipeline.render_pipeline());
 
     let invalid = shader_resource(
         &shared_data,
@@ -227,7 +327,7 @@ fn concrete_render_pipeline_init_retains_pipeline_across_invalid_reload_then_com
     shader.get_mut().replace_from(&invalid.get());
     pipeline.check_shaders_to_reload(shader_path.to_string_lossy().into_owned());
     assert!(!pipeline.init(&context, vec![&format], None, &binding_data, None, None));
-    assert!(pipeline.render_pipeline() as *const _ == active_pipeline);
+    submit_render_pass(&context, pipeline.render_pipeline());
     assert_eq!(
         pipeline
             .last_reload_error()
@@ -240,5 +340,5 @@ fn concrete_render_pipeline_init_retains_pipeline_across_invalid_reload_then_com
     pipeline.check_shaders_to_reload(shader_path.to_string_lossy().into_owned());
     assert!(pipeline.init(&context, vec![&format], None, &binding_data, None, None));
     assert!(pipeline.last_reload_error().is_none());
-    let _committed_pipeline = pipeline.render_pipeline();
+    submit_render_pass(&context, pipeline.render_pipeline());
 }
