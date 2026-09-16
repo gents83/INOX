@@ -61,7 +61,6 @@ pub struct NegotiatedGpuRequirements {
 /// included in the baseline device request.
 pub fn optional_gpu_features() -> wgpu::Features {
     wgpu::Features::POLYGON_MODE_LINE
-        | wgpu::Features::PRIMITIVE_INDEX
         | wgpu::Features::MULTI_DRAW_INDIRECT_COUNT
         | wgpu::Features::TIMESTAMP_QUERY
         | wgpu::Features::TIMESTAMP_QUERY_INSIDE_PASSES
@@ -187,7 +186,7 @@ pub fn shader_preprocessor_defs<const PLATFORM_TYPE: PlatformType>() -> Vec<Stri
         vec![
             "FEATURES_TEXTURE_BINDING_ARRAY".to_string(),
             "FEATURES_MULTISAMPLING".to_string(),
-            "FEATURES_PRIMITIVE_INDEX".to_string(),
+            "NO_FEATURES_PRIMITIVE_INDEX".to_string(),
             "FEATURES_MULTI_DRAW_INDIRECT_COUNT".to_string(),
         ]
     } else {
