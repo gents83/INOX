@@ -1,4 +1,5 @@
 pub const SIZE_OF_DATA_BUFFER_ELEMENT: usize = 4;
+use inox_render::{AsBinding, RenderContext};
 use inox_uid::{generate_static_uid_from_string, generate_uid_from_string, Uid};
 
 pub const WAVEFRONT_QUEUE_VERSION: u32 = inox_render::WAVEFRONT_RECORD_VERSION;
@@ -309,12 +310,68 @@ pub struct DispatchArgs {
 }
 
 #[repr(C)]
-#[derive(Default, PartialEq, Clone, Copy, Debug)]
+#[derive(Default, PartialEq, Eq, Clone, Copy, Debug)]
 pub struct QueueHeader {
     pub version: u32,
     pub count: u32,
     pub capacity: u32,
     pub overflowed: u32,
+}
+
+impl QueueHeader {
+    pub fn is_overflowed(self) -> bool {
+        self.overflowed != 0
+    }
+}
+
+/// A header read back from a submitted GPU frame. Keeping the complete header
+/// makes both overflow and the amount of truncation observable to diagnostics.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct QueueOverflowDiagnostic {
+    pub name: String,
+    pub header: QueueHeader,
+}
+
+/// Read every bound wavefront queue header from the GPU.
+///
+/// Header buffers retain `COPY_SRC`, and this function deliberately reads
+/// the GPU buffer through a temporary staging allocation rather than the
+/// CPU-side mirror. Call it after the
+/// frame submission (the readback waits for completion on native backends).
+pub fn read_wavefront_queue_diagnostics(
+    render_context: &RenderContext,
+) -> Vec<QueueOverflowDiagnostic> {
+    let mut headers = vec![
+        ("primary".to_string(), crate::WAVEFRONT_PRIMARY_HEADER_ID),
+        ("hit".to_string(), crate::WAVEFRONT_HIT_HEADER_ID),
+        (
+            "transparency".to_string(),
+            crate::WAVEFRONT_TRANSPARENT_HEADER_ID,
+        ),
+    ];
+    headers.extend(wavefront_bounce_stages().into_iter().map(|stage| {
+        (
+            format!("bounce{}", stage.index),
+            stage.bindings.destination_ray_header,
+        )
+    }));
+
+    headers
+        .into_iter()
+        .filter_map(|(name, id)| {
+            let header = render_context
+                .global_buffers()
+                .vector_with_id::<QueueHeader>(id)
+                .read()
+                .ok()?
+                .buffer_id();
+            let header = render_context
+                .read_buffer_as::<QueueHeader>(header)?
+                .into_iter()
+                .next()?;
+            Some(QueueOverflowDiagnostic { name, header })
+        })
+        .collect()
 }
 
 /// Finite per-queue budget supported by the portable renderer.  It covers
@@ -378,6 +435,24 @@ pub fn reflect_direction(incoming: [f32; 3], normal: [f32; 3]) -> [f32; 3] {
         incoming[1] - 2.0 * dot * normal[1],
         incoming[2] - 2.0 * dot * normal[2],
     ]
+}
+
+/// Return eta_i / eta_t for a ray crossing an air/material boundary.
+///
+/// `front_face` is true when the ray enters the material. The shader uses the
+/// same convention after orienting the shading normal against the incident
+/// direction.
+pub fn ior_ratio(front_face: bool, material_ior: f32) -> f32 {
+    let ior = if material_ior.is_finite() {
+        material_ior.clamp(1.001, 3.0)
+    } else {
+        1.5
+    };
+    if front_face {
+        1.0 / ior
+    } else {
+        ior
+    }
 }
 
 /// Compute refraction, returning None for total internal reflection.

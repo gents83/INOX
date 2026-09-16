@@ -232,11 +232,79 @@ impl BufferRef {
             result
         })
     }
+    /// Read a GPU-only buffer through a temporary staging buffer.
+    ///
+    /// Storage buffers cannot be mapped directly on portable WebGPU devices.
+    /// The source therefore needs `COPY_SRC`; the staging buffer is the only
+    /// buffer mapped for CPU readback.
+    pub fn read_from_gpu_via_staging(
+        &self,
+        render_core_context: &WebGpuContext,
+    ) -> Option<Vec<u8>> {
+        if self.logical_size == 0 || !self.usage.contains(wgpu::BufferUsages::COPY_SRC) {
+            return None;
+        }
+        let source = self.gpu_buffer.as_ref()?;
+        let staging = render_core_context
+            .device
+            .create_buffer(&wgpu::BufferDescriptor {
+                label: Some("GPU Readback Staging Buffer"),
+                size: self.logical_size,
+                mapped_at_creation: false,
+                usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+            });
+        let mut encoder =
+            render_core_context
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("GPU Readback Encoder"),
+                });
+        encoder.copy_buffer_to_buffer(source, 0, &staging, 0, self.logical_size);
+        render_core_context
+            .queue
+            .submit(std::iter::once(encoder.finish()));
+
+        let slice = staging.slice(..);
+        let is_ready = std::sync::Arc::new(AtomicBool::new(false));
+        let is_ready_clone = is_ready.clone();
+        slice.map_async(wgpu::MapMode::Read, move |_v| {
+            is_ready_clone.store(true, std::sync::atomic::Ordering::SeqCst);
+        });
+        render_core_context
+            .device
+            .poll(wgpu::PollType::Wait {
+                submission_index: None,
+                timeout: Some(std::time::Duration::from_secs(60)),
+            })
+            .ok();
+        while !is_ready.load(std::sync::atomic::Ordering::SeqCst) {
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        let view = slice
+            .get_mapped_range()
+            .expect("Failed to map GPU staging buffer for reading");
+        let data = view.as_ref().to_vec();
+        drop(view);
+        staging.unmap();
+        Some(data)
+    }
+
     pub fn read_from_gpu_as<T>(&self, render_core_context: &WebGpuContext) -> Option<Vec<T>>
     where
         T: Sized + Clone,
     {
         self.read_from_gpu(render_core_context)
+            .map(|data| to_slice(data.as_slice()).to_vec())
+    }
+
+    pub fn read_from_gpu_via_staging_as<T>(
+        &self,
+        render_core_context: &WebGpuContext,
+    ) -> Option<Vec<T>>
+    where
+        T: Sized + Clone,
+    {
+        self.read_from_gpu_via_staging(render_core_context)
             .map(|data| to_slice(data.as_slice()).to_vec())
     }
 

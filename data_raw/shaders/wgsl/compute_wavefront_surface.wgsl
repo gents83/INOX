@@ -70,7 +70,12 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let w1 = transform_vector(p1, position_scale, orientation, scale);
     let w2 = transform_vector(p2, position_scale, orientation, scale);
     let normal = normalize(cross(w1 - w0, w2 - w0));
-    let material_id = bitcast<u32>(bitcast<i32>(scene_data[mesh_base + 3u]));
+    let material_index = bitcast<i32>(scene_data[mesh_base + 3u]);
+    if (material_index == INVALID_INDEX || material_index < 0 || material_index >= i32(MAX_NUM_MATERIALS)) {
+        write_empty(pixel);
+        return;
+    }
+    let material_id = u32(material_index);
     let o = pixel * SIZE_OF_DATA_BUFFER_ELEMENT;
     data_buffer_0[o] = hit_point.x; data_buffer_0[o + 1u] = hit_point.y; data_buffer_0[o + 2u] = hit_point.z;
     data_buffer_0[o + 3u] = f32(pack2x16float(octahedral_mapping(normal)));

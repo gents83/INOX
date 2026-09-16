@@ -1,5 +1,12 @@
 # Production portable wavefront renderer
 
+## Final review blockers
+
+- [x] Keep transparency producer indexing at full-resolution G-buffer dimensions; render scale remains reconstruction-only.
+- [x] Validate material IDs before every packed material access and reject `INVALID_INDEX`/nonfinite/out-of-range values.
+- [x] Use explicit entering/exiting `eta_i / eta_t` transport ratios with CPU and WGSL contracts.
+- [x] Expose bounded queue overflow through GPU header `COPY_SRC` staging readback and explicit post-submit diagnostics.
+
 ## Phase 1 — safety and contracts
 
 - [x] Fix `BufferRef` logical-size/capacity/overwrite behavior and add shrink/grow/release tests. (Range contract and nonblocking logical writes implemented; GPU integration coverage remains.)

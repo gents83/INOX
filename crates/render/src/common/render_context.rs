@@ -430,6 +430,19 @@ impl RenderContext {
         self.binding_data_buffer.buffers.write().unwrap()
     }
 
+    /// Read a CPU-readable GPU buffer after its submission has completed.
+    ///
+    /// Queue diagnostics use this explicit readback path instead of treating
+    /// the CPU mirror of a GPU-written header as authoritative.
+    pub fn read_buffer_as<T>(&self, buffer_id: BufferId) -> Option<Vec<T>>
+    where
+        T: Sized + Clone,
+    {
+        self.buffers()
+            .get(&buffer_id)
+            .and_then(|buffer| buffer.read_from_gpu_via_staging_as::<T>(&self.webgpu))
+    }
+
     fn update_image(&self, encoder: &mut wgpu::CommandEncoder, texture: &Resource<Texture>) {
         let texture_id = texture.id();
         let texture_blocks = texture.get_mut().blocks_to_update();

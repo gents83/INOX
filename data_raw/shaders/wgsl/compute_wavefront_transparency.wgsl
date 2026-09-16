@@ -27,12 +27,18 @@ fn append_transparent(hit: TransparentHit) {
 @compute
 @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
-    let width = u32(constant_data.screen_width * constant_data.render_scale);
-    let height = u32(constant_data.screen_height * constant_data.render_scale);
+    // G-buffer and transparency queues are full-resolution resources. Render
+    // scale is applied only by the reconstruction/upscale tail.
+    let width = u32(constant_data.screen_width);
+    let height = u32(constant_data.screen_height);
     if (id.x >= width || id.y >= height) { return; }
     let pixel = id.y * width + id.x;
     let offset = pixel * SIZE_OF_DATA_BUFFER_ELEMENT;
-    let material_id = u32(max(gbuffer_material[offset], 0.0));
+    let material_value = gbuffer_material[offset];
+    if (material_value != material_value || material_value < 0.0 || material_value >= f32(MAX_NUM_MATERIALS)) {
+        return;
+    }
+    let material_id = u32(material_value);
     let flags = scene_data[table_offset(8u) + material_id * 48u + 47u];
     if ((flags & MATERIAL_FLAGS_ALPHAMODE_BLEND) == 0u) { return; }
     let base = table_offset(8u) + material_id * 48u + 20u;

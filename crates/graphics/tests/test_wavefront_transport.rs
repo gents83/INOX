@@ -2,9 +2,9 @@ use std::fs;
 use std::path::PathBuf;
 
 use inox_graphics::passes::pathtracing_common::{
-    bounded_path_depth, queue_capacity_for_resolution, queue_capacity_u32, reflect_direction,
-    refract_direction, roulette_survival_probability, wavefront_bounce_stages, RayQueue,
-    MAX_WAVEFRONT_QUEUE_CAPACITY,
+    bounded_path_depth, ior_ratio, queue_capacity_for_resolution, queue_capacity_u32,
+    reflect_direction, refract_direction, roulette_survival_probability, wavefront_bounce_stages,
+    RayQueue, MAX_WAVEFRONT_QUEUE_CAPACITY,
 };
 
 fn shader(name: &str) -> String {
@@ -192,7 +192,7 @@ fn material_ids_are_numeric_between_surface_and_bounce() {
     let surface = shader("compute_wavefront_surface.wgsl");
     let next = shader("compute_wavefront_next_bounce.wgsl");
     assert!(surface.contains("data_buffer_1[o] = f32(material_id)"));
-    assert!(next.contains("u32(max(gbuffer_material[offset], 0.0))"));
+    assert!(next.contains("let material_id = u32(material_value);"));
     assert!(!next.contains("bitcast<i32>(bitcast<u32>(gbuffer_material[offset]))"));
 }
 
@@ -255,4 +255,73 @@ fn wavefront_buffers_keep_full_resolution_with_non_native_render_scale() {
         assert!(!source.contains("screen_width * constant_data.render_scale"));
     }
     assert!(upscale.contains("let source_index = id.y * width + id.x"));
+}
+
+#[test]
+fn transparency_uses_full_resolution_pixel_indexing() {
+    let source = shader("compute_wavefront_transparency.wgsl");
+    assert!(source.contains("let width = u32(constant_data.screen_width);"));
+    assert!(source.contains("let height = u32(constant_data.screen_height);"));
+    assert!(!source.contains("screen_width * constant_data.render_scale"));
+    assert!(!source.contains("screen_height * constant_data.render_scale"));
+}
+
+#[test]
+fn entering_and_exiting_ior_ratios_are_reciprocal() {
+    let ior = 1.5;
+    assert!((ior_ratio(true, ior) - (1.0 / ior)).abs() < f32::EPSILON);
+    assert!((ior_ratio(false, ior) - ior).abs() < f32::EPSILON);
+    assert_eq!(ior_ratio(true, f32::NAN), 1.0 / 1.5);
+    let source = shader("compute_wavefront_next_bounce.wgsl");
+    assert!(source.contains("let eta_i = select(ior, 1.0, front_face);"));
+    assert!(source.contains("let eta_t = select(1.0, ior, front_face);"));
+    assert!(source.contains("let eta = eta_i / eta_t;"));
+}
+
+#[test]
+fn invalid_material_ids_are_rejected_before_packed_access() {
+    let surface = shader("compute_wavefront_surface.wgsl");
+    let bounce = shader("compute_wavefront_next_bounce.wgsl");
+    let transparency = shader("compute_wavefront_transparency.wgsl");
+    assert!(surface.contains("material_index == INVALID_INDEX"));
+    assert!(surface.contains("material_index >= i32(MAX_NUM_MATERIALS)"));
+    assert!(surface.contains("write_empty(pixel);"));
+    for source in [&bounce, &transparency] {
+        assert!(source.contains("material_value != material_value"));
+        assert!(source.contains("material_value >= f32(MAX_NUM_MATERIALS)"));
+        assert!(source.contains("let material_id = u32(material_value);"));
+    }
+    assert!(
+        bounce.find("material_value != material_value").unwrap()
+            < bounce.find("load_material(material_id, 16u)").unwrap()
+    );
+    assert!(
+        transparency
+            .find("material_value != material_value")
+            .unwrap()
+            < transparency.find("table_offset(8u) + material_id").unwrap()
+    );
+}
+
+#[test]
+fn gpu_queue_overflow_has_an_explicit_readback_contract() {
+    let common = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/passes/pathtracing_common.rs"),
+    )
+    .unwrap();
+    let render_context = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../render/src/common/render_context.rs"),
+    )
+    .unwrap();
+    let buffer_ref = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../render/src/common/buffer_ref.rs"),
+    )
+    .unwrap();
+    assert!(common.contains("read_wavefront_queue_diagnostics"));
+    assert!(common.contains("read_buffer_as::<QueueHeader>"));
+    assert!(render_context.contains("read_buffer_as<T>"));
+    assert!(render_context.contains("read_from_gpu_via_staging_as"));
+    assert!(buffer_ref.contains("MAP_READ | wgpu::BufferUsages::COPY_DST"));
+    assert!(buffer_ref.contains("copy_buffer_to_buffer"));
+    assert!(common.contains("pub fn is_overflowed(self) -> bool"));
 }

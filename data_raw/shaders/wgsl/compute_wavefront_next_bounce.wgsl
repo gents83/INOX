@@ -56,8 +56,12 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let surface_normal = safe_normalize(octahedral_unmapping(unpack2x16float(bitcast<u32>(gbuffer_world[offset + 3u]))), vec3<f32>(0.0, 1.0, 0.0));
     // Surface stores the material index as a numeric f32.  Decode the value
     // numerically; bitcasting would reinterpret 1.0 as 0x3f800000.
-    let material_id = u32(max(gbuffer_material[offset], 0.0));
-    let roughness = clamp(finite_or(load_material(u32(material_id), 16u), 1.0), 0.045, 1.0);
+    let material_value = gbuffer_material[offset];
+    if (material_value != material_value || material_value < 0.0 || material_value >= f32(MAX_NUM_MATERIALS)) {
+        return;
+    }
+    let material_id = u32(material_value);
+    let roughness = clamp(finite_or(load_material(material_id, 16u), 1.0), 0.045, 1.0);
     let metallic = clamp(finite_or(load_material(u32(material_id), 17u), 0.0), 0.0, 1.0);
     let transmission = clamp(finite_or(load_material(u32(material_id), 19u), 0.0), 0.0, 1.0) * (1.0 - metallic);
     let ior = clamp(finite_or(load_material(u32(material_id), 18u), 1.5), 1.001, 3.0);
@@ -69,7 +73,12 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let view = -incoming;
     let front_face = dot(view, surface_normal) >= 0.0;
     let normal = select(-surface_normal, surface_normal, front_face);
-    let eta = select(ior, 1.0 / ior, front_face);
+    // The ratio is eta_i / eta_t: air-to-material when entering and
+    // material-to-air when exiting.  Keeping both media explicit avoids
+    // accidentally inverting the ratio when the geometric normal flips.
+    let eta_i = select(ior, 1.0, front_face);
+    let eta_t = select(1.0, ior, front_face);
+    let eta = eta_i / eta_t;
     let cosine = clamp(dot(view, normal), 0.0, 1.0);
     let seed = hash_u32(ray.pixel_index ^ constant_data.frame_index ^ ray.bounce * 31u ^ ray.sample_index);
     let reflection = safe_normalize(reflect(-view, normal), normal);
