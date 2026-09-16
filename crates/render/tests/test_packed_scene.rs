@@ -121,3 +121,33 @@ fn packed_scene_validates_light_alias_header_and_range() {
     );
     assert!(scene.validate().is_ok());
 }
+
+#[test]
+fn packed_scene_rejects_alias_indices_outside_the_table() {
+    let aliases = PackedLightAliasData::from_powers(&[1.0, 2.0]);
+    let mut builder = PackedSceneBuilder::new();
+    builder.append_light_aliases(&aliases);
+    let mut scene = builder.finish();
+    let offset = scene.range(SceneTableKind::LightAliases).offset_words as usize;
+    scene.words_mut()[offset + 4] = 2;
+    assert_eq!(
+        scene.validate(),
+        Err("packed light alias record is invalid")
+    );
+}
+
+#[test]
+fn packed_scene_rejects_nonfinite_or_out_of_range_alias_probabilities() {
+    for (word_offset, value) in [(5, f32::NAN.to_bits()), (6, 2.0f32.to_bits())] {
+        let aliases = PackedLightAliasData::from_powers(&[1.0, 2.0]);
+        let mut builder = PackedSceneBuilder::new();
+        builder.append_light_aliases(&aliases);
+        let mut scene = builder.finish();
+        let offset = scene.range(SceneTableKind::LightAliases).offset_words as usize;
+        scene.words_mut()[offset + word_offset] = value;
+        assert_eq!(
+            scene.validate(),
+            Err("packed light alias record is invalid")
+        );
+    }
+}

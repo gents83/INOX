@@ -112,6 +112,22 @@ impl PackedSceneData {
             {
                 return Err("packed light alias count is invalid");
             }
+            for index in 0..header.count as usize {
+                let record = alias_offset
+                    + PACKED_LIGHT_ALIAS_HEADER_WORDS
+                    + index * PACKED_LIGHT_ALIAS_RECORD_STRIDE_WORDS;
+                let alias_index = words[record] as usize;
+                let selection_probability = f32::from_bits(words[record + 1]);
+                let proposal_pdf = f32::from_bits(words[record + 2]);
+                if alias_index >= header.count as usize
+                    || !selection_probability.is_finite()
+                    || !(0.0..=1.0).contains(&selection_probability)
+                    || !proposal_pdf.is_finite()
+                    || !(0.0..=1.0).contains(&proposal_pdf)
+                {
+                    return Err("packed light alias record is invalid");
+                }
+            }
         }
         Ok(())
     }

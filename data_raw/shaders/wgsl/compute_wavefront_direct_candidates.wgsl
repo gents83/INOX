@@ -67,7 +67,8 @@ fn sample_light_alias(seed: u32, count: u32) -> vec2<u32> {
     let record = table + bucket * PACKED_LIGHT_ALIAS_RECORD_STRIDE_WORDS;
     let q = load_scene_f32(record + 1u);
     let coin = f32(hash_u32(seed ^ 0x9e3779b9u)) / 4294967296.0;
-    let selected = select(bucket, scene_data[record], coin >= q);
+    let alias_index = min(scene_data[record], count - 1u);
+    let selected = min(select(bucket, alias_index, coin >= q), count - 1u);
     let selected_record = table + selected * PACKED_LIGHT_ALIAS_RECORD_STRIDE_WORDS;
     return vec2<u32>(selected, bitcast<u32>(load_scene_f32(selected_record + 2u)));
 }
