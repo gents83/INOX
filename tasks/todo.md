@@ -46,8 +46,8 @@
 - [x] Add temporal history/moments/variance invalidation. (Composite writes luminance moments; finalize clamps history by variance and frame history.)
 - [x] Add pure-WGSL temporal/bilateral denoisers. (Current baseline clamps separated final accumulation; variance-guided temporal history refinement remains.)
 - [x] Add pure-WGSL native/temporal/spatial upscaler baseline. (Current shader performs bounded spatial reconstruction; temporal mode remains a later quality refinement.)
-- [ ] Run PC binarizer, native smoke/profile, WASM build/bindgen, and browser WebGPU smoke in strict order.
-- [ ] Publish only artifacts produced after successful PC+Web binarization and generated-data validation.
+- [ ] Run PC binarizer, native smoke/profile, WASM build/bindgen, and browser WebGPU smoke in strict order. (The strict gate script is present; this machine's run is recorded in the validation report, including unavailable external dependencies.)
+- [ ] Publish only artifacts produced after successful PC+Web binarization and generated-data validation. (The gate removes stale output first and copies generated output only after all prior gates succeed.)
 
 ## Review
 
@@ -68,3 +68,4 @@
 - Task 6 validation passed: binarizer binding/pipeline tests, render packed-data tests, graphics record-layout tests, binarizer/render/graphics clippy, formatting, native checks, and render/graphics WebAssembly checks. The Windows toolchain required `RUSTFLAGS=` for native commands because the repository config injects unsupported `split-debuginfo=unpacked`.
 - Task 8 validation passed: bounded packed light alias construction covers empty, single, many, zero/nonfinite, and overflow inputs; render/graphics tests, binarizer shader validation, clippy, formatting, and render/graphics WebAssembly checks pass.
 - Task 9 validation passed: graphics/render/binarizer tests, focused transport contracts, include-expanded shader validation, clippy, formatting, native checks, and render/graphics WebAssembly checks pass. Transport now supports environment fallback with bounded texture indices, bounded roulette, explicit PDF-consistent reflection/refraction sampling with finite guards, queue-counter early termination, per-stage reset, and chained bounce dispatch metadata.
+- Final strict gate run on 2026-09-16 stopped at the PC binarizer: `compute_bounce_shade.wgsl` declares 10 compute storage bindings, exceeding the enforced portable limit of 8. No artifacts were published; later gates were not reached. `pwsh` was unavailable, so Windows PowerShell 5 was used. See `docs/superpowers/reports/2026-09-16-wavefront-validation.md`.
