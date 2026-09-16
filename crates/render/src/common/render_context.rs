@@ -102,7 +102,7 @@ pub struct RenderContext {
 }
 
 pub type RenderContextRc = Arc<RenderContext>;
-type PostSubmitCallback = Box<dyn Fn(&RenderContext) + Send + Sync>;
+type PostSubmitCallback = Arc<dyn Fn(&RenderContext) + Send + Sync>;
 
 impl RenderContext {
     fn create_surface(instance: &wgpu::Instance, handle: Handle) -> wgpu::Surface<'static> {
@@ -437,7 +437,10 @@ impl RenderContext {
     /// Read a CPU-readable GPU buffer after its submission has completed.
     ///
     /// Queue diagnostics use this explicit readback path instead of treating
-    /// the CPU mirror of a GPU-written header as authoritative.
+    /// the CPU mirror of a GPU-written header as authoritative. Pinned
+    /// WebGPU/WASM has no synchronous poll completion path, so this API is
+    /// intentionally native-only.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn read_buffer_as<T>(&self, buffer_id: BufferId) -> Option<Vec<T>>
     where
         T: Sized + Clone,
@@ -560,7 +563,7 @@ impl RenderContext {
         self.post_submit_callbacks
             .write()
             .unwrap()
-            .push(Box::new(callback));
+            .push(Arc::new(callback));
     }
 
     pub fn submit_command_buffer(&self) {
@@ -571,7 +574,14 @@ impl RenderContext {
                 inox_profiler::gpu_profiler_pre_submit!(&mut command_buffer.encoder);
                 self.webgpu.submit(command_buffer);
             }
-            for callback in self.post_submit_callbacks.read().unwrap().iter() {
+            let callbacks = self
+                .post_submit_callbacks
+                .read()
+                .unwrap()
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>();
+            for callback in callbacks {
                 callback(self);
             }
         }

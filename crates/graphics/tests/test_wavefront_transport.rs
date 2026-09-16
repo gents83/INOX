@@ -324,11 +324,18 @@ fn gpu_queue_overflow_has_an_explicit_readback_contract() {
     assert!(common.contains("read_wavefront_queue_diagnostics"));
     assert!(common.contains("report_wavefront_queue_diagnostics"));
     assert!(common.contains("diagnostic.header.is_overflowed()"));
+    assert!(common.contains("cfg(not(target_arch = \"wasm32\"))"));
+    assert!(common.contains("diagnostics skipped on WebGPU/WASM"));
     assert!(common.contains("read_buffer_as::<QueueHeader>"));
     assert!(render_context.contains("read_buffer_as<T>"));
     assert!(render_context.contains("read_from_gpu_via_staging_as"));
     assert!(render_context.contains("add_post_submit_callback"));
+    assert!(render_context.contains("let callbacks = self"));
+    assert!(render_context.contains(".iter()"));
+    assert!(render_context.contains(".cloned()"));
     assert!(viewer.contains("add_post_submit_callback(report_wavefront_queue_diagnostics)"));
+    assert!(viewer.contains("registration skipped on WebGPU/WASM"));
+    assert!(viewer.contains("cfg(not(target_arch = \"wasm32\"))"));
     assert!(buffer_ref.contains("MAP_READ | wgpu::BufferUsages::COPY_DST"));
     assert!(buffer_ref.contains("copy_buffer_to_buffer"));
     assert!(buffer_ref.contains("Option<Result<(), wgpu::BufferAsyncError>>"));

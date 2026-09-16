@@ -237,6 +237,7 @@ impl BufferRef {
     /// Storage buffers cannot be mapped directly on portable WebGPU devices.
     /// The source therefore needs `COPY_SRC`; the staging buffer is the only
     /// buffer mapped for CPU readback.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn read_from_gpu_via_staging(
         &self,
         render_core_context: &WebGpuContext,
@@ -321,6 +322,7 @@ impl BufferRef {
             .map(|data| to_slice(data.as_slice()).to_vec())
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn read_from_gpu_via_staging_as<T>(
         &self,
         render_core_context: &WebGpuContext,

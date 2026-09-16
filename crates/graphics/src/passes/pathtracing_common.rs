@@ -1,5 +1,7 @@
 pub const SIZE_OF_DATA_BUFFER_ELEMENT: usize = 4;
-use inox_render::{AsBinding, RenderContext};
+#[cfg(not(target_arch = "wasm32"))]
+use inox_render::AsBinding;
+use inox_render::RenderContext;
 use inox_uid::{generate_static_uid_from_string, generate_uid_from_string, Uid};
 
 pub const WAVEFRONT_QUEUE_VERSION: u32 = inox_render::WAVEFRONT_RECORD_VERSION;
@@ -336,8 +338,10 @@ pub struct QueueOverflowDiagnostic {
 ///
 /// Header buffers retain `COPY_SRC`, and this function deliberately reads
 /// the GPU buffer through a temporary staging allocation rather than the
-/// CPU-side mirror. Call it after the
-/// frame submission (the readback waits for completion on native backends).
+/// CPU-side mirror. Call it after the frame submission (the readback waits
+/// for completion on native backends). WebGPU/WASM does not expose the
+/// synchronous poll needed by this path, so diagnostics are native-only.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn read_wavefront_queue_diagnostics(
     render_context: &RenderContext,
 ) -> Vec<QueueOverflowDiagnostic> {
@@ -378,6 +382,7 @@ pub fn read_wavefront_queue_diagnostics(
 ///
 /// The staging readback waits for GPU completion, so this is safe to register
 /// as a post-submit callback rather than inspecting the CPU-side mirror.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn report_wavefront_queue_diagnostics(render_context: &RenderContext) {
     for diagnostic in read_wavefront_queue_diagnostics(render_context) {
         eprintln!(
@@ -388,6 +393,12 @@ pub fn report_wavefront_queue_diagnostics(render_context: &RenderContext) {
             diagnostic.header.is_overflowed(),
         );
     }
+}
+
+/// Explicitly skip synchronous queue diagnostics on pinned WebGPU/WASM.
+#[cfg(target_arch = "wasm32")]
+pub fn report_wavefront_queue_diagnostics(_render_context: &RenderContext) {
+    eprintln!("wavefront queue diagnostics skipped on WebGPU/WASM");
 }
 
 /// Finite per-queue budget supported by the portable renderer.  It covers
