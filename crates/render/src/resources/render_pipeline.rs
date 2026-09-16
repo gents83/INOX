@@ -54,6 +54,16 @@ impl ResourceTrait for RenderPipeline {
         self.reload_pending = false;
         self
     }
+
+    fn replace_from(&mut self, other: &Self) {
+        self.path = other.path.clone();
+        self.data = other.data.clone();
+        self.vertex_shader = other.vertex_shader.clone();
+        self.fragment_shader = other.fragment_shader.clone();
+        self.reload_pending = true;
+        self.last_reload_error = None;
+    }
+
     fn is_initialized(&self) -> bool {
         self.vertex_shader.is_some()
             && self.fragment_shader.is_some()
@@ -157,7 +167,7 @@ impl RenderPipeline {
             return false;
         }
         if let Some(shader) = self.vertex_shader.as_ref() {
-            if !shader.get().is_initialized() {
+            if !shader.get().is_initialized() || shader.get().has_pending_reload() {
                 if let Err(error) = shader.get_mut().init(context) {
                     self.last_reload_error = Some(error);
                     return false;
@@ -165,7 +175,7 @@ impl RenderPipeline {
             }
         }
         if let Some(shader) = self.fragment_shader.as_ref() {
-            if !shader.get().is_initialized() {
+            if !shader.get().is_initialized() || shader.get().has_pending_reload() {
                 if let Err(error) = shader.get_mut().init(context) {
                     self.last_reload_error = Some(error);
                     return false;

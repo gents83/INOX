@@ -56,7 +56,7 @@
 - Stable native build, full workspace tests, clippy, WebAssembly check, Web-profile shader validation, and PC/Web binarizer gates have been rerun successfully after the latest packed/direct/indirect changes.
 - Final temporal/multi-neighbor/transparency/upscale changes pass stable clippy, full tests, Web shader validation, and the PC/Web binarizer gate.
 - Latest three-bounce, separated-accumulator, denoiser, upscaler, and BRDF/BSDF changes also pass workspace checks, stable clippy, WASM check, shader validation, binarizer, and native startup smoke.
-- Shader reload retention passes focused and complete render tests, render library clippy, formatting, and graphics crate checks; all invalid replacement paths retain the active pipeline while preserving diagnostics.
+- Shader reload retention passes focused and complete render/resource tests, render/resource library clippy, formatting, graphics crate checks, and the render WASM check; storage-boundary candidates retain active resources and diagnostics until a later valid commit.
 - Adapter negotiation tests pass; render clippy and the render WebAssembly check pass with the negotiated capability path.
 - Final separated direct/indirect/final accumulator, denoiser, and pure-WGSL spatial reconstruction build and binarizer gates passed.
 - Full workspace tests and stable clippy pass after the three-bounce graph and final accumulator changes.

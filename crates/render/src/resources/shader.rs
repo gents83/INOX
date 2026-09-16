@@ -106,6 +106,7 @@ pub fn read_spirv_from_bytes<Data: ::std::io::Read + ::std::io::Seek>(
 pub struct Shader {
     path: PathBuf,
     data: ShaderData,
+    pending_data: Option<ShaderData>,
     module: Option<ShaderModule>,
     last_reload_error: Option<ReloadError>,
 }
@@ -115,6 +116,7 @@ impl Clone for Shader {
         Self {
             path: self.path.clone(),
             data: self.data.clone(),
+            pending_data: self.pending_data.clone(),
             module: None,
             last_reload_error: self.last_reload_error.clone(),
         }
@@ -123,9 +125,17 @@ impl Clone for Shader {
 
 impl ResourceTrait for Shader {
     fn invalidate(&mut self) -> &mut Self {
-        self.module = None;
+        // Keep the active module alive. Reload candidates are committed by
+        // `init` only after their replacement module validates successfully.
         self
     }
+
+    fn replace_from(&mut self, other: &Self) {
+        self.path = other.path.clone();
+        self.pending_data = Some(other.data.clone());
+        self.last_reload_error = None;
+    }
+
     fn is_initialized(&self) -> bool {
         self.module.is_some()
     }
@@ -156,6 +166,7 @@ impl DataTypeResource for Shader {
         Self {
             path: PathBuf::new(),
             data: ShaderData::default(),
+            pending_data: None,
             module: None,
             last_reload_error: None,
         }
@@ -259,11 +270,12 @@ fn create_shader_module(
 
 impl Shader {
     pub fn init(&mut self, context: &RenderContext) -> Result<(), ShaderReloadError> {
-        if self.module.is_some() {
+        if self.module.is_some() && self.pending_data.is_none() {
             return Ok(());
         }
 
         inox_profiler::scoped_profile!("shader::init({:?})", self.path);
+        let data = self.pending_data.as_ref().unwrap_or(&self.data);
         let shader_name = format!(
             "Shader {}",
             self.path
@@ -272,23 +284,23 @@ impl Shader {
                 .to_str()
                 .unwrap_or_default()
         );
-        let result = if !self.data.spirv_code.is_empty() {
+        let result = if !data.spirv_code.is_empty() {
             create_shader_module(
                 &context.webgpu.device,
                 wgpu::ShaderModuleDescriptor {
                     label: Some(shader_name.as_str()),
                     source: wgpu::ShaderSource::SpirV(std::borrow::Cow::Borrowed(
-                        self.data.spirv_code.as_slice(),
+                        data.spirv_code.as_slice(),
                     )),
                 },
                 &self.path,
             )
-        } else if !self.data.wgsl_code.is_empty() {
+        } else if !data.wgsl_code.is_empty() {
             create_shader_module(
                 &context.webgpu.device,
                 wgpu::ShaderModuleDescriptor {
                     label: Some(shader_name.as_str()),
-                    source: wgpu::ShaderSource::Wgsl(self.data.wgsl_code.clone().into()),
+                    source: wgpu::ShaderSource::Wgsl(data.wgsl_code.clone().into()),
                 },
                 &self.path,
             )
@@ -299,6 +311,9 @@ impl Shader {
         match result {
             Ok(module) => {
                 self.module = Some(module);
+                if let Some(data) = self.pending_data.take() {
+                    self.data = data;
+                }
                 self.last_reload_error = None;
                 Ok(())
             }
@@ -320,6 +335,10 @@ impl Shader {
 
     pub fn module(&self) -> &ShaderModule {
         self.module.as_ref().unwrap()
+    }
+
+    pub fn has_pending_reload(&self) -> bool {
+        self.pending_data.is_some()
     }
 
     pub fn last_reload_error(&self) -> Option<&ReloadError> {

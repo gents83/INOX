@@ -44,6 +44,14 @@ impl ResourceTrait for ComputePipeline {
         self.reload_pending = false;
         self
     }
+
+    fn replace_from(&mut self, other: &Self) {
+        self.path = other.path.clone();
+        self.shader = other.shader.clone();
+        self.reload_pending = true;
+        self.last_reload_error = None;
+    }
+
     fn is_initialized(&self) -> bool {
         self.shader.is_some() && self.compute_pipeline.is_some()
     }
@@ -120,7 +128,7 @@ impl ComputePipeline {
             return false;
         }
         if let Some(shader) = self.shader.as_ref() {
-            if !shader.get().is_initialized() {
+            if !shader.get().is_initialized() || shader.get().has_pending_reload() {
                 if let Err(error) = shader.get_mut().init(context) {
                     self.last_reload_error = Some(error);
                     return false;

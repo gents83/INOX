@@ -65,6 +65,19 @@ where
 pub trait ResourceTrait: Send + Sync {
     fn is_initialized(&self) -> bool;
     fn invalidate(&mut self) -> &mut Self;
+
+    /// Queue a replacement without destroying the active resource.
+    ///
+    /// Resource implementations may retain the active GPU object and defer
+    /// committing the candidate until it has been validated by their owner.
+    fn replace_from(&mut self, other: &Self)
+    where
+        Self: Clone,
+    {
+        *self = other.clone();
+        self.invalidate();
+    }
+
     fn typename() -> &'static str {
         std::any::type_name::<Self>()
     }
@@ -171,14 +184,10 @@ where
     T: ResourceTrait + Clone,
 {
     inox_profiler::scoped_profile!("swap_resource");
-    let new = {
-        let o = other.data.read().unwrap();
-        o.clone()
-    };
+    let other = other.data.read().unwrap();
     {
         let old = &mut *resource.data.write().unwrap();
-        *old = new;
-        old.invalidate();
+        old.replace_from(&other);
     }
     if DEBUG_RESOURCES {
         inox_log::debug_log!(
