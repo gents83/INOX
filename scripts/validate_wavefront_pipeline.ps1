@@ -154,6 +154,7 @@ function Invoke-BrowserSmoke {
             throw "Browser WebGPU smoke failed with exit code $LASTEXITCODE. Browser output: $($browserOutput | Out-String)"
         }
         $domText = ($browserOutput | Out-String)
+        Write-Host "Browser smoke returned $($browserOutput.Count) output lines."
         if ($domText -notmatch 'data-inox-smoke="passed"') {
             throw "Browser smoke did not observe explicit engine device, submit, and frame signals. Browser output: $domText"
         }
