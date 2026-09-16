@@ -5,8 +5,10 @@
 - Added max path depth, minimum roulette depth, and environment texture index to the CPU/WGSL constant-data contract.
 - Made dispatch and transport passes use queue header counts for empty-queue early termination and reset destination headers before append.
 - Added environment texture sampling with an analytic sky fallback for invalid/unconfigured textures.
-- Replaced fixed throughput attenuation with bounded diffuse/glossy/specular/transmission sampling, PDF-weighted throughput, Fresnel selection, and total-internal-reflection reflection fallback.
-- Added finite radiance sanitization at composite and CPU transport helpers/tests for queue reset, depth bounds, roulette bounds, reflection, refraction/TIR, environment fallback, and accumulator separation.
+- Replaced fixed throughput attenuation with explicit-lobe diffuse/glossy/specular/transmission sampling, PDF-consistent throughput, Fresnel selection, and total-internal-reflection reflection fallback.
+- Added finite guards for material values, directions, BSDF/PDF terms, throughput, roulette, and spawned-ray origin, plus finite radiance sanitization at composite.
+- Corrected generated bounce dispatch handoffs, moved traversal hit-header reset before all early returns, clamped roulette depth when max depth changes, and bounded environment texture indices while preserving valid black textures.
+- Added focused contracts for dispatch chaining, lobe PDFs, finite guards, environment bounds, queue reset, depth/roulette, reflection/refraction/TIR, and accumulator separation.
 
 ## Verification
 

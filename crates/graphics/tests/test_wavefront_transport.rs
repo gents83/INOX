@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use inox_graphics::passes::pathtracing_common::{
     bounded_path_depth, reflect_direction, refract_direction, roulette_survival_probability,
-    RayQueue,
+    wavefront_bounce_stages, RayQueue,
 };
 
 fn shader(name: &str) -> String {
@@ -61,6 +61,54 @@ fn environment_fallback_and_separate_accumulators_are_contracts() {
     assert!(composite.contains("direct_accumulator"));
     assert!(composite.contains("indirect_accumulator"));
     assert!(composite.contains("sanitize_radiance"));
+}
+
+#[test]
+fn bounce_dispatches_chain_through_previous_destination() {
+    let stages = wavefront_bounce_stages();
+    assert_eq!(stages.len(), 8);
+    for pair in stages.windows(2) {
+        assert_eq!(
+            pair[1].bindings.dispatch_args,
+            pair[0].destination_dispatch_args
+        );
+        assert_ne!(
+            pair[1].bindings.dispatch_args,
+            inox_graphics::WAVEFRONT_HIT_DISPATCH_ARGS_ID
+        );
+    }
+}
+
+#[test]
+fn next_bounce_uses_explicit_lobe_pdf_and_finite_guards() {
+    let source = shader("compute_wavefront_next_bounce.wgsl");
+    assert!(source.contains("p_lobe"));
+    assert!(source.contains("p_direction"));
+    assert!(source.contains("bsdf * cosine_out / (p_lobe * p_direction)"));
+    assert!(source.contains("finite_scalar"));
+    assert!(source.contains("finite_vector"));
+    assert!(source.contains("if (!tir"));
+    assert!(source.contains("throughput /= survival"));
+}
+
+#[test]
+fn environment_index_bounds_preserve_valid_black_textures() {
+    let shade = shader("compute_wavefront_shade.wgsl");
+    assert!(shade.contains("texture_index >= MAX_NUM_TEXTURES"));
+    assert!(shade.contains("return max(sampled, vec3<f32>(0.0))"));
+    assert!(!shade.contains("length(sampled) > MATH_EPSILON"));
+}
+
+#[test]
+fn max_depth_clamps_roulette_depth_and_marks_constants_dirty() {
+    let source = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../render/src/data/constant_data.rs"),
+    )
+    .unwrap();
+    assert!(source
+        .contains("let roulette_depth = self.min_roulette_depth.min(depth.saturating_sub(1));"));
+    assert!(source.contains("self.min_roulette_depth = roulette_depth;"));
+    assert!(source.contains("self.mark_as_dirty(render_context);"));
 }
 
 #[test]

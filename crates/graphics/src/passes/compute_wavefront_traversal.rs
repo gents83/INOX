@@ -157,6 +157,13 @@ impl Pass for ComputeWavefrontTraversalPass {
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
+        {
+            let mut header = self.hit_queue_header.write().unwrap();
+            header[0].count = 0;
+            header[0].overflowed = 0;
+            header[0].capacity = self.hit_queue.read().unwrap().len() as u32;
+            render_context.mark_as_dirty(header.buffer_id());
+        }
         if self.scene_data.read().unwrap().is_empty()
             || self
                 .ray_queue_header
@@ -166,13 +173,6 @@ impl Pass for ComputeWavefrontTraversalPass {
                 .is_none_or(|header| header.count == 0)
         {
             return;
-        }
-        {
-            let mut header = self.hit_queue_header.write().unwrap();
-            header[0].count = 0;
-            header[0].overflowed = 0;
-            header[0].capacity = self.hit_queue.read().unwrap().len() as u32;
-            render_context.mark_as_dirty(header.buffer_id());
         }
         let buffers = render_context.buffers();
         let dispatch_args_id = self.dispatch_args.read().unwrap().buffer_id();

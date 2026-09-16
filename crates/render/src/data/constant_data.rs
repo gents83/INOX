@@ -223,9 +223,14 @@ impl ConstantData {
     }
     pub fn set_max_path_depth(&mut self, render_context: &RenderContext, depth: u32) -> &mut Self {
         let depth = depth.min(8);
-        if self.max_path_depth != depth {
+        let roulette_depth = self.min_roulette_depth.min(depth.saturating_sub(1));
+        if self.max_path_depth != depth
+            || self.num_bounces != depth
+            || self.min_roulette_depth != roulette_depth
+        {
             self.max_path_depth = depth;
             self.num_bounces = depth;
+            self.min_roulette_depth = roulette_depth;
             self.mark_as_dirty(render_context);
         }
         self

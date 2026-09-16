@@ -120,7 +120,7 @@ pub fn wavefront_bounce_stages() -> Vec<WavefrontBounceStage> {
     for index in 1..=8 {
         let stage = wavefront_bounce_stage(index, source_queue, source_dispatch);
         source_queue = stage.bindings.destination_ray_queue;
-        source_dispatch = crate::WAVEFRONT_HIT_DISPATCH_ARGS_ID;
+        source_dispatch = stage.destination_dispatch_args;
         stages.push(stage);
     }
     stages

@@ -35,13 +35,14 @@ fn analytic_sky(direction: vec3<f32>) -> vec3<f32> {
 
 fn environment_radiance(direction: vec3<f32>) -> vec3<f32> {
     let fallback = analytic_sky(normalize(direction));
-    if (constant_data.environment_texture_index == 0xffffffffu) {
+    let texture_index = constant_data.environment_texture_index;
+    if (texture_index >= MAX_NUM_TEXTURES) {
         return fallback;
     }
     let d = normalize(direction);
     let uv = vec2<f32>(atan2(d.z, d.x) / (2.0 * MATH_PI) + 0.5, asin(clamp(d.y, -1.0, 1.0)) / MATH_PI + 0.5);
-    let sampled = sample_texture(vec3<f32>(uv, f32(constant_data.environment_texture_index))).xyz;
-    return select(fallback, max(sampled, vec3<f32>(0.0)), length(sampled) > MATH_EPSILON);
+    let sampled = sample_texture(vec3<f32>(uv, f32(texture_index))).xyz;
+    return max(sampled, vec3<f32>(0.0));
 }
 
 fn table_offset(kind: u32) -> u32 {
