@@ -11,30 +11,61 @@
 </head>
 <body>
     <canvas id="canvas" width="640" height="360"></canvas>
-    <div id="status" role="status" data-inox-smoke="pending">Starting</div>
+    <div id="status" role="status" data-inox-smoke="pending" data-inox-error-count="0">
+        Starting
+    </div>
     <script type="module">
         import init from './inox_launcher.js';
 
         const status = document.getElementById('status');
         const canvas = document.getElementById('canvas');
+        const smokeErrors = [];
+        const originalConsoleError = console.error.bind(console);
+
+        function recordError(error) {
+            smokeErrors.push(String(error));
+            status.dataset.inoxErrorCount = String(smokeErrors.length);
+            status.dataset.inoxSmoke = 'failed';
+            status.textContent = smokeErrors.join('\n');
+        }
+
+        console.error = (...args) => {
+            recordError(args.join(' '));
+            originalConsoleError(...args);
+        };
+        window.addEventListener('error', (event) => recordError(event.error || event.message));
+        window.addEventListener('unhandledrejection', (event) => recordError(event.reason));
+
         const context = canvas.getContext('webgpu');
         if (!context) {
-            status.dataset.inoxSmoke = 'failed';
-            status.textContent = 'WebGPU surface unavailable';
+            recordError('WebGPU surface unavailable');
         } else {
-            init().then(() => {
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        status.dataset.inoxSmoke = 'passed';
-                        status.textContent = 'WebGPU frame observed';
-                    });
-                });
-            }).catch((error) => {
-                status.dataset.inoxSmoke = 'failed';
-                status.textContent = String(error);
-                console.error(error);
-            });
+            init().catch((error) => recordError(error));
         }
+
+        const deadline = performance.now() + 10000;
+        function observeEngineSignals() {
+            const deviceReady = window.__inox_smoke_device === true;
+            const submitObserved = window.__inox_smoke_submit === true;
+            const frameObserved = window.__inox_smoke_frame === true;
+            status.dataset.inoxDevice = deviceReady ? 'ready' : 'pending';
+            status.dataset.inoxSubmit = submitObserved ? 'observed' : 'pending';
+            status.dataset.inoxFrame = frameObserved ? 'observed' : 'pending';
+            if (smokeErrors.length > 0) {
+                return;
+            }
+            if (deviceReady && submitObserved && frameObserved) {
+                status.dataset.inoxSmoke = 'passed';
+                status.textContent = 'Engine device, queue submit, and frame observed';
+                return;
+            }
+            if (performance.now() >= deadline) {
+                recordError(`Missing engine signals: device=${deviceReady}, submit=${submitObserved}, frame=${frameObserved}`);
+                return;
+            }
+            setTimeout(observeEngineSignals, 50);
+        }
+        observeEngineSignals();
     </script>
 </body>
 </html>

@@ -18,6 +18,15 @@ use crate::{
     TextureHandlerRc, TextureId, TextureUsage, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
+#[cfg(target_arch = "wasm32")]
+fn signal_browser_smoke(name: &str) {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let key = wasm_bindgen::JsValue::from_str(&format!("__inox_smoke_{name}"));
+    let _ = js_sys::Reflect::set(window.as_ref(), &key, &wasm_bindgen::JsValue::TRUE);
+}
+
 const USE_FORCED_VULKAN: bool = false;
 const USE_FORCED_DX12: bool = false;
 
@@ -60,6 +69,8 @@ impl WebGpuContext {
         inox_profiler::scoped_profile!("render_context::submit");
         let command_buffer = command_buffer.encoder.finish();
         self.queue.submit(std::iter::once(command_buffer));
+        #[cfg(target_arch = "wasm32")]
+        signal_browser_smoke("submit");
     }
     pub fn configure(&self) {
         inox_profiler::scoped_profile!("render_context::configure");
@@ -309,6 +320,8 @@ impl RenderContext {
         //debug_log!("Surface format: {:?}", config.format);
         surface.as_ref().unwrap().configure(&device, &config);
         let _ = surface.as_ref().unwrap().get_current_texture();
+        #[cfg(target_arch = "wasm32")]
+        signal_browser_smoke("device");
 
         let webgpu = WebGpuContext {
             instance,

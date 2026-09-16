@@ -59,11 +59,20 @@ pub fn load_plugins(launcher: &Arc<Launcher>) {
     );
 }
 
+fn signal_browser_smoke(name: &str) {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let key = wasm_bindgen::JsValue::from_str(&format!("__inox_smoke_{name}"));
+    let _ = js_sys::Reflect::set(window.as_ref(), &key, &wasm_bindgen::JsValue::TRUE);
+}
+
 pub fn main_update(launcher: Arc<Launcher>) {
     unsafe {
         MESSAGE_HUB = Some(launcher.message_hub());
     }
     let can_continue = launcher.update();
+    signal_browser_smoke("frame");
     if can_continue {
         let cb = Closure::wrap(Box::new(move || {
             main_update(launcher.clone());
