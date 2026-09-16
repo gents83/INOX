@@ -82,6 +82,15 @@ fn wavefront_dispatch_rounds_up_and_handles_empty_queues() {
 }
 
 #[test]
+fn dispatch_metadata_records_xyz_without_rebuilding_pipeline_storage() {
+    let args = DispatchArgs { x: 7, y: 11, z: 13 };
+    let recorded = [args];
+
+    assert_eq!(recorded[0], args);
+    assert_eq!(std::mem::size_of::<DispatchArgs>(), 12);
+}
+
+#[test]
 fn wavefront_queue_bounds_appends_and_resets_without_allocating_per_append() {
     let mut queue = RayQueue::with_capacity(2);
     assert!(queue.append(RayQueueRecord::default()));
