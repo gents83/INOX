@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use std::{
+    collections::HashSet,
     env,
     fs::create_dir_all,
     io::Read,
@@ -31,6 +32,29 @@ const SPV_EXTENSION: &str = "spv";
 const VERTEX_SHADER_EXTENSION: &str = "vert";
 const FRAGMENT_SHADER_EXTENSION: &str = "frag";
 const GEOMETRY_SHADER_EXTENSION: &str = "geom";
+
+/// The portable WebGPU profile guarantees only eight storage buffers per stage.
+pub const MAX_PORTABLE_STORAGE_BUFFERS: usize = 8;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StorageBinding {
+    pub group: u32,
+    pub binding: u32,
+    pub name: String,
+    pub stage: &'static str,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StorageBindingReport {
+    pub stage: &'static str,
+    pub bindings: Vec<StorageBinding>,
+}
+
+impl StorageBindingReport {
+    pub fn count(&self) -> usize {
+        self.bindings.len()
+    }
+}
 
 struct WgslExtensionRule {
     feature_define: &'static str,
@@ -257,9 +281,107 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
         }
     }
 
+    pub fn extract_storage_bindings(
+        source: &str,
+        path: &Path,
+    ) -> Result<StorageBindingReport, String> {
+        Self::extract_storage_bindings_with_limit(source, path, MAX_PORTABLE_STORAGE_BUFFERS)
+    }
+
+    fn extract_storage_bindings_with_limit(
+        source: &str,
+        path: &Path,
+        storage_limit: usize,
+    ) -> Result<StorageBindingReport, String> {
+        let group_regex = Regex::new(r"@group\s*\(\s*(\d+)\s*\)").unwrap();
+        let binding_regex = Regex::new(r"@binding\s*\(\s*(\d+)\s*\)").unwrap();
+        let storage_regex =
+            Regex::new(r"var\s*<\s*storage(?:\s*,[^>]*)?>\s*([A-Za-z_]\w*)").unwrap();
+        let stage = if source.contains("@compute") {
+            "compute"
+        } else if source.contains("@vertex") || source.contains("@fragment") {
+            "graphics"
+        } else {
+            "unknown"
+        };
+        let mut group = None;
+        let mut binding = None;
+        let mut seen = HashSet::new();
+        let mut bindings = Vec::new();
+
+        for (line_number, line) in source.lines().enumerate() {
+            if let Some(value) = group_regex.captures(line) {
+                group = Some(value[1].parse::<u32>().unwrap());
+            }
+            if let Some(value) = binding_regex.captures(line) {
+                binding = Some(value[1].parse::<u32>().unwrap());
+            }
+            if let Some(value) = storage_regex.captures(line) {
+                let Some(group) = group.take() else {
+                    return Err(format!(
+                        "shader {path:?} stage {stage} storage binding for {} is missing @group at line {}",
+                        &value[1], line_number + 1
+                    ));
+                };
+                let Some(binding) = binding.take() else {
+                    return Err(format!(
+                        "shader {path:?} stage {stage} storage binding {} is missing @binding at line {}",
+                        &value[1], line_number + 1
+                    ));
+                };
+                if !seen.insert((group, binding)) {
+                    return Err(format!(
+                        "shader {path:?} stage {stage} has duplicate storage binding @group({group}) @binding({binding})"
+                    ));
+                }
+                bindings.push(StorageBinding {
+                    group,
+                    binding,
+                    name: value[1].to_string(),
+                    stage,
+                });
+            } else if line.contains("var") {
+                // Do not let a uniform/texture declaration lend its attributes
+                // to a following storage declaration.
+                group = None;
+                binding = None;
+            }
+        }
+
+        if bindings.len() > storage_limit {
+            return Err(format!(
+                "shader {path:?} stage {stage} declares {} storage bindings; portable limit is {}",
+                bindings.len(),
+                storage_limit
+            ));
+        }
+        Ok(StorageBindingReport { stage, bindings })
+    }
+
+    pub fn validate_preprocessed_wgsl(source: &str, path: &Path) -> Result<(), String> {
+        let report = Self::extract_storage_bindings(source, path)?;
+        naga::front::wgsl::parse_str(source)
+            .map_err(|error| format!("shader {path:?} WGSL parse failed: {error}"))
+            .and_then(|module| {
+                naga::valid::Validator::new(
+                    naga::valid::ValidationFlags::default(),
+                    naga::valid::Capabilities::all(),
+                )
+                .validate(&module)
+                .map(|_| ())
+                .map_err(|error| format!("shader {path:?} WGSL validation failed: {error:?}"))
+            })?;
+        debug_assert!(report.count() <= MAX_PORTABLE_STORAGE_BUFFERS);
+        Ok(())
+    }
+
     fn validate_shader(&self, preprocessed_code: &str, path: &Path, new_path: &Path) -> bool {
         let mut validated = false;
 
+        if let Err(error) = Self::extract_storage_bindings(preprocessed_code, path) {
+            eprintln!("Unable to validate shader {path:?}: {error}");
+            return false;
+        }
         let result = naga::front::wgsl::parse_str(preprocessed_code);
         match result {
             Ok(module) => {
@@ -390,6 +512,84 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
         }
     }
 
+    pub fn validate_pipeline_descriptors(data_raw_folder: &Path) -> Result<(), String> {
+        let pipeline_folder = data_raw_folder.join("pipelines");
+        let mut errors = Vec::new();
+        let entries = std::fs::read_dir(&pipeline_folder).map_err(|error| {
+            format!("unable to read pipeline folder {pipeline_folder:?}: {error}")
+        })?;
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|extension| extension.to_str()) != Some("compute_pipeline")
+                && path.extension().and_then(|extension| extension.to_str())
+                    != Some("render_pipeline")
+            {
+                continue;
+            }
+            let source = match std::fs::read_to_string(&path) {
+                Ok(source) => source,
+                Err(error) => {
+                    errors.push(format!("pipeline {path:?} cannot be read: {error}"));
+                    continue;
+                }
+            };
+            let descriptor: serde_json::Value = match serde_json::from_str(&source) {
+                Ok(descriptor) => descriptor,
+                Err(error) => {
+                    errors.push(format!("pipeline {path:?} is invalid JSON: {error}"));
+                    continue;
+                }
+            };
+            for field in ["shader", "vertex_shader", "fragment_shader"] {
+                let Some(shader) = descriptor.get(field).and_then(serde_json::Value::as_str) else {
+                    continue;
+                };
+                let shader_path = data_raw_folder.join(shader).with_extension(WGSL_EXTENSION);
+                if !shader_path.is_file() {
+                    errors.push(format!(
+                        "pipeline {path:?} field {field} references missing shader {shader_path:?}"
+                    ));
+                    continue;
+                }
+                let shader_source = match std::fs::read_to_string(&shader_path) {
+                    Ok(source) => source,
+                    Err(error) => {
+                        errors.push(format!("shader {shader_path:?} cannot be read: {error}"));
+                        continue;
+                    }
+                };
+                let preprocessed = Self::preprocess_code(&shader_path, shader_source);
+                let preprocessed = Self::remove_comments(&preprocessed);
+                let shader_name = shader_path
+                    .file_stem()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or_default();
+                let is_portable_production = shader_name.starts_with("compute_wavefront_")
+                    || matches!(
+                        shader_name,
+                        "visibility" | "finalize" | "blit" | "wireframe"
+                    );
+                let result = if is_portable_production {
+                    Self::extract_storage_bindings(&preprocessed, &shader_path)
+                } else {
+                    Self::extract_storage_bindings_with_limit(
+                        &preprocessed,
+                        &shader_path,
+                        usize::MAX,
+                    )
+                };
+                if let Err(error) = result {
+                    errors.push(format!("pipeline {path:?} field {field}: {error}"));
+                }
+            }
+        }
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors.join("\\n"))
+        }
+    }
+
     pub fn validate_wgsl_file(path: &Path) -> bool {
         let Ok(source) = std::fs::read_to_string(path) else {
             eprintln!("Unable to read WGSL source {path:?}");
@@ -411,6 +611,10 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
                 return false;
             }
         };
+        if let Err(error) = Self::extract_storage_bindings(&source, path) {
+            eprintln!("Unable to validate WGSL source {path:?}: {error}");
+            return false;
+        }
         let Ok(module) = naga::front::wgsl::parse_str(&source) else {
             eprintln!("Unable to parse WGSL source {path:?}:\n{source}");
             return false;

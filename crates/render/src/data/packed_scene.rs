@@ -1,6 +1,8 @@
 use inox_resources::to_slice;
 
-use super::packed_data::{PackedTableRange, PACKED_BUFFER_MAGIC, PACKED_BUFFER_VERSION};
+use super::packed_data::{
+    PackedBufferHeader, PackedTableRange, PACKED_BUFFER_MAGIC, PACKED_SCENE_HEADER_WORDS,
+};
 
 pub const PACKED_SCENE_TABLE_COUNT: usize = 11;
 
@@ -48,27 +50,35 @@ impl PackedSceneData {
         self.ranges[kind as usize]
     }
 
-    pub fn validate(&self) -> Result<(), &'static str> {
-        if self.words.len() < std::mem::size_of::<PackedSceneHeader>() / 4 {
+    pub fn validate_words(words: &[u32]) -> Result<(), &'static str> {
+        if words.len() < PACKED_SCENE_HEADER_WORDS {
             return Err("packed scene is missing its header");
         }
-        if self.words[0] != PACKED_BUFFER_MAGIC {
+        if words[0] != PACKED_BUFFER_MAGIC {
             return Err("packed scene magic does not match");
         }
-        if self.words[1] != PACKED_BUFFER_VERSION {
+        if words[1] != PackedBufferHeader::version() {
             return Err("packed scene version does not match");
         }
-        let word_count = self.words[2] as usize;
-        if word_count != self.words.len() {
+        let word_count = words[2] as usize;
+        if word_count != words.len() {
             return Err("packed scene word count does not match payload");
         }
-        for range in self.ranges {
-            let end = range.offset_words as usize + range.count_words as usize;
-            if end > word_count || (range.count_words > 0 && range.stride_words == 0) {
+        for index in 0..PACKED_SCENE_TABLE_COUNT {
+            let base = 4 + index * 4;
+            let offset = words[base] as usize;
+            let count = words[base + 1] as usize;
+            let stride = words[base + 2];
+            let end = offset + count;
+            if end > word_count || (count > 0 && stride == 0) {
                 return Err("packed scene table range is invalid");
             }
         }
         Ok(())
+    }
+
+    pub fn validate(&self) -> Result<(), &'static str> {
+        Self::validate_words(&self.words)
     }
 }
 
@@ -116,7 +126,7 @@ impl PackedSceneBuilder {
         };
         let header = PackedSceneHeader {
             magic: PACKED_BUFFER_MAGIC,
-            version: PACKED_BUFFER_VERSION,
+            version: PackedBufferHeader::version(),
             word_count: data.words.len() as u32,
             flags: 0,
             ranges: data.ranges,

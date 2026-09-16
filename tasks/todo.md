@@ -14,8 +14,8 @@
 
 - [x] Make external compiler/validator exit status strict. (Include caching/cycle detection remains.)
 - [x] Run the native binarizer for both PC and Web before generated-data validation or runtime launch.
-- [ ] Validate every generated production shader and pipeline’s storage-binding count.
-- [ ] Enforce packed-scene/header versions and typed CPU↔WGSL layout contracts.
+- [x] Validate every generated production shader and pipeline’s storage-binding count. (Include-expanded WGSL validation enforces the portable eight-storage-buffer budget, duplicate bindings, required group/binding attributes, and pipeline shader references.)
+- [x] Enforce packed-scene/header versions and typed CPU↔WGSL layout contracts. (Packed scene words now validate before upload and versioned record descriptors mirror WGSL stride constants.)
 
 ## Phase 3 — packed render graph
 
@@ -64,3 +64,4 @@
 - Final release workspace build and PC/Web binarizer gate completed after strict compiler-status handling.
 - Native viewer smoke selected the RTX 4090 Laptop GPU and configured `Bgra8UnormSrgb` without a startup panic; the 20-second smoke was stopped by timeout.
 - Task 5 hot-loop validation passed: debug and release render/graphics regression tests, render/graphics checks, stable clippy, and workspace formatting. Compute dispatches reuse cached pipelines/labels; indexed indirect draws use the vector count-prefix offset; meshlet draws reuse pass-owned command scratch after releasing data locks.
+- Task 6 validation passed: binarizer binding/pipeline tests, render packed-data tests, graphics record-layout tests, binarizer/render/graphics clippy, formatting, native checks, and render/graphics WebAssembly checks. The Windows toolchain required `RUSTFLAGS=` for native commands because the repository config injects unsupported `split-debuginfo=unpacked`.

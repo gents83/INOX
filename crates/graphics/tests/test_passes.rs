@@ -1,3 +1,10 @@
+use inox_render::{
+    WAVEFRONT_ACCUMULATION_RECORD_STRIDE_WORDS, WAVEFRONT_AO_RECORD_STRIDE_WORDS,
+    WAVEFRONT_DISPATCH_ARGS_STRIDE_WORDS, WAVEFRONT_HIT_RECORD_STRIDE_WORDS,
+    WAVEFRONT_QUEUE_HEADER_STRIDE_WORDS, WAVEFRONT_RAY_QUEUE_RECORD_STRIDE_WORDS,
+    WAVEFRONT_RESERVOIR_RECORD_STRIDE_WORDS, WAVEFRONT_TRANSPARENT_HIT_RECORD_STRIDE_WORDS,
+};
+
 use inox_graphics::{
     dispatch_workgroups_for, queue_capacity_for_resolution, wavefront_bounce_stage,
     AccumulationRecord, AoRecord, DispatchArgs, HitRecord, RayQueue, RayQueueRecord,
@@ -62,6 +69,29 @@ fn wavefront_records_have_storage_buffer_safe_layouts() {
     assert_eq!(std::mem::size_of::<AoRecord>(), 16);
     assert_eq!(std::mem::size_of::<TransparentHitRecord>(), 40);
     assert_eq!(std::mem::size_of::<DispatchArgs>(), 12);
+    assert_eq!(std::mem::size_of::<inox_graphics::QueueHeader>(), 16);
+    assert_eq!(std::mem::align_of::<RayQueueRecord>(), 4);
+    assert_eq!(std::mem::align_of::<HitRecord>(), 4);
+    assert_eq!(std::mem::align_of::<AccumulationRecord>(), 4);
+    assert_eq!(std::mem::align_of::<ReservoirRecord>(), 4);
+    assert_eq!(std::mem::align_of::<AoRecord>(), 4);
+    assert_eq!(std::mem::align_of::<TransparentHitRecord>(), 4);
+    assert_eq!(std::mem::align_of::<DispatchArgs>(), 4);
+    assert_eq!(std::mem::offset_of!(RayQueueRecord, pixel_index), 48);
+    assert_eq!(std::mem::offset_of!(HitRecord, barycentric), 16);
+    assert_eq!(std::mem::offset_of!(AccumulationRecord, history_length), 24);
+    assert_eq!(std::mem::offset_of!(ReservoirRecord, age), 20);
+    assert_eq!(std::mem::offset_of!(AoRecord, sample_count), 8);
+    assert_eq!(std::mem::offset_of!(TransparentHitRecord, color), 16);
+    assert_eq!(std::mem::offset_of!(DispatchArgs, z), 8);
+    assert_eq!(WAVEFRONT_RAY_QUEUE_RECORD_STRIDE_WORDS * 4, 64);
+    assert_eq!(WAVEFRONT_HIT_RECORD_STRIDE_WORDS * 4, 32);
+    assert_eq!(WAVEFRONT_ACCUMULATION_RECORD_STRIDE_WORDS * 4, 32);
+    assert_eq!(WAVEFRONT_RESERVOIR_RECORD_STRIDE_WORDS * 4, 32);
+    assert_eq!(WAVEFRONT_AO_RECORD_STRIDE_WORDS * 4, 16);
+    assert_eq!(WAVEFRONT_TRANSPARENT_HIT_RECORD_STRIDE_WORDS * 4, 40);
+    assert_eq!(WAVEFRONT_DISPATCH_ARGS_STRIDE_WORDS * 4, 12);
+    assert_eq!(WAVEFRONT_QUEUE_HEADER_STRIDE_WORDS * 4, 16);
 }
 
 #[test]

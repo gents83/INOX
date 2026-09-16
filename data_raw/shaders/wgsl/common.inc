@@ -1,12 +1,20 @@
 const DEFAULT_WIDTH: u32 = 1920u;
 const DEFAULT_HEIGHT: u32 = 1080u;
 const SIZE_OF_DATA_BUFFER_ELEMENT: u32 = 4u;
+const PACKED_BUFFER_MAGIC: u32 = 0x584F4E49u;
+const PACKED_BUFFER_VERSION: u32 = 1u;
+const PACKED_SCENE_HEADER_WORDS: u32 = 48u;
+const WAVEFRONT_RECORD_VERSION: u32 = 1u;
 const MAX_LOD_LEVELS: u32 = 8u;
 const MAX_NUM_LIGHTS: u32 = 512u;
 const MAX_NUM_TEXTURES: u32 = 2048u;
 const MAX_NUM_MATERIALS: u32 = 256u;
 const MAX_PROJECTED_ERROR: f32 = 10e-10;
 const LOD_ERROR_THRESHOLD: f32 = 2e-3f; // 24 pixels at 1080p
+
+fn packed_buffer_version_is_valid(version: u32) -> bool {
+    return version == PACKED_BUFFER_VERSION;
+}
 
 const CONSTANT_DATA_FLAGS_NONE: u32 = 0u;
 const CONSTANT_DATA_FLAGS_USE_IBL: u32 = 1u;

@@ -1,7 +1,7 @@
 pub const SIZE_OF_DATA_BUFFER_ELEMENT: usize = 4;
 use inox_uid::{generate_static_uid_from_string, generate_uid_from_string, Uid};
 
-pub const WAVEFRONT_QUEUE_VERSION: u32 = 1;
+pub const WAVEFRONT_QUEUE_VERSION: u32 = inox_render::WAVEFRONT_RECORD_VERSION;
 pub const WAVEFRONT_INDIRECT_ACCUMULATOR_ID: Uid =
     generate_static_uid_from_string("WAVEFRONT_INDIRECT_ACCUMULATOR");
 pub const WAVEFRONT_FINAL_ACCUMULATOR_ID: Uid =

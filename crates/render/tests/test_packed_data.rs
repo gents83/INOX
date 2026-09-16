@@ -1,4 +1,7 @@
-use inox_render::{PackedBufferBuilder, PackedBufferHeader, PackedTableRange, PACKED_BUFFER_MAGIC};
+use inox_render::{
+    PackedBufferBuilder, PackedBufferHeader, PackedTableRange, PACKED_BUFFER_MAGIC,
+    PACKED_SCENE_HEADER_WORDS, WAVEFRONT_RECORD_LAYOUTS, WAVEFRONT_RECORD_VERSION,
+};
 
 #[test]
 fn packed_builder_aligns_tables_and_records_word_ranges() {
@@ -19,6 +22,28 @@ fn packed_headers_and_ranges_keep_their_gpu_layout() {
     assert_eq!(std::mem::size_of::<PackedBufferHeader>(), 4 * 4);
     assert_eq!(std::mem::size_of::<PackedTableRange>(), 4 * 4);
     assert_eq!(PACKED_BUFFER_MAGIC, u32::from_le_bytes(*b"INOX"));
+}
+
+#[test]
+fn packed_record_descriptors_are_versioned_and_word_addressable() {
+    let expected = [
+        ("RayQueueRecord", 16),
+        ("HitRecord", 8),
+        ("AccumulationRecord", 8),
+        ("ReservoirRecord", 8),
+        ("AoRecord", 4),
+        ("TransparentHitRecord", 10),
+        ("DispatchArgs", 3),
+        ("QueueHeader", 4),
+    ];
+    assert_eq!(WAVEFRONT_RECORD_LAYOUTS.len(), expected.len());
+    for (layout, (name, stride)) in WAVEFRONT_RECORD_LAYOUTS.iter().zip(expected) {
+        assert_eq!(layout.name, name);
+        assert_eq!(layout.version, WAVEFRONT_RECORD_VERSION);
+        assert_eq!(layout.stride_words, stride);
+        assert_eq!(layout.alignment_bytes, 4);
+    }
+    assert_eq!(PACKED_SCENE_HEADER_WORDS, 48);
 }
 
 #[test]

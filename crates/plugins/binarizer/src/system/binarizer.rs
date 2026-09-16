@@ -98,6 +98,11 @@ impl<const PLATFORM_TYPE: PlatformType> Binarizer<PLATFORM_TYPE> {
             data_raw_folder,
             data_folder,
         );
+        if let Err(error) =
+            ShaderCompiler::<PLATFORM_TYPE>::validate_pipeline_descriptors(data_raw_folder)
+        {
+            eprintln!("Production pipeline validation failed:\n{error}");
+        }
         if info.preprocess_shaders_paths.is_empty() {
             let font_compiler =
                 FontCompiler::new(message_hub.clone(), data_raw_folder, data_folder);
