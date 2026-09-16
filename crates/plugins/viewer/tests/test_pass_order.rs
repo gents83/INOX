@@ -6,10 +6,17 @@ use inox_graphics::{
     WAVEFRONT_HIT_HEADER_ID, WAVEFRONT_HIT_QUEUE_ID, WAVEFRONT_PRIMARY_QUEUE_ID,
     WAVEFRONT_TRANSPARENT_HEADER_ID, WAVEFRONT_TRANSPARENT_QUEUE_ID,
 };
-use inox_viewer::viewer::production_pass_metadata;
+use inox_viewer::viewer::{production_pass_registrations, ProductionPassMetadata};
+
+fn pass_metadata() -> Vec<ProductionPassMetadata> {
+    production_pass_registrations()
+        .into_iter()
+        .flat_map(|registration| registration.passes)
+        .collect()
+}
 
 fn active_pass_names() -> Vec<String> {
-    production_pass_metadata()
+    pass_metadata()
         .into_iter()
         .filter(|pass| pass.enabled)
         .map(|pass| pass.name)
@@ -18,7 +25,7 @@ fn active_pass_names() -> Vec<String> {
 
 #[test]
 fn production_metadata_has_unique_entries_and_complete_queue_chain() {
-    let metadata = production_pass_metadata();
+    let metadata = pass_metadata();
     let active = active_pass_names();
     let names: HashSet<_> = active.iter().map(String::as_str).collect();
     assert_eq!(names.len(), active.len());
@@ -95,6 +102,77 @@ fn production_metadata_has_unique_entries_and_complete_queue_chain() {
         .into_iter()
         .map(str::to_owned)
         .collect()
+    );
+}
+
+#[test]
+fn registration_table_exposes_actual_auxiliary_and_bounce_handoffs() {
+    let registrations = production_pass_registrations();
+    let dependency = |pass: &str| {
+        registrations
+            .iter()
+            .flat_map(|registration| registration.dependencies.iter())
+            .find(|entry| entry.pass == pass)
+            .unwrap_or_else(|| panic!("missing dependency metadata for {pass}"))
+    };
+
+    let bounce_registration = registrations
+        .iter()
+        .find(|registration| {
+            registration
+                .passes
+                .iter()
+                .any(|pass| pass.name == "ComputeWavefrontBounce1")
+        })
+        .expect("missing generated bounce registration");
+    assert_eq!(bounce_registration.passes.len(), 40);
+    assert_eq!(bounce_registration.dependencies.len(), 40);
+    assert_eq!(
+        dependency("ComputeWavefrontTransparencyResolvePass").predecessor,
+        "ComputeWavefrontTransparencyPass"
+    );
+    assert_eq!(
+        dependency("ComputeWavefrontTransparencyResolvePass").resource,
+        WAVEFRONT_TRANSPARENT_QUEUE_ID
+    );
+    assert_eq!(
+        dependency("ComputeWavefrontAoResolvePass").predecessor,
+        "ComputeWavefrontSurfacePass"
+    );
+    assert_eq!(
+        dependency("ComputeWavefrontAoResolvePass").resource,
+        WAVEFRONT_AO_ID
+    );
+    assert_eq!(
+        dependency("ComputeWavefrontVisibilityPass").predecessor,
+        "ComputeWavefrontDirectCandidatesPass"
+    );
+    assert_eq!(
+        dependency("ComputeWavefrontVisibilityPass").resource,
+        inox_graphics::WAVEFRONT_RESERVOIR_ID
+    );
+
+    let stage = wavefront_bounce_stage(
+        1,
+        WAVEFRONT_PRIMARY_QUEUE_ID,
+        WAVEFRONT_HIT_DISPATCH_ARGS_ID,
+    );
+    assert_eq!(
+        dependency(&stage.name).predecessor,
+        "ComputeWavefrontShadePass"
+    );
+    assert_eq!(dependency(&stage.dispatch_name).predecessor, stage.name);
+    assert_eq!(
+        dependency(&stage.traversal_name).predecessor,
+        stage.dispatch_name
+    );
+    assert_eq!(
+        dependency(&stage.hit_dispatch_name).predecessor,
+        stage.traversal_name
+    );
+    assert_eq!(
+        dependency(&stage.shade_name).predecessor,
+        stage.hit_dispatch_name
     );
 }
 

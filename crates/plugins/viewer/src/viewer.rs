@@ -3,8 +3,9 @@ use std::path::PathBuf;
 use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
-    wavefront_bounce_stage, BlitPass, CommandsPass, ComputeDiffuseLightingPass, ComputeGBufferPass,
-    ComputeIndirectBouncePass, ComputeIndirectSetupPass, ComputeInstancesPass, ComputeShadowAOPass,
+    wavefront_auxiliary_bindings, wavefront_bounce_stage, BlitPass, CommandsPass,
+    ComputeDiffuseLightingPass, ComputeGBufferPass, ComputeIndirectBouncePass,
+    ComputeIndirectSetupPass, ComputeInstancesPass, ComputeShadowAOPass,
     ComputeSpecularLightingPass, ComputeWavefrontAoResolvePass, ComputeWavefrontCompositePass,
     ComputeWavefrontDenoisePass, ComputeWavefrontDirectCandidatesPass,
     ComputeWavefrontDispatchPass, ComputeWavefrontNextBouncePass, ComputeWavefrontPrimaryPass,
@@ -17,7 +18,8 @@ use inox_graphics::{
     WAVEFRONT_NEXT2_DISPATCH_ARGS_ID, WAVEFRONT_NEXT2_HEADER_ID, WAVEFRONT_NEXT2_QUEUE_ID,
     WAVEFRONT_NEXT3_DISPATCH_ARGS_ID, WAVEFRONT_NEXT3_HEADER_ID, WAVEFRONT_NEXT3_QUEUE_ID,
     WAVEFRONT_NEXT_DISPATCH_ARGS_ID, WAVEFRONT_NEXT_HEADER_ID, WAVEFRONT_NEXT_QUEUE_ID,
-    WAVEFRONT_PRIMARY_QUEUE_ID, WIREFRAME_PASS_NAME,
+    WAVEFRONT_PRIMARY_HEADER_ID, WAVEFRONT_PRIMARY_QUEUE_ID, WAVEFRONT_RESERVOIR_ID,
+    WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_render::{
@@ -29,6 +31,7 @@ use inox_resources::ConfigBase;
 use inox_scene::{ObjectSystem, ScriptSystem};
 use inox_serialize::{read_from_file, SerializationType};
 use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
+use inox_uid::Uid;
 
 use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
@@ -38,73 +41,335 @@ const MAX_NUM_LIGHTS: usize = 512;
 const MAX_NUM_TEXTURES: usize = 2048;
 const MAX_NUM_MATERIALS: usize = 256;
 
+pub type ProductionPassFactory = fn(&ContextRc, &RenderContextRc);
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProductionPassMetadata {
     pub name: String,
     pub enabled: bool,
 }
 
-/// Canonical metadata for the passes that the viewer registers.
-///
-/// This is consumed by the registration assertion and by integration tests;
-/// tests do not maintain a second expected pass-name list. Generated bounces
-/// are expanded from the same stage metadata used by registration.
-pub fn production_pass_metadata() -> Vec<ProductionPassMetadata> {
-    let mut metadata = Vec::new();
-    let mut add = |name: &str, enabled| {
-        metadata.push(ProductionPassMetadata {
-            name: name.to_owned(),
-            enabled,
-        });
-    };
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProductionGraphDependency {
+    pub pass: String,
+    pub predecessor: String,
+    pub resource: Uid,
+}
 
-    add("DepthFirstPass", true);
-    add("DepthPyramidPass", true);
-    add("ComputeInstancesPass", true);
-    add("CullingPass", true);
-    add("CommandsPass", true);
-    add("VisibilityBufferPass", true);
-    add("ComputeGBufferPass", false);
-    add("ComputeWavefrontSurfacePass", true);
-    add("ComputeWavefrontTransparencyPass", true);
-    add("ComputeShadowAOPass", false);
-    add("ComputeWavefrontAoResolvePass", true);
-    add("ComputeWavefrontDirectCandidatesPass", true);
-    add("ComputeWavefrontVisibilityPass", true);
-    add("ComputeDiffuseLightingPass", false);
-    add("ComputeSpecularLightingPass", false);
-    add("ComputeIndirectSetupPass", false);
-    add("ComputeIndirectBouncePass", false);
-    add("ComputeWavefrontPrimaryPass", true);
-    add("ComputeWavefrontDispatchPass", true);
-    add("ComputeWavefrontTraversalPass", true);
-    add("ComputeWavefrontHitDispatchPass", true);
-    add("ComputeWavefrontShadePass", true);
+pub struct ProductionPassRegistration {
+    pub passes: Vec<ProductionPassMetadata>,
+    pub dependencies: Vec<ProductionGraphDependency>,
+    factory: ProductionPassFactory,
+}
+
+impl ProductionPassRegistration {
+    fn new(
+        names: impl IntoIterator<Item = String>,
+        enabled: bool,
+        factory: ProductionPassFactory,
+        dependencies: Vec<ProductionGraphDependency>,
+    ) -> Self {
+        Self {
+            passes: names
+                .into_iter()
+                .map(|name| ProductionPassMetadata { name, enabled })
+                .collect(),
+            dependencies,
+            factory,
+        }
+    }
+}
+
+fn dependency(pass: &str, predecessor: &str, resource: Uid) -> ProductionGraphDependency {
+    ProductionGraphDependency {
+        pass: pass.to_owned(),
+        predecessor: predecessor.to_owned(),
+        resource,
+    }
+}
+
+/// The single production registration table. Its factories construct the
+/// actual passes, while the same rows expose observed names, enabled flags,
+/// and graph handoffs to integration tests.
+pub fn production_pass_registrations() -> Vec<ProductionPassRegistration> {
+    let mut registrations = Vec::new();
+    let add =
+        |registrations: &mut Vec<ProductionPassRegistration>, names: &[&str], enabled, factory| {
+            registrations.push(ProductionPassRegistration::new(
+                names.iter().map(|name| (*name).to_owned()),
+                enabled,
+                factory,
+                Vec::new(),
+            ));
+        };
+
+    add(
+        &mut registrations,
+        &["DepthFirstPass", "DepthPyramidPass"],
+        true,
+        Viewer::create_depth_pyramid_pass,
+    );
+    add(
+        &mut registrations,
+        &["ComputeInstancesPass"],
+        true,
+        Viewer::create_instances_pass,
+    );
+    add(
+        &mut registrations,
+        &["CullingPass", "CommandsPass"],
+        true,
+        Viewer::create_culling_pass,
+    );
+    add(
+        &mut registrations,
+        &["VisibilityBufferPass"],
+        true,
+        Viewer::create_visibility_pass,
+    );
+    add(
+        &mut registrations,
+        &["ComputeGBufferPass"],
+        false,
+        Viewer::create_gbuffer_pass,
+    );
+    add(
+        &mut registrations,
+        &["ComputeWavefrontSurfacePass"],
+        true,
+        Viewer::create_wavefront_surface_pass,
+    );
+    add(
+        &mut registrations,
+        &["ComputeWavefrontTransparencyPass"],
+        true,
+        Viewer::create_wavefront_transparency_pass,
+    );
+    add(
+        &mut registrations,
+        &["ComputeShadowAOPass"],
+        false,
+        Viewer::create_shadow_ao_pass,
+    );
+    add(
+        &mut registrations,
+        &["ComputeWavefrontAoResolvePass"],
+        true,
+        Viewer::create_wavefront_ao_resolve_pass,
+    );
+    add(
+        &mut registrations,
+        &["ComputeWavefrontDirectCandidatesPass"],
+        true,
+        Viewer::create_wavefront_direct_candidates_pass,
+    );
+    add(
+        &mut registrations,
+        &["ComputeWavefrontVisibilityPass"],
+        true,
+        Viewer::create_wavefront_visibility_pass,
+    );
+    add(
+        &mut registrations,
+        &["ComputeDiffuseLightingPass"],
+        false,
+        Viewer::create_diffuse_lighting_pass,
+    );
+    add(
+        &mut registrations,
+        &["ComputeSpecularLightingPass"],
+        false,
+        Viewer::create_specular_lighting_pass,
+    );
+    add(
+        &mut registrations,
+        &["ComputeIndirectSetupPass"],
+        false,
+        Viewer::create_indirect_setup_pass,
+    );
+    add(
+        &mut registrations,
+        &["ComputeIndirectBouncePass"],
+        false,
+        Viewer::create_indirect_bounce_pass,
+    );
+    add(
+        &mut registrations,
+        &["ComputeWavefrontPrimaryPass"],
+        true,
+        Viewer::create_wavefront_primary_pass,
+    );
+    add(
+        &mut registrations,
+        &["ComputeWavefrontDispatchPass"],
+        true,
+        Viewer::create_wavefront_dispatch_pass,
+    );
+    add(
+        &mut registrations,
+        &["ComputeWavefrontTraversalPass"],
+        true,
+        Viewer::create_wavefront_traversal_pass,
+    );
+    add(
+        &mut registrations,
+        &["ComputeWavefrontHitDispatchPass"],
+        true,
+        Viewer::create_wavefront_hit_dispatch_pass,
+    );
+    add(
+        &mut registrations,
+        &["ComputeWavefrontShadePass"],
+        true,
+        Viewer::create_wavefront_shade_pass,
+    );
 
     let mut source_queue = WAVEFRONT_PRIMARY_QUEUE_ID;
     let mut source_dispatch = WAVEFRONT_HIT_DISPATCH_ARGS_ID;
+    let mut previous_shade = "ComputeWavefrontShadePass".to_owned();
+    let mut bounce_names = Vec::new();
+    let mut bounce_dependencies = Vec::new();
     for bounce in 1..=8 {
         let stage = wavefront_bounce_stage(bounce, source_queue, source_dispatch);
-        add(&stage.name, true);
-        add(&stage.dispatch_name, true);
-        add(&stage.traversal_name, true);
-        add(&stage.hit_dispatch_name, true);
-        add(&stage.shade_name, true);
+        bounce_names.extend([
+            stage.name.clone(),
+            stage.dispatch_name.clone(),
+            stage.traversal_name.clone(),
+            stage.hit_dispatch_name.clone(),
+            stage.shade_name.clone(),
+        ]);
+        bounce_dependencies.extend([
+            dependency(
+                &stage.name,
+                &previous_shade,
+                stage.bindings.source_ray_queue,
+            ),
+            dependency(
+                &stage.dispatch_name,
+                &stage.name,
+                stage.bindings.destination_ray_header,
+            ),
+            dependency(
+                &stage.traversal_name,
+                &stage.dispatch_name,
+                stage.bindings.destination_ray_queue,
+            ),
+            dependency(
+                &stage.hit_dispatch_name,
+                &stage.traversal_name,
+                stage.bindings.source_hit_header,
+            ),
+            dependency(
+                &stage.shade_name,
+                &stage.hit_dispatch_name,
+                stage.bindings.source_hit_queue,
+            ),
+        ]);
+        previous_shade = stage.shade_name;
         source_queue = stage.bindings.destination_ray_queue;
         source_dispatch = WAVEFRONT_HIT_DISPATCH_ARGS_ID;
     }
-    for name in [
-        "ComputeWavefrontCompositePass",
+    registrations.push(ProductionPassRegistration::new(
+        bounce_names,
+        true,
+        Viewer::create_wavefront_bounce_chain,
+        bounce_dependencies,
+    ));
+    add(
+        &mut registrations,
+        &["ComputeWavefrontCompositePass"],
+        true,
+        Viewer::create_wavefront_composite_pass,
+    );
+    add(
+        &mut registrations,
+        &["ComputeWavefrontTransparencyResolvePass"],
+        true,
+        Viewer::create_wavefront_transparency_resolve_pass,
+    );
+    add(
+        &mut registrations,
+        &[
+            "ComputeWavefrontDenoiseTemporalPass",
+            "ComputeWavefrontDenoiseBilateralPass",
+        ],
+        true,
+        Viewer::create_wavefront_denoiser_passes,
+    );
+    add(
+        &mut registrations,
+        &["ComputeWavefrontUpscalePass"],
+        true,
+        Viewer::create_wavefront_upscale_pass,
+    );
+    add(
+        &mut registrations,
+        &["FinalizePass"],
+        true,
+        Viewer::create_finalize_pass,
+    );
+    add(
+        &mut registrations,
+        &["BlitPass"],
+        true,
+        Viewer::create_blit_pass,
+    );
+
+    let mut add_dependency = |pass: &str, predecessor: &str, resource: Uid| {
+        registrations
+            .iter_mut()
+            .find(|registration| registration.passes.iter().any(|entry| entry.name == pass))
+            .expect("production dependency references an unregistered pass")
+            .dependencies
+            .push(dependency(pass, predecessor, resource));
+    };
+    add_dependency(
+        "ComputeWavefrontDispatchPass",
+        "ComputeWavefrontPrimaryPass",
+        WAVEFRONT_PRIMARY_HEADER_ID,
+    );
+    add_dependency(
+        "ComputeWavefrontTraversalPass",
+        "ComputeWavefrontDispatchPass",
+        WAVEFRONT_PRIMARY_QUEUE_ID,
+    );
+    add_dependency(
+        "ComputeWavefrontHitDispatchPass",
+        "ComputeWavefrontTraversalPass",
+        WAVEFRONT_HIT_HEADER_ID,
+    );
+    add_dependency(
+        "ComputeWavefrontShadePass",
+        "ComputeWavefrontHitDispatchPass",
+        WAVEFRONT_HIT_QUEUE_ID,
+    );
+    let auxiliary = wavefront_auxiliary_bindings();
+    add_dependency(
         "ComputeWavefrontTransparencyResolvePass",
-        "ComputeWavefrontDenoiseTemporalPass",
-        "ComputeWavefrontDenoiseBilateralPass",
-        "ComputeWavefrontUpscalePass",
-        "FinalizePass",
-        "BlitPass",
-    ] {
-        add(name, true);
-    }
-    metadata
+        "ComputeWavefrontTransparencyPass",
+        auxiliary.transparent_queue,
+    );
+    add_dependency(
+        "ComputeWavefrontAoResolvePass",
+        "ComputeWavefrontSurfacePass",
+        auxiliary.ao_state,
+    );
+    add_dependency(
+        "ComputeWavefrontVisibilityPass",
+        "ComputeWavefrontDirectCandidatesPass",
+        WAVEFRONT_RESERVOIR_ID,
+    );
+
+    registrations
+}
+
+/// Compatibility view over the registration table for callers interested only
+/// in pass names and enabled flags.
+pub fn production_pass_metadata() -> Vec<ProductionPassMetadata> {
+    production_pass_registrations()
+        .into_iter()
+        .flat_map(|registration| registration.passes)
+        .collect()
 }
 
 pub fn active_registered_pass_names(render_context: &RenderContext) -> Vec<String> {
@@ -377,50 +642,19 @@ impl Viewer {
             .prealloc::<MAX_NUM_MATERIALS>();
     }
     fn create_render_passes(context: &ContextRc, render_context: &RenderContextRc) {
-        Self::create_depth_pyramid_pass(context, render_context);
-        Self::create_instances_pass(context, render_context);
-        Self::create_culling_pass(context, render_context);
+        let registrations = production_pass_registrations();
+        for registration in &registrations {
+            (registration.factory)(context, render_context);
+        }
 
-        Self::create_visibility_pass(context, render_context);
-
-        // Wavefront pathtracer passes
-        Self::create_gbuffer_pass(context, render_context);
-        Self::create_wavefront_surface_pass(context, render_context);
-        Self::create_wavefront_transparency_pass(context, render_context);
-        Self::create_shadow_ao_pass(context, render_context);
-        Self::create_wavefront_ao_resolve_pass(context, render_context);
-        Self::create_wavefront_direct_candidates_pass(context, render_context);
-        Self::create_wavefront_visibility_pass(context, render_context);
-        Self::create_diffuse_lighting_pass(context, render_context);
-        Self::create_specular_lighting_pass(context, render_context);
-        Self::create_indirect_setup_pass(context, render_context);
-        Self::create_indirect_bounce_pass(context, render_context);
-
-        // Queue-driven wavefront stages. These consume only active rays and
-        // keep scene data in the packed portable binding layout.
-        Self::create_wavefront_primary_pass(context, render_context);
-        Self::create_wavefront_dispatch_pass(context, render_context);
-        Self::create_wavefront_traversal_pass(context, render_context);
-        Self::create_wavefront_hit_dispatch_pass(context, render_context);
-        Self::create_wavefront_shade_pass(context, render_context);
-        Self::create_wavefront_bounce_chain(context, render_context);
-        Self::create_wavefront_composite_pass(context, render_context);
-        Self::create_wavefront_transparency_resolve_pass(context, render_context);
-        Self::create_wavefront_denoiser_passes(context, render_context);
-        Self::create_wavefront_upscale_pass(context, render_context);
-
-        Self::create_finalize_pass(context, render_context);
-        Self::create_blit_pass(context, render_context);
-
-        let registered_passes = active_registered_pass_names(render_context);
-        let expected_passes = production_pass_metadata()
-            .into_iter()
-            .filter(|pass| pass.enabled)
-            .map(|pass| pass.name)
+        let observed = registered_pass_metadata(render_context);
+        let expected = registrations
+            .iter()
+            .flat_map(|registration| registration.passes.iter().cloned())
             .collect::<Vec<_>>();
         assert_eq!(
-            registered_passes, expected_passes,
-            "active production pass registration diverged from production_pass_metadata"
+            observed, expected,
+            "actual production pass registration diverged from the registration table"
         );
 
         //Self::create_debug_pass(context, render_context);

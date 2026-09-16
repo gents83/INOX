@@ -13,6 +13,10 @@ use crate::{AccumulationRecord, WAVEFRONT_FINAL_ACCUMULATOR_ID};
 
 pub const COMPUTE_WAVEFRONT_DENOISE_TEMPORAL_NAME: &str = "ComputeWavefrontDenoiseTemporalPass";
 pub const COMPUTE_WAVEFRONT_DENOISE_BILATERAL_NAME: &str = "ComputeWavefrontDenoiseBilateralPass";
+pub const COMPUTE_WAVEFRONT_DENOISE_TEMPORAL_PIPELINE: &str =
+    "pipelines/ComputeWavefrontDenoiseTemporal.compute_pipeline";
+pub const COMPUTE_WAVEFRONT_DENOISE_BILATERAL_PIPELINE: &str =
+    "pipelines/ComputeWavefrontDenoiseBilateral.compute_pipeline";
 const WORKGROUP_SIZE: u32 = 8;
 
 #[derive(Clone, Copy)]
@@ -117,11 +121,11 @@ impl ComputeWavefrontDenoisePass {
         let (name, pipeline) = match kind {
             DenoiserKind::Temporal => (
                 COMPUTE_WAVEFRONT_DENOISE_TEMPORAL_NAME,
-                "pipelines/ComputeWavefrontDenoiseTemporal.compute_pipeline",
+                COMPUTE_WAVEFRONT_DENOISE_TEMPORAL_PIPELINE,
             ),
             DenoiserKind::Bilateral => (
                 COMPUTE_WAVEFRONT_DENOISE_BILATERAL_NAME,
-                "pipelines/ComputeWavefrontDenoiseBilateral.compute_pipeline",
+                COMPUTE_WAVEFRONT_DENOISE_BILATERAL_PIPELINE,
             ),
         };
         let data = ComputePassData {

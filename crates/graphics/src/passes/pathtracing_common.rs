@@ -128,28 +128,88 @@ pub fn wavefront_auxiliary_bindings() -> WavefrontAuxiliaryBindings {
     }
 }
 
-/// Shader sources used by every active wavefront production pipeline.
-///
-/// The viewer creates generated bounce passes from the same next-bounce,
-/// dispatch, traversal, and shade pipelines, so each source appears once in
-/// this inventory even when it is used by multiple registered passes.
-pub const WAVEFRONT_PRODUCTION_SHADER_FILES: &[&str] = &[
-    "compute_wavefront_surface.wgsl",
-    "compute_wavefront_transparency.wgsl",
-    "compute_wavefront_ao_resolve.wgsl",
-    "compute_wavefront_direct_candidates.wgsl",
-    "compute_wavefront_visibility.wgsl",
-    "compute_wavefront_primary.wgsl",
-    "compute_wavefront_dispatch.wgsl",
-    "compute_wavefront_traversal.wgsl",
-    "compute_wavefront_shade.wgsl",
-    "compute_wavefront_next_bounce.wgsl",
-    "compute_wavefront_composite.wgsl",
-    "compute_wavefront_transparency_resolve.wgsl",
-    "compute_wavefront_denoise_temporal.wgsl",
-    "compute_wavefront_denoise_bilateral.wgsl",
-    "compute_wavefront_upscale.wgsl",
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WavefrontPipelineDescriptor {
+    pub pipeline: &'static str,
+    pub shader: &'static str,
+}
+
+/// Pipeline descriptors referenced by active wavefront pass constructors.
+/// Generated bounces reuse the next-bounce, dispatch, traversal, and shade
+/// descriptors, so the descriptor table is the source of truth for shader
+/// validation rather than a second hand-maintained shader inventory.
+pub const WAVEFRONT_PRODUCTION_PIPELINES: &[WavefrontPipelineDescriptor] = &[
+    WavefrontPipelineDescriptor {
+        pipeline: crate::COMPUTE_WAVEFRONT_SURFACE_PIPELINE,
+        shader: "compute_wavefront_surface.wgsl",
+    },
+    WavefrontPipelineDescriptor {
+        pipeline: crate::COMPUTE_WAVEFRONT_TRANSPARENCY_PIPELINE,
+        shader: "compute_wavefront_transparency.wgsl",
+    },
+    WavefrontPipelineDescriptor {
+        pipeline: crate::COMPUTE_WAVEFRONT_AO_RESOLVE_PIPELINE,
+        shader: "compute_wavefront_ao_resolve.wgsl",
+    },
+    WavefrontPipelineDescriptor {
+        pipeline: crate::COMPUTE_WAVEFRONT_DIRECT_CANDIDATES_PIPELINE,
+        shader: "compute_wavefront_direct_candidates.wgsl",
+    },
+    WavefrontPipelineDescriptor {
+        pipeline: crate::COMPUTE_WAVEFRONT_VISIBILITY_PIPELINE,
+        shader: "compute_wavefront_visibility.wgsl",
+    },
+    WavefrontPipelineDescriptor {
+        pipeline: crate::COMPUTE_WAVEFRONT_PRIMARY_PIPELINE,
+        shader: "compute_wavefront_primary.wgsl",
+    },
+    WavefrontPipelineDescriptor {
+        pipeline: crate::COMPUTE_WAVEFRONT_DISPATCH_PIPELINE,
+        shader: "compute_wavefront_dispatch.wgsl",
+    },
+    WavefrontPipelineDescriptor {
+        pipeline: crate::COMPUTE_WAVEFRONT_TRAVERSAL_PIPELINE,
+        shader: "compute_wavefront_traversal.wgsl",
+    },
+    WavefrontPipelineDescriptor {
+        pipeline: crate::COMPUTE_WAVEFRONT_SHADE_PIPELINE,
+        shader: "compute_wavefront_shade.wgsl",
+    },
+    WavefrontPipelineDescriptor {
+        pipeline: crate::COMPUTE_WAVEFRONT_NEXT_BOUNCE_PIPELINE,
+        shader: "compute_wavefront_next_bounce.wgsl",
+    },
+    WavefrontPipelineDescriptor {
+        pipeline: crate::COMPUTE_WAVEFRONT_COMPOSITE_PIPELINE,
+        shader: "compute_wavefront_composite.wgsl",
+    },
+    WavefrontPipelineDescriptor {
+        pipeline: crate::COMPUTE_WAVEFRONT_TRANSPARENCY_RESOLVE_PIPELINE,
+        shader: "compute_wavefront_transparency_resolve.wgsl",
+    },
+    WavefrontPipelineDescriptor {
+        pipeline: crate::COMPUTE_WAVEFRONT_DENOISE_TEMPORAL_PIPELINE,
+        shader: "compute_wavefront_denoise_temporal.wgsl",
+    },
+    WavefrontPipelineDescriptor {
+        pipeline: crate::COMPUTE_WAVEFRONT_DENOISE_BILATERAL_PIPELINE,
+        shader: "compute_wavefront_denoise_bilateral.wgsl",
+    },
+    WavefrontPipelineDescriptor {
+        pipeline: crate::COMPUTE_WAVEFRONT_UPSCALE_PIPELINE,
+        shader: "compute_wavefront_upscale.wgsl",
+    },
 ];
+
+pub fn wavefront_production_shader_files() -> Vec<&'static str> {
+    let mut shaders = WAVEFRONT_PRODUCTION_PIPELINES
+        .iter()
+        .map(|descriptor| descriptor.shader)
+        .collect::<Vec<_>>();
+    shaders.sort_unstable();
+    shaders.dedup();
+    shaders
+}
 
 #[repr(C)]
 #[derive(Default, PartialEq, Clone, Copy, Debug)]
