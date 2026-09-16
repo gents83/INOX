@@ -9,9 +9,7 @@ use inox_platform::Handle;
 use inox_resources::{Resource, ResourceTrait, SharedDataRc};
 
 use crate::{
-    platform::{
-        platform_limits, platform_limits_from_adapter_limits, required_gpu_features, setup_env,
-    },
+    platform::{negotiate_gpu_requirements, setup_env, RenderCapabilities},
     BindingDataBuffer, BindingDataBufferRc, BufferId, BufferRef, ComputePipeline, GlobalBuffers,
     Material, Pass, RenderPass, RenderPipeline, Texture, TextureFormat, TextureHandler,
     TextureHandlerRc, TextureId, TextureUsage, DEFAULT_HEIGHT, DEFAULT_WIDTH,
@@ -84,6 +82,7 @@ pub struct RenderContext {
     render_targets: RwLock<Vec<Resource<Texture>>>,
     state: RwLock<RendererState>,
     passes: RwLock<Vec<(Box<dyn Pass>, bool)>>,
+    capabilities: RenderCapabilities,
 }
 
 pub type RenderContextRc = Arc<RenderContext>;
@@ -112,6 +111,10 @@ impl RenderContext {
 
     pub fn texture_handler(&self) -> &TextureHandlerRc {
         &self.texture_handler
+    }
+
+    pub fn capabilities(&self) -> &RenderCapabilities {
+        &self.capabilities
     }
 
     pub fn new_command_buffer(&self) -> CommandBuffer {
@@ -152,7 +155,7 @@ impl RenderContext {
 
         setup_env();
 
-        let (instance, surface, adapter, device, queue) = {
+        let (instance, surface, adapter, device, queue, capabilities) = {
             let backends = if USE_FORCED_VULKAN {
                 wgpu::Backends::VULKAN
             } else if USE_FORCED_DX12 {
@@ -184,13 +187,15 @@ impl RenderContext {
                 wgpu::util::initialize_adapter_from_env_or_default(&instance, Some(&surface))
                     .await
                     .expect("No suitable GPU adapters found on the system!");
-            let required_limits =
-                platform_limits_from_adapter_limits(platform_limits(), &adapter.limits());
+            let requirements = negotiate_gpu_requirements(adapter.features(), &adapter.limits())
+                .unwrap_or_else(|error| {
+                    panic!("GPU adapter does not meet renderer requirements: {error:?}")
+                });
             let (device, queue) = adapter
                 .request_device(&wgpu::DeviceDescriptor {
                     label: None,
-                    required_features: required_gpu_features(),
-                    required_limits,
+                    required_features: requirements.required_features,
+                    required_limits: requirements.required_limits,
                     memory_hints: wgpu::MemoryHints::Performance,
                     trace: wgpu::Trace::Off,
                     experimental_features: wgpu::ExperimentalFeatures::default(),
@@ -200,12 +205,54 @@ impl RenderContext {
                 .unwrap();
 
             device.on_uncaptured_error(Arc::new(Self::default_error_handler));
-            (instance, surface, adapter, device, queue)
+            (
+                instance,
+                surface,
+                adapter,
+                device,
+                queue,
+                requirements.capabilities,
+            )
         };
 
         inox_log::debug_log!("Using {:?}", adapter.get_info());
 
-        let format = wgpu::TextureFormat::Bgra8Unorm;
+        let surface_capabilities = surface.get_capabilities(&adapter);
+        let format = surface_capabilities
+            .formats
+            .iter()
+            .copied()
+            .find(|format| {
+                matches!(
+                    *format,
+                    wgpu::TextureFormat::Rgba8UnormSrgb | wgpu::TextureFormat::Bgra8UnormSrgb
+                )
+            })
+            .or_else(|| surface_capabilities.formats.first().copied())
+            .ok_or("surface exposes no supported formats")
+            .unwrap();
+        let present_mode = if surface_capabilities
+            .present_modes
+            .contains(&wgpu::PresentMode::AutoNoVsync)
+        {
+            wgpu::PresentMode::AutoNoVsync
+        } else {
+            *surface_capabilities
+                .present_modes
+                .first()
+                .unwrap_or(&wgpu::PresentMode::Fifo)
+        };
+        let alpha_mode = if surface_capabilities
+            .alpha_modes
+            .contains(&wgpu::CompositeAlphaMode::Auto)
+        {
+            wgpu::CompositeAlphaMode::Auto
+        } else {
+            *surface_capabilities
+                .alpha_modes
+                .first()
+                .unwrap_or(&wgpu::CompositeAlphaMode::Opaque)
+        };
 
         inox_log::debug_log!("Format {:?}", format);
 
@@ -215,8 +262,8 @@ impl RenderContext {
             view_formats: vec![format],
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
-            present_mode: wgpu::PresentMode::AutoNoVsync,
-            alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            present_mode,
+            alpha_mode,
             color_space: wgpu::SurfaceColorSpace::Auto,
             desired_maximum_frame_latency: 2,
         };
@@ -246,6 +293,7 @@ impl RenderContext {
             surface: RwLock::new(None),
             render_targets: RwLock::new(Vec::new()),
             passes: RwLock::new(Vec::new()),
+            capabilities,
         }
     }
 

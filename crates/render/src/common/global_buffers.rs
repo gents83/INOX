@@ -12,11 +12,11 @@ use inox_resources::{to_slice, Buffer, ResourceId};
 use inox_uid::{generate_static_uid_from_string, generate_uid_from_type, Uid};
 
 use crate::{
-    platform::has_primitive_index_support, AsBinding, ConstantDataRw, GPUInstance, GPULight,
-    GPUMaterial, GPUMesh, GPUMeshlet, GPUPrimitiveIndices, GPUTexture, GPUTransform,
-    GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, Light, LightId, Material,
-    MaterialData, MaterialFlags, MaterialId, Mesh, MeshData, MeshFlags, MeshId, RenderContext,
-    TextureId, TextureType, INVALID_INDEX, MAX_LOD_LEVELS,
+    AsBinding, ConstantDataRw, GPUInstance, GPULight, GPUMaterial, GPUMesh, GPUMeshlet,
+    GPUPrimitiveIndices, GPUTexture, GPUTransform, GPUVertexAttributes, GPUVertexIndices,
+    GPUVertexPosition, Light, LightId, Material, MaterialData, MaterialFlags, MaterialId, Mesh,
+    MeshData, MeshFlags, MeshId, PackedSceneBuilder, PackedSceneData, RenderContext,
+    SceneTableKind, TextureId, TextureType, INVALID_INDEX, MAX_LOD_LEVELS,
 };
 
 pub const INSTANCE_DATA_ID: Uid = generate_static_uid_from_string("INSTANCE_DATA_ID");
@@ -94,6 +94,81 @@ impl GlobalBuffers {
     {
         let id = generate_uid_from_type::<T>();
         self.vector_with_id(id)
+    }
+
+    /// Packs scene tables into one offset-addressed storage payload. The
+    /// resulting layout is shared by native, WebGPU, and mobile shaders.
+    pub fn packed_scene_data(&self) -> PackedSceneData {
+        let mut builder = PackedSceneBuilder::new();
+
+        let indices = self.buffer::<GPUVertexIndices>();
+        builder.append_typed(
+            SceneTableKind::Indices,
+            indices.read().unwrap().data(),
+            std::mem::size_of::<GPUVertexIndices>() / 4,
+        );
+        let positions = self.buffer::<GPUVertexPosition>();
+        builder.append_typed(
+            SceneTableKind::VertexPositions,
+            positions.read().unwrap().data(),
+            std::mem::size_of::<GPUVertexPosition>() / 4,
+        );
+        let attributes = self.buffer::<GPUVertexAttributes>();
+        builder.append_typed(
+            SceneTableKind::VertexAttributes,
+            attributes.read().unwrap().data(),
+            std::mem::size_of::<GPUVertexAttributes>() / 4,
+        );
+        let instances = self.vector_with_id::<GPUInstance>(INSTANCE_DATA_ID);
+        builder.append_typed(
+            SceneTableKind::Instances,
+            instances.read().unwrap().as_slice(),
+            std::mem::size_of::<GPUInstance>() / 4,
+        );
+        let transforms = self.vector::<GPUTransform>();
+        builder.append_typed(
+            SceneTableKind::Transforms,
+            transforms.read().unwrap().as_slice(),
+            std::mem::size_of::<GPUTransform>() / 4,
+        );
+        let meshes = self.buffer::<GPUMesh>();
+        builder.append_typed(
+            SceneTableKind::Meshes,
+            meshes.read().unwrap().data(),
+            std::mem::size_of::<GPUMesh>() / 4,
+        );
+        let meshlets = self.buffer::<GPUMeshlet>();
+        builder.append_typed(
+            SceneTableKind::Meshlets,
+            meshlets.read().unwrap().data(),
+            std::mem::size_of::<GPUMeshlet>() / 4,
+        );
+        let bvh = self.buffer::<GPUBVHNode>();
+        builder.append_typed(
+            SceneTableKind::Bvh,
+            bvh.read().unwrap().data(),
+            std::mem::size_of::<GPUBVHNode>() / 4,
+        );
+        let materials = self.buffer::<GPUMaterial>();
+        builder.append_typed(
+            SceneTableKind::Materials,
+            materials.read().unwrap().data(),
+            std::mem::size_of::<GPUMaterial>() / 4,
+        );
+        let textures = self.buffer::<GPUTexture>();
+        builder.append_typed(
+            SceneTableKind::Textures,
+            textures.read().unwrap().data(),
+            std::mem::size_of::<GPUTexture>() / 4,
+        );
+        let lights = self.buffer::<GPULight>();
+        builder.append_typed(
+            SceneTableKind::Lights,
+            lights.read().unwrap().data(),
+            std::mem::size_of::<GPULight>() / 4,
+        );
+
+        builder.finish()
     }
 }
 
@@ -241,7 +316,7 @@ impl GlobalBuffers {
             .write()
             .unwrap()
             .mark_as_dirty(render_context);
-        if !has_primitive_index_support() {
+        if !render_context.capabilities().primitive_index {
             let mut primitive_indices = Vec::with_capacity(mesh_data.indices.len());
             for (new_index, _i) in mesh_data.indices.iter().enumerate() {
                 primitive_indices.push(GPUPrimitiveIndices(new_index as _));

@@ -21,10 +21,9 @@ use inox_graphics::{
 };
 use inox_platform::Window;
 use inox_render::{
-    platform::has_wireframe_support, rendering_system::RenderingSystem,
-    update_system::UpdateSystem, GPULight, GPUMaterial, GPUTexture, Pass, RenderContext,
-    RenderContextRc, RenderPass, Renderer, RendererRw, TextureFormat, TextureUsage, DEFAULT_HEIGHT,
-    DEFAULT_WIDTH,
+    rendering_system::RenderingSystem, update_system::UpdateSystem, GPULight, GPUMaterial,
+    GPUTexture, Pass, RenderContext, RenderContextRc, RenderPass, Renderer, RendererRw,
+    TextureFormat, TextureUsage, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 use inox_resources::ConfigBase;
 use inox_scene::{ObjectSystem, ScriptSystem};
@@ -410,7 +409,11 @@ impl Viewer {
         );
 
         //Self::create_debug_pass(context, render_context);
-        Self::create_wireframe_pass(context, render_context, has_wireframe_support());
+        Self::create_wireframe_pass(
+            context,
+            render_context,
+            render_context.capabilities().wireframe,
+        );
         Self::create_ui_pass(context, render_context, ADD_UI_PASS);
     }
     fn create_instances_pass(context: &ContextRc, render_context: &RenderContextRc) {

@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
 use inox_render::{
-    platform::has_primitive_index_support, BindingData, BindingFlags, BindingInfo, CommandBuffer,
-    ConstantDataRw, DrawIndexedCommand, GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet,
-    GPUPrimitiveIndices, GPUTransform, GPUVector, GPUVertexIndices, GPUVertexPosition, Pass,
-    RenderContext, RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget,
-    ShaderStage, StoreOperation, Texture, TextureView, VextexBindingType, INSTANCE_DATA_ID,
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ConstantDataRw, DrawIndexedCommand,
+    GPUBuffer, GPUInstance, GPUMesh, GPUMeshlet, GPUPrimitiveIndices, GPUTransform, GPUVector,
+    GPUVertexIndices, GPUVertexPosition, Pass, RenderContext, RenderContextRc, RenderPass,
+    RenderPassBeginData, RenderPassData, RenderTarget, ShaderStage, StoreOperation, Texture,
+    TextureView, VextexBindingType, INSTANCE_DATA_ID,
 };
 
 use inox_core::ContextRc;
@@ -139,7 +139,7 @@ impl Pass for VisibilityBufferPass {
                 },
             );
 
-        if has_primitive_index_support() {
+        if render_context.capabilities().primitive_index {
             self.binding_data
                 .set_index_buffer(&mut *self.indices.write().unwrap(), Some("Indices"));
         } else {

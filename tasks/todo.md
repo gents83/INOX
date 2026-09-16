@@ -6,7 +6,7 @@
 - [x] Fix cylinder and torus indexing and add bounds/connectivity tests.
 - [x] Restore allocator, packing, BVH, node, common-script, viewer-config, and pass-order regression coverage. (Focused integration coverage passes for all listed contracts.)
 - [x] Fix Web canvas ownership, mouse mapping, resize, valid handle, and surface setup. (Retained canvas ownership, device-pixel sizing, finite/clamped pointer mapping, stable raw handle, and resize event path implemented.)
-- [ ] Negotiate adapter features/limits instead of unconditionally requesting optional capabilities.
+- [x] Negotiate adapter features/limits instead of unconditionally requesting optional capabilities. (Baseline feature validation, optional feature filtering, portable limit checks, and capability-driven pass fallbacks implemented.)
 - [ ] Make shader reload and binarizer failures nonfatal but observable; preserve last-known-good resources.
 - [ ] Remove hot-loop allocations and repeated locks/lookups covered by the production plan. (Per-dispatch pipeline Vec allocation removed; indirect draw stride corrected; render-target/meshlet lock audits remain.)
 
@@ -56,6 +56,7 @@
 - Stable native build, full workspace tests, clippy, WebAssembly check, Web-profile shader validation, and PC/Web binarizer gates have been rerun successfully after the latest packed/direct/indirect changes.
 - Final temporal/multi-neighbor/transparency/upscale changes pass stable clippy, full tests, Web shader validation, and the PC/Web binarizer gate.
 - Latest three-bounce, separated-accumulator, denoiser, upscaler, and BRDF/BSDF changes also pass workspace checks, stable clippy, WASM check, shader validation, binarizer, and native startup smoke.
+- Adapter negotiation tests pass; render clippy and the render WebAssembly check pass with the negotiated capability path.
 - Final separated direct/indirect/final accumulator, denoiser, and pure-WGSL spatial reconstruction build and binarizer gates passed.
 - Full workspace tests and stable clippy pass after the three-bounce graph and final accumulator changes.
 - Final release workspace build and PC/Web binarizer gate completed after strict compiler-status handling.

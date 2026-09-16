@@ -7,12 +7,11 @@ use inox_resources::{
 };
 
 use crate::{
-    platform::{has_multisampling_support, is_indirect_mode_count_enabled, WGPU_FIXED_ALIGNMENT},
-    texture_ref::TextureRef,
-    AsBinding, BindingData, BufferId, BufferRef, CommandBuffer, DrawIndexedCommand, GPUMesh,
-    GPUMeshlet, GPUVector, LoadOperation, MeshFlags, RenderContext, RenderMode, RenderPassData,
-    RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId, TextureUsage, TextureView,
-    VertexBufferLayoutBuilder, WebGpuContextRc,
+    platform::has_multisampling_support, texture_ref::TextureRef, AsBinding, BindingData, BufferId,
+    BufferRef, CommandBuffer, DrawIndexedCommand, GPUMesh, GPUMeshlet, GPUVector, LoadOperation,
+    MeshFlags, RenderContext, RenderMode, RenderPassData, RenderPipeline, RenderTarget,
+    StoreOperation, Texture, TextureId, TextureUsage, TextureView, VertexBufferLayoutBuilder,
+    WebGpuContextRc, DRAW_INDEXED_COMMAND_STRIDE,
 };
 
 pub type RenderPassId = ResourceId;
@@ -464,14 +463,14 @@ impl RenderPass {
         );
         let mut render_pass = render_pass;
         let buffers = render_context.buffers();
-        let count = commands.read().unwrap().len() as u32;
-        let indirect_buffer = buffers
-            .get(&(commands.read().unwrap().buffer_id()))
-            .unwrap();
-        if is_indirect_mode_count_enabled() {
+        let commands_guard = commands.read().unwrap();
+        let count = commands_guard.len() as u32;
+        let commands_id = commands_guard.buffer_id();
+        let indirect_buffer = buffers.get(&commands_id).unwrap();
+        if render_context.capabilities().multi_draw_indirect_count {
             render_pass.multi_draw_indexed_indirect_count(
                 indirect_buffer.gpu_buffer().unwrap(),
-                WGPU_FIXED_ALIGNMENT,
+                DRAW_INDEXED_COMMAND_STRIDE,
                 indirect_buffer.gpu_buffer().unwrap(),
                 0,
                 count,
@@ -479,7 +478,7 @@ impl RenderPass {
         } else {
             render_pass.multi_draw_indexed_indirect(
                 indirect_buffer.gpu_buffer().unwrap(),
-                WGPU_FIXED_ALIGNMENT,
+                DRAW_INDEXED_COMMAND_STRIDE,
                 count,
             );
         }
@@ -489,36 +488,33 @@ impl RenderPass {
         inox_profiler::scoped_profile!("render_pass::draw_meshlets");
 
         let mesh_flags = self.pipeline().get().data().mesh_flags;
-        render_context
-            .global_buffers()
-            .buffer::<GPUMesh>()
-            .read()
-            .unwrap()
-            .for_each_data(|_i, mesh_id, mesh| {
-                let meshlets = render_context.global_buffers().buffer::<GPUMeshlet>();
-                let meshlets = meshlets.read().unwrap();
-                if let Some(meshlets) = meshlets.get(mesh_id) {
-                    let flags = (mesh.flags_and_vertices_attribute_layout & 0xFFFF0000) >> 16;
-                    if MeshFlags::from(flags) == mesh_flags {
-                        inox_profiler::scoped_profile!("render_pass::draw_mesh");
-                        for (meshlet_offset, meshlet) in meshlets.iter().enumerate() {
-                            inox_profiler::scoped_profile!("render_pass::draw_indexed");
-                            inox_profiler::gpu_scoped_profile!(
-                                &mut render_pass,
-                                &render_context.webgpu.device,
-                                "render_pass::draw_indexed",
-                            );
-                            let meshlet_index = mesh.meshlets_offset + meshlet_offset as u32;
-                            render_pass.draw_indexed(
-                                meshlet.indices_offset as _
-                                    ..(meshlet.indices_offset + meshlet.indices_count) as _,
-                                mesh.vertices_position_offset as _,
-                                meshlet_index as _..(meshlet_index + 1),
-                            );
-                        }
+        let meshes = render_context.global_buffers().buffer::<GPUMesh>();
+        let meshlets = render_context.global_buffers().buffer::<GPUMeshlet>();
+        let meshes = meshes.read().unwrap();
+        let meshlets = meshlets.read().unwrap();
+        meshes.for_each_data(|_i, mesh_id, mesh| {
+            if let Some(meshlets) = meshlets.get(mesh_id) {
+                let flags = (mesh.flags_and_vertices_attribute_layout & 0xFFFF0000) >> 16;
+                if MeshFlags::from(flags) == mesh_flags {
+                    inox_profiler::scoped_profile!("render_pass::draw_mesh");
+                    for (meshlet_offset, meshlet) in meshlets.iter().enumerate() {
+                        inox_profiler::scoped_profile!("render_pass::draw_indexed");
+                        inox_profiler::gpu_scoped_profile!(
+                            &mut render_pass,
+                            &render_context.webgpu.device,
+                            "render_pass::draw_indexed",
+                        );
+                        let meshlet_index = mesh.meshlets_offset + meshlet_offset as u32;
+                        render_pass.draw_indexed(
+                            meshlet.indices_offset as _
+                                ..(meshlet.indices_offset + meshlet.indices_count) as _,
+                            mesh.vertices_position_offset as _,
+                            meshlet_index as _..(meshlet_index + 1),
+                        );
                     }
                 }
-            });
+            }
+        });
     }
 
     #[allow(unused_variables, unused_mut)]
