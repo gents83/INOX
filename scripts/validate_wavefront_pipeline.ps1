@@ -102,7 +102,7 @@ function Invoke-NativeViewerSmoke {
     New-Item -ItemType Directory -Path $smokeRoot -Force | Out-Null
     $stdout = Join-Path $smokeRoot "stdout.log"
     $stderr = Join-Path $smokeRoot "stderr.log"
-    $startupMarker = "INOX_NATIVE_VIEWER_STARTUP_OK"
+    $startupMarkerPattern = 'INOX_NATIVE_VIEWER_STARTUP_OK format=\S+'
     $process = $null
     $startupSucceeded = $false
     try {
@@ -110,7 +110,7 @@ function Invoke-NativeViewerSmoke {
         $process = Start-Process -FilePath $viewer -ArgumentList @("-plugin", "inox_viewer") `
             -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru -WindowStyle Hidden
         $deadline = (Get-Date).AddSeconds($NativeViewerSmokeSeconds)
-        $markerObserved = $false
+        $startupMarker = $null
         while ((Get-Date) -lt $deadline) {
             if ($process.HasExited) {
                 $stdoutText = if (Test-Path -LiteralPath $stdout) { Get-Content -LiteralPath $stdout -Raw } else { "" }
@@ -119,17 +119,18 @@ function Invoke-NativeViewerSmoke {
             }
             if (Test-Path -LiteralPath $stdout -PathType Leaf) {
                 $stdoutText = Get-Content -LiteralPath $stdout -Raw
-                if ($stdoutText -match [regex]::Escape($startupMarker)) {
-                    $markerObserved = $true
+                $startupMatch = [regex]::Match($stdoutText, $startupMarkerPattern)
+                if ($startupMatch.Success -and $startupMatch.Groups[0].Value -match 'format=\S+') {
+                    $startupMarker = $startupMatch.Groups[0].Value
                     break
                 }
             }
             Start-Sleep -Milliseconds 250
         }
-        if (-not $markerObserved) {
+        if (-not $startupMarker) {
             $stdoutText = if (Test-Path -LiteralPath $stdout) { Get-Content -LiteralPath $stdout -Raw } else { "" }
             $stderrText = if (Test-Path -LiteralPath $stderr) { Get-Content -LiteralPath $stderr -Raw } else { "" }
-            throw "Native viewer did not emit $startupMarker before the smoke deadline. stdout=$stdoutText stderr=$stderrText"
+            throw "Native viewer did not emit a complete startup marker matching '$startupMarkerPattern' before the smoke deadline. stdout=$stdoutText stderr=$stderrText"
         }
         while ((Get-Date) -lt $deadline) {
             if ($process.HasExited) {
