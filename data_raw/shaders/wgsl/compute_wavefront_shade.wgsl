@@ -78,17 +78,21 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
     let instance_base = table_offset(3u) + hit.instance_id * 4u;
     let mesh_index = scene_data[instance_base + 1u];
     let mesh_base = table_offset(5u) + mesh_index * 16u;
-    let material_index = max(bitcast<i32>(scene_data[mesh_base + 3u]), 0);
+    let material_index = bitcast<i32>(scene_data[mesh_base + 3u]);
+    if (material_index == INVALID_INDEX || material_index < 0 || material_index >= i32(MAX_NUM_MATERIALS)) {
+        return;
+    }
+    let material_id = u32(material_index);
     let emissive = vec3<f32>(
-        load_material(u32(material_index), 24u),
-        load_material(u32(material_index), 25u),
-        load_material(u32(material_index), 26u)
-    ) * load_material(u32(material_index), 27u);
+        load_material(material_id, 24u),
+        load_material(material_id, 25u),
+        load_material(material_id, 26u)
+    ) * load_material(material_id, 27u);
     let facing = max(dot(-ray.direction_and_t_max.xyz, normalize(vec3<f32>(0.0, 1.0, 0.0))), 0.0);
     let base_color = vec3<f32>(
-        load_material(u32(material_index), 20u),
-        load_material(u32(material_index), 21u),
-        load_material(u32(material_index), 22u)
+        load_material(material_id, 20u),
+        load_material(material_id, 21u),
+        load_material(material_id, 22u)
     );
     add_indirect(ray.pixel_index, ray.throughput.xyz * (emissive + base_color * facing * 0.05));
 }

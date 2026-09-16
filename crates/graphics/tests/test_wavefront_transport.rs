@@ -267,6 +267,35 @@ fn transparency_uses_full_resolution_pixel_indexing() {
 }
 
 #[test]
+fn direct_lighting_and_ao_use_full_resolution_pixel_strides() {
+    for name in [
+        "compute_wavefront_direct_candidates.wgsl",
+        "compute_wavefront_visibility.wgsl",
+        "compute_wavefront_ao_resolve.wgsl",
+    ] {
+        let source = shader(name);
+        assert!(source.contains("u32(constant_data.screen_width)"), "{name}");
+        assert!(
+            source.contains("u32(constant_data.screen_height)"),
+            "{name}"
+        );
+        assert!(
+            !source.contains("screen_width * constant_data.render_scale"),
+            "{name}"
+        );
+        assert!(
+            !source.contains("screen_height * constant_data.render_scale"),
+            "{name}"
+        );
+        assert!(
+            source.contains("let pixel = id.y * width + id.x")
+                || source.contains("let pixel = id.y * width + u32(id.x)"),
+            "{name}"
+        );
+    }
+}
+
+#[test]
 fn entering_and_exiting_ior_ratios_are_reciprocal() {
     let ior = 1.5;
     assert!((ior_ratio(true, ior) - (1.0 / ior)).abs() < f32::EPSILON);
@@ -283,6 +312,7 @@ fn invalid_material_ids_are_rejected_before_packed_access() {
     let surface = shader("compute_wavefront_surface.wgsl");
     let bounce = shader("compute_wavefront_next_bounce.wgsl");
     let transparency = shader("compute_wavefront_transparency.wgsl");
+    let shade = shader("compute_wavefront_shade.wgsl");
     assert!(surface.contains("material_index == INVALID_INDEX"));
     assert!(surface.contains("material_index >= i32(MAX_NUM_MATERIALS)"));
     assert!(surface.contains("write_empty(pixel);"));
@@ -300,6 +330,13 @@ fn invalid_material_ids_are_rejected_before_packed_access() {
             .find("material_value != material_value")
             .unwrap()
             < transparency.find("table_offset(8u) + material_id").unwrap()
+    );
+    assert!(shade.contains("material_index == INVALID_INDEX"));
+    assert!(shade.contains("material_index >= i32(MAX_NUM_MATERIALS)"));
+    assert!(!shade.contains("max(bitcast<i32>(scene_data[mesh_base + 3u]), 0)"));
+    assert!(
+        shade.find("material_index == INVALID_INDEX").unwrap()
+            < shade.find("load_material(material_id").unwrap()
     );
 }
 

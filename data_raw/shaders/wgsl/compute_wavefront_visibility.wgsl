@@ -74,7 +74,7 @@ fn occluded(origin: vec3<f32>, direction: vec3<f32>, max_distance: f32) -> bool 
 @compute
 @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
-    let width = u32(constant_data.screen_width * constant_data.render_scale); let height = u32(constant_data.screen_height * constant_data.render_scale);
+    let width = u32(constant_data.screen_width); let height = u32(constant_data.screen_height);
     if (id.x >= width || id.y >= height) { return; }
     let pixel = id.y * width + id.x; let o = pixel * SIZE_OF_DATA_BUFFER_ELEMENT; let position = vec3<f32>(gbuffer_world[o], gbuffer_world[o + 1u], gbuffer_world[o + 2u]); let normal = octahedral_unmapping(unpack2x16float(bitcast<u32>(gbuffer_world[o + 3u])));
     let reservoir = reservoirs[pixel]; let light_count = scene_data[5u + 10u * 4u] / 16u; var visibility = 1.0;
