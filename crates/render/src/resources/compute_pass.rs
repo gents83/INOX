@@ -322,6 +322,8 @@ mod tests {
                 wgsl_code: "@compute @workgroup_size(1) fn other() {}".to_string(),
             },
         );
+        let mut invalid = invalid;
+        invalid.set_path(shader_path);
         let invalid = ResourceHandle::new(generate_random_uid(), invalid);
         shader.get_mut().replace_from(&invalid.get());
         pass.pipelines[0]
@@ -331,6 +333,13 @@ mod tests {
         let mut binding_data = crate::BindingData::new(&context, "compute-pass-reload");
         pass.init(&context, &mut binding_data, None);
         assert!(pass.is_initialized());
+        assert_eq!(
+            pass.pipelines[0]
+                .get()
+                .last_reload_error()
+                .map(|error| error.stage.as_str()),
+            Some("compute pipeline")
+        );
 
         let device = &context.webgpu.device;
         let error_scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
