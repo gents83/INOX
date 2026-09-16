@@ -3,9 +3,9 @@ use std::path::PathBuf;
 use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
-    wavefront_auxiliary_bindings, wavefront_bounce_stages, BlitPass, CommandsPass,
-    ComputeDiffuseLightingPass, ComputeGBufferPass, ComputeIndirectBouncePass,
-    ComputeIndirectSetupPass, ComputeInstancesPass, ComputeShadowAOPass,
+    report_wavefront_queue_diagnostics, wavefront_auxiliary_bindings, wavefront_bounce_stages,
+    BlitPass, CommandsPass, ComputeDiffuseLightingPass, ComputeGBufferPass,
+    ComputeIndirectBouncePass, ComputeIndirectSetupPass, ComputeInstancesPass, ComputeShadowAOPass,
     ComputeSpecularLightingPass, ComputeWavefrontAoResolvePass, ComputeWavefrontCompositePass,
     ComputeWavefrontDenoisePass, ComputeWavefrontDirectCandidatesPass,
     ComputeWavefrontDispatchPass, ComputeWavefrontNextBouncePass, ComputeWavefrontPrimaryPass,
@@ -611,6 +611,8 @@ impl Viewer {
         } else {
             None
         };
+
+        render_context.add_post_submit_callback(report_wavefront_queue_diagnostics);
 
         let viewer_system = ViewerSystem::new(context, render_context, false);
         let object_system = ObjectSystem::new(context);

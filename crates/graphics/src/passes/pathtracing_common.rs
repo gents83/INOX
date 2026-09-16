@@ -374,6 +374,22 @@ pub fn read_wavefront_queue_diagnostics(
         .collect()
 }
 
+/// Read and publish every queue header after a submitted frame completes.
+///
+/// The staging readback waits for GPU completion, so this is safe to register
+/// as a post-submit callback rather than inspecting the CPU-side mirror.
+pub fn report_wavefront_queue_diagnostics(render_context: &RenderContext) {
+    for diagnostic in read_wavefront_queue_diagnostics(render_context) {
+        eprintln!(
+            "wavefront queue {}: count={} capacity={} overflowed={}",
+            diagnostic.name,
+            diagnostic.header.count,
+            diagnostic.header.capacity,
+            diagnostic.header.is_overflowed(),
+        );
+    }
+}
+
 /// Finite per-queue budget supported by the portable renderer.  It covers
 /// the default 1920x1080 frame (2,073,600 entries) while bounding GPU memory
 /// and keeping header capacities representable as `u32`.

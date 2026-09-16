@@ -265,24 +265,48 @@ impl BufferRef {
             .submit(std::iter::once(encoder.finish()));
 
         let slice = staging.slice(..);
-        let is_ready = std::sync::Arc::new(AtomicBool::new(false));
-        let is_ready_clone = is_ready.clone();
-        slice.map_async(wgpu::MapMode::Read, move |_v| {
-            is_ready_clone.store(true, std::sync::atomic::Ordering::SeqCst);
+        let map_result: std::sync::Arc<
+            std::sync::Mutex<Option<Result<(), wgpu::BufferAsyncError>>>,
+        > = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let map_result_clone = map_result.clone();
+        slice.map_async(wgpu::MapMode::Read, move |result| {
+            if let Ok(mut map_result) = map_result_clone.lock() {
+                *map_result = Some(result);
+            }
         });
-        render_core_context
-            .device
-            .poll(wgpu::PollType::Wait {
-                submission_index: None,
-                timeout: Some(std::time::Duration::from_secs(60)),
-            })
-            .ok();
-        while !is_ready.load(std::sync::atomic::Ordering::SeqCst) {
-            std::thread::sleep(std::time::Duration::from_millis(1));
+        if let Err(error) = render_core_context.device.poll(wgpu::PollType::Wait {
+            submission_index: None,
+            timeout: Some(std::time::Duration::from_secs(60)),
+        }) {
+            eprintln!("GPU staging readback poll failed: {error}");
+            staging.unmap();
+            return None;
         }
-        let view = slice
-            .get_mapped_range()
-            .expect("Failed to map GPU staging buffer for reading");
+        let map_result = match map_result.lock() {
+            Ok(mut map_result) => map_result.take(),
+            Err(_) => None,
+        };
+        match map_result {
+            Some(Ok(())) => {}
+            Some(Err(error)) => {
+                eprintln!("GPU staging readback mapping failed: {error}");
+                staging.unmap();
+                return None;
+            }
+            None => {
+                eprintln!("GPU staging readback mapping did not complete");
+                staging.unmap();
+                return None;
+            }
+        }
+        let view = match slice.get_mapped_range() {
+            Ok(view) => view,
+            Err(error) => {
+                eprintln!("GPU staging readback view failed: {error}");
+                staging.unmap();
+                return None;
+            }
+        };
         let data = view.as_ref().to_vec();
         drop(view);
         staging.unmap();

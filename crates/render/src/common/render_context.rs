@@ -97,10 +97,12 @@ pub struct RenderContext {
     render_targets: RwLock<Vec<Resource<Texture>>>,
     state: RwLock<RendererState>,
     passes: RwLock<Vec<(Box<dyn Pass>, bool)>>,
+    post_submit_callbacks: RwLock<Vec<PostSubmitCallback>>,
     capabilities: RenderCapabilities,
 }
 
 pub type RenderContextRc = Arc<RenderContext>;
+type PostSubmitCallback = Box<dyn Fn(&RenderContext) + Send + Sync>;
 
 impl RenderContext {
     fn create_surface(instance: &wgpu::Instance, handle: Handle) -> wgpu::Surface<'static> {
@@ -346,6 +348,7 @@ impl RenderContext {
             surface: RwLock::new(None),
             render_targets: RwLock::new(Vec::new()),
             passes: RwLock::new(Vec::new()),
+            post_submit_callbacks: RwLock::new(Vec::new()),
             capabilities,
         }
     }
@@ -413,6 +416,7 @@ impl RenderContext {
             surface: RwLock::new(None),
             render_targets: RwLock::new(Vec::new()),
             passes: RwLock::new(Vec::new()),
+            post_submit_callbacks: RwLock::new(Vec::new()),
             capabilities,
         })
     }
@@ -545,6 +549,20 @@ impl RenderContext {
         *self.command_buffer.write().unwrap() = Some(command_buffer);
     }
 
+    /// Register work that runs after the frame command buffer is submitted.
+    ///
+    /// Callbacks may perform explicit staging readback; those reads must wait
+    /// for the submission themselves before inspecting GPU-written data.
+    pub fn add_post_submit_callback<F>(&self, callback: F)
+    where
+        F: Fn(&RenderContext) + Send + Sync + 'static,
+    {
+        self.post_submit_callbacks
+            .write()
+            .unwrap()
+            .push(Box::new(callback));
+    }
+
     pub fn submit_command_buffer(&self) {
         inox_profiler::scoped_profile!("renderer::submit_command_buffer");
         #[allow(unused_mut)]
@@ -552,6 +570,9 @@ impl RenderContext {
             {
                 inox_profiler::gpu_profiler_pre_submit!(&mut command_buffer.encoder);
                 self.webgpu.submit(command_buffer);
+            }
+            for callback in self.post_submit_callbacks.read().unwrap().iter() {
+                callback(self);
             }
         }
     }

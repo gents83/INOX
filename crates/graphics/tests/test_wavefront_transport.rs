@@ -317,11 +317,24 @@ fn gpu_queue_overflow_has_an_explicit_readback_contract() {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../render/src/common/buffer_ref.rs"),
     )
     .unwrap();
+    let viewer = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../plugins/viewer/src/viewer.rs"),
+    )
+    .unwrap();
     assert!(common.contains("read_wavefront_queue_diagnostics"));
+    assert!(common.contains("report_wavefront_queue_diagnostics"));
+    assert!(common.contains("diagnostic.header.is_overflowed()"));
     assert!(common.contains("read_buffer_as::<QueueHeader>"));
     assert!(render_context.contains("read_buffer_as<T>"));
     assert!(render_context.contains("read_from_gpu_via_staging_as"));
+    assert!(render_context.contains("add_post_submit_callback"));
+    assert!(viewer.contains("add_post_submit_callback(report_wavefront_queue_diagnostics)"));
     assert!(buffer_ref.contains("MAP_READ | wgpu::BufferUsages::COPY_DST"));
     assert!(buffer_ref.contains("copy_buffer_to_buffer"));
+    assert!(buffer_ref.contains("Option<Result<(), wgpu::BufferAsyncError>>"));
+    assert!(buffer_ref.contains("if let Err(error) = render_core_context.device.poll"));
+    assert!(buffer_ref.contains("Some(Err(error))"));
+    assert!(buffer_ref.contains("GPU staging readback mapping did not complete"));
+    assert!(!buffer_ref.contains("expect(\"Failed to map GPU staging buffer"));
     assert!(common.contains("pub fn is_overflowed(self) -> bool"));
 }
