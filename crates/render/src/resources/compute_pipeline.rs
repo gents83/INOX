@@ -9,7 +9,8 @@ use inox_resources::{
 use inox_serialize::{read_from_file, SerializationType, SerializeFile};
 
 use crate::{
-    BindingData, ComputePipelineData, ReloadError, RenderContext, Shader, SHADER_ENTRY_POINT,
+    BindingData, ComputePipelineData, ReloadError, ReloadState, RenderContext, Shader,
+    SHADER_ENTRY_POINT,
 };
 
 pub type ComputePipelineId = ResourceId;
@@ -22,6 +23,7 @@ pub struct ComputePipeline {
     compute_pipeline: Option<wgpu::ComputePipeline>,
     reload_pending: bool,
     last_reload_error: Option<ReloadError>,
+    reload_state: ReloadState,
 }
 
 impl Clone for ComputePipeline {
@@ -34,6 +36,7 @@ impl Clone for ComputePipeline {
             compute_pipeline: None,
             reload_pending: self.reload_pending,
             last_reload_error: self.last_reload_error.clone(),
+            reload_state: self.reload_state.clone(),
         }
     }
 }
@@ -50,6 +53,7 @@ impl ResourceTrait for ComputePipeline {
         self.shader = other.shader.clone();
         self.reload_pending = true;
         self.last_reload_error = None;
+        self.reload_state.stage();
     }
 
     fn is_initialized(&self) -> bool {
@@ -86,6 +90,7 @@ impl DataTypeResource for ComputePipeline {
             compute_pipeline: None,
             reload_pending: false,
             last_reload_error: None,
+            reload_state: ReloadState::default(),
         }
     }
 
@@ -130,7 +135,8 @@ impl ComputePipeline {
         if let Some(shader) = self.shader.as_ref() {
             if !shader.get().is_initialized() || shader.get().has_pending_reload() {
                 if let Err(error) = shader.get_mut().init(context) {
-                    self.last_reload_error = Some(error);
+                    self.last_reload_error = Some(error.clone());
+                    self.reload_state.fail(error);
                     return false;
                 }
             }
@@ -179,6 +185,7 @@ impl ComputePipeline {
                 self.compute_pipeline = Some(compute_pipeline);
                 self.reload_pending = false;
                 self.last_reload_error = None;
+                self.reload_state.commit();
                 true
             }
             Err(diagnostic) => {
@@ -193,7 +200,8 @@ impl ComputePipeline {
                     error.path,
                     error.diagnostic
                 );
-                self.last_reload_error = Some(error);
+                self.last_reload_error = Some(error.clone());
+                self.reload_state.fail(error);
                 false
             }
         }
@@ -207,6 +215,19 @@ impl ComputePipeline {
                 debug_log!("Compute Shader {:?} will be reloaded", path_as_string);
             }
         }
+    }
+
+    pub fn reload_state(&self) -> &ReloadState {
+        &self.reload_state
+    }
+
+    pub fn reload_state_mut(&mut self) -> &mut ReloadState {
+        &mut self.reload_state
+    }
+
+    pub fn record_reload_failure(&mut self, error: ReloadError) {
+        self.last_reload_error = Some(error.clone());
+        self.reload_state.fail(error);
     }
 
     pub fn last_reload_error(&self) -> Option<&ReloadError> {

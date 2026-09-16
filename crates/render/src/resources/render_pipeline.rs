@@ -9,7 +9,7 @@ use inox_resources::{
 use inox_serialize::{read_from_file, SerializationType, SerializeFile};
 
 use crate::{
-    BindingData, BlendFactor, ReloadError, RenderContext, RenderPipelineData, Shader,
+    BindingData, BlendFactor, ReloadError, ReloadState, RenderContext, RenderPipelineData, Shader,
     TextureFormat, VertexBufferLayoutBuilder, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT,
     VERTEX_SHADER_ENTRY_POINT,
 };
@@ -27,6 +27,7 @@ pub struct RenderPipeline {
     render_pipeline: Option<wgpu::RenderPipeline>,
     reload_pending: bool,
     last_reload_error: Option<ReloadError>,
+    reload_state: ReloadState,
 }
 
 impl Clone for RenderPipeline {
@@ -44,6 +45,7 @@ impl Clone for RenderPipeline {
             render_pipeline: None,
             reload_pending: self.reload_pending,
             last_reload_error: self.last_reload_error.clone(),
+            reload_state: self.reload_state.clone(),
         }
     }
 }
@@ -62,6 +64,7 @@ impl ResourceTrait for RenderPipeline {
         self.fragment_shader = other.fragment_shader.clone();
         self.reload_pending = true;
         self.last_reload_error = None;
+        self.reload_state.stage();
     }
 
     fn is_initialized(&self) -> bool {
@@ -104,6 +107,7 @@ impl DataTypeResource for RenderPipeline {
             render_pipeline: None,
             reload_pending: false,
             last_reload_error: None,
+            reload_state: ReloadState::default(),
         }
     }
 
@@ -169,7 +173,8 @@ impl RenderPipeline {
         if let Some(shader) = self.vertex_shader.as_ref() {
             if !shader.get().is_initialized() || shader.get().has_pending_reload() {
                 if let Err(error) = shader.get_mut().init(context) {
-                    self.last_reload_error = Some(error);
+                    self.last_reload_error = Some(error.clone());
+                    self.reload_state.fail(error);
                     return false;
                 }
             }
@@ -177,7 +182,8 @@ impl RenderPipeline {
         if let Some(shader) = self.fragment_shader.as_ref() {
             if !shader.get().is_initialized() || shader.get().has_pending_reload() {
                 if let Err(error) = shader.get_mut().init(context) {
-                    self.last_reload_error = Some(error);
+                    self.last_reload_error = Some(error.clone());
+                    self.reload_state.fail(error);
                     return false;
                 }
             }
@@ -331,6 +337,7 @@ impl RenderPipeline {
                 self.render_pipeline = Some(render_pipeline);
                 self.reload_pending = false;
                 self.last_reload_error = None;
+                self.reload_state.commit();
                 true
             }
             Err(diagnostic) => {
@@ -345,7 +352,8 @@ impl RenderPipeline {
                     error.path,
                     error.diagnostic
                 );
-                self.last_reload_error = Some(error);
+                self.last_reload_error = Some(error.clone());
+                self.reload_state.fail(error);
                 false
             }
         }
@@ -364,6 +372,19 @@ impl RenderPipeline {
             self.reload_pending = true;
             debug_log!("Fragment Shader {:?} will be reloaded", path_as_string);
         }
+    }
+
+    pub fn reload_state(&self) -> &ReloadState {
+        &self.reload_state
+    }
+
+    pub fn reload_state_mut(&mut self) -> &mut ReloadState {
+        &mut self.reload_state
+    }
+
+    pub fn record_reload_failure(&mut self, error: ReloadError) {
+        self.last_reload_error = Some(error.clone());
+        self.reload_state.fail(error);
     }
 
     pub fn last_reload_error(&self) -> Option<&ReloadError> {

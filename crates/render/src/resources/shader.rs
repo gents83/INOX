@@ -53,6 +53,46 @@ impl ReloadError {
 
 pub type ShaderReloadError = ReloadError;
 
+#[derive(Debug, Clone, Default)]
+pub struct ReloadState {
+    active: bool,
+    pending: bool,
+    last_error: Option<ReloadError>,
+}
+
+impl ReloadState {
+    pub fn active(&self) -> bool {
+        self.active
+    }
+
+    pub fn pending(&self) -> bool {
+        self.pending
+    }
+
+    pub fn last_error(&self) -> Option<&ReloadError> {
+        self.last_error.as_ref()
+    }
+
+    pub fn activate(&mut self) {
+        self.active = true;
+    }
+
+    pub fn stage(&mut self) {
+        self.pending = true;
+    }
+
+    pub fn fail(&mut self, error: ReloadError) {
+        self.pending = true;
+        self.last_error = Some(error);
+    }
+
+    pub fn commit(&mut self) {
+        self.active = true;
+        self.pending = false;
+        self.last_error = None;
+    }
+}
+
 pub const SHADER_EXTENSION_SPV: &str = "spv";
 pub const SHADER_EXTENSION_WGSL: &str = "wgsl";
 
@@ -109,6 +149,7 @@ pub struct Shader {
     pending_data: Option<ShaderData>,
     module: Option<ShaderModule>,
     last_reload_error: Option<ReloadError>,
+    reload_state: ReloadState,
 }
 
 impl Clone for Shader {
@@ -119,6 +160,7 @@ impl Clone for Shader {
             pending_data: self.pending_data.clone(),
             module: None,
             last_reload_error: self.last_reload_error.clone(),
+            reload_state: self.reload_state.clone(),
         }
     }
 }
@@ -134,6 +176,7 @@ impl ResourceTrait for Shader {
         self.path = other.path.clone();
         self.pending_data = Some(other.data.clone());
         self.last_reload_error = None;
+        self.reload_state.stage();
     }
 
     fn is_initialized(&self) -> bool {
@@ -169,6 +212,7 @@ impl DataTypeResource for Shader {
             pending_data: None,
             module: None,
             last_reload_error: None,
+            reload_state: ReloadState::default(),
         }
     }
 
@@ -315,6 +359,7 @@ impl Shader {
                     self.data = data;
                 }
                 self.last_reload_error = None;
+                self.reload_state.commit();
                 Ok(())
             }
             Err((diagnostic, source_location)) => {
@@ -328,6 +373,7 @@ impl Shader {
                     error.diagnostic
                 );
                 self.last_reload_error = Some(error.clone());
+                self.reload_state.fail(error.clone());
                 Err(error)
             }
         }
@@ -339,6 +385,19 @@ impl Shader {
 
     pub fn has_pending_reload(&self) -> bool {
         self.pending_data.is_some()
+    }
+
+    pub fn reload_state(&self) -> &ReloadState {
+        &self.reload_state
+    }
+
+    pub fn reload_state_mut(&mut self) -> &mut ReloadState {
+        &mut self.reload_state
+    }
+
+    pub fn record_reload_failure(&mut self, error: ReloadError) {
+        self.last_reload_error = Some(error.clone());
+        self.reload_state.fail(error);
     }
 
     pub fn last_reload_error(&self) -> Option<&ReloadError> {
