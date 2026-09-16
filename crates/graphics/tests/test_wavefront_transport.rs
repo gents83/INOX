@@ -13,6 +13,28 @@ fn shader(name: &str) -> String {
     fs::read_to_string(path).unwrap()
 }
 
+fn braced_block_after<'a>(source: &'a str, marker: &str) -> &'a str {
+    let marker_start = source.find(marker).expect("shader marker must exist");
+    let open = source[marker_start..]
+        .find('{')
+        .map(|offset| marker_start + offset)
+        .expect("shader marker must open a block");
+    let mut depth = 0usize;
+    for (offset, character) in source[open..].char_indices() {
+        match character {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return &source[open..=open + offset];
+                }
+            }
+            _ => {}
+        }
+    }
+    panic!("shader block must close");
+}
+
 #[test]
 fn empty_queue_terminates_dispatch_work() {
     let queue = RayQueue::<u32>::with_capacity(4);
@@ -82,12 +104,19 @@ fn bounce_dispatches_chain_through_previous_destination() {
 #[test]
 fn tir_forces_reflection_and_preserves_throughput() {
     let source = shader("compute_wavefront_next_bounce.wgsl");
-    assert!(source.contains("if (tir) {"));
-    assert!(source.contains("direction = reflection;"));
-    assert!(source.contains("p_lobe = 1.0;"));
-    assert!(source.contains("p_direction = 1.0;"));
-    assert!(source.contains("throughput = ray.throughput.xyz;"));
-    assert!(source.contains("else if (selector < p_transmission"));
+    let tir_start = source.find("if (tir) {").unwrap();
+    let lobe_start = source.find("} else if (selector < p_transmission").unwrap();
+    let estimator_start = source.find("if (!tir) {").unwrap();
+    let tir_block = braced_block_after(&source[tir_start..], "if (tir) {");
+    let estimator_block = braced_block_after(&source[estimator_start..], "if (!tir) {");
+
+    assert!(tir_start < lobe_start);
+    assert!(lobe_start < estimator_start);
+    assert!(tir_block.contains("direction = reflection;"));
+    assert!(tir_block.contains("p_lobe = 1.0;"));
+    assert!(tir_block.contains("p_direction = 1.0;"));
+    assert!(tir_block.contains("throughput = ray.throughput.xyz;"));
+    assert!(estimator_block.contains("throughput = ray.throughput.xyz * bsdf * cosine_out"));
 }
 
 #[test]

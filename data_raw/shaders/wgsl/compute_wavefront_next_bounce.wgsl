@@ -86,6 +86,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     var bsdf = vec3<f32>(1.0);
     var p_lobe = 1.0;
     var p_direction = 1.0;
+    var throughput: vec3<f32>;
     if (tir) {
         // Total internal reflection collapses every transmission choice into a
         // single delta reflection event. Its lobe and direction probabilities
@@ -94,6 +95,8 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
         bsdf = vec3<f32>(1.0);
         p_lobe = 1.0;
         p_direction = 1.0;
+        throughput = ray.throughput.xyz;
+        if (!finite_vector(throughput)) { return; }
     } else if (selector < p_transmission && transmission_probability > 0.0) {
         direction = safe_normalize(candidate_refraction, reflection);
         bsdf = base_color;
@@ -119,11 +122,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 
     if (!finite_vector(direction) || !finite_vector(bsdf) || !finite_scalar(p_lobe) || !finite_scalar(p_direction)
         || p_lobe <= MATH_EPSILON || p_direction <= MATH_EPSILON) { return; }
-    var throughput: vec3<f32>;
-    if (tir) {
-        throughput = ray.throughput.xyz;
-        if (!finite_vector(throughput)) { return; }
-    } else {
+    if (!tir) {
         let cosine_out = abs(dot(normal, direction));
         if (!finite_scalar(cosine_out) || cosine_out <= MATH_EPSILON) { return; }
         throughput = ray.throughput.xyz * bsdf * cosine_out / (p_lobe * p_direction);

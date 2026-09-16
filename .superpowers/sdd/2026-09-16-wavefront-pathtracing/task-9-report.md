@@ -11,6 +11,7 @@
 - Added focused contracts for dispatch chaining, lobe PDFs, finite guards, environment bounds, queue reset, depth/roulette, reflection/refraction/TIR, and accumulator separation.
 - Follow-up review fix: total internal reflection now executes before lobe selection and collapses transmission into a unit-probability delta reflection, preventing diffuse fallback and estimator bias.
 - Follow-up energy fix: TIR throughput now bypasses the cosine-weighted BSDF estimator and preserves the finite incoming throughput for oblique reflection; a focused regression contract covers this path.
+- Strengthened the TIR regression to structurally extract the TIR and non-TIR branches, verify direct throughput assignment occurs before lobe selection, and verify the cosine-weighted estimator remains isolated to non-TIR paths.
 
 ## Verification
 
