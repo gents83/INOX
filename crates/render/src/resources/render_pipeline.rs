@@ -188,6 +188,9 @@ impl RenderPipeline {
             return false;
         }
         if let Some(shader) = self.vertex_shader.as_ref() {
+            if shader.get().path().as_os_str().is_empty() {
+                return false;
+            }
             if !shader.get().is_initialized() || shader.get().has_pending_reload() {
                 if let Err(error) = shader.get_mut().init(context) {
                     self.last_reload_error = Some(error.clone());
@@ -197,6 +200,9 @@ impl RenderPipeline {
             }
         }
         if let Some(shader) = self.fragment_shader.as_ref() {
+            if shader.get().path().as_os_str().is_empty() {
+                return false;
+            }
             if !shader.get().is_initialized() || shader.get().has_pending_reload() {
                 if let Err(error) = shader.get_mut().init(context) {
                     self.last_reload_error = Some(error.clone());
