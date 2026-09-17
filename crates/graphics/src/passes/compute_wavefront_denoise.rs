@@ -64,29 +64,28 @@ impl Pass for ComputeWavefrontDenoisePass {
         if self.final_accumulator.read().unwrap().is_empty() {
             return;
         }
-        self.binding_data
-            .add_buffer(
-                &mut *self.constant_data.write().unwrap(),
-                Some("ConstantData"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 0,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Uniform | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.final_accumulator.write().unwrap(),
-                Some("Final Accumulator"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 1,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
-                    ..Default::default()
-                },
-            );
+        self.binding_data.add_buffer(
+            &mut *self.constant_data.write().unwrap(),
+            Some("ConstantData"),
+            BindingInfo {
+                group_index: 0,
+                binding_index: 0,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Uniform | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.final_accumulator.write().unwrap(),
+            Some("Final Accumulator"),
+            BindingInfo {
+                group_index: 0,
+                binding_index: 1,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                ..Default::default()
+            },
+        );
         self.compute_pass
             .get_mut()
             .init(render_context, &mut self.binding_data, None);

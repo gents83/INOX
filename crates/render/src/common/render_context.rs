@@ -722,19 +722,28 @@ impl RenderContext {
     pub fn update_passes(&self, mut command_buffer: CommandBuffer) {
         inox_profiler::scoped_profile!("renderer::update_passes");
 
-        let mut passes = self.passes.write().unwrap();
-        passes.iter_mut().for_each(|(pass, is_enabled)| {
+        // Pass initialization and encoding may re-enter RenderContext. Do not
+        // hold the pass-list lock while invoking user/pass code or resource
+        // creation can deadlock against this list.
+        let mut passes = {
+            let mut stored_passes = self.passes.write().unwrap();
+            std::mem::take(&mut *stored_passes)
+        };
+
+        for (pass, is_enabled) in passes.iter_mut() {
             if *is_enabled && pass.is_active(self) {
                 pass.init(self);
             }
-        });
+        }
         if let Some(surface) = self.surface.read().unwrap().as_ref() {
-            passes.iter_mut().for_each(|(pass, is_enabled)| {
+            for (pass, is_enabled) in passes.iter_mut() {
                 if *is_enabled && pass.is_active(self) {
                     pass.update(self, &surface.surface_view, &mut command_buffer);
                 }
-            });
+            }
         }
+
+        self.passes.write().unwrap().extend(passes);
         self.binding_data_buffer().clear_buffers_changed();
         self.set_command_buffer(command_buffer);
     }

@@ -77,73 +77,72 @@ impl Pass for ComputeWavefrontVisibilityPass {
         if !self.is_active(render_context) || self.gbuffer_world.read().unwrap().is_empty() {
             return;
         }
-        self.binding_data
-            .add_buffer(
-                &mut *self.constant_data.write().unwrap(),
-                Some("ConstantData"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 0,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Uniform | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.scene_data.write().unwrap(),
-                Some("Packed Scene"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 1,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.gbuffer_world.write().unwrap(),
-                Some("GBuffer World"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 0,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.reservoirs.write().unwrap(),
-                Some("Direct Reservoirs"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 1,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.direct_accumulator.write().unwrap(),
-                Some("Direct Accumulator"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 2,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.ao_state.write().unwrap(),
-                Some("AO State"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 3,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
-                    ..Default::default()
-                },
-            );
+        self.binding_data.add_buffer(
+            &mut *self.constant_data.write().unwrap(),
+            Some("ConstantData"),
+            BindingInfo {
+                group_index: 0,
+                binding_index: 0,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Uniform | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.scene_data.write().unwrap(),
+            Some("Packed Scene"),
+            BindingInfo {
+                group_index: 0,
+                binding_index: 1,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.gbuffer_world.write().unwrap(),
+            Some("GBuffer World"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 0,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.reservoirs.write().unwrap(),
+            Some("Direct Reservoirs"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 1,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.direct_accumulator.write().unwrap(),
+            Some("Direct Accumulator"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 2,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.ao_state.write().unwrap(),
+            Some("AO State"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 3,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                ..Default::default()
+            },
+        );
         self.compute_pass
             .get_mut()
             .init(render_context, &mut self.binding_data, None);

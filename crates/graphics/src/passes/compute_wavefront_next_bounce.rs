@@ -86,106 +86,105 @@ impl Pass for ComputeWavefrontNextBouncePass {
         if self.hit_queue.read().unwrap().is_empty() || self.next_queue.read().unwrap().is_empty() {
             return;
         }
-        self.binding_data
-            .add_buffer(
-                &mut *self.constant_data.write().unwrap(),
-                Some("ConstantData"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 0,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Uniform | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.scene_data.write().unwrap(),
-                Some("Packed Scene"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 1,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.gbuffer_world.write().unwrap(),
-                Some("GBuffer World"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 0,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.gbuffer_material.write().unwrap(),
-                Some("GBuffer Material"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 1,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.ray_queue.write().unwrap(),
-                Some("Ray Queue"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 2,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.hit_queue_header.write().unwrap(),
-                Some("Hit Queue Header"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 3,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.hit_queue.write().unwrap(),
-                Some("Hit Queue"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 4,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.next_queue_header.write().unwrap(),
-                Some("Next Queue Header"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 5,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.next_queue.write().unwrap(),
-                Some("Next Queue"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 6,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
-                    ..Default::default()
-                },
-            );
+        self.binding_data.add_buffer(
+            &mut *self.constant_data.write().unwrap(),
+            Some("ConstantData"),
+            BindingInfo {
+                group_index: 0,
+                binding_index: 0,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Uniform | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.scene_data.write().unwrap(),
+            Some("Packed Scene"),
+            BindingInfo {
+                group_index: 0,
+                binding_index: 1,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.gbuffer_world.write().unwrap(),
+            Some("GBuffer World"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 0,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.gbuffer_material.write().unwrap(),
+            Some("GBuffer Material"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 1,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.ray_queue.write().unwrap(),
+            Some("Ray Queue"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 2,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.hit_queue_header.write().unwrap(),
+            Some("Hit Queue Header"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 3,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.hit_queue.write().unwrap(),
+            Some("Hit Queue"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 4,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.next_queue_header.write().unwrap(),
+            Some("Next Queue Header"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 5,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.next_queue.write().unwrap(),
+            Some("Next Queue"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 6,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                ..Default::default()
+            },
+        );
         self.compute_pass
             .get_mut()
             .init(render_context, &mut self.binding_data, None);

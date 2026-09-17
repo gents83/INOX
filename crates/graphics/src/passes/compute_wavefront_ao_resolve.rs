@@ -65,40 +65,39 @@ impl Pass for ComputeWavefrontAoResolvePass {
         if !self.is_active(render_context) {
             return;
         }
-        self.binding_data
-            .add_buffer(
-                &mut *self.constant_data.write().unwrap(),
-                Some("ConstantData"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 0,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Uniform | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.gbuffer_material.write().unwrap(),
-                Some("GBuffer Material"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 1,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.ao_state.write().unwrap(),
-                Some("AO State"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 2,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
-                    ..Default::default()
-                },
-            );
+        self.binding_data.add_buffer(
+            &mut *self.constant_data.write().unwrap(),
+            Some("ConstantData"),
+            BindingInfo {
+                group_index: 0,
+                binding_index: 0,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Uniform | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.gbuffer_material.write().unwrap(),
+            Some("GBuffer Material"),
+            BindingInfo {
+                group_index: 0,
+                binding_index: 1,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.ao_state.write().unwrap(),
+            Some("AO State"),
+            BindingInfo {
+                group_index: 0,
+                binding_index: 2,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                ..Default::default()
+            },
+        );
         self.compute_pass
             .get_mut()
             .init(render_context, &mut self.binding_data, None);

@@ -365,14 +365,17 @@ impl BindingData {
         let mut textures = [TextureId::default(); MAX_TEXTURE_ATLAS_COUNT as usize];
         {
             let texture_atlas = self.render_context.texture_handler().textures_atlas();
-            let num_textures = texture_atlas.len();
+            let Some(first_texture) = texture_atlas.first() else {
+                drop(texture_atlas);
+                return self;
+            };
+            let fallback_texture_id = *first_texture.texture_id();
 
-            for i in 0..MAX_TEXTURE_ATLAS_COUNT as usize {
-                if i < num_textures {
-                    textures[i] = *texture_atlas[i].texture_id();
-                } else {
-                    textures[i] = *texture_atlas[0].texture_id();
-                }
+            for (i, texture_id) in textures.iter_mut().enumerate() {
+                *texture_id = texture_atlas
+                    .get(i)
+                    .map(|texture| *texture.texture_id())
+                    .unwrap_or(fallback_texture_id);
             }
         }
 

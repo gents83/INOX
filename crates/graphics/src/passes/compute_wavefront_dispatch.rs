@@ -60,29 +60,28 @@ impl Pass for ComputeWavefrontDispatchPass {
         if self.ray_queue_header.read().unwrap().is_empty() {
             return;
         }
-        self.binding_data
-            .add_buffer(
-                &mut *self.ray_queue_header.write().unwrap(),
-                Some("Wavefront Ray Queue Header"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 0,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.dispatch_args.write().unwrap(),
-                Some("Wavefront Dispatch Args"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 1,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::ReadWrite | BindingFlags::Indirect,
-                    ..Default::default()
-                },
-            );
+        self.binding_data.add_buffer(
+            &mut *self.ray_queue_header.write().unwrap(),
+            Some("Wavefront Ray Queue Header"),
+            BindingInfo {
+                group_index: 0,
+                binding_index: 0,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.dispatch_args.write().unwrap(),
+            Some("Wavefront Dispatch Args"),
+            BindingInfo {
+                group_index: 0,
+                binding_index: 1,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::ReadWrite | BindingFlags::Indirect,
+                ..Default::default()
+            },
+        );
         self.compute_pass
             .get_mut()
             .init(render_context, &mut self.binding_data, None);

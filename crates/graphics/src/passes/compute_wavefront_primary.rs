@@ -97,73 +97,72 @@ impl Pass for ComputeWavefrontPrimaryPass {
             return;
         }
 
-        self.binding_data
-            .add_buffer(
-                &mut *self.constant_data.write().unwrap(),
-                Some("ConstantData"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 0,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Uniform | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.gbuffer_world.write().unwrap(),
-                Some("GBuffer World"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 0,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.gbuffer_material.write().unwrap(),
-                Some("GBuffer Material"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 1,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.gbuffer_auxiliary.write().unwrap(),
-                Some("GBuffer Auxiliary"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 2,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.ray_queue_header.write().unwrap(),
-                Some("Wavefront Ray Queue Header"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 3,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.ray_queue.write().unwrap(),
-                Some("Wavefront Ray Queue"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 4,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
-                    ..Default::default()
-                },
-            );
+        self.binding_data.add_buffer(
+            &mut *self.constant_data.write().unwrap(),
+            Some("ConstantData"),
+            BindingInfo {
+                group_index: 0,
+                binding_index: 0,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Uniform | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.gbuffer_world.write().unwrap(),
+            Some("GBuffer World"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 0,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.gbuffer_material.write().unwrap(),
+            Some("GBuffer Material"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 1,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.gbuffer_auxiliary.write().unwrap(),
+            Some("GBuffer Auxiliary"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 2,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.ray_queue_header.write().unwrap(),
+            Some("Wavefront Ray Queue Header"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 3,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.ray_queue.write().unwrap(),
+            Some("Wavefront Ray Queue"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 4,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                ..Default::default()
+            },
+        );
 
         self.compute_pass
             .get_mut()

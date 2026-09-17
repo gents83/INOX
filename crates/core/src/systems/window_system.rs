@@ -68,7 +68,12 @@ impl System for WindowSystem {
     fn should_run_when_not_focused(&self) -> bool {
         true
     }
-    fn init(&mut self) {}
+    fn init(&mut self) {
+        // The native window is created hidden and config delivery can occur
+        // before this system is scheduled. Show it directly so a missed
+        // config event cannot leave the application running headlessly.
+        Window::change_visibility(self.window.handle(), true);
+    }
     fn run(&mut self) -> bool {
         self.handle_events();
         self.window.update()

@@ -59,6 +59,33 @@ fn active_wavefront_pipeline_descriptors_fit_the_portable_storage_budget() {
 }
 
 #[test]
+fn active_wavefront_pass_bindings_do_not_chain_buffer_writes() {
+    const PASS_FILES: &[&str] = &[
+        "compute_wavefront_ao_resolve.rs",
+        "compute_wavefront_composite.rs",
+        "compute_wavefront_denoise.rs",
+        "compute_wavefront_direct_candidates.rs",
+        "compute_wavefront_dispatch.rs",
+        "compute_wavefront_next_bounce.rs",
+        "compute_wavefront_primary.rs",
+        "compute_wavefront_shade.rs",
+        "compute_wavefront_surface.rs",
+        "compute_wavefront_transparency.rs",
+        "compute_wavefront_traversal.rs",
+        "compute_wavefront_upscale.rs",
+        "compute_wavefront_visibility.rs",
+    ];
+    let passes_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/passes");
+    for file in PASS_FILES {
+        let source = fs::read_to_string(passes_dir.join(file)).unwrap();
+        assert!(
+            !source.contains(")\n            .add_buffer("),
+            "wavefront pass chains add_buffer calls: {file}"
+        );
+    }
+}
+
+#[test]
 fn wavefront_shader_inventory_matches_pipeline_descriptors_bidirectionally() {
     let descriptor_shaders = WAVEFRONT_PRODUCTION_PIPELINES
         .iter()

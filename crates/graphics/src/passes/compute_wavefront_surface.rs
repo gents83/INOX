@@ -90,29 +90,29 @@ impl Pass for ComputeWavefrontSurfacePass {
                 render_context.mark_as_dirty(scene.buffer_id());
             }
         }
+        self.binding_data.add_buffer(
+            &mut *self.constant_data.write().unwrap(),
+            Some("ConstantData"),
+            BindingInfo {
+                group_index: 0,
+                binding_index: 0,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Uniform | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.scene_data.write().unwrap(),
+            Some("Packed Scene"),
+            BindingInfo {
+                group_index: 0,
+                binding_index: 1,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
         self.binding_data
-            .add_buffer(
-                &mut *self.constant_data.write().unwrap(),
-                Some("ConstantData"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 0,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Uniform | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.scene_data.write().unwrap(),
-                Some("Packed Scene"),
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 1,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
-                    ..Default::default()
-                },
-            )
             .add_texture(
                 &self.visibility_texture,
                 0,
@@ -132,40 +132,40 @@ impl Pass for ComputeWavefrontSurfacePass {
                     stage: ShaderStage::Compute,
                     ..Default::default()
                 },
-            )
-            .add_buffer(
-                &mut *self.data_buffer_0.write().unwrap(),
-                Some("Surface State 0"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 2,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.data_buffer_1.write().unwrap(),
-                Some("Surface State 1"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 3,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
-                    ..Default::default()
-                },
-            )
-            .add_buffer(
-                &mut *self.data_buffer_2.write().unwrap(),
-                Some("Surface State 2"),
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 4,
-                    stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
-                    ..Default::default()
-                },
             );
+        self.binding_data.add_buffer(
+            &mut *self.data_buffer_0.write().unwrap(),
+            Some("Surface State 0"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 2,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.data_buffer_1.write().unwrap(),
+            Some("Surface State 1"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 3,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
+            &mut *self.data_buffer_2.write().unwrap(),
+            Some("Surface State 2"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 4,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                ..Default::default()
+            },
+        );
         self.compute_pass
             .get_mut()
             .init(render_context, &mut self.binding_data, None);
