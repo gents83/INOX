@@ -380,6 +380,13 @@ fn invalid_material_ids_are_rejected_before_packed_access() {
 }
 
 #[test]
+fn finalize_uses_active_screen_dimensions_for_accumulators() {
+    let source = shader("finalize.wgsl");
+    assert!(source.contains("let data_dimensions = dimensions;"));
+    assert!(!source.contains("vec2<u32>(DEFAULT_WIDTH, DEFAULT_HEIGHT)"));
+}
+
+#[test]
 fn gpu_queue_overflow_has_an_explicit_readback_contract() {
     let common = fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/passes/pathtracing_common.rs"),

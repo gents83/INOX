@@ -43,9 +43,13 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     let dimensions = vec2<u32>(u32(constant_data.screen_width), u32(constant_data.screen_height));
     let pixel = vec2<f32>(v_in.uv.x * constant_data.screen_width, v_in.uv.y * constant_data.screen_height);
 
-    let data_dimensions = vec2<u32>(DEFAULT_WIDTH, DEFAULT_HEIGHT);
-    let data_scale = vec2<f32>(data_dimensions) / vec2<f32>(dimensions);
-    let data_pixel = vec2<u32>(pixel * data_scale);
+    // The accumulator follows the active render resolution. Do not use the
+    // compile-time default dimensions when the window or render scale changes.
+    let data_dimensions = dimensions;
+    let data_pixel = min(
+        vec2<u32>(pixel),
+        data_dimensions - vec2<u32>(1u),
+    );
     let pixel_index = data_pixel.y * data_dimensions.x + data_pixel.x;
 
     var radiance = final_accumulator[pixel_index].radiance_and_weight.xyz;
