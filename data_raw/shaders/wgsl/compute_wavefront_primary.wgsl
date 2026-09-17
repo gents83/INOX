@@ -28,7 +28,7 @@ fn append_primary_ray(ray: WavefrontRay) {
 const WORKGROUP_SIZE: u32 = 8u;
 
 fn decode_normal(data_index: u32) -> vec3<f32> {
-    return octahedral_unmapping(unpack2x16float(bitcast<u32>(gbuffer_world[data_index + 3u])));
+    return octahedral_unmapping(unpack2x16float(u32(gbuffer_world[data_index + 3u])));
 }
 
 fn sample_cosine_hemisphere(random_numbers: vec2<f32>, normal: vec3<f32>) -> vec3<f32> {

@@ -76,7 +76,7 @@ fn occluded(origin: vec3<f32>, direction: vec3<f32>, max_distance: f32) -> bool 
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let width = u32(constant_data.screen_width); let height = u32(constant_data.screen_height);
     if (id.x >= width || id.y >= height) { return; }
-    let pixel = id.y * width + id.x; let o = pixel * SIZE_OF_DATA_BUFFER_ELEMENT; let position = vec3<f32>(gbuffer_world[o], gbuffer_world[o + 1u], gbuffer_world[o + 2u]); let normal = octahedral_unmapping(unpack2x16float(bitcast<u32>(gbuffer_world[o + 3u])));
+    let pixel = id.y * width + id.x; let o = pixel * SIZE_OF_DATA_BUFFER_ELEMENT; let position = vec3<f32>(gbuffer_world[o], gbuffer_world[o + 1u], gbuffer_world[o + 2u]); let normal = octahedral_unmapping(unpack2x16float(u32(gbuffer_world[o + 3u])));
     let reservoir = reservoirs[pixel]; let light_count = scene_data[5u + 10u * 4u] / 16u; var visibility = 1.0;
     if (light_count > 0u && reservoir.selected_light_id < light_count) { let lb = table_offset(10u) + reservoir.selected_light_id * 16u; let lp = load_vec3(lb); let to_light = lp - position; let distance = length(to_light); if (dot(normal, to_light) > 0.0) { visibility = select(1.0, 0.0, occluded(position + normal * HIT_EPSILON, normalize(to_light), distance)); } }
     let seed = f32((pixel ^ constant_data.frame_index) & 1023u) / 1023.0; let phi = 6.2831853 * seed; let tangent = normalize(select(vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(1.0, 0.0, 0.0), abs(normal.x) > 0.5)); let bitangent = normalize(cross(normal, tangent)); let ao_dir = normalize(tangent * cos(phi) * 0.7 + bitangent * sin(phi) * 0.7 + normal * 0.7); let ao_visibility = select(0.0, 1.0, !occluded(position + normal * HIT_EPSILON, ao_dir, 1.0));

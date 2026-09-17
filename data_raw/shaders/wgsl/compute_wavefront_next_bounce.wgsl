@@ -53,7 +53,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     if (hit.visibility_id == 0u || ray.bounce >= constant_data.max_path_depth) { return; }
 
     let offset = ray.pixel_index * SIZE_OF_DATA_BUFFER_ELEMENT;
-    let surface_normal = safe_normalize(octahedral_unmapping(unpack2x16float(bitcast<u32>(gbuffer_world[offset + 3u]))), vec3<f32>(0.0, 1.0, 0.0));
+    let surface_normal = safe_normalize(octahedral_unmapping(unpack2x16float(u32(gbuffer_world[offset + 3u]))), vec3<f32>(0.0, 1.0, 0.0));
     // Surface stores the material index as a numeric f32.  Decode the value
     // numerically; bitcasting would reinterpret 1.0 as 0x3f800000.
     let material_value = gbuffer_material[offset];

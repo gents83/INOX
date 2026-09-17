@@ -97,7 +97,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     var reservoir = Reservoir(0u, 0u, 0.0, 0.0, 0.0, 0u, 0u, 0.0);
     var selected = vec3<f32>(0.0);
     var selected_weight = 0.0;
-    let normal = octahedral_unmapping(unpack2x16float(bitcast<u32>(gbuffer_world[data_index + 3u])));
+    let normal = octahedral_unmapping(unpack2x16float(u32(gbuffer_world[data_index + 3u])));
     let position = vec3<f32>(gbuffer_world[data_index], gbuffer_world[data_index + 1u], gbuffer_world[data_index + 2u]);
 
     // Temporal reuse: retain the previous reservoir only when it is valid.

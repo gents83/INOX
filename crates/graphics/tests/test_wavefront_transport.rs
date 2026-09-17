@@ -60,6 +60,18 @@ fn depth_and_roulette_are_bounded() {
 }
 
 #[test]
+fn packed_normals_use_numeric_f32_encoding() {
+    let primary = shader("compute_wavefront_primary.wgsl");
+    let direct = shader("compute_wavefront_direct_candidates.wgsl");
+    let visibility = shader("compute_wavefront_visibility.wgsl");
+    let next = shader("compute_wavefront_next_bounce.wgsl");
+    for source in [&primary, &direct, &visibility, &next] {
+        assert!(source.contains("unpack2x16float(u32(gbuffer_world"));
+        assert!(!source.contains("bitcast<u32>(gbuffer_world"));
+    }
+}
+
+#[test]
 fn reflection_and_refraction_cover_tir_without_nan() {
     assert_eq!(
         reflect_direction([0.0, -1.0, 0.0], [0.0, 1.0, 0.0]),
