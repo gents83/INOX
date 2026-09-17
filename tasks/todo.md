@@ -93,3 +93,9 @@
 ### Freeze investigation review
 
 `generate_static_uid_from_string` only uses the first 16 input bytes. Queue/header names sharing a `WAVEFRONT_*` prefix therefore returned the same UID. `GlobalBuffers::vector_with_id` intentionally reuses the existing `Arc` without a type check, so the transparent queue and header aliases referred to one `RwLock`; the apparent queue write deadlock was type-alias corruption, not a retained guard, reader, pass-list lock, or GPU resource initialization wait. All wavefront static resource names now have distinct short prefixes, and a pairwise uniqueness regression contract covers every static wavefront resource ID.
+
+## Production shader smoke review
+
+- Added a causal native headless WebGPU smoke graph covering production surface, primary, dispatch, traversal, hit-dispatch, shade, composite, and finalize shader stages with staged GPU readback and exact packed-scene/texture assertions.
+- The RTX headless adapter now negotiates its actual limits and the causal smoke passes: `7 passed`; transport contracts: `21 passed`.
+- The smoke explicitly reports adapter capability skips for unavailable native texture-array paths; no synthetic fallback is used.
