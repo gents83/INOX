@@ -36,12 +36,9 @@ impl WindowSystem {
                         self.config = config.clone();
                         self.message_hub
                             .send_event(WindowEvent::RequestChangeTitle(config.title.clone()));
-                        self.message_hub.send_event(WindowEvent::RequestChangeSize(
-                            config.width,
-                            config.height,
-                        ));
-                        self.message_hub
-                            .send_event(WindowEvent::RequestChangePos(config.pos_x, config.pos_y));
+                        // The native window was created with the requested dimensions.
+                        // Reapplying them changes the client area after render targets
+                        // are allocated and creates a wavefront stride mismatch.
                         self.message_hub
                             .send_event(WindowEvent::RequestChangeVisible(true));
                     }

@@ -539,11 +539,15 @@ impl Plugin for Viewer {
             )
         };
 
+        // Keep render targets at logical client resolution. The surface is
+        // configured in physical pixels, but queue storage must not scale with
+        // the monitor DPI or exhaust GPU memory on high-DPI displays.
+        let initial_dimensions = (window.width(), window.height());
         let context_rc = context.clone();
         let _renderer = Renderer::new(window.handle(), context, move |render_context| {
-            Self::create_data_buffers(render_context, DEFAULT_WIDTH, DEFAULT_HEIGHT);
+            Self::create_data_buffers(render_context, initial_dimensions.0, initial_dimensions.1);
             Self::create_systems(&context_rc, render_context);
-            Self::create_render_targets(render_context, DEFAULT_WIDTH, DEFAULT_HEIGHT);
+            Self::create_render_targets(render_context, initial_dimensions.0, initial_dimensions.1);
             Self::create_render_passes(&context_rc, render_context);
         });
 

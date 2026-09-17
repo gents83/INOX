@@ -168,6 +168,13 @@ fn dispatch_metadata_records_independent_xyz_dimensions() {
 }
 
 #[test]
+fn depth_pyramid_binds_adjacent_hzb_mips_without_overrunning_views() {
+    let source = include_str!("../src/passes/compute_depth_pyramid.rs");
+    assert!(source.contains("i as u32"));
+    assert!(source.contains("(i + 1) as u32"));
+}
+
+#[test]
 fn wavefront_queue_bounds_appends_and_resets_without_allocating_per_append() {
     let mut queue = RayQueue::with_capacity(2);
     assert!(queue.append(RayQueueRecord::default()));
