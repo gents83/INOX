@@ -17,10 +17,8 @@ use crate::{
 pub const COMPUTE_WAVEFRONT_PRIMARY_PIPELINE: &str =
     "pipelines/ComputeWavefrontPrimary.compute_pipeline";
 pub const COMPUTE_WAVEFRONT_PRIMARY_NAME: &str = "ComputeWavefrontPrimaryPass";
-pub const WAVEFRONT_PRIMARY_QUEUE_ID: Uid =
-    generate_static_uid_from_string("WAVEFRONT_PRIMARY_QUEUE");
-pub const WAVEFRONT_PRIMARY_HEADER_ID: Uid =
-    generate_static_uid_from_string("WAVEFRONT_PRIMARY_HEADER");
+pub const WAVEFRONT_PRIMARY_QUEUE_ID: Uid = generate_static_uid_from_string("WF_PRIMARY_QUEUE");
+pub const WAVEFRONT_PRIMARY_HEADER_ID: Uid = generate_static_uid_from_string("WF_PRIMARY_HEADER");
 
 pub struct ComputeWavefrontPrimaryPass {
     compute_pass: Resource<ComputePass>,

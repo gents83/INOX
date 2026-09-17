@@ -18,20 +18,18 @@ use crate::{
 pub const COMPUTE_WAVEFRONT_NEXT_BOUNCE_PIPELINE: &str =
     "pipelines/ComputeWavefrontNextBounce.compute_pipeline";
 pub const COMPUTE_WAVEFRONT_NEXT_BOUNCE_NAME: &str = "ComputeWavefrontNextBouncePass";
-pub const WAVEFRONT_NEXT_QUEUE_ID: Uid = generate_static_uid_from_string("WAVEFRONT_NEXT_QUEUE");
-pub const WAVEFRONT_NEXT_HEADER_ID: Uid = generate_static_uid_from_string("WAVEFRONT_NEXT_HEADER");
+pub const WAVEFRONT_NEXT_QUEUE_ID: Uid = generate_static_uid_from_string("WF_NEXT_QUEUE");
+pub const WAVEFRONT_NEXT_HEADER_ID: Uid = generate_static_uid_from_string("WF_NEXT_HEADER");
 pub const WAVEFRONT_NEXT_DISPATCH_ARGS_ID: Uid =
-    generate_static_uid_from_string("WAVEFRONT_NEXT_DISPATCH_ARGS");
-pub const WAVEFRONT_NEXT2_QUEUE_ID: Uid = generate_static_uid_from_string("WAVEFRONT_NEXT2_QUEUE");
-pub const WAVEFRONT_NEXT2_HEADER_ID: Uid =
-    generate_static_uid_from_string("WAVEFRONT_NEXT2_HEADER");
+    generate_static_uid_from_string("WF_NEXT_DISPATCH_ARGS");
+pub const WAVEFRONT_NEXT2_QUEUE_ID: Uid = generate_static_uid_from_string("WF_NEXT2_QUEUE");
+pub const WAVEFRONT_NEXT2_HEADER_ID: Uid = generate_static_uid_from_string("WF_NEXT2_HEADER");
 pub const WAVEFRONT_NEXT2_DISPATCH_ARGS_ID: Uid =
-    generate_static_uid_from_string("WAVEFRONT_NEXT2_DISPATCH_ARGS");
-pub const WAVEFRONT_NEXT3_QUEUE_ID: Uid = generate_static_uid_from_string("WAVEFRONT_NEXT3_QUEUE");
-pub const WAVEFRONT_NEXT3_HEADER_ID: Uid =
-    generate_static_uid_from_string("WAVEFRONT_NEXT3_HEADER");
+    generate_static_uid_from_string("WF_NEXT2_DISPATCH_ARGS");
+pub const WAVEFRONT_NEXT3_QUEUE_ID: Uid = generate_static_uid_from_string("WF_NEXT3_QUEUE");
+pub const WAVEFRONT_NEXT3_HEADER_ID: Uid = generate_static_uid_from_string("WF_NEXT3_HEADER");
 pub const WAVEFRONT_NEXT3_DISPATCH_ARGS_ID: Uid =
-    generate_static_uid_from_string("WAVEFRONT_NEXT3_DISPATCH_ARGS");
+    generate_static_uid_from_string("WF_NEXT3_DISPATCH_ARGS");
 
 pub struct ComputeWavefrontNextBouncePass {
     compute_pass: Resource<ComputePass>,

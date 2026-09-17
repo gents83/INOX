@@ -16,9 +16,9 @@ use crate::{
 pub const COMPUTE_WAVEFRONT_TRAVERSAL_PIPELINE: &str =
     "pipelines/ComputeWavefrontTraversal.compute_pipeline";
 pub const COMPUTE_WAVEFRONT_TRAVERSAL_NAME: &str = "ComputeWavefrontTraversalPass";
-pub const WAVEFRONT_HIT_QUEUE_ID: Uid = generate_static_uid_from_string("WAVEFRONT_HIT_QUEUE");
-pub const WAVEFRONT_HIT_HEADER_ID: Uid = generate_static_uid_from_string("WAVEFRONT_HIT_HEADER");
-pub const WAVEFRONT_SCENE_ID: Uid = generate_static_uid_from_string("WAVEFRONT_PACKED_SCENE");
+pub const WAVEFRONT_HIT_QUEUE_ID: Uid = generate_static_uid_from_string("WF_HIT_QUEUE");
+pub const WAVEFRONT_HIT_HEADER_ID: Uid = generate_static_uid_from_string("WF_HIT_HEADER");
+pub const WAVEFRONT_SCENE_ID: Uid = generate_static_uid_from_string("WF_PACKED_SCENE");
 
 pub struct ComputeWavefrontTraversalPass {
     compute_pass: Resource<ComputePass>,

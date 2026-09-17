@@ -13,10 +13,9 @@ use crate::{wavefront_primary_bindings, DispatchArgs, QueueHeader};
 pub const COMPUTE_WAVEFRONT_DISPATCH_PIPELINE: &str =
     "pipelines/ComputeWavefrontDispatch.compute_pipeline";
 pub const COMPUTE_WAVEFRONT_DISPATCH_NAME: &str = "ComputeWavefrontDispatchPass";
-pub const WAVEFRONT_DISPATCH_ARGS_ID: Uid =
-    generate_static_uid_from_string("WAVEFRONT_DISPATCH_ARGS");
+pub const WAVEFRONT_DISPATCH_ARGS_ID: Uid = generate_static_uid_from_string("WF_DISPATCH_ARGS");
 pub const WAVEFRONT_HIT_DISPATCH_ARGS_ID: Uid =
-    generate_static_uid_from_string("WAVEFRONT_HIT_DISPATCH_ARGS");
+    generate_static_uid_from_string("WF_HIT_DISPATCH_ARGS");
 
 pub struct ComputeWavefrontDispatchPass {
     compute_pass: Resource<ComputePass>,

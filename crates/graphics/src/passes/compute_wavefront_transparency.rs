@@ -21,9 +21,9 @@ pub const COMPUTE_WAVEFRONT_TRANSPARENCY_RESOLVE_PIPELINE: &str =
 pub const COMPUTE_WAVEFRONT_TRANSPARENCY_RESOLVE_NAME: &str =
     "ComputeWavefrontTransparencyResolvePass";
 pub const WAVEFRONT_TRANSPARENT_QUEUE_ID: Uid =
-    generate_static_uid_from_string("WAVEFRONT_TRANSPARENT_QUEUE");
+    generate_static_uid_from_string("WF_TRANSPARENT_QUEUE");
 pub const WAVEFRONT_TRANSPARENT_HEADER_ID: Uid =
-    generate_static_uid_from_string("WAVEFRONT_TRANSPARENT_HEADER");
+    generate_static_uid_from_string("WF_TRANSPARENT_HEADER");
 
 pub struct ComputeWavefrontTransparencyPass {
     compute_pass: Resource<ComputePass>,

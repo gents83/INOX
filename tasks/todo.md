@@ -79,3 +79,15 @@
 - Review fixes add safe temporary browser-profile cleanup, Program Files(x86)/LOCALAPPDATA Chrome and Edge discovery, non-empty platform-directory validation for newly generated `data/pc` and `data/web`, explicit formatting and engine-owned native viewer startup/format marker validation with preserved failure logs, and engine-owned WASM device/queue-submit/frame signals with page and console error capture in browser smoke.
 - Native queue diagnostics validation passes: the viewer registers a post-submit callback only on native targets, staging readback handles mapping errors and poll timeouts without indefinite waits or panics, callback snapshots permit re-registration, and WebGPU/WASM explicitly skips synchronous diagnostics.
 - Final shader review fixes pass focused and full workspace validation: direct-candidate, visibility, and AO-resolve use full-resolution strides, while shade rejects `INVALID_INDEX`, negative, and out-of-range material IDs before packed access; graphics/render/binarizer tests, clippy, formatting, native checks, and render/graphics/binarizer WASM checks all pass.
+
+## Current freeze investigation
+
+- [x] Confirm the queue lock blocker and UID/resource identity root cause.
+- [x] Add a regression contract for unique wavefront resource IDs.
+- [x] Apply one minimal root-cause fix; no temporary freeze diagnostics were present in the worktree.
+- [x] Run focused, connector/graphics/render, and debug viewer smoke validation.
+- [x] Review results and commit with the requested attribution.
+
+### Freeze investigation review
+
+`generate_static_uid_from_string` only uses the first 16 input bytes. Queue/header names sharing a `WAVEFRONT_*` prefix therefore returned the same UID. `GlobalBuffers::vector_with_id` intentionally reuses the existing `Arc` without a type check, so the transparent queue and header aliases referred to one `RwLock`; the apparent queue write deadlock was type-alias corruption, not a retained guard, reader, pass-list lock, or GPU resource initialization wait. All wavefront static resource names now have distinct short prefixes, and a pairwise uniqueness regression contract covers every static wavefront resource ID.

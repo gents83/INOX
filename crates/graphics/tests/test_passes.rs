@@ -11,7 +11,15 @@ use inox_graphics::{
     ReservoirRecord, TransparentHitRecord, BLIT_PASS_NAME, COMPUTE_WAVEFRONT_COMPOSITE_NAME,
     COMPUTE_WAVEFRONT_DIRECT_CANDIDATES_NAME, COMPUTE_WAVEFRONT_DISPATCH_NAME,
     COMPUTE_WAVEFRONT_PRIMARY_NAME, COMPUTE_WAVEFRONT_SHADE_NAME, COMPUTE_WAVEFRONT_TRAVERSAL_NAME,
-    CULLING_PASS_NAME, DEPTH_FIRST_PASS_NAME, DEPTH_PYRAMID_PASS_NAME,
+    CULLING_PASS_NAME, DEPTH_FIRST_PASS_NAME, DEPTH_PYRAMID_PASS_NAME, WAVEFRONT_AO_ID,
+    WAVEFRONT_DIRECT_ACCUMULATOR_ID, WAVEFRONT_DISPATCH_ARGS_ID, WAVEFRONT_FINAL_ACCUMULATOR_ID,
+    WAVEFRONT_HIT_DISPATCH_ARGS_ID, WAVEFRONT_HIT_HEADER_ID, WAVEFRONT_HIT_QUEUE_ID,
+    WAVEFRONT_INDIRECT_ACCUMULATOR_ID, WAVEFRONT_NEXT2_DISPATCH_ARGS_ID, WAVEFRONT_NEXT2_HEADER_ID,
+    WAVEFRONT_NEXT2_QUEUE_ID, WAVEFRONT_NEXT3_DISPATCH_ARGS_ID, WAVEFRONT_NEXT3_HEADER_ID,
+    WAVEFRONT_NEXT3_QUEUE_ID, WAVEFRONT_NEXT_DISPATCH_ARGS_ID, WAVEFRONT_NEXT_HEADER_ID,
+    WAVEFRONT_NEXT_QUEUE_ID, WAVEFRONT_PRIMARY_HEADER_ID, WAVEFRONT_PRIMARY_QUEUE_ID,
+    WAVEFRONT_RESERVOIR_ID, WAVEFRONT_SCENE_ID, WAVEFRONT_TRANSPARENT_HEADER_ID,
+    WAVEFRONT_TRANSPARENT_QUEUE_ID, WAVEFRONT_UPSCALED_ACCUMULATOR_ID,
 };
 
 #[test]
@@ -41,6 +49,41 @@ fn exposes_stable_render_pass_names() {
         COMPUTE_WAVEFRONT_COMPOSITE_NAME,
         "ComputeWavefrontCompositePass"
     );
+}
+
+#[test]
+fn wavefront_resource_ids_are_pairwise_unique() {
+    let ids = [
+        ("ao", WAVEFRONT_AO_ID),
+        ("direct accumulator", WAVEFRONT_DIRECT_ACCUMULATOR_ID),
+        ("direct reservoir", WAVEFRONT_RESERVOIR_ID),
+        ("dispatch", WAVEFRONT_DISPATCH_ARGS_ID),
+        ("final accumulator", WAVEFRONT_FINAL_ACCUMULATOR_ID),
+        ("hit dispatch", WAVEFRONT_HIT_DISPATCH_ARGS_ID),
+        ("hit header", WAVEFRONT_HIT_HEADER_ID),
+        ("hit queue", WAVEFRONT_HIT_QUEUE_ID),
+        ("indirect accumulator", WAVEFRONT_INDIRECT_ACCUMULATOR_ID),
+        ("next queue", WAVEFRONT_NEXT_QUEUE_ID),
+        ("next header", WAVEFRONT_NEXT_HEADER_ID),
+        ("next dispatch", WAVEFRONT_NEXT_DISPATCH_ARGS_ID),
+        ("next2 queue", WAVEFRONT_NEXT2_QUEUE_ID),
+        ("next2 header", WAVEFRONT_NEXT2_HEADER_ID),
+        ("next2 dispatch", WAVEFRONT_NEXT2_DISPATCH_ARGS_ID),
+        ("next3 queue", WAVEFRONT_NEXT3_QUEUE_ID),
+        ("next3 header", WAVEFRONT_NEXT3_HEADER_ID),
+        ("next3 dispatch", WAVEFRONT_NEXT3_DISPATCH_ARGS_ID),
+        ("primary queue", WAVEFRONT_PRIMARY_QUEUE_ID),
+        ("primary header", WAVEFRONT_PRIMARY_HEADER_ID),
+        ("scene", WAVEFRONT_SCENE_ID),
+        ("transparent queue", WAVEFRONT_TRANSPARENT_QUEUE_ID),
+        ("transparent header", WAVEFRONT_TRANSPARENT_HEADER_ID),
+        ("upscaled accumulator", WAVEFRONT_UPSCALED_ACCUMULATOR_ID),
+    ];
+    for (index, (name, id)) in ids.iter().enumerate() {
+        for (other_name, other_id) in ids.iter().skip(index + 1) {
+            assert_ne!(id, other_id, "wavefront IDs {name} and {other_name} alias");
+        }
+    }
 }
 
 #[test]

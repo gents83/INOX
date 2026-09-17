@@ -16,11 +16,10 @@ use crate::{
 pub const COMPUTE_WAVEFRONT_DIRECT_CANDIDATES_PIPELINE: &str =
     "pipelines/ComputeWavefrontDirectCandidates.compute_pipeline";
 pub const COMPUTE_WAVEFRONT_DIRECT_CANDIDATES_NAME: &str = "ComputeWavefrontDirectCandidatesPass";
-pub const WAVEFRONT_RESERVOIR_ID: Uid =
-    generate_static_uid_from_string("WAVEFRONT_DIRECT_RESERVOIR");
-pub const WAVEFRONT_AO_ID: Uid = generate_static_uid_from_string("WAVEFRONT_AO");
+pub const WAVEFRONT_RESERVOIR_ID: Uid = generate_static_uid_from_string("WF_DIRECT_RESERVOIR");
+pub const WAVEFRONT_AO_ID: Uid = generate_static_uid_from_string("WF_AO");
 pub const WAVEFRONT_DIRECT_ACCUMULATOR_ID: Uid =
-    generate_static_uid_from_string("WAVEFRONT_DIRECT_ACCUMULATOR");
+    generate_static_uid_from_string("WF_DIRECT_ACCUMULATOR");
 
 pub struct ComputeWavefrontDirectCandidatesPass {
     compute_pass: Resource<ComputePass>,

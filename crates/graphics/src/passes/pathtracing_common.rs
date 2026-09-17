@@ -6,11 +6,11 @@ use inox_uid::{generate_static_uid_from_string, generate_uid_from_string, Uid};
 
 pub const WAVEFRONT_QUEUE_VERSION: u32 = inox_render::WAVEFRONT_RECORD_VERSION;
 pub const WAVEFRONT_INDIRECT_ACCUMULATOR_ID: Uid =
-    generate_static_uid_from_string("WAVEFRONT_INDIRECT_ACCUMULATOR");
+    generate_static_uid_from_string("WF_INDIRECT_ACCUMULATOR");
 pub const WAVEFRONT_FINAL_ACCUMULATOR_ID: Uid =
-    generate_static_uid_from_string("WAVEFRONT_FINAL_ACCUMULATOR");
+    generate_static_uid_from_string("WF_FINAL_ACCUMULATOR");
 pub const WAVEFRONT_UPSCALED_ACCUMULATOR_ID: Uid =
-    generate_static_uid_from_string("WAVEFRONT_UPSCALED_ACCUMULATOR");
+    generate_static_uid_from_string("WF_UPSCALED_ACCUMULATOR");
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WavefrontQueueBindingIds {
