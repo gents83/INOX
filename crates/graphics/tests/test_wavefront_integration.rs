@@ -498,7 +498,9 @@ mod native_causal_smoke {
             .join(name);
         let expanded = expand_imports(&path, std::fs::read_to_string(&path).unwrap());
         // The native smoke test deliberately uses the portable, non-array texture binding
-        // layout.  ShaderCompiler still supplies the platform WGSL extension preprocessing.
+        // layout. The production native texture-array branch requires the adapter's optional
+        // binding-array feature and is therefore not exercised by this deterministic fixture.
+        // ShaderCompiler still supplies the platform WGSL extension preprocessing.
         let mut result = String::new();
         let mut include = true;
         let mut in_feature = false;
@@ -538,6 +540,15 @@ mod native_causal_smoke {
             size: bytes,
             mapped_at_creation: false,
             usage,
+        })
+    }
+
+    fn uniform(device: &wgpu::Device, bytes: u64, label: &str) -> wgpu::Buffer {
+        device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some(label),
+            size: bytes,
+            mapped_at_creation: false,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         })
     }
 
@@ -1095,12 +1106,36 @@ mod native_causal_smoke {
             1,
         );
         let hit_header_bytes = read(device, queue, &hit_header);
+        let hit_bytes = read(device, queue, &hits);
         let hit_count = u32_at(&hit_header_bytes, 1);
+        let inspected_hits = hit_count.min(PIXELS as u32) as usize;
+        let mut valid_hit_or_miss = 0usize;
+        for hit_index in 0..inspected_hits {
+            let base = hit_index * 8;
+            let distance = f32_at(&hit_bytes, base);
+            let visibility = u32_at(&hit_bytes, base + 1);
+            let barycentric = [f32_at(&hit_bytes, base + 4), f32_at(&hit_bytes, base + 5)];
+            let ray_index = u32_at(&hit_bytes, base + 6);
+            let flags = u32_at(&hit_bytes, base + 7);
+            let finite_record = distance.is_finite()
+                && distance > 0.0
+                && barycentric.iter().all(|value| value.is_finite())
+                && ray_index < count
+                && flags <= 1;
+            let explicit_miss = visibility == 0 && flags == 0 && distance >= 499.0;
+            let valid_hit = visibility != 0 && flags == 1 && distance < 499.0;
+            if finite_record && (explicit_miss || valid_hit) {
+                valid_hit_or_miss += 1;
+            }
+        }
         stage(
             "traversal",
-            hit_count <= count && u32_at(&hit_header_bytes, 3) == 0,
+            hit_count > 0
+                && hit_count <= count
+                && u32_at(&hit_header_bytes, 3) == 0
+                && valid_hit_or_miss > 0,
             format!(
-                "rays={count}, hits={hit_count}, overflow={}",
+                "rays={count}, hits={hit_count}, valid_hit_or_miss={valid_hit_or_miss}, overflow={}",
                 u32_at(&hit_header_bytes, 3)
             ),
         );
@@ -1134,6 +1169,22 @@ mod native_causal_smoke {
             hit_count == 0 || u32_at(&hit_args_bytes, 0) > 0,
             format!("hits={hit_count}, args={}", u32_at(&hit_args_bytes, 0)),
         );
+        let expected_ray_index = (0..inspected_hits)
+            .find(|hit_index| {
+                let base = hit_index * 8;
+                let distance = f32_at(&hit_bytes, base);
+                let visibility = u32_at(&hit_bytes, base + 1);
+                let ray_index = u32_at(&hit_bytes, base + 6);
+                let flags = u32_at(&hit_bytes, base + 7);
+                distance.is_finite()
+                    && distance > 0.0
+                    && ray_index < count
+                    && ((visibility == 0 && flags == 0 && distance >= 499.0)
+                        || (visibility != 0 && flags == 1 && distance < 499.0))
+            })
+            .map(|hit_index| u32_at(&hit_bytes, hit_index * 8 + 6) as usize)
+            .expect("traversal must produce a valid hit or miss record");
+        let expected_pixel = u32_at(&ray_bytes, expected_ray_index * 16 + 12) as usize;
         let indirect = storage(
             device,
             (PIXELS * 32) as u64,
@@ -1155,7 +1206,7 @@ mod native_causal_smoke {
                 },
             ],
         });
-        let textures = storage(device, 2048 * 16, "causal textures", false);
+        let textures = uniform(device, 2048 * 16, "causal textures");
         write(queue, &textures, &bytes_u32(&[u32::MAX, 0, 0, 0]));
         let shade1 = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("shade queues"),
@@ -1230,13 +1281,31 @@ mod native_causal_smoke {
             );
         }
         let indirect_bytes = read(device, queue, &indirect);
-        let indirect_values = (0..12)
-            .map(|i| f32_at(&indirect_bytes, i))
+        let mut finite_pixels = 0usize;
+        let mut nonzero_pixels = 0usize;
+        for pixel in 0..PIXELS {
+            let values = (0..3)
+                .map(|channel| f32_at(&indirect_bytes, pixel * 8 + channel))
+                .collect::<Vec<_>>();
+            if values.iter().all(|value| value.is_finite()) {
+                finite_pixels += 1;
+            }
+            if values.iter().any(|value| *value > 0.0) {
+                nonzero_pixels += 1;
+            }
+        }
+        let expected_indirect = (0..3)
+            .map(|channel| f32_at(&indirect_bytes, expected_pixel * 8 + channel))
             .collect::<Vec<_>>();
         stage(
             "shade",
-            indirect_values.iter().all(|v| v.is_finite()),
-            format!("indirect={indirect_values:?}"),
+            finite_pixels == PIXELS
+                && nonzero_pixels > 0
+                && expected_indirect.iter().all(|value| value.is_finite())
+                && expected_indirect.iter().any(|value| *value > 0.0),
+            format!(
+                "expected_pixel={expected_pixel}, expected_indirect={expected_indirect:?}, finite_pixels={finite_pixels}/{PIXELS}, nonzero_pixels={nonzero_pixels}/{PIXELS}"
+            ),
         );
         let direct = storage(
             device,
@@ -1280,13 +1349,37 @@ mod native_causal_smoke {
         });
         dispatch(device, queue, &composite, &[&composite_group], 1, 1, 1);
         let final_bytes = read(device, queue, &final_acc);
-        let final_values = (0..3).map(|i| f32_at(&final_bytes, i)).collect::<Vec<_>>();
+        let mut finite_pixels = 0usize;
+        let mut nonzero_pixels = 0usize;
+        let mut sum = 0.0f32;
+        let mut max_value = 0.0f32;
+        for pixel in 0..PIXELS {
+            let values = (0..3)
+                .map(|channel| f32_at(&final_bytes, pixel * 8 + channel))
+                .collect::<Vec<_>>();
+            if values.iter().all(|value| value.is_finite()) {
+                finite_pixels += 1;
+            }
+            if values.iter().any(|value| *value > 0.0) {
+                nonzero_pixels += 1;
+            }
+            for value in values {
+                sum += value;
+                max_value = max_value.max(value);
+            }
+        }
+        let finite_ratio = finite_pixels as f32 / PIXELS as f32;
+        let nonzero_ratio = nonzero_pixels as f32 / PIXELS as f32;
+        let mean_value = sum / (PIXELS * 3) as f32;
         stage(
             "composite",
-            final_values.iter().all(|v| v.is_finite())
-                && final_values.iter().any(|v| *v > 0.0)
-                && final_values.iter().any(|v| *v < 1.0),
-            format!("final={final_values:?}"),
+            finite_ratio == 1.0
+                && nonzero_ratio > 0.0
+                && mean_value < 1.0
+                && max_value < 1.0,
+            format!(
+                "finite_ratio={finite_ratio}, nonzero_ratio={nonzero_ratio}, mean={mean_value}, max={max_value}"
+            ),
         );
         let previous = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("causal previous"),
@@ -1430,17 +1523,35 @@ mod native_causal_smoke {
         queue.submit(Some(encoder.finish()));
         poll(device);
         let output_bytes = read_texture(device, queue, &output, WIDTH, HEIGHT);
-        let output_values = output_bytes
-            .as_chunks::<4>()
-            .0
+        let output_pixels = output_bytes.as_chunks::<4>().0;
+        let finite_pixels = output_pixels.len();
+        let nonzero_pixels = output_pixels
             .iter()
-            .flat_map(|pixel| pixel[..3].iter().copied())
-            .collect::<Vec<_>>();
+            .filter(|pixel| pixel[..3].iter().any(|value| *value > 0))
+            .count();
+        let channel_count = (output_pixels.len() * 3) as f32;
+        let sum = output_pixels
+            .iter()
+            .flat_map(|pixel| pixel[..3].iter())
+            .map(|value| *value as f32 / 255.0)
+            .sum::<f32>();
+        let finite_ratio = finite_pixels as f32 / PIXELS as f32;
+        let nonzero_ratio = nonzero_pixels as f32 / PIXELS as f32;
+        let mean_value = sum / channel_count;
+        let max_value = output_pixels
+            .iter()
+            .flat_map(|pixel| pixel[..3].iter())
+            .map(|value| *value as f32 / 255.0)
+            .fold(0.0f32, f32::max);
         stage(
             "finalize",
-            output_values.iter().any(|value| *value > 0)
-                && output_values.iter().any(|value| *value < 255),
-            format!("output first pixel={:?}", &output_bytes[..4]),
+            finite_ratio == 1.0
+                && nonzero_ratio > 0.0
+                && mean_value < 1.0
+                && max_value < 1.0,
+            format!(
+                "finite_ratio={finite_ratio}, nonzero_ratio={nonzero_ratio}, mean={mean_value}, max={max_value}"
+            ),
         );
     }
 }
