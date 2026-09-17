@@ -379,11 +379,13 @@ impl RenderContext {
         let adapter = wgpu::util::initialize_adapter_from_env_or_default(&instance, None)
             .await
             .ok()?;
+        let requirements =
+            negotiate_gpu_requirements(adapter.features(), &adapter.limits()).ok()?;
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
                 label: Some("Reload Test Device"),
-                required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::downlevel_defaults(),
+                required_features: requirements.required_features,
+                required_limits: requirements.required_limits,
                 memory_hints: wgpu::MemoryHints::Performance,
                 trace: wgpu::Trace::Off,
                 experimental_features: wgpu::ExperimentalFeatures::default(),

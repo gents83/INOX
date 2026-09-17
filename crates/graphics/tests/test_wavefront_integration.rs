@@ -745,7 +745,13 @@ mod native_causal_smoke {
         let bvh = scene.range(SceneTableKind::Bvh).offset_words;
         let materials = scene.range(SceneTableKind::Materials).offset_words;
         let words = scene.words_mut();
-        words[vertices as usize..vertices as usize + 3].copy_from_slice(&[0, 1023, 1023 << 20]);
+        // Three distinct 10-bit-unorm vertices: origin, +Y, and +X.  The shader
+        // expands these from the transform bounding box into a nondegenerate triangle.
+        words[vertices as usize..vertices as usize + 3].copy_from_slice(&[
+            0,
+            1023 << 10,
+            1023 << 20,
+        ]);
         words[transforms as usize..transforms as usize + 16].copy_from_slice(&[
             0,
             0,
@@ -756,16 +762,16 @@ mod native_causal_smoke {
             0,
             1.0f32.to_bits(),
             (-1.0f32).to_bits(),
-            0,
+            (-1.0f32).to_bits(),
             (-1.0f32).to_bits(),
             1.0f32.to_bits(),
             1.0f32.to_bits(),
-            0,
+            1.0f32.to_bits(),
             1.0f32.to_bits(),
             1.0f32.to_bits(),
         ]);
         words[meshes as usize..meshes as usize + 16]
-            .copy_from_slice(&[0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+            .copy_from_slice(&[0, 0, 0, 0, 0, 1, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0]);
         words[meshlets as usize..meshlets as usize + 20]
             .copy_from_slice(&[0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
         let mut node = [0u32; 16];
@@ -859,8 +865,8 @@ mod native_causal_smoke {
                     .copy_from_slice(&1.0f32.to_ne_bytes());
             }
         }
-        constants[320..324].copy_from_slice(&WIDTH.to_ne_bytes());
-        constants[324..328].copy_from_slice(&HEIGHT.to_ne_bytes());
+        constants[320..324].copy_from_slice(&(WIDTH as f32).to_ne_bytes());
+        constants[324..328].copy_from_slice(&(HEIGHT as f32).to_ne_bytes());
         constants[328..332].copy_from_slice(&1u32.to_ne_bytes());
         constants[344..348].copy_from_slice(&52u32.to_ne_bytes());
         constants[400..404].copy_from_slice(&8u32.to_ne_bytes());
@@ -1251,10 +1257,98 @@ mod native_causal_smoke {
             "causal indirect accumulator",
             false,
         );
-        let shade = pipeline(device, "compute_wavefront_shade.wgsl");
+        let shade0_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("causal shade scene layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+            ],
+        });
+        let shade1_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("causal shade queue layout"),
+            entries: &(0..6)
+                .map(|binding| wgpu::BindGroupLayoutEntry {
+                    binding,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: if binding == 4 {
+                            wgpu::BufferBindingType::Storage { read_only: false }
+                        } else if binding == 5 {
+                            wgpu::BufferBindingType::Uniform
+                        } else {
+                            wgpu::BufferBindingType::Storage { read_only: true }
+                        },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                })
+                .collect::<Vec<_>>(),
+        });
+        let shade2_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("causal shade texture layout"),
+            entries: &std::iter::once(wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                count: None,
+            })
+            .chain((1..8).map(|binding| wgpu::BindGroupLayoutEntry {
+                binding,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Texture {
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    view_dimension: wgpu::TextureViewDimension::D2Array,
+                    multisampled: false,
+                },
+                count: None,
+            }))
+            .collect::<Vec<_>>(),
+        });
+        let shade_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("causal shade pipeline layout"),
+            bind_group_layouts: &[
+                Some(&shade0_layout),
+                Some(&shade1_layout),
+                Some(&shade2_layout),
+            ],
+            immediate_size: 0,
+        });
+        let shade_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("compute_wavefront_shade.wgsl"),
+            source: wgpu::ShaderSource::Wgsl(Cow::Owned(production_shader(
+                "compute_wavefront_shade.wgsl",
+            ))),
+        });
+        let shade = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("compute_wavefront_shade.wgsl"),
+            layout: Some(&shade_layout),
+            module: &shade_module,
+            entry_point: Some("main"),
+            compilation_options: Default::default(),
+            cache: None,
+        });
         let shade0 = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("shade scene"),
-            layout: &shade.get_bind_group_layout(0),
+            layout: &shade0_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
@@ -1270,7 +1364,7 @@ mod native_causal_smoke {
         write(queue, &textures, &bytes_u32(&[u32::MAX, 0, 0, 0]));
         let shade1 = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("shade queues"),
-            layout: &shade.get_bind_group_layout(1),
+            layout: &shade1_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
@@ -1313,7 +1407,10 @@ mod native_causal_smoke {
             view_formats: &[],
         });
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor::default());
-        let tex_view = tex.create_view(&Default::default());
+        let tex_view = tex.create_view(&wgpu::TextureViewDescriptor {
+            dimension: Some(wgpu::TextureViewDimension::D2Array),
+            ..Default::default()
+        });
         let mut tex_entries = vec![wgpu::BindGroupEntry {
             binding: 0,
             resource: wgpu::BindingResource::Sampler(&sampler),
@@ -1326,7 +1423,7 @@ mod native_causal_smoke {
         }
         let shade2 = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("shade textures"),
-            layout: &shade.get_bind_group_layout(2),
+            layout: &shade2_layout,
             entries: &tex_entries,
         });
         if hit_count > 0 {
