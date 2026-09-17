@@ -175,19 +175,9 @@ mod native_gpu {
     use inox_messenger::MessageHub;
     use inox_render::RenderContext;
     use inox_resources::SharedData;
+    use std::path::PathBuf;
     use std::sync::Arc;
     use std::time::Duration;
-
-    #[repr(C)]
-    #[derive(Clone, Copy, Default)]
-    struct GpuDiagnostics {
-        gbuffer_valid: u32,
-        primary_count: u32,
-        hit_count: u32,
-        final_r: f32,
-        final_g: f32,
-        final_b: f32,
-    }
 
     fn readback(device: &wgpu::Device, queue: &wgpu::Queue, buffer: &wgpu::Buffer) -> Vec<u8> {
         let staging = device.create_buffer(&wgpu::BufferDescriptor {
@@ -222,74 +212,128 @@ mod native_gpu {
         bytes
     }
 
+    fn production_shader(name: &str) -> String {
+        fn expand(path: &std::path::Path, source: String) -> String {
+            source
+                .lines()
+                .map(|line| {
+                    let Some(import) = line
+                        .trim()
+                        .strip_prefix("#import")
+                        .map(str::trim)
+                        .map(|value| value.trim_matches('"'))
+                    else {
+                        return format!("{line}\n");
+                    };
+                    let imported = path.parent().unwrap().join(import);
+                    expand(&imported, std::fs::read_to_string(&imported).unwrap())
+                })
+                .collect()
+        }
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../data_raw/shaders/wgsl")
+            .join(name);
+        expand(&path, std::fs::read_to_string(&path).unwrap())
+    }
+
+    fn write_bytes(queue: &wgpu::Queue, buffer: &wgpu::Buffer, bytes: &[u8]) {
+        queue.write_buffer(buffer, 0, bytes);
+    }
+
+    fn storage_buffer(device: &wgpu::Device, size: u64, label: &str) -> wgpu::Buffer {
+        device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some(label),
+            size,
+            mapped_at_creation: false,
+            usage: wgpu::BufferUsages::STORAGE
+                | wgpu::BufferUsages::COPY_SRC
+                | wgpu::BufferUsages::COPY_DST,
+        })
+    }
+
     #[test]
-    fn headless_gpu_produces_finite_stage_diagnostics() {
+    fn headless_gpu_runs_production_primary_and_composite_sources() {
         let shared_data = Arc::new(SharedData::default());
         let message_hub = Arc::new(MessageHub::default());
         let Some(context) = block_on(RenderContext::create_headless(shared_data, message_hub))
         else {
-            eprintln!("SKIP: no native WebGPU adapter available");
+            eprintln!("SKIPPED: no native WebGPU adapter available");
             return;
         };
         let device = &context.webgpu.device;
         let queue = &context.webgpu.queue;
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("wavefront integration diagnostic shader"),
-            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(
-                "@group(0) @binding(0) var<storage, read_write> d: array<u32>;\n@compute @workgroup_size(1) fn main() { d[0] = 1u; d[1] = 1u; d[2] = 1u; d[3] = 0x3f800000u; d[4] = 0x3f000000u; d[5] = 0u; }",
-            )),
-        });
-        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("wavefront integration diagnostics"),
-            size: std::mem::size_of::<GpuDiagnostics>() as u64,
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+        let mut constant_bytes = vec![0u8; std::mem::size_of::<inox_render::ConstantData>()];
+        constant_bytes[320..324].copy_from_slice(&1.0f32.to_ne_bytes());
+        constant_bytes[324..328].copy_from_slice(&1.0f32.to_ne_bytes());
+        let constant = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("production constant data"),
+            size: constant_bytes.len() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
-        let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("wavefront integration diagnostics layout"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: false },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
+        write_bytes(queue, &constant, &constant_bytes);
+
+        let primary_source = production_shader("compute_wavefront_primary.wgsl");
+        let primary_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("production wavefront primary"),
+            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Owned(primary_source)),
         });
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("wavefront integration diagnostics bind group"),
-            layout: &layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: buffer.as_entire_binding(),
-            }],
-        });
-        let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("wavefront integration diagnostics pipeline"),
-            layout: Some(
-                &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("wavefront integration diagnostics pipeline layout"),
-                    bind_group_layouts: &[Some(&layout)],
-                    immediate_size: 0,
-                }),
-            ),
-            module: &shader,
+        let primary = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("production wavefront primary pipeline"),
+            layout: None,
+            module: &primary_module,
             entry_point: Some("main"),
             compilation_options: wgpu::PipelineCompilationOptions::default(),
             cache: None,
         });
+        let world = storage_buffer(device, 16, "production G-buffer world");
+        let header = storage_buffer(device, 16, "production primary header");
+        let rays = storage_buffer(device, 64, "production primary queue");
+        let mut header_words = Vec::new();
+        for word in [0u32, 0, 1, 0] {
+            header_words.extend_from_slice(&word.to_ne_bytes());
+        }
+        write_bytes(queue, &header, &header_words);
+        let packed_normal = 100663296.0f32;
+        write_bytes(queue, &world, &packed_normal.to_ne_bytes());
+        let primary_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("production primary bind group 0"),
+            layout: &primary.get_bind_group_layout(0),
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: constant.as_entire_binding(),
+            }],
+        });
+        let primary_group_entries = [
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: world.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: header.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 4,
+                resource: rays.as_entire_binding(),
+            },
+        ];
+        let primary_group_1 = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("production primary bind group 1"),
+            layout: &primary.get_bind_group_layout(1),
+            entries: &primary_group_entries,
+        });
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("wavefront integration encoder"),
+            label: Some("production primary encoder"),
         });
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("wavefront integration pass"),
+                label: Some("production primary pass"),
                 timestamp_writes: None,
             });
-            pass.set_pipeline(&pipeline);
-            pass.set_bind_group(0, &bind_group, &[]);
+            pass.set_pipeline(&primary);
+            pass.set_bind_group(0, &primary_group, &[]);
+            pass.set_bind_group(1, &primary_group_1, &[]);
             pass.dispatch_workgroups(1, 1, 1);
         }
         queue.submit(Some(encoder.finish()));
@@ -298,20 +342,114 @@ mod native_gpu {
                 submission_index: None,
                 timeout: Some(Duration::from_secs(10)),
             })
-            .expect("GPU stage submission must complete");
-        let bytes = readback(device, queue, &buffer);
-        let words = unsafe { std::slice::from_raw_parts(bytes.as_ptr() as *const u32, 6) };
-        assert_eq!(words[0], 1, "G-buffer normal/material validity stage");
-        assert_eq!(words[1], 1, "primary queue count stage");
-        assert_eq!(words[2], 1, "hit queue count stage");
-        let final_r = f32::from_bits(words[3]);
-        let final_g = f32::from_bits(words[4]);
-        let final_b = f32::from_bits(words[5]);
-        assert!(final_r.is_finite() && final_g.is_finite() && final_b.is_finite());
-        assert!(final_r > 0.0, "final accumulation must be nonzero");
+            .expect("primary submission must complete");
+        let header_words = readback(device, queue, &header);
+        let primary_count = u32::from_ne_bytes(header_words[4..8].try_into().unwrap());
+        assert_eq!(primary_count, 1, "production primary queue count stage");
+        let ray_bytes = readback(device, queue, &rays);
+        let ray_values = (0..12)
+            .map(|index| {
+                f32::from_ne_bytes(ray_bytes[index * 4..index * 4 + 4].try_into().unwrap())
+            })
+            .collect::<Vec<_>>();
         assert!(
-            [final_r, final_g, final_b].iter().any(|value| *value < 1.0),
-            "final accumulation must not be white"
+            ray_values.iter().all(|value| value.is_finite()),
+            "production primary ray record must be finite"
+        );
+        assert!(
+            ray_values.iter().any(|value| *value != 0.0),
+            "production primary ray record must be nonzero"
+        );
+
+        let composite_source = production_shader("compute_wavefront_composite.wgsl");
+        let composite_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("production wavefront composite"),
+            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Owned(composite_source)),
+        });
+        let composite = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("production wavefront composite pipeline"),
+            layout: None,
+            module: &composite_module,
+            entry_point: Some("main"),
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            cache: None,
+        });
+        let final_accumulator = storage_buffer(device, 32, "production final accumulator");
+        let direct = storage_buffer(device, 32, "production direct accumulator");
+        let ao = storage_buffer(device, 16, "production AO state");
+        let indirect = storage_buffer(device, 32, "production indirect accumulator");
+        let mut direct_bytes = Vec::new();
+        for value in [2.0f32, 0.5, 0.25, 1.0] {
+            direct_bytes.extend_from_slice(&value.to_ne_bytes());
+        }
+        write_bytes(queue, &direct, &direct_bytes);
+        let mut ao_bytes = Vec::new();
+        for word in [
+            1.0f32.to_ne_bytes(),
+            1.0f32.to_ne_bytes(),
+            1u32.to_ne_bytes(),
+            0u32.to_ne_bytes(),
+        ] {
+            ao_bytes.extend_from_slice(&word);
+        }
+        write_bytes(queue, &ao, &ao_bytes);
+        let mut indirect_bytes = Vec::new();
+        for value in [0.1f32, 0.2, 0.3, 1.0] {
+            indirect_bytes.extend_from_slice(&value.to_ne_bytes());
+        }
+        write_bytes(queue, &indirect, &indirect_bytes);
+        let composite_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("production composite bind group"),
+            layout: &composite.get_bind_group_layout(0),
+            entries: &[
+                constant.as_entire_binding(),
+                final_accumulator.as_entire_binding(),
+                direct.as_entire_binding(),
+                ao.as_entire_binding(),
+                indirect.as_entire_binding(),
+            ]
+            .iter()
+            .enumerate()
+            .map(|(binding, resource)| wgpu::BindGroupEntry {
+                binding: binding as u32,
+                resource: resource.clone(),
+            })
+            .collect::<Vec<_>>(),
+        });
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("production composite encoder"),
+        });
+        {
+            let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                label: Some("production composite pass"),
+                timestamp_writes: None,
+            });
+            pass.set_pipeline(&composite);
+            pass.set_bind_group(0, &composite_group, &[]);
+            pass.dispatch_workgroups(1, 1, 1);
+        }
+        queue.submit(Some(encoder.finish()));
+        device
+            .poll(wgpu::PollType::Wait {
+                submission_index: None,
+                timeout: Some(Duration::from_secs(10)),
+            })
+            .expect("composite submission must complete");
+        let output = readback(device, queue, &final_accumulator);
+        let output_values = (0..3)
+            .map(|index| f32::from_ne_bytes(output[index * 4..index * 4 + 4].try_into().unwrap()))
+            .collect::<Vec<_>>();
+        assert!(
+            output_values.iter().all(|value| value.is_finite()),
+            "production final accumulation must be finite"
+        );
+        assert!(
+            output_values.iter().any(|value| *value > 0.0),
+            "production final accumulation must be nonzero"
+        );
+        assert!(
+            output_values.iter().any(|value| *value < 1.0),
+            "production final accumulation must not be white"
         );
     }
 }
