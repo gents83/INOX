@@ -41,7 +41,9 @@ const WORKGROUP_SIZE: u32 = 8u;
 fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
 ) {
-    let dimensions = vec2<u32>(DEFAULT_WIDTH, DEFAULT_HEIGHT);
+    // G-buffer producers and all wavefront consumers use the active full-resolution
+    // screen dimensions. Render scale is applied only by reconstruction/upscale.
+    let dimensions = vec2<u32>(u32(constant_data.screen_width), u32(constant_data.screen_height));
     let pixel = vec2<u32>(global_invocation_id.x, global_invocation_id.y);
     if (pixel.x >= dimensions.x || pixel.y >= dimensions.y) {
         return;

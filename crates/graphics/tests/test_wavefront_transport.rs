@@ -99,17 +99,19 @@ fn environment_fallback_and_separate_accumulators_are_contracts() {
 }
 
 #[test]
-fn bounce_dispatches_chain_through_previous_destination() {
+fn bounce_dispatches_consume_shared_hit_args_and_chain_queues() {
     let stages = wavefront_bounce_stages();
     assert_eq!(stages.len(), 8);
+    for stage in &stages {
+        assert_eq!(
+            stage.bindings.dispatch_args,
+            inox_graphics::WAVEFRONT_HIT_DISPATCH_ARGS_ID
+        );
+    }
     for pair in stages.windows(2) {
         assert_eq!(
-            pair[1].bindings.dispatch_args,
-            pair[0].destination_dispatch_args
-        );
-        assert_ne!(
-            pair[1].bindings.dispatch_args,
-            inox_graphics::WAVEFRONT_HIT_DISPATCH_ARGS_ID
+            pair[1].bindings.source_ray_queue,
+            pair[0].bindings.destination_ray_queue
         );
     }
 }

@@ -123,11 +123,13 @@ pub fn wavefront_bounce_stage(
 pub fn wavefront_bounce_stages() -> Vec<WavefrontBounceStage> {
     let mut stages = Vec::with_capacity(8);
     let mut source_queue = crate::WAVEFRONT_PRIMARY_QUEUE_ID;
-    let mut source_dispatch = crate::WAVEFRONT_HIT_DISPATCH_ARGS_ID;
     for index in 1..=8 {
-        let stage = wavefront_bounce_stage(index, source_queue, source_dispatch);
+        // Every bounce consumes the shared hit-dispatch arguments written by
+        // its preceding hit-dispatch pass.  The per-bounce destination args
+        // are only the traversal producer for the next stage.
+        let stage =
+            wavefront_bounce_stage(index, source_queue, crate::WAVEFRONT_HIT_DISPATCH_ARGS_ID);
         source_queue = stage.bindings.destination_ray_queue;
-        source_dispatch = stage.destination_dispatch_args;
         stages.push(stage);
     }
     stages
