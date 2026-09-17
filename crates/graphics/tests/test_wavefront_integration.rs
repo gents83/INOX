@@ -878,8 +878,8 @@ mod native_causal_smoke {
         };
         let device = &context.webgpu.device;
         let queue = &context.webgpu.queue;
-        if device.limits().max_storage_buffers_per_shader_stage < 5 {
-            eprintln!("SKIPPED: causal native wavefront smoke requires five storage buffers for production traversal; adapter limit is {} (maximum causal prefix is surface/primary/dispatch)", device.limits().max_storage_buffers_per_shader_stage);
+        if device.limits().max_storage_buffers_per_shader_stage < 6 {
+            eprintln!("SKIPPED: causal native wavefront smoke requires six storage buffers for production shade; adapter limit is {} (causal prefix excludes transparency/next-bounce/direct/AO/denoise/upscale; direct/AO are seeded for composite)", device.limits().max_storage_buffers_per_shader_stage);
             return;
         }
         let mut constants = vec![0u8; CONSTANT_BYTES];
