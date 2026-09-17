@@ -74,4 +74,26 @@ impl BindingDataBuffer {
         let id = data.buffer_id();
         self.bind_buffer_with_id(id, label, data, count, usage, render_context)
     }
+
+    /// Rewrite an already-bound storage buffer immediately after its CPU mirror changes.
+    ///
+    /// `mark_buffer_as_changed` only schedules a later binding pass. Queue headers are
+    /// reset during pass updates, after binding initialization, so they need this direct
+    /// upload path before the command buffer is encoded.
+    pub fn update_buffer<T>(&self, data: &mut T, render_context: &RenderContext) -> bool
+    where
+        T: AsBinding,
+    {
+        let id = data.buffer_id();
+        let usage = wgpu::BufferUsages::STORAGE
+            | wgpu::BufferUsages::COPY_DST
+            | wgpu::BufferUsages::COPY_SRC;
+        let mut buffers = self.buffers.write().unwrap();
+        let buffer = buffers.entry(id).or_default();
+        let changed = buffer.bind(None, data, None, usage, render_context);
+        if changed {
+            self.mark_buffer_as_changed(id);
+        }
+        changed
+    }
 }

@@ -189,6 +189,9 @@ impl BufferRef {
             size += WGPU_FIXED_ALIGNMENT;
         }
         let is_changed = self.init(render_context, size, usage, name.as_str());
+        // Every bind rewrites the value from the beginning of the allocation. This
+        // matters when an existing buffer is refreshed after pass initialization.
+        self.offset = 0;
         if usage.intersects(wgpu::BufferUsages::COPY_DST) {
             if let Some(count) = count {
                 let len = count as u64;

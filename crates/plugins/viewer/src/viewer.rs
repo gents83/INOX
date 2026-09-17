@@ -614,8 +614,6 @@ impl Viewer {
 
         #[cfg(not(target_arch = "wasm32"))]
         render_context.add_post_submit_callback(report_wavefront_queue_diagnostics);
-        #[cfg(target_arch = "wasm32")]
-        eprintln!("wavefront queue diagnostics registration skipped on WebGPU/WASM");
 
         let viewer_system = ViewerSystem::new(context, render_context, false);
         let object_system = ObjectSystem::new(context);

@@ -201,7 +201,7 @@ impl Pass for ComputeWavefrontNextBouncePass {
             header[0].count = 0;
             header[0].overflowed = 0;
             header[0].capacity = queue_capacity_u32(self.next_queue.read().unwrap().len());
-            render_context.mark_as_dirty(header.buffer_id());
+            render_context.update_buffer(&mut *header);
         }
         let buffers = render_context.buffers();
         let args_id = self.dispatch_args.read().unwrap().buffer_id();

@@ -90,6 +90,17 @@ enum BindingType {
     TextureArray(usize, Box<[TextureId; MAX_TEXTURE_ATLAS_COUNT as usize]>),
 }
 
+impl BindingType {
+    fn binding_index(&self) -> usize {
+        match self {
+            Self::Buffer(index, _)
+            | Self::DefaultSampler(index, _)
+            | Self::Texture(index, _, _)
+            | Self::TextureArray(index, _) => *index,
+        }
+    }
+}
+
 pub struct BindingData {
     render_context: RenderContextRc,
     bind_group_layout: Vec<wgpu::BindGroupLayout>,
@@ -289,7 +300,10 @@ impl BindingData {
 
         self.create_group_and_binding_index(info.group_index);
 
-        if info.binding_index >= self.bind_group_layout_entries[info.group_index].len() {
+        if !self.bind_group_layout_entries[info.group_index]
+            .iter()
+            .any(|entry| entry.binding == info.binding_index as u32)
+        {
             let layout_entry = wgpu::BindGroupLayoutEntry {
                 binding: info.binding_index as _,
                 visibility: info.stage.into(),
@@ -306,21 +320,32 @@ impl BindingData {
                 },
                 count: None,
             };
-            self.bind_group_layout_entries[info.group_index].push(layout_entry);
+            let entries = &mut self.bind_group_layout_entries[info.group_index];
+            entries.push(layout_entry);
+            entries.sort_by_key(|entry| entry.binding);
             self.is_layout_changed = true;
         }
 
-        if info.binding_index >= self.binding_types[info.group_index].len() {
-            self.binding_types[info.group_index]
-                .push(BindingType::Buffer(info.binding_index, data_id));
-            self.is_data_changed = true;
-        } else if let BindingType::Buffer(_, old_data_id) =
-            &mut self.binding_types[info.group_index][info.binding_index]
+        if let Some(position) = self.binding_types[info.group_index]
+            .iter()
+            .position(|binding| binding.binding_index() == info.binding_index)
         {
-            if *old_data_id != data_id {
-                *old_data_id = data_id;
-                self.is_data_changed = true;
+            if let BindingType::Buffer(_, old_data_id) =
+                &mut self.binding_types[info.group_index][position]
+            {
+                if *old_data_id != data_id {
+                    *old_data_id = data_id;
+                    self.is_data_changed = true;
+                }
             }
+        } else {
+            let types = &mut self.binding_types[info.group_index];
+            let position = types
+                .iter()
+                .position(|binding| binding.binding_index() > info.binding_index)
+                .unwrap_or(types.len());
+            types.insert(position, BindingType::Buffer(info.binding_index, data_id));
+            self.is_data_changed = true;
         }
         self
     }
@@ -455,7 +480,10 @@ impl BindingData {
 
         self.create_group_and_binding_index(info.group_index);
 
-        if self.bind_group_layout_entries[info.group_index].len() <= info.binding_index {
+        if !self.bind_group_layout_entries[info.group_index]
+            .iter()
+            .any(|entry| entry.binding == info.binding_index as u32)
+        {
             let render_targets = self.render_context.texture_handler().render_targets();
             if let Some(texture) = render_targets.iter().find(|t| t.id() == texture_id) {
                 let format: wgpu::TextureFormat = (*texture.format()).into();
@@ -496,24 +524,35 @@ impl BindingData {
                     },
                     count: None,
                 });
+                self.bind_group_layout_entries[info.group_index].sort_by_key(|entry| entry.binding);
                 self.is_layout_changed = true;
             }
 
-            if self.binding_types[info.group_index].len() <= info.binding_index {
-                self.binding_types[info.group_index].push(BindingType::Texture(
-                    info.binding_index,
-                    *texture_id,
-                    view_index,
-                ));
+            if !self.binding_types[info.group_index]
+                .iter()
+                .any(|binding| binding.binding_index() == info.binding_index)
+            {
+                let types = &mut self.binding_types[info.group_index];
+                let position = types
+                    .iter()
+                    .position(|binding| binding.binding_index() > info.binding_index)
+                    .unwrap_or(types.len());
+                types.insert(
+                    position,
+                    BindingType::Texture(info.binding_index, *texture_id, view_index),
+                );
                 self.is_data_changed = true;
             }
         }
-        if self.binding_types[info.group_index].len() > info.binding_index {
+        if let Some(position) = self.binding_types[info.group_index]
+            .iter()
+            .position(|binding| binding.binding_index() == info.binding_index)
+        {
             if let BindingType::Texture(_, id, view) =
-                &self.binding_types[info.group_index][info.binding_index]
+                &self.binding_types[info.group_index][position]
             {
                 if id != texture_id || view != &view_index {
-                    self.binding_types[info.group_index][info.binding_index] =
+                    self.binding_types[info.group_index][position] =
                         BindingType::Texture(info.binding_index, *texture_id, view_index);
                     self.is_data_changed = true;
                 }

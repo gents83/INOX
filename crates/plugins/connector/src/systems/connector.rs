@@ -167,28 +167,6 @@ impl System for Connector {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{config_plugin_name_matches, endpoint_from_config};
-    use crate::config::Config;
-
-    #[test]
-    fn connector_reads_only_its_own_config_event() {
-        assert!(config_plugin_name_matches("inox_connector"));
-        assert!(!config_plugin_name_matches("inox_viewer"));
-    }
-
-    #[test]
-    fn connector_does_not_start_until_endpoint_is_valid() {
-        assert!(endpoint_from_config(&Config {
-            host_address: "127.0.0.1".to_string(),
-            port: 8123,
-        })
-        .is_some());
-        assert!(endpoint_from_config(&Config::default()).is_none());
-    }
-}
-
 fn client_thread_execution(
     mut client_stream: TcpStream,
     addr: SocketAddr,
@@ -217,4 +195,26 @@ fn client_thread_execution(
     }
 
     println!("Thread for client at {addr:?} terminated");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{config_plugin_name_matches, endpoint_from_config};
+    use crate::config::Config;
+
+    #[test]
+    fn connector_reads_only_its_own_config_event() {
+        assert!(config_plugin_name_matches("inox_connector"));
+        assert!(!config_plugin_name_matches("inox_viewer"));
+    }
+
+    #[test]
+    fn connector_does_not_start_until_endpoint_is_valid() {
+        assert!(endpoint_from_config(&Config {
+            host_address: "127.0.0.1".to_string(),
+            port: 8123,
+        })
+        .is_some());
+        assert!(endpoint_from_config(&Config::default()).is_none());
+    }
 }

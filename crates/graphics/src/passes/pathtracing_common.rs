@@ -3,6 +3,10 @@ pub const SIZE_OF_DATA_BUFFER_ELEMENT: usize = 4;
 use inox_render::AsBinding;
 use inox_render::RenderContext;
 use inox_uid::{generate_static_uid_from_string, generate_uid_from_string, Uid};
+#[cfg(not(target_arch = "wasm32"))]
+use std::collections::HashMap;
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::{Mutex, OnceLock};
 
 pub const WAVEFRONT_QUEUE_VERSION: u32 = inox_render::WAVEFRONT_RECORD_VERSION;
 pub const WAVEFRONT_INDIRECT_ACCUMULATOR_ID: Uid =
@@ -384,22 +388,31 @@ pub fn read_wavefront_queue_diagnostics(
 /// as a post-submit callback rather than inspecting the CPU-side mirror.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn report_wavefront_queue_diagnostics(render_context: &RenderContext) {
+    static OVERFLOW_STATES: OnceLock<Mutex<HashMap<String, bool>>> = OnceLock::new();
+    let states = OVERFLOW_STATES.get_or_init(|| Mutex::new(HashMap::new()));
+    let Ok(mut states) = states.lock() else {
+        return;
+    };
+
     for diagnostic in read_wavefront_queue_diagnostics(render_context) {
-        eprintln!(
-            "wavefront queue {}: count={} capacity={} overflowed={}",
-            diagnostic.name,
-            diagnostic.header.count,
-            diagnostic.header.capacity,
-            diagnostic.header.is_overflowed(),
-        );
+        let overflowed = diagnostic.header.is_overflowed();
+        let was_overflowed = states
+            .insert(diagnostic.name.clone(), overflowed)
+            .unwrap_or(false);
+        // Report only transitions into overflow. Persistent overflow is deduplicated
+        // until the queue recovers, keeping frame-by-frame diagnostics usable.
+        if overflowed && !was_overflowed {
+            eprintln!(
+                "wavefront queue {} overflowed: count={} capacity={}",
+                diagnostic.name, diagnostic.header.count, diagnostic.header.capacity,
+            );
+        }
     }
 }
 
-/// Explicitly skip synchronous queue diagnostics on pinned WebGPU/WASM.
+/// Queue readback is unavailable on pinned WebGPU/WASM; keep this path silent.
 #[cfg(target_arch = "wasm32")]
-pub fn report_wavefront_queue_diagnostics(_render_context: &RenderContext) {
-    eprintln!("wavefront queue diagnostics skipped on WebGPU/WASM");
-}
+pub fn report_wavefront_queue_diagnostics(_render_context: &RenderContext) {}
 
 /// Finite per-queue budget supported by the portable renderer.  It covers
 /// the default 1920x1080 frame (2,073,600 entries) while bounding GPU memory

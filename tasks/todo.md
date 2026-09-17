@@ -79,6 +79,8 @@
 - Review fixes add safe temporary browser-profile cleanup, Program Files(x86)/LOCALAPPDATA Chrome and Edge discovery, non-empty platform-directory validation for newly generated `data/pc` and `data/web`, explicit formatting and engine-owned native viewer startup/format marker validation with preserved failure logs, and engine-owned WASM device/queue-submit/frame signals with page and console error capture in browser smoke.
 - Native queue diagnostics validation passes: the viewer registers a post-submit callback only on native targets, staging readback handles mapping errors and poll timeouts without indefinite waits or panics, callback snapshots permit re-registration, and WebGPU/WASM explicitly skips synchronous diagnostics.
 - Final shader review fixes pass focused and full workspace validation: direct-candidate, visibility, and AO-resolve use full-resolution strides, while shade rejects `INVALID_INDEX`, negative, and out-of-range material IDs before packed access; graphics/render/binarizer tests, clippy, formatting, native checks, and render/graphics/binarizer WASM checks all pass.
+- Queue-reset follow-up uses an immediate `RenderContext::update_buffer` upload through `BufferRef::bind` with storage/COPY_DST/COPY_SRC usage in primary, traversal, bounce, and transparency passes; native overflow readback remains observable with transition-deduplicated logging, and temporary WebGPU diagnostics are silent.
+- Final queue-reset regression validation passes workspace tests, workspace clippy, formatting, native and WASM checks, and a 35-second native viewer smoke that selected the RTX 4090 Laptop GPU, emitted `INOX_NATIVE_VIEWER_STARTUP_OK`, and reached the running app before timeout.
 
 ## Current freeze investigation
 

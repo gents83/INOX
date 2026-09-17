@@ -13,9 +13,9 @@ use inox_resources::{Resource, ResourceTrait, SharedDataRc};
 
 use crate::{
     platform::{negotiate_gpu_requirements, setup_env, RenderCapabilities},
-    BindingDataBuffer, BindingDataBufferRc, BufferId, BufferRef, ComputePipeline, GlobalBuffers,
-    Material, Pass, RenderPass, RenderPipeline, Texture, TextureFormat, TextureHandler,
-    TextureHandlerRc, TextureId, TextureUsage, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    AsBinding, BindingDataBuffer, BindingDataBufferRc, BufferId, BufferRef, ComputePipeline,
+    GlobalBuffers, Material, Pass, RenderPass, RenderPipeline, Texture, TextureFormat,
+    TextureHandler, TextureHandlerRc, TextureId, TextureUsage, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -174,6 +174,15 @@ impl RenderContext {
 
     pub fn mark_as_dirty(&self, buffer_id: BufferId) {
         self.binding_data_buffer.mark_buffer_as_changed(buffer_id);
+    }
+
+    /// Upload a CPU-side storage-buffer update immediately during pass encoding.
+    /// This is required for queue headers reset after binding initialization.
+    pub fn update_buffer<T>(&self, data: &mut T) -> bool
+    where
+        T: AsBinding,
+    {
+        self.binding_data_buffer.update_buffer(data, self)
     }
 
     #[cfg(not(target_arch = "wasm32"))]

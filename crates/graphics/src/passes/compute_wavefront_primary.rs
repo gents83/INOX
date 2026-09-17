@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use inox_core::ContextRc;
 use inox_render::{
-    AsBinding, BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
+    BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
     ConstantDataRw, GPUVector, Pass, RenderContext, RenderContextRc, ShaderStage, TextureView,
 };
 use inox_resources::{DataTypeResource, Resource};
@@ -184,7 +184,7 @@ impl Pass for ComputeWavefrontPrimaryPass {
             header[0].count = 0;
             header[0].overflowed = 0;
             header[0].capacity = queue_capacity_u32(self.ray_queue.read().unwrap().len());
-            render_context.mark_as_dirty(header.buffer_id());
+            render_context.update_buffer(&mut *header);
         }
 
         let pass = self.compute_pass.get();

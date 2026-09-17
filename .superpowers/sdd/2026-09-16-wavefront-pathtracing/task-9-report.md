@@ -18,6 +18,8 @@
 - Made composite, denoise, and upscale use full-resolution producer/consumer strides, and made CPU denoise dispatch cover the same full dimensions; render scale no longer changes storage indexing and remains a reconstruction-quality control.
 - Bounded queue header capacities through checked `u32` conversion and retained overflow signaling for over-cap workloads; transparency now shares the same 2,097,152-entry finite budget as every wavefront queue.
 - Added focused contracts for static activation, default-resolution and over-cap capacity, transparency capacity parity, checked header conversion, material encoding, and non-native render-scale dispatch/stride behavior.
+- Fixed CPU queue-header resets by adding an immediate `RenderContext::update_buffer` path backed by `BufferRef::bind` with storage, copy-destination, and copy-source usage; primary, traversal, bounce, and transparency stages now upload reset counts before encoding GPU work.
+- Preserved bounded GPU append behavior while making native overflow readback observable through post-submit diagnostics; overflow messages are transition-deduplicated, and temporary WebGPU skip logging was removed.
 
 ## Verification
 
@@ -29,4 +31,4 @@
 - Native checks for render, graphics, and binarizer
 - WebAssembly checks for render and graphics
 
-All listed checks passed. A full native viewer smoke and browser WebGPU smoke remain outside this focused task run.
+All listed checks passed. A 35-second native viewer smoke reached the running viewer and was stopped by the timeout without a startup panic; browser WebGPU smoke remains outside this focused task run.

@@ -167,6 +167,44 @@ fn queue_reset_happens_before_each_append_stage() {
 }
 
 #[test]
+fn queue_header_resets_upload_before_dispatch() {
+    for pass in [
+        "compute_wavefront_primary.rs",
+        "compute_wavefront_traversal.rs",
+        "compute_wavefront_next_bounce.rs",
+        "compute_wavefront_transparency.rs",
+    ] {
+        let source = fs::read_to_string(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("src/passes")
+                .join(pass),
+        )
+        .unwrap();
+        assert!(
+            source.contains("render_context.update_buffer(&mut *header);")
+                || source.contains("render_context.update_buffer(&mut *header);"),
+            "{pass} must upload its CPU queue-header reset"
+        );
+        assert!(
+            !source.contains("render_context.mark_as_dirty(header.buffer_id())"),
+            "{pass} must not defer its queue-header reset to binding initialization"
+        );
+    }
+
+    let binding_buffers = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../render/src/common/binding_buffers.rs"),
+    )
+    .unwrap();
+    assert!(binding_buffers.contains("pub fn update_buffer<T>"));
+    assert!(binding_buffers.contains("wgpu::BufferUsages::COPY_SRC"));
+    let buffer_ref = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../render/src/common/buffer_ref.rs"),
+    )
+    .unwrap();
+    assert!(buffer_ref.contains("self.offset = 0;"));
+}
+
+#[test]
 fn cpu_activation_uses_static_resources_not_gpu_queue_counts() {
     for pass in [
         "compute_wavefront_dispatch.rs",
@@ -363,7 +401,8 @@ fn gpu_queue_overflow_has_an_explicit_readback_contract() {
     assert!(common.contains("report_wavefront_queue_diagnostics"));
     assert!(common.contains("diagnostic.header.is_overflowed()"));
     assert!(common.contains("cfg(not(target_arch = \"wasm32\"))"));
-    assert!(common.contains("diagnostics skipped on WebGPU/WASM"));
+    assert!(common.contains("Queue readback is unavailable on pinned WebGPU/WASM"));
+    assert!(common.contains("Persistent overflow is deduplicated"));
     assert!(common.contains("read_buffer_as::<QueueHeader>"));
     assert!(render_context.contains("read_buffer_as<T>"));
     assert!(render_context.contains("read_from_gpu_via_staging_as"));
@@ -372,7 +411,7 @@ fn gpu_queue_overflow_has_an_explicit_readback_contract() {
     assert!(render_context.contains(".iter()"));
     assert!(render_context.contains(".cloned()"));
     assert!(viewer.contains("add_post_submit_callback(report_wavefront_queue_diagnostics)"));
-    assert!(viewer.contains("registration skipped on WebGPU/WASM"));
+    assert!(!viewer.contains("registration skipped on WebGPU/WASM"));
     assert!(viewer.contains("cfg(not(target_arch = \"wasm32\"))"));
     assert!(buffer_ref.contains("MAP_READ | wgpu::BufferUsages::COPY_DST"));
     assert!(buffer_ref.contains("copy_buffer_to_buffer"));

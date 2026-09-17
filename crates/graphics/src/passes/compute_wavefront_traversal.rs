@@ -160,7 +160,7 @@ impl Pass for ComputeWavefrontTraversalPass {
             header[0].count = 0;
             header[0].overflowed = 0;
             header[0].capacity = queue_capacity_u32(self.hit_queue.read().unwrap().len());
-            render_context.mark_as_dirty(header.buffer_id());
+            render_context.update_buffer(&mut *header);
         }
         if self.scene_data.read().unwrap().is_empty()
             || self.ray_queue.read().unwrap().is_empty()

@@ -62,6 +62,7 @@ pub struct ConstantData {
     max_path_depth: u32,
     min_roulette_depth: u32,
     environment_texture_index: u32,
+    _padding: u32,
 }
 
 impl Default for ConstantData {
@@ -93,6 +94,7 @@ impl Default for ConstantData {
             max_path_depth: 2,
             min_roulette_depth: 2,
             environment_texture_index: u32::MAX,
+            _padding: 0,
         }
     }
 }
