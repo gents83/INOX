@@ -678,6 +678,30 @@ mod native_causal_smoke {
     fn f32_at(bytes: &[u8], index: usize) -> f32 {
         f32::from_ne_bytes(bytes[index * 4..index * 4 + 4].try_into().unwrap())
     }
+    fn half_to_f32(bits: u16) -> f32 {
+        let sign = if bits & 0x8000 != 0 { -1.0 } else { 1.0 };
+        let exponent = ((bits >> 10) & 0x1f) as i32;
+        let fraction = (bits & 0x03ff) as u32;
+        match exponent {
+            0 if fraction == 0 => sign * 0.0,
+            0 => sign * (fraction as f32 / 1024.0) * 2f32.powi(-14),
+            31 if fraction == 0 => sign * f32::INFINITY,
+            31 => f32::NAN,
+            _ => sign * (1.0 + fraction as f32 / 1024.0) * 2f32.powi(exponent - 15),
+        }
+    }
+    fn decode_packed_normal(packed: u32) -> [f32; 3] {
+        let mut x = half_to_f32(packed as u16);
+        let mut y = half_to_f32((packed >> 16) as u16);
+        let z = 1.0 - x.abs() - y.abs();
+        if z < 0.0 {
+            let old_x = x;
+            x = (1.0 - y.abs()) * old_x.signum();
+            y = (1.0 - old_x.abs()) * y.signum();
+        }
+        let length = (x * x + y * y + z * z).sqrt();
+        [x / length, y / length, z / length]
+    }
     fn stage(stage: &str, ok: bool, details: impl std::fmt::Display) {
         assert!(
             ok,
@@ -868,10 +892,11 @@ mod native_causal_smoke {
         constants[320..324].copy_from_slice(&(WIDTH as f32).to_ne_bytes());
         constants[324..328].copy_from_slice(&(HEIGHT as f32).to_ne_bytes());
         constants[328..332].copy_from_slice(&1u32.to_ne_bytes());
+        // Use texture metadata entry zero so shade must take the sampled environment path.
+        constants[408..412].copy_from_slice(&0u32.to_ne_bytes());
         constants[344..348].copy_from_slice(&52u32.to_ne_bytes());
         constants[400..404].copy_from_slice(&8u32.to_ne_bytes());
         constants[404..408].copy_from_slice(&2u32.to_ne_bytes());
-        constants[408..412].copy_from_slice(&u32::MAX.to_ne_bytes());
         let constant = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("causal constants"),
             size: CONSTANT_BYTES as u64,
@@ -880,6 +905,28 @@ mod native_causal_smoke {
         });
         write(queue, &constant, &constants);
         let scene_data = scene_words();
+        let expected_ranges = [
+            (52u32, 3u32, 1u32),
+            (55, 3, 1),
+            (0, 0, 0),
+            (60, 4, 4),
+            (64, 16, 16),
+            (80, 16, 16),
+            (100, 20, 20),
+            (120, 16, 8),
+            (144, 48, 48),
+            (192, 4, 4),
+        ];
+        for (kind, (offset, count, stride)) in expected_ranges.into_iter().enumerate() {
+            let base = 4 + kind * 4;
+            assert_eq!(scene_data[base], offset, "scene table {kind} offset");
+            assert_eq!(scene_data[base + 1], count, "scene table {kind} count");
+            assert_eq!(scene_data[base + 2], stride, "scene table {kind} stride");
+        }
+        assert_eq!(&scene_data[52..55], &[0, 1, 2]);
+        assert_eq!(&scene_data[60..64], &[0, 0, 0, 0]);
+        assert_eq!(scene_data[80 + 3], 0, "mesh material index");
+        assert_eq!(scene_data[80 + 7], 3, "mesh index count");
         let scene = storage(
             device,
             (scene_data.len() * 4) as u64,
@@ -1022,22 +1069,37 @@ mod native_causal_smoke {
         dispatch(device, queue, &surface, &[&surface0, &surface1], 1, 1, 1);
         let g0_bytes = read(device, queue, &g0);
         let g1_bytes = read(device, queue, &g1);
+        let g2_bytes = read(device, queue, &g2);
         let position = [
             f32_at(&g0_bytes, 0),
             f32_at(&g0_bytes, 1),
             f32_at(&g0_bytes, 2),
         ];
-        let packed_normal = f32_at(&g0_bytes, 3).to_bits();
+        // The shader stores pack2x16float's u32 as a numeric f32, not a bitcast.
+        let packed_normal = f32_at(&g0_bytes, 3) as u32;
         let material = f32_at(&g1_bytes, 0);
+        let decoded_normal = decode_packed_normal(packed_normal);
+        let expected_position = [-0.75f32, 0.75, 0.5];
+        let position_matches = position
+            .iter()
+            .zip(expected_position)
+            .all(|(actual, expected)| (*actual - expected).abs() < 1.0e-5);
+        let normal_matches = decoded_normal
+            .iter()
+            .zip([0.0f32, 0.0, -1.0])
+            .all(|(actual, expected)| (*actual - expected).abs() < 1.0e-3);
+        let instance_metadata = f32_at(&g2_bytes, 1) as u32;
         let surface_ok = position.iter().all(|v| v.is_finite())
-            && packed_normal != 0
-            && material.is_finite()
-            && (0.0..1_048_576.0).contains(&material);
+            && position_matches
+            && packed_normal == 0x3c003c00
+            && normal_matches
+            && material == 0.0
+            && instance_metadata == 0;
         stage(
             "surface",
             surface_ok,
             format!(
-                "position={position:?}, packed_normal={packed_normal:#010x}, material={material}"
+                "position={position:?} expected={expected_position:?}, packed_normal={packed_normal:#010x}, decoded_normal={decoded_normal:?}, material={material}, instance={instance_metadata}"
             ),
         );
         let ray_header = storage(device, 16, "causal ray header", false);
@@ -1361,7 +1423,14 @@ mod native_causal_smoke {
             ],
         });
         let textures = uniform(device, 2048 * 16, "causal textures");
-        write(queue, &textures, &bytes_u32(&[u32::MAX, 0, 0, 0]));
+        // TextureData { index/layer, min, max, size }: one atlas-0/layer-0 entry
+        // covering the complete 1x1 texture.  This forces environment_radiance()
+        // through sample_texture() instead of the analytic fallback.
+        write(
+            queue,
+            &textures,
+            &bytes_u32(&[0, 0x3c003c00, 0x3c003c00, 0x3c003c00]),
+        );
         let shade1 = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("shade queues"),
             layout: &shade1_layout,
@@ -1403,9 +1472,24 @@ mod native_causal_smoke {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8Unorm,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             view_formats: &[],
         });
+        queue.write_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture: &tex,
+                mip_level: 0,
+                origin: Default::default(),
+                aspect: wgpu::TextureAspect::All,
+            },
+            &[192, 64, 32, 255],
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(4),
+                rows_per_image: Some(1),
+            },
+            tex.size(),
+        );
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor::default());
         let tex_view = tex.create_view(&wgpu::TextureViewDescriptor {
             dimension: Some(wgpu::TextureViewDimension::D2Array),
@@ -1454,14 +1538,19 @@ mod native_causal_smoke {
         let expected_indirect = (0..3)
             .map(|channel| f32_at(&indirect_bytes, expected_pixel * 8 + channel))
             .collect::<Vec<_>>();
+        let sampled_environment = [192.0 / 255.0, 64.0 / 255.0, 32.0 / 255.0];
+        let texture_matches = expected_indirect
+            .iter()
+            .zip(sampled_environment)
+            .all(|(actual, expected)| (*actual - expected).abs() < 1.0e-3);
         stage(
             "shade",
             finite_pixels == PIXELS
-                && nonzero_pixels > 0
+                && nonzero_pixels == PIXELS
                 && expected_indirect.iter().all(|value| value.is_finite())
-                && expected_indirect.iter().any(|value| *value > 0.0),
+                && texture_matches,
             format!(
-                "expected_pixel={expected_pixel}, expected_indirect={expected_indirect:?}, finite_pixels={finite_pixels}/{PIXELS}, nonzero_pixels={nonzero_pixels}/{PIXELS}"
+                "expected_pixel={expected_pixel}, expected_indirect={expected_indirect:?}, sampled_environment={sampled_environment:?}, finite_pixels={finite_pixels}/{PIXELS}, nonzero_pixels={nonzero_pixels}/{PIXELS}"
             ),
         );
         let direct = storage(
@@ -1554,7 +1643,9 @@ mod native_causal_smoke {
                 && nonzero_ratio > 0.0
                 && seeded_values_match
                 && mean_value < 1.0
-                && max_value < 1.0,
+                // The sampled environment texel plus the seeded direct term can
+                // legitimately put one HDR channel just above one.
+                && max_value < 1.25,
             format!(
                 "finite_ratio={finite_ratio}, nonzero_ratio={nonzero_ratio}, mean={mean_value}, max={max_value}, expected_pixel={expected_pixel}, actual={actual_expected:?}, expected={expected_seeded:?}"
             ),
@@ -1728,7 +1819,9 @@ mod native_causal_smoke {
             finite_ratio == 1.0
                 && nonzero_ratio > 0.0
                 && mean_value < 1.0
-                && max_value < 1.0,
+                // Unorm quantization can clamp an HDR channel to exactly one;
+                // the aggregate mean above still rejects an all-white image.
+                && max_value <= 1.0,
             format!(
                 "finite_ratio={finite_ratio}, nonzero_ratio={nonzero_ratio}, mean={mean_value}, max={max_value}"
             ),
