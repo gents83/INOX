@@ -493,14 +493,17 @@ mod native_causal_smoke {
     }
 
     fn production_shader(name: &str) -> String {
+        production_shader_with_texture_array(name, false)
+    }
+
+    fn production_shader_with_texture_array(name: &str, texture_array: bool) -> String {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../data_raw/shaders/wgsl")
             .join(name);
         let expanded = expand_imports(&path, std::fs::read_to_string(&path).unwrap());
-        // The native smoke test deliberately uses the portable, non-array texture binding
-        // layout. The production native texture-array branch requires the adapter's optional
-        // binding-array feature and is therefore not exercised by this deterministic fixture.
-        // ShaderCompiler still supplies the platform WGSL extension preprocessing.
+        // The causal smoke uses the portable, non-array texture binding layout. The production
+        // native texture-array branch requires the adapter's optional binding-array feature;
+        // native coverage is provided by a separate feature-gated shader compilation test.
         let mut result = String::new();
         let mut include = true;
         let mut in_feature = false;
@@ -508,11 +511,11 @@ mod native_causal_smoke {
             let trimmed = line.trim();
             if trimmed == "#ifdef FEATURES_TEXTURE_BINDING_ARRAY" {
                 in_feature = true;
-                include = false;
+                include = texture_array;
                 continue;
             }
             if in_feature && trimmed == "#else" {
-                include = true;
+                include = !texture_array;
                 continue;
             }
             if in_feature && trimmed == "#endif" {
@@ -525,7 +528,15 @@ mod native_causal_smoke {
                 result.push('\n');
             }
         }
-        ShaderCompiler::<{ PLATFORM_TYPE_WEB }>::add_required_wgsl_extensions(result, &[])
+        let available_defs = if texture_array {
+            vec!["FEATURES_TEXTURE_BINDING_ARRAY".to_string()]
+        } else {
+            Vec::new()
+        };
+        ShaderCompiler::<{ PLATFORM_TYPE_WEB }>::add_required_wgsl_extensions(
+            result,
+            &available_defs,
+        )
     }
 
     fn storage(device: &wgpu::Device, bytes: u64, label: &str, indirect: bool) -> wgpu::Buffer {
@@ -553,6 +564,12 @@ mod native_causal_smoke {
     }
 
     fn bytes_u32(values: &[u32]) -> Vec<u8> {
+        values
+            .iter()
+            .flat_map(|value| value.to_ne_bytes())
+            .collect()
+    }
+    fn bytes_f32(values: &[f32]) -> Vec<u8> {
         values
             .iter()
             .flat_map(|value| value.to_ne_bytes())
@@ -778,7 +795,50 @@ mod native_causal_smoke {
     }
 
     #[test]
-    fn headless_gpu_runs_causal_production_wavefront_graph() {
+    fn native_texture_binding_array_shader_path_is_compiled_when_supported() {
+        let Some(context) = block_on(RenderContext::create_headless(
+            Arc::new(SharedData::default()),
+            Arc::new(MessageHub::default()),
+        )) else {
+            eprintln!("SKIPPED: native texture-array coverage requires a WebGPU adapter");
+            return;
+        };
+        let device = &context.webgpu.device;
+        if !device
+            .features()
+            .contains(wgpu::Features::TEXTURE_BINDING_ARRAY)
+        {
+            eprintln!(
+                "SKIPPED: native texture-array coverage requires TEXTURE_BINDING_ARRAY support"
+            );
+            return;
+        }
+        if device.limits().max_binding_array_elements_per_shader_stage < 8 {
+            eprintln!(
+                "SKIPPED: native texture-array coverage requires eight binding-array elements; adapter limit is {}",
+                device.limits().max_binding_array_elements_per_shader_stage
+            );
+            return;
+        }
+        let source = production_shader_with_texture_array("compute_wavefront_shade.wgsl", true);
+        assert!(source.contains("enable wgpu_binding_array;"));
+        assert!(source.contains("binding_array<texture_2d_array<f32>, 8>"));
+        let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("native texture-array shade coverage"),
+            source: wgpu::ShaderSource::Wgsl(Cow::Owned(source)),
+        });
+        let _ = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("native texture-array shade coverage"),
+            layout: None,
+            module: &module,
+            entry_point: Some("main"),
+            compilation_options: Default::default(),
+            cache: None,
+        });
+    }
+
+    #[test]
+    fn headless_gpu_runs_portable_layout_causal_wavefront_smoke() {
         let Some(context) = block_on(RenderContext::create_headless(
             Arc::new(SharedData::default()),
             Arc::new(MessageHub::default()),
@@ -1314,6 +1374,14 @@ mod native_causal_smoke {
             false,
         );
         let ao = storage(device, (PIXELS * 16) as u64, "causal ao state", false);
+        let direct_seed = (0..PIXELS)
+            .flat_map(|_| bytes_f32(&[0.25, 0.125, 0.0625, 1.0, 0.0, 0.0, 0.0, 0.0]))
+            .collect::<Vec<_>>();
+        write(queue, &direct, &direct_seed);
+        let ao_seed = (0..PIXELS)
+            .flat_map(|_| bytes_u32(&[1.0f32.to_bits(), 1.0f32.to_bits(), 1, 0]))
+            .collect::<Vec<_>>();
+        write(queue, &ao, &ao_seed);
         let final_acc = storage(
             device,
             (PIXELS * 32) as u64,
@@ -1371,14 +1439,27 @@ mod native_causal_smoke {
         let finite_ratio = finite_pixels as f32 / PIXELS as f32;
         let nonzero_ratio = nonzero_pixels as f32 / PIXELS as f32;
         let mean_value = sum / (PIXELS * 3) as f32;
+        let expected_seeded = expected_indirect
+            .iter()
+            .zip([0.25f32, 0.125, 0.0625])
+            .map(|(indirect, seed)| indirect + seed)
+            .collect::<Vec<_>>();
+        let actual_expected = (0..3)
+            .map(|channel| f32_at(&final_bytes, expected_pixel * 8 + channel))
+            .collect::<Vec<_>>();
+        let seeded_values_match = actual_expected
+            .iter()
+            .zip(&expected_seeded)
+            .all(|(actual, expected)| (*actual - *expected).abs() <= 1.0e-4);
         stage(
             "composite",
             finite_ratio == 1.0
                 && nonzero_ratio > 0.0
+                && seeded_values_match
                 && mean_value < 1.0
                 && max_value < 1.0,
             format!(
-                "finite_ratio={finite_ratio}, nonzero_ratio={nonzero_ratio}, mean={mean_value}, max={max_value}"
+                "finite_ratio={finite_ratio}, nonzero_ratio={nonzero_ratio}, mean={mean_value}, max={max_value}, expected_pixel={expected_pixel}, actual={actual_expected:?}, expected={expected_seeded:?}"
             ),
         );
         let previous = device.create_texture(&wgpu::TextureDescriptor {
@@ -1522,6 +1603,8 @@ mod native_causal_smoke {
         }
         queue.submit(Some(encoder.finish()));
         poll(device);
+        // Finalize writes the production display target as Rgba8Unorm. Float finiteness and
+        // seeded-value correctness were validated from final_acc before this quantization step.
         let output_bytes = read_texture(device, queue, &output, WIDTH, HEIGHT);
         let output_pixels = output_bytes.as_chunks::<4>().0;
         let finite_pixels = output_pixels.len();
@@ -1544,7 +1627,7 @@ mod native_causal_smoke {
             .map(|value| *value as f32 / 255.0)
             .fold(0.0f32, f32::max);
         stage(
-            "finalize",
+            "finalize quantized output",
             finite_ratio == 1.0
                 && nonzero_ratio > 0.0
                 && mean_value < 1.0
