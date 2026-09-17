@@ -9,8 +9,8 @@ use inox_resources::{DataTypeResource, Resource};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
 use crate::{
-    queue_capacity_for_resolution, queue_capacity_u32, wavefront_primary_bindings, DispatchArgs,
-    HitRecord, QueueHeader, RayQueueRecord, WavefrontQueueBindingIds, MAX_WAVEFRONT_QUEUE_CAPACITY,
+    queue_capacity_u32, wavefront_primary_bindings, DispatchArgs, HitRecord, QueueHeader,
+    RayQueueRecord, WavefrontQueueBindingIds, MAX_WAVEFRONT_QUEUE_CAPACITY,
 };
 
 pub const COMPUTE_WAVEFRONT_TRAVERSAL_PIPELINE: &str =
@@ -233,8 +233,8 @@ impl ComputeWavefrontTraversalPass {
         }
     }
 
-    pub fn set_dimensions(&mut self, dimensions: (u32, u32)) -> &mut Self {
-        let capacity = queue_capacity_for_resolution(dimensions, 1.0, MAX_WAVEFRONT_QUEUE_CAPACITY);
+    pub fn set_dimensions(&mut self, _dimensions: (u32, u32)) -> &mut Self {
+        let capacity = MAX_WAVEFRONT_QUEUE_CAPACITY;
         {
             let mut hit_queue = self.hit_queue.write().unwrap();
             if hit_queue.len() != capacity {

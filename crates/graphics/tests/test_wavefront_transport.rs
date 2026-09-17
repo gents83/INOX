@@ -277,7 +277,7 @@ fn wavefront_buffers_keep_full_resolution_with_non_native_render_scale() {
                 .join(pass),
         )
         .unwrap();
-        assert!(source.contains("queue_capacity_for_resolution"));
+        assert!(source.contains("MAX_WAVEFRONT_QUEUE_CAPACITY"));
         assert!(!source.contains("usize::MAX"));
     }
     let transparency_pass = fs::read_to_string(

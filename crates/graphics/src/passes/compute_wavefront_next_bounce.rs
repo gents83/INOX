@@ -9,10 +9,10 @@ use inox_resources::{DataTypeResource, Resource};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
 use crate::{
-    queue_capacity_for_resolution, queue_capacity_u32, DispatchArgs, HitRecord, QueueHeader,
-    RadiancePackedData, RayPackedData, RayQueueRecord, WavefrontBounceBindingIds,
-    MAX_WAVEFRONT_QUEUE_CAPACITY, WAVEFRONT_HIT_DISPATCH_ARGS_ID, WAVEFRONT_HIT_HEADER_ID,
-    WAVEFRONT_HIT_QUEUE_ID, WAVEFRONT_PRIMARY_QUEUE_ID, WAVEFRONT_SCENE_ID,
+    queue_capacity_u32, DispatchArgs, HitRecord, QueueHeader, RadiancePackedData, RayPackedData,
+    RayQueueRecord, WavefrontBounceBindingIds, MAX_WAVEFRONT_QUEUE_CAPACITY,
+    WAVEFRONT_HIT_DISPATCH_ARGS_ID, WAVEFRONT_HIT_HEADER_ID, WAVEFRONT_HIT_QUEUE_ID,
+    WAVEFRONT_PRIMARY_QUEUE_ID, WAVEFRONT_SCENE_ID,
 };
 
 pub const COMPUTE_WAVEFRONT_NEXT_BOUNCE_PIPELINE: &str =
@@ -272,7 +272,7 @@ impl ComputeWavefrontNextBouncePass {
 
     pub fn set_dimensions(&mut self, dimensions: (u32, u32)) -> &mut Self {
         self.dimensions = dimensions;
-        let capacity = queue_capacity_for_resolution(dimensions, 1.0, MAX_WAVEFRONT_QUEUE_CAPACITY);
+        let capacity = MAX_WAVEFRONT_QUEUE_CAPACITY;
         self.next_queue
             .write()
             .unwrap()
