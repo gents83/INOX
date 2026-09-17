@@ -206,7 +206,29 @@
 			}
 		},
 		{
-			"label": "COMPILE RELEASE",
+			"label": "PREPARE VIEWER DEBUG DATA",
+            "type": "shell",
+            "dependsOn": ["COMPILE DEBUG"],
+            "dependsOrder": "sequence",
+            "command": "${workspaceFolder}\\crates\\target\\debug\\inox_launcher.exe",
+            "args": ["-plugin", "inox_binarizer", "-platform", "pc"],
+            "options": { "cwd": "${workspaceFolder}" },
+            "problemMatcher": [],
+            "presentation": { "clear": true, "reveal": "always" }
+        },
+        {
+            "label": "PREPARE VIEWER RELEASE DATA",
+            "type": "shell",
+            "dependsOn": ["COMPILE RELEASE"],
+            "dependsOrder": "sequence",
+            "command": "${workspaceFolder}\\crates\\target\\release\\inox_launcher.exe",
+            "args": ["-plugin", "inox_binarizer", "-platform", "pc"],
+            "options": { "cwd": "${workspaceFolder}" },
+            "problemMatcher": [],
+            "presentation": { "clear": true, "reveal": "always" }
+        },
+        {
+            "label": "COMPILE RELEASE",
 			"args": [
 				"build",
 				"--manifest-path",

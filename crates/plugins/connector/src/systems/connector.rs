@@ -35,6 +35,19 @@ pub struct Connector {
     server_thread: Option<JoinHandle<()>>,
 }
 
+fn config_plugin_name_matches(plugin_name: &str) -> bool {
+    plugin_name == "inox_connector"
+}
+
+fn endpoint_from_config(config: &Config) -> Option<SocketAddr> {
+    if config.host_address.trim().is_empty() || config.port == 0 {
+        return None;
+    }
+    format!("{}:{}", config.host_address.trim(), config.port)
+        .parse()
+        .ok()
+}
+
 impl Connector {
     pub fn new(context: &ContextRc) -> Self {
         let listener = Listener::new(context.message_hub());
@@ -54,10 +67,12 @@ impl Connector {
                 ConfigEvent::Loaded(filename, config) => {
                     if filename == self.config.get_filename() {
                         self.config = config.clone();
-                        self.host_address_and_port = self.config.host_address.clone()
-                            + ":"
-                            + self.config.port.to_string().as_str();
-                        println!("Host address and port: {}", self.host_address_and_port);
+                        if let Some(endpoint) = endpoint_from_config(&self.config) {
+                            self.host_address_and_port = endpoint.to_string();
+                            println!("Host address and port: {}", self.host_address_and_port);
+                        } else {
+                            debug_log!("Connector config has no valid endpoint yet");
+                        }
                     }
                 }
             });
@@ -68,6 +83,9 @@ implement_unique_system_uid!(Connector);
 
 impl System for Connector {
     fn read_config(&mut self, plugin_name: &str) {
+        if !config_plugin_name_matches(plugin_name) {
+            return;
+        }
         self.listener.register::<ConfigEvent<Config>>();
         let message_hub = self.message_hub.clone();
         let filename = self.config.get_filename().to_string();
@@ -84,6 +102,10 @@ impl System for Connector {
     }
 
     fn init(&mut self) {
+        if self.server_thread.is_none() && self.host_address_and_port.is_empty() {
+            debug_log!("Connector server is waiting for its configuration");
+            return;
+        }
         if self.server_thread.is_none() {
             if let Ok(tcp_listener) = TcpListener::bind(self.host_address_and_port.as_str()) {
                 self.can_continue.store(true, Ordering::SeqCst);
@@ -132,6 +154,9 @@ impl System for Connector {
 
     fn run(&mut self) -> bool {
         self.handle_events();
+        if self.server_thread.is_none() && !self.host_address_and_port.is_empty() {
+            self.init();
+        }
 
         true
     }
@@ -139,6 +164,28 @@ impl System for Connector {
         self.can_continue.store(false, Ordering::SeqCst);
 
         self.listener.unregister::<ConfigEvent<Config>>();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{config_plugin_name_matches, endpoint_from_config};
+    use crate::config::Config;
+
+    #[test]
+    fn connector_reads_only_its_own_config_event() {
+        assert!(config_plugin_name_matches("inox_connector"));
+        assert!(!config_plugin_name_matches("inox_viewer"));
+    }
+
+    #[test]
+    fn connector_does_not_start_until_endpoint_is_valid() {
+        assert!(endpoint_from_config(&Config {
+            host_address: "127.0.0.1".to_string(),
+            port: 8123,
+        })
+        .is_some());
+        assert!(endpoint_from_config(&Config::default()).is_none());
     }
 }
 

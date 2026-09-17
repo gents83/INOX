@@ -24,18 +24,16 @@
             "request": "launch",
             "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe",
             "args": [
-                "-plugin inox_binarizer",
-                "-plugin inox_connector",
-                "-plugin inox_common_script",
-                "-plugin inox_viewer",
-                "-load_file",
-                "models/craftman/craftman.scene"
+                "-plugin", "inox_connector",
+                "-plugin", "inox_common_script",
+                "-plugin", "inox_viewer",
+                "-load_file", "models/craftman/craftman.scene"
                 //"models/sponza/sponza.scene"
                 //"models/OriginalSponza/OriginalSponza.scene"
             ],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
-            "preLaunchTask": "COMPILE RELEASE",
+            "preLaunchTask": "PREPARE VIEWER RELEASE DATA",
             "postDebugTask": "CLEANUP",
             "console": "integratedTerminal",
             "sourceMap": {
@@ -48,12 +46,10 @@
             "request": "launch",
             "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
             "args": [
-                "-plugin inox_binarizer",
-                "-plugin inox_connector",
-                "-plugin inox_common_script",
-                "-plugin inox_viewer",
-                "-load_file",
-                "models/cornell_box/cornell_box.scene"
+                "-plugin", "inox_connector",
+                "-plugin", "inox_common_script",
+                "-plugin", "inox_viewer",
+                "-load_file", "models/cornell_box/cornell_box.scene"
                 //"models/MetalRoughSpheresNoTextures/MetalRoughSpheresNoTextures.scene"
                 //"models/NormalTangent/NormalTangent.scene"
                 //"models/DamagedHelmet/DamagedHelmet.scene"
@@ -68,7 +64,7 @@
             ],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
-            "preLaunchTask": "COMPILE DEBUG",
+            "preLaunchTask": "PREPARE VIEWER DEBUG DATA",
             "postDebugTask": "CLEANUP",
             "console": "integratedTerminal",
             "sourceMap": {
