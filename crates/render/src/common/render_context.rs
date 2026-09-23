@@ -1,6 +1,9 @@
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, RwLock, RwLockReadGuard, RwLockWriteGuard,
+    },
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -95,6 +98,7 @@ pub struct RenderContext {
     command_buffer: RwLock<Option<CommandBuffer>>,
     surface: RwLock<Option<SurfaceData>>,
     render_targets: RwLock<Vec<Resource<Texture>>>,
+    completed_frame_target: AtomicUsize,
     state: RwLock<RendererState>,
     passes: RwLock<Vec<(Box<dyn Pass>, bool)>>,
     post_submit_callbacks: RwLock<Vec<PostSubmitCallback>>,
@@ -111,6 +115,25 @@ impl RenderContext {
 
     pub fn state(&self) -> RendererState {
         *self.state.read().unwrap()
+    }
+
+    /// Clear the completed Finalize target for the frame currently being encoded.
+    pub fn reset_completed_frame_target(&self) {
+        self.completed_frame_target
+            .store(usize::MAX, Ordering::Release);
+    }
+
+    /// Publish the render-context target completed by Finalize for this submission.
+    pub fn publish_completed_frame_target(&self, target: usize) {
+        self.completed_frame_target.store(target, Ordering::Release);
+    }
+
+    /// Return the target published by Finalize for the current submission, if any.
+    pub fn completed_frame_target(&self) -> Option<usize> {
+        match self.completed_frame_target.load(Ordering::Acquire) {
+            usize::MAX => None,
+            target => Some(target),
+        }
     }
 
     pub fn change_state(&self, render_state: RendererState) -> &Self {
@@ -356,6 +379,7 @@ impl RenderContext {
             command_buffer: RwLock::new(None),
             surface: RwLock::new(None),
             render_targets: RwLock::new(Vec::new()),
+            completed_frame_target: AtomicUsize::new(usize::MAX),
             passes: RwLock::new(Vec::new()),
             post_submit_callbacks: RwLock::new(Vec::new()),
             capabilities,
@@ -426,6 +450,7 @@ impl RenderContext {
             command_buffer: RwLock::new(None),
             surface: RwLock::new(None),
             render_targets: RwLock::new(Vec::new()),
+            completed_frame_target: AtomicUsize::new(usize::MAX),
             passes: RwLock::new(Vec::new()),
             post_submit_callbacks: RwLock::new(Vec::new()),
             capabilities,
@@ -732,6 +757,7 @@ impl RenderContext {
 
     pub fn update_passes(&self, mut command_buffer: CommandBuffer) {
         inox_profiler::scoped_profile!("renderer::update_passes");
+        self.reset_completed_frame_target();
 
         // Pass initialization and encoding may re-enter RenderContext. Do not
         // hold the pass-list lock while invoking user/pass code or resource

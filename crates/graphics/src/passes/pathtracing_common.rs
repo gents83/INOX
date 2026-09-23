@@ -9,7 +9,7 @@ use inox_uid::{generate_static_uid_from_string, generate_uid_from_string, Uid};
 use std::collections::HashMap;
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::{
-    atomic::{AtomicBool, AtomicUsize, Ordering},
+    atomic::{AtomicBool, Ordering},
     Mutex, OnceLock,
 };
 
@@ -893,30 +893,14 @@ fn report_cornell_algorithm_diagnostics(render_context: &RenderContext) {
     );
 }
 
-/// The render-context target indices reserved for Finalize's two display targets.
-const FINALIZE_TARGET_BASE: usize = 3;
-
-static ACTIVE_FINALIZE_TARGET: AtomicUsize = AtomicUsize::new(FINALIZE_TARGET_BASE);
-
-/// Publish the ping-pong target rendered by the current Finalize pass.
-///
-/// The post-submit Cornell callback runs after the command buffer completes, so it can
-/// use this value to inspect the frame produced by that submission rather than stale
-/// data in the other history target.
-pub fn publish_finalize_target(frame_index: usize) {
-    ACTIVE_FINALIZE_TARGET.store(FINALIZE_TARGET_BASE + frame_index % 2, Ordering::Release);
-}
-
-/// Return the render-context target index most recently rendered by Finalize.
-pub fn active_finalize_target() -> usize {
-    ACTIVE_FINALIZE_TARGET.load(Ordering::Acquire)
-}
-
 /// Run the bounded native image smoke against the completed Finalize target only.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn report_cornell_image_diagnostics(render_context: &RenderContext) -> bool {
     static ALGORITHM_DIAGNOSTICS_REPORTED: AtomicBool = AtomicBool::new(false);
-    let target = active_finalize_target();
+    let Some(target) = render_context.completed_frame_target() else {
+        eprintln!("INOX_NATIVE_CORNELL_IMAGE_READBACK_SKIPPED unpublished");
+        return false;
+    };
     if !ALGORITHM_DIAGNOSTICS_REPORTED.swap(true, Ordering::AcqRel) {
         report_cornell_algorithm_diagnostics(render_context);
     }

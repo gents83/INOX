@@ -244,17 +244,39 @@ fn finalize_publishes_the_completed_ping_pong_target() {
         .find("pass.draw(render_context, render_pass, 0..3, 0..1);")
         .expect("finalize must draw the completed frame");
     let publish = source
-        .find("publish_finalize_target(self.frame_index);")
+        .find("render_context.publish_completed_frame_target(")
         .expect("finalize must publish the target it just rendered");
     assert!(draw < publish);
+    assert!(source.contains("const FINALIZE_TARGET_BASE: usize = 3;"));
+    assert!(source.contains("FINALIZE_TARGET_BASE + self.frame_index % NUM_FRAMES_OF_HISTORY"));
 }
 
 #[test]
 fn cornell_diagnostics_read_only_the_published_target_without_ppm_artifacts() {
     let source = include_str!("../src/passes/pathtracing_common.rs");
-    assert!(source.contains("active_finalize_target()"));
+    assert!(source.contains("completed_frame_target()"));
+    assert_eq!(
+        source.matches("read_render_target_rgba32f(target)").count(),
+        1
+    );
+    assert!(source.contains("INOX_NATIVE_CORNELL_IMAGE_READBACK_SKIPPED unpublished"));
     assert!(!source.contains("[3usize, 4usize]"));
     assert!(!source.contains("save_cornell_readback_ppm"));
     assert!(!source.contains("INOX_NATIVE_CORNELL_IMAGE_PPM"));
     assert!(!source.contains("temp_dir()"));
+}
+
+#[test]
+fn render_context_resets_completed_target_before_each_frame() {
+    let source = include_str!("../../render/src/common/render_context.rs");
+    let reset = source
+        .find("self.reset_completed_frame_target();")
+        .expect("frame encoding must reset the completed target");
+    let update = source
+        .find("pass.update(self, &surface.surface_view")
+        .expect("frame encoding must update passes");
+    assert!(reset < update);
+    assert!(source.contains("completed_frame_target: AtomicUsize"));
+    assert!(source.contains("pub fn completed_frame_target(&self) -> Option<usize>"));
+    assert!(source.contains("usize::MAX => None"));
 }
