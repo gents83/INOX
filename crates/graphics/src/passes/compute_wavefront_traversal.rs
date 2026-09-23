@@ -9,8 +9,9 @@ use inox_resources::{DataTypeResource, Resource};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
 use crate::{
-    queue_capacity_u32, wavefront_primary_bindings, DispatchArgs, HitRecord, QueueHeader,
-    RayQueueRecord, WavefrontQueueBindingIds, MAX_WAVEFRONT_QUEUE_CAPACITY,
+    negotiated_queue_capacity_limits, queue_capacity_for_resolution, queue_capacity_u32,
+    queue_requested_capacity, wavefront_primary_bindings, DispatchArgs, HitRecord, QueueHeader,
+    RayQueueRecord, WavefrontQueueBindingIds,
 };
 
 pub const COMPUTE_WAVEFRONT_TRAVERSAL_PIPELINE: &str =
@@ -31,6 +32,7 @@ pub struct ComputeWavefrontTraversalPass {
     hit_queue_header: GPUVector<QueueHeader>,
     dispatch_args: GPUVector<DispatchArgs>,
     pass_name: String,
+    capacity_limits: inox_render::QueueCapacityLimits,
 }
 
 unsafe impl Send for ComputeWavefrontTraversalPass {}
@@ -149,25 +151,28 @@ impl Pass for ComputeWavefrontTraversalPass {
             .init(render_context, &mut self.binding_data, None);
     }
 
+    fn reset(&mut self, render_context: &RenderContext) {
+        self.reset_hit_queue(render_context);
+    }
+
+    fn resize(&mut self, dimensions: inox_render::FrameDimensions) {
+        self.set_dimensions(dimensions.render_dimensions());
+    }
+
     fn update(
         &mut self,
         render_context: &RenderContext,
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        {
-            let mut header = self.hit_queue_header.write().unwrap();
-            header[0].count = 0;
-            header[0].overflowed = 0;
-            header[0].capacity = queue_capacity_u32(self.hit_queue.read().unwrap().len());
-            render_context.update_buffer(&mut *header);
-        }
         if self.scene_data.read().unwrap().is_empty()
             || self.ray_queue.read().unwrap().is_empty()
             || self.dispatch_args.read().unwrap().is_empty()
         {
             return;
         }
+        self.reset_hit_queue(render_context);
+        self.reset_hit_queue_ordered(render_context, command_buffer);
         let buffers = render_context.buffers();
         let dispatch_args_id = self.dispatch_args.read().unwrap().buffer_id();
         self.compute_pass.get().dispatch_indirect(
@@ -181,6 +186,43 @@ impl Pass for ComputeWavefrontTraversalPass {
 }
 
 impl ComputeWavefrontTraversalPass {
+    /// Reset the shared hit queue immediately before this traversal dispatch.
+    /// Pass::reset runs before all pass updates, which is not sufficient when
+    /// multiple sequential traversals share this queue in one command buffer.
+    fn reset_hit_queue(&mut self, render_context: &RenderContext) {
+        let dimensions = render_context.frame_dimensions().render;
+        let mut header = self.hit_queue_header.write().unwrap();
+        header[0].version = crate::WAVEFRONT_QUEUE_VERSION;
+        header[0].count = 0;
+        header[0].overflowed = 0;
+        header[0].dropped_records = 0;
+        header[0].capacity = queue_capacity_u32(self.hit_queue.read().unwrap().len());
+        header[0].requested_capacity =
+            queue_requested_capacity(dimensions.width, dimensions.height, 1).unwrap_or(u32::MAX);
+        render_context.update_buffer(&mut *header);
+    }
+
+    /// Encode the per-dispatch reset after any prior traversal and before this one.
+    /// Queue writes are ordered before submission, not between dispatches in one encoder.
+    fn reset_hit_queue_ordered(
+        &self,
+        render_context: &RenderContext,
+        command_buffer: &mut CommandBuffer,
+    ) {
+        let header_id = self.hit_queue_header.read().unwrap().buffer_id();
+        let buffers = render_context.buffers();
+        let Some(header) = buffers
+            .get(&header_id)
+            .and_then(|buffer| buffer.gpu_buffer())
+        else {
+            return;
+        };
+        // QueueHeader fields are u32: count=4, overflowed=12, dropped_records=20.
+        command_buffer.encoder.clear_buffer(header, 4, Some(4));
+        command_buffer.encoder.clear_buffer(header, 12, Some(4));
+        command_buffer.encoder.clear_buffer(header, 20, Some(4));
+    }
+
     pub fn create_for_queues(
         context: &ContextRc,
         render_context: &RenderContextRc,
@@ -230,18 +272,31 @@ impl ComputeWavefrontTraversalPass {
             hit_queue_header,
             dispatch_args,
             pass_name: pass_name.to_string(),
+            capacity_limits: negotiated_queue_capacity_limits(render_context),
         }
     }
 
-    pub fn set_dimensions(&mut self, _dimensions: (u32, u32)) -> &mut Self {
-        let capacity = MAX_WAVEFRONT_QUEUE_CAPACITY;
+    pub fn set_dimensions(&mut self, dimensions: (u32, u32)) -> &mut Self {
+        let capacity = queue_capacity_for_resolution(
+            dimensions.0,
+            dimensions.1,
+            std::mem::size_of::<HitRecord>() as u32,
+            1,
+            self.capacity_limits,
+        )
+        .unwrap_or(self.capacity_limits.fallback_capacity.max(1)) as usize;
         {
             let mut hit_queue = self.hit_queue.write().unwrap();
             if hit_queue.len() != capacity {
                 hit_queue.resize(capacity, HitRecord::default());
             }
         }
-        self.hit_queue_header.write().unwrap()[0].capacity = queue_capacity_u32(capacity);
+        {
+            let mut header = self.hit_queue_header.write().unwrap();
+            header[0].capacity = queue_capacity_u32(capacity);
+            header[0].requested_capacity =
+                queue_requested_capacity(dimensions.0, dimensions.1, 1).unwrap_or(u32::MAX);
+        }
         self
     }
 }

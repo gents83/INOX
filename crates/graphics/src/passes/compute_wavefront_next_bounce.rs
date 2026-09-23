@@ -9,10 +9,11 @@ use inox_resources::{DataTypeResource, Resource};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
 use crate::{
-    queue_capacity_u32, DispatchArgs, HitRecord, QueueHeader, RadiancePackedData, RayPackedData,
-    RayQueueRecord, WavefrontBounceBindingIds, MAX_WAVEFRONT_QUEUE_CAPACITY,
-    WAVEFRONT_HIT_DISPATCH_ARGS_ID, WAVEFRONT_HIT_HEADER_ID, WAVEFRONT_HIT_QUEUE_ID,
-    WAVEFRONT_PRIMARY_QUEUE_ID, WAVEFRONT_SCENE_ID,
+    negotiated_queue_capacity_limits, queue_capacity_for_resolution, queue_capacity_u32,
+    queue_requested_capacity, DispatchArgs, HitRecord, QueueHeader, RadiancePackedData,
+    RayPackedData, RayQueueRecord, WavefrontBounceBindingIds, WAVEFRONT_HIT_DISPATCH_ARGS_ID,
+    WAVEFRONT_HIT_HEADER_ID, WAVEFRONT_HIT_QUEUE_ID, WAVEFRONT_PRIMARY_QUEUE_ID,
+    WAVEFRONT_SCENE_ID,
 };
 
 pub const COMPUTE_WAVEFRONT_NEXT_BOUNCE_PIPELINE: &str =
@@ -46,6 +47,7 @@ pub struct ComputeWavefrontNextBouncePass {
     next_queue_header: GPUVector<QueueHeader>,
     dispatch_args: GPUVector<DispatchArgs>,
     dimensions: (u32, u32),
+    capacity_limits: inox_render::QueueCapacityLimits,
 }
 
 unsafe impl Send for ComputeWavefrontNextBouncePass {}
@@ -59,10 +61,9 @@ impl Pass for ComputeWavefrontNextBouncePass {
         COMPUTE_WAVEFRONT_NEXT_BOUNCE_NAME
     }
     fn is_active(&self, _render_context: &RenderContext) -> bool {
-        // The hit count is GPU-written and cannot gate a later pass in this
-        // command buffer.  Dispatch metadata handles the empty-queue case.
-        !self.hit_queue_header.read().unwrap().is_empty()
-            && !self.next_queue.read().unwrap().is_empty()
+        // Queue counts are GPU-written during the same command buffer.  They
+        // are consumed by the indirect dispatch shader, never by a CPU gate.
+        !self.next_queue.read().unwrap().is_empty()
             && !self.dispatch_args.read().unwrap().is_empty()
     }
     fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self {
@@ -187,21 +188,47 @@ impl Pass for ComputeWavefrontNextBouncePass {
             .get_mut()
             .init(render_context, &mut self.binding_data, None);
     }
+
+    fn reset(&mut self, render_context: &RenderContext) {
+        let dimensions = render_context.frame_dimensions().render;
+        let mut header = self.next_queue_header.write().unwrap();
+        header[0].version = crate::WAVEFRONT_QUEUE_VERSION;
+        header[0].count = 0;
+        header[0].overflowed = 0;
+        header[0].dropped_records = 0;
+        header[0].capacity = queue_capacity_u32(self.next_queue.read().unwrap().len());
+        header[0].requested_capacity =
+            queue_requested_capacity(dimensions.width, dimensions.height, 1).unwrap_or(u32::MAX);
+        render_context.update_buffer(&mut *header);
+    }
+
+    fn resize(&mut self, dimensions: inox_render::FrameDimensions) {
+        self.set_dimensions(dimensions.render_dimensions());
+    }
+
     fn update(
         &mut self,
         render_context: &RenderContext,
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        if !self.is_active(render_context) {
-            return;
-        }
         {
             let mut header = self.next_queue_header.write().unwrap();
+            header[0].version = crate::WAVEFRONT_QUEUE_VERSION;
             header[0].count = 0;
             header[0].overflowed = 0;
+            header[0].dropped_records = 0;
             header[0].capacity = queue_capacity_u32(self.next_queue.read().unwrap().len());
+            header[0].requested_capacity = queue_requested_capacity(
+                render_context.frame_dimensions().render.width,
+                render_context.frame_dimensions().render.height,
+                1,
+            )
+            .unwrap_or(u32::MAX);
             render_context.update_buffer(&mut *header);
+        }
+        if !self.is_active(render_context) {
+            return;
         }
         let buffers = render_context.buffers();
         let args_id = self.dispatch_args.read().unwrap().buffer_id();
@@ -267,17 +294,30 @@ impl ComputeWavefrontNextBouncePass {
                 .global_buffers()
                 .vector_with_id(ids.dispatch_args),
             dimensions: (0, 0),
+            capacity_limits: negotiated_queue_capacity_limits(render_context),
         }
     }
 
     pub fn set_dimensions(&mut self, dimensions: (u32, u32)) -> &mut Self {
         self.dimensions = dimensions;
-        let capacity = MAX_WAVEFRONT_QUEUE_CAPACITY;
+        let capacity = queue_capacity_for_resolution(
+            dimensions.0,
+            dimensions.1,
+            std::mem::size_of::<RayQueueRecord>() as u32,
+            1,
+            self.capacity_limits,
+        )
+        .unwrap_or(self.capacity_limits.fallback_capacity.max(1)) as usize;
         self.next_queue
             .write()
             .unwrap()
             .resize(capacity, RayQueueRecord::default());
-        self.next_queue_header.write().unwrap()[0].capacity = queue_capacity_u32(capacity);
+        {
+            let mut header = self.next_queue_header.write().unwrap();
+            header[0].capacity = queue_capacity_u32(capacity);
+            header[0].requested_capacity =
+                queue_requested_capacity(dimensions.0, dimensions.1, 1).unwrap_or(u32::MAX);
+        }
         self
     }
 }

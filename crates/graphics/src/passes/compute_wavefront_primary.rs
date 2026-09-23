@@ -9,9 +9,10 @@ use inox_resources::{DataTypeResource, Resource};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
 use crate::{
-    dispatch_workgroups_for, queue_capacity_u32, wavefront_primary_bindings, QueueHeader,
+    dispatch_workgroups_for, negotiated_queue_capacity_limits, queue_capacity_for_resolution,
+    queue_capacity_u32, queue_requested_capacity, wavefront_primary_bindings, QueueHeader,
     RadiancePackedData, RayPackedData, RayQueueRecord, ThroughputPackedData,
-    MAX_WAVEFRONT_QUEUE_CAPACITY,
+    SIZE_OF_DATA_BUFFER_ELEMENT,
 };
 
 pub const COMPUTE_WAVEFRONT_PRIMARY_PIPELINE: &str =
@@ -30,6 +31,7 @@ pub struct ComputeWavefrontPrimaryPass {
     ray_queue: GPUVector<RayQueueRecord>,
     ray_queue_header: GPUVector<QueueHeader>,
     dimensions: (u32, u32),
+    capacity_limits: inox_render::QueueCapacityLimits,
 }
 
 unsafe impl Send for ComputeWavefrontPrimaryPass {}
@@ -85,6 +87,7 @@ impl Pass for ComputeWavefrontPrimaryPass {
             ray_queue,
             ray_queue_header,
             dimensions: (0, 0),
+            capacity_limits: negotiated_queue_capacity_limits(render_context),
         }
     }
 
@@ -167,24 +170,44 @@ impl Pass for ComputeWavefrontPrimaryPass {
             .init(render_context, &mut self.binding_data, None);
     }
 
+    fn reset(&mut self, render_context: &RenderContext) {
+        let mut header = self.ray_queue_header.write().unwrap();
+        header[0].version = crate::WAVEFRONT_QUEUE_VERSION;
+        header[0].count = 0;
+        header[0].overflowed = 0;
+        header[0].dropped_records = 0;
+        header[0].capacity = queue_capacity_u32(self.ray_queue.read().unwrap().len());
+        header[0].requested_capacity =
+            queue_requested_capacity(self.dimensions.0, self.dimensions.1, 1).unwrap_or(u32::MAX);
+        render_context.update_buffer(&mut *header);
+    }
+
+    fn resize(&mut self, dimensions: inox_render::FrameDimensions) {
+        self.set_dimensions(dimensions.render_dimensions());
+    }
+
     fn update(
         &mut self,
         render_context: &RenderContext,
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
+        {
+            let mut header = self.ray_queue_header.write().unwrap();
+            header[0].version = crate::WAVEFRONT_QUEUE_VERSION;
+            header[0].count = 0;
+            header[0].overflowed = 0;
+            header[0].dropped_records = 0;
+            header[0].capacity = queue_capacity_u32(self.ray_queue.read().unwrap().len());
+            header[0].requested_capacity =
+                queue_requested_capacity(self.dimensions.0, self.dimensions.1, 1)
+                    .unwrap_or(u32::MAX);
+            render_context.update_buffer(&mut *header);
+        }
         if self.gbuffer_world.read().unwrap().is_empty()
             || self.ray_queue.read().unwrap().is_empty()
         {
             return;
-        }
-
-        {
-            let mut header = self.ray_queue_header.write().unwrap();
-            header[0].count = 0;
-            header[0].overflowed = 0;
-            header[0].capacity = queue_capacity_u32(self.ray_queue.read().unwrap().len());
-            render_context.update_buffer(&mut *header);
         }
 
         let pass = self.compute_pass.get();
@@ -202,14 +225,40 @@ impl Pass for ComputeWavefrontPrimaryPass {
 impl ComputeWavefrontPrimaryPass {
     pub fn set_dimensions(&mut self, dimensions: (u32, u32)) -> &mut Self {
         self.dimensions = dimensions;
-        let capacity = MAX_WAVEFRONT_QUEUE_CAPACITY;
+        let capacity = queue_capacity_for_resolution(
+            dimensions.0,
+            dimensions.1,
+            std::mem::size_of::<RayQueueRecord>() as u32,
+            1,
+            self.capacity_limits,
+        )
+        .unwrap_or(self.capacity_limits.fallback_capacity.max(1)) as usize;
+        let pixels = (dimensions.0 as usize).saturating_mul(dimensions.1 as usize);
+        let elements = SIZE_OF_DATA_BUFFER_ELEMENT.saturating_mul(pixels);
+        self.gbuffer_world
+            .write()
+            .unwrap()
+            .resize(elements, RayPackedData::default());
+        self.gbuffer_material
+            .write()
+            .unwrap()
+            .resize(elements, RadiancePackedData::default());
+        self.gbuffer_auxiliary
+            .write()
+            .unwrap()
+            .resize(elements, ThroughputPackedData::default());
         {
             let mut queue = self.ray_queue.write().unwrap();
             if queue.len() != capacity {
                 queue.resize(capacity, RayQueueRecord::default());
             }
         }
-        self.ray_queue_header.write().unwrap()[0].capacity = queue_capacity_u32(capacity);
+        {
+            let mut header = self.ray_queue_header.write().unwrap();
+            header[0].capacity = queue_capacity_u32(capacity);
+            header[0].requested_capacity =
+                queue_requested_capacity(dimensions.0, dimensions.1, 1).unwrap_or(u32::MAX);
+        }
         self
     }
 }

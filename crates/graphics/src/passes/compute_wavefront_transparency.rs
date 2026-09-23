@@ -9,8 +9,9 @@ use inox_resources::{DataTypeResource, Resource};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
 use crate::{
-    queue_capacity_u32, wavefront_auxiliary_bindings, AccumulationRecord, QueueHeader,
-    RadiancePackedData, TransparentHitRecord, MAX_WAVEFRONT_QUEUE_CAPACITY, WAVEFRONT_SCENE_ID,
+    negotiated_queue_capacity_limits, queue_capacity_for_resolution, queue_capacity_u32,
+    wavefront_auxiliary_bindings, AccumulationRecord, QueueHeader, RadiancePackedData,
+    TransparentHitRecord, WAVEFRONT_SCENE_ID,
 };
 
 pub const COMPUTE_WAVEFRONT_TRANSPARENCY_PIPELINE: &str =
@@ -34,6 +35,7 @@ pub struct ComputeWavefrontTransparencyPass {
     queue: GPUVector<TransparentHitRecord>,
     header: GPUVector<QueueHeader>,
     dimensions: (u32, u32),
+    capacity_limits: inox_render::QueueCapacityLimits,
 }
 
 pub struct ComputeWavefrontTransparencyResolvePass {
@@ -52,6 +54,21 @@ unsafe impl Send for ComputeWavefrontTransparencyResolvePass {}
 unsafe impl Sync for ComputeWavefrontTransparencyResolvePass {}
 
 impl Pass for ComputeWavefrontTransparencyPass {
+    fn reset(&mut self, render_context: &RenderContext) {
+        let mut header = self.header.write().unwrap();
+        header[0].version = crate::WAVEFRONT_QUEUE_VERSION;
+        header[0].count = 0;
+        header[0].overflowed = 0;
+        header[0].dropped_records = 0;
+        header[0].capacity = queue_capacity_u32(self.queue.read().unwrap().len());
+        header[0].requested_capacity = (self.dimensions.0 as u64)
+            .checked_mul(self.dimensions.1 as u64)
+            .and_then(|pixels| pixels.checked_mul(4))
+            .unwrap_or(u64::from(u32::MAX))
+            .min(u64::from(u32::MAX)) as u32;
+        render_context.update_buffer(&mut *header);
+    }
+
     fn name(&self) -> &str {
         COMPUTE_WAVEFRONT_TRANSPARENCY_NAME
     }
@@ -99,6 +116,7 @@ impl Pass for ComputeWavefrontTransparencyPass {
                 .vector_with_id(wavefront_auxiliary_bindings().transparent_queue),
             header,
             dimensions: (0, 0),
+            capacity_limits: negotiated_queue_capacity_limits(render_context),
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
@@ -164,20 +182,33 @@ impl Pass for ComputeWavefrontTransparencyPass {
             .get_mut()
             .init(render_context, &mut self.binding_data, None);
     }
+    fn resize(&mut self, dimensions: inox_render::FrameDimensions) {
+        self.set_dimensions(dimensions.render_dimensions());
+    }
+
     fn update(
         &mut self,
         render_context: &RenderContext,
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
+        {
+            let mut header = self.header.write().unwrap();
+            header[0].version = crate::WAVEFRONT_QUEUE_VERSION;
+            header[0].count = 0;
+            header[0].overflowed = 0;
+            header[0].dropped_records = 0;
+            header[0].capacity = queue_capacity_u32(self.queue.read().unwrap().len());
+            header[0].requested_capacity = (self.dimensions.0 as u64)
+                .checked_mul(self.dimensions.1 as u64)
+                .and_then(|pixels| pixels.checked_mul(4))
+                .unwrap_or(u64::from(u32::MAX))
+                .min(u64::from(u32::MAX)) as u32;
+            render_context.update_buffer(&mut *header);
+        }
         if self.queue.read().unwrap().is_empty() {
             return;
         }
-        let mut header = self.header.write().unwrap();
-        header[0].count = 0;
-        header[0].overflowed = 0;
-        header[0].capacity = queue_capacity_u32(self.queue.read().unwrap().len());
-        render_context.update_buffer(&mut *header);
         self.compute_pass.get().dispatch(
             render_context,
             &mut self.binding_data,
@@ -192,15 +223,27 @@ impl Pass for ComputeWavefrontTransparencyPass {
 impl ComputeWavefrontTransparencyPass {
     pub fn set_dimensions(&mut self, dimensions: (u32, u32)) -> &mut Self {
         self.dimensions = dimensions;
-        let capacity = (dimensions.0 as usize)
-            .saturating_mul(dimensions.1 as usize)
-            .saturating_mul(4)
-            .min(MAX_WAVEFRONT_QUEUE_CAPACITY);
+        let capacity = queue_capacity_for_resolution(
+            dimensions.0,
+            dimensions.1,
+            std::mem::size_of::<TransparentHitRecord>() as u32,
+            4,
+            self.capacity_limits,
+        )
+        .unwrap_or(self.capacity_limits.fallback_capacity.max(1)) as usize;
         self.queue
             .write()
             .unwrap()
             .resize(capacity, TransparentHitRecord::default());
-        self.header.write().unwrap()[0].capacity = queue_capacity_u32(capacity);
+        {
+            let mut header = self.header.write().unwrap();
+            header[0].capacity = queue_capacity_u32(capacity);
+            header[0].requested_capacity = (dimensions.0 as u64)
+                .checked_mul(dimensions.1 as u64)
+                .and_then(|pixels| pixels.checked_mul(4))
+                .unwrap_or(u64::from(u32::MAX))
+                .min(u64::from(u32::MAX)) as u32;
+        }
         self
     }
 }
@@ -299,6 +342,10 @@ impl Pass for ComputeWavefrontTransparencyResolvePass {
             .get_mut()
             .init(render_context, &mut self.binding_data, None);
     }
+    fn resize(&mut self, dimensions: inox_render::FrameDimensions) {
+        self.set_dimensions(dimensions.render_dimensions());
+    }
+
     fn update(
         &mut self,
         render_context: &RenderContext,

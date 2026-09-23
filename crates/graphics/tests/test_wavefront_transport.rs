@@ -496,6 +496,31 @@ fn material_ids_are_numeric_between_surface_and_bounce() {
 }
 
 #[test]
+fn queue_pass_error_fallbacks_use_negotiated_nonzero_capacity() {
+    for pass in [
+        "compute_wavefront_primary.rs",
+        "compute_wavefront_traversal.rs",
+        "compute_wavefront_next_bounce.rs",
+        "compute_wavefront_transparency.rs",
+    ] {
+        let source = fs::read_to_string(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("src/passes")
+                .join(pass),
+        )
+        .unwrap();
+        assert!(
+            source.contains(".unwrap_or(self.capacity_limits.fallback_capacity.max(1)) as usize;"),
+            "{pass} must recover with its negotiated nonzero fallback capacity"
+        );
+        assert!(
+            !source.contains("MAX_WAVEFRONT_QUEUE_CAPACITY.min(WAVEFRONT_QUEUE_FALLBACK_CAPACITY)"),
+            "{pass} must not recover with the portable fallback policy"
+        );
+    }
+}
+
+#[test]
 fn wavefront_buffers_keep_full_resolution_with_non_native_render_scale() {
     let dimensions = (1920, 1080);
     let limits = inox_render::QueueCapacityLimits {
@@ -545,7 +570,7 @@ fn wavefront_buffers_keep_full_resolution_with_non_native_render_scale() {
                 .join(pass),
         )
         .unwrap();
-        assert!(source.contains("MAX_WAVEFRONT_QUEUE_CAPACITY"));
+        assert!(source.contains("self.capacity_limits.fallback_capacity.max(1)"));
         assert!(!source.contains("usize::MAX"));
     }
     let transparency_pass = fs::read_to_string(
@@ -553,7 +578,7 @@ fn wavefront_buffers_keep_full_resolution_with_non_native_render_scale() {
             .join("src/passes/compute_wavefront_transparency.rs"),
     )
     .unwrap();
-    assert!(transparency_pass.contains("MAX_WAVEFRONT_QUEUE_CAPACITY"));
+    assert!(transparency_pass.contains("self.capacity_limits.fallback_capacity.max(1)"));
     assert!(transparency_pass.contains("checked_mul(4)"));
     assert!(!transparency_pass.contains("MAX_TRANSPARENT_QUEUE_CAPACITY"));
     assert!(!transparency_pass.contains("1_048_576"));
