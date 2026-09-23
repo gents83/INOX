@@ -26,6 +26,20 @@ fn active_pass_names() -> Vec<String> {
 }
 
 #[test]
+fn viewer_camera_projection_uses_authoritative_surface_dimensions() {
+    let source = include_str!("../src/systems/viewer_system.rs");
+    assert!(source.contains("fn update_camera_projections(&mut self)"));
+    assert!(source.contains("self.render_context.frame_dimensions().surface"));
+    assert!(source.contains("dimensions.width.max(1)"));
+    assert!(source.contains("dimensions.height.max(1)"));
+    assert!(source.contains("self.check_command_line_arguments();"));
+    assert_eq!(source.matches("self.update_camera_projections();").count(), 2);
+    assert!(source.contains("if let WindowEvent::SizeChanged(_, _) = event {"));
+    assert!(source.contains("resized = true;"));
+    assert!(source.contains("if resized {"));
+}
+
+#[test]
 fn production_metadata_has_unique_entries_and_complete_queue_chain() {
     let metadata = pass_metadata();
     let active = active_pass_names();

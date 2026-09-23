@@ -105,3 +105,11 @@
 - [x] Add a failing depth-pyramid shader contract covering input-dimension clamping and the `3x5 -> 1x2 -> 1x1` rectangular mip tail.
 - [x] Clamp the doubled source coordinate and all four `textureLoad` source coordinates to the input mip extent before reduction.
 - [x] Run the focused depth-pyramid, frame-dimension, and dynamic-dimension tests: 3, 9, and 4 tests passed respectively.
+## Task 2 — Initial camera projection alignment — 2026-09-23
+
+- [x] Add a failing viewer contract for authoritative startup camera dimensions and the existing resize path.
+- [x] Initialize all camera projections from the render-context surface dimensions after scene setup.
+- [x] Reuse the same clamped projection helper for `WindowEvent::SizeChanged`.
+- [x] Run focused viewer tests and the viewer WASM check.
+
+Task 2 results are recorded in `.superpowers/sdd/2026-09-23-wavefront-resolution-resize/task-2-report.md`.

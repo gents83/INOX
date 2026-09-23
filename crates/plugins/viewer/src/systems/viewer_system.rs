@@ -67,6 +67,7 @@ impl System for ViewerSystem {
 
     fn init(&mut self) {
         self.check_command_line_arguments();
+        self.update_camera_projections();
 
         self.listener
             .register::<KeyEvent>()
@@ -397,27 +398,40 @@ impl ViewerSystem {
         }
     }
 
+    fn update_camera_projections(&mut self) {
+        let dimensions = self.render_context.frame_dimensions().surface;
+        let width = dimensions.width.max(1) as f32;
+        let height = dimensions.height.max(1) as f32;
+        self.context
+            .shared_data()
+            .for_each_resource_mut(|_, camera: &mut Camera| {
+                camera.set_projection(
+                    camera.fov_in_degrees(),
+                    width,
+                    height,
+                    camera.near_plane(),
+                    camera.far_plane(),
+                );
+            });
+    }
+
     fn update_events(&mut self) -> &mut Self {
         inox_profiler::scoped_profile!("update_events");
 
         self.handle_keyboard_event();
         self.handle_mouse_event();
+
+        let mut resized = false;
+        self.listener.process_messages(|event: &WindowEvent| {
+            if let WindowEvent::SizeChanged(_, _) = event {
+                resized = true;
+            }
+        });
+        if resized {
+            self.update_camera_projections();
+        }
+
         self.listener
-            .process_messages(|event: &WindowEvent| {
-                if let WindowEvent::SizeChanged(width, height) = event {
-                    self.context
-                        .shared_data()
-                        .for_each_resource_mut(|_, c: &mut Camera| {
-                            c.set_projection(
-                                c.fov_in_degrees(),
-                                *width as _,
-                                *height as _,
-                                c.near_plane(),
-                                c.far_plane(),
-                            );
-                        });
-                }
-            })
             .process_messages(|event: &SerializableResourceEvent<Scene>| {
                 let SerializableResourceEvent::<Scene>::Load(path, _option) = event;
                 debug_log!("Loading scene: {:?}", path);
