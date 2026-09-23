@@ -3,8 +3,16 @@ use std::path::PathBuf;
 
 use inox_graphics::passes::pathtracing_common::{
     bounded_path_depth, ior_ratio, queue_capacity_for_resolution, queue_capacity_u32,
-    reflect_direction, refract_direction, roulette_survival_probability, wavefront_bounce_stages,
-    RayQueue, MAX_WAVEFRONT_QUEUE_CAPACITY,
+    queue_diagnostic_marker_state, queue_fallback_capacity_for_adapter, reflect_direction,
+    refract_direction, roulette_survival_probability, wavefront_bounce_queue_id,
+    wavefront_bounce_stages, wavefront_queue_memory_bytes, QueueHeader, QueueOverflowDiagnostic,
+    RayQueue, MAX_WAVEFRONT_QUEUE_CAPACITY, WAVEFRONT_QUEUE_FALLBACK_CAPACITY,
+    WAVEFRONT_QUEUE_GPU_BYTES_PER_CAPACITY_ENTRY, WAVEFRONT_QUEUE_HOST_BYTES_PER_CAPACITY_ENTRY,
+    WAVEFRONT_QUEUE_MEMORY_BUDGET_BYTES,
+};
+#[cfg(not(target_arch = "wasm32"))]
+use inox_graphics::passes::pathtracing_common::{
+    WAVEFRONT_NATIVE_QUEUE_FALLBACK_CAPACITY, WAVEFRONT_NATIVE_QUEUE_MEMORY_BUDGET_BYTES,
 };
 
 fn shader(name: &str) -> String {
@@ -57,6 +65,245 @@ fn depth_and_roulette_are_bounded() {
     assert!(source.contains("constant_data.max_path_depth"));
     assert!(source.contains("constant_data.min_roulette_depth"));
     assert!(source.contains("throughput /= survival"));
+}
+
+#[test]
+fn runtime_bounce_controls_keep_the_fixed_eight_stage_graph() {
+    let stages = wavefront_bounce_stages();
+    assert_eq!(stages.len(), 8);
+    assert_eq!(bounded_path_depth(0), 0);
+    assert_eq!(bounded_path_depth(1), 1);
+    assert_eq!(bounded_path_depth(8), 8);
+    assert_eq!(bounded_path_depth(9), 8);
+    let constant_data = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../render/src/data/constant_data.rs"),
+    )
+    .unwrap();
+    assert!(constant_data.contains("pub fn set_num_bounces"));
+    assert!(constant_data.contains("let n = n.min(8)"));
+    assert!(constant_data.contains("pub fn set_max_path_depth"));
+    assert!(constant_data.contains("let depth = depth.min(8)"));
+}
+
+#[test]
+fn generated_bounces_ping_pong_two_ray_queues_without_aliasing_a_stage() {
+    let stages = wavefront_bounce_stages();
+    let queues = stages
+        .iter()
+        .map(|stage| stage.bindings.destination_ray_queue)
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(queues.len(), 2);
+    assert_eq!(queues.len(), inox_graphics::WAVEFRONT_BOUNCE_QUEUE_COUNT);
+    assert_eq!(wavefront_bounce_queue_id(1), wavefront_bounce_queue_id(3));
+    assert_eq!(wavefront_bounce_queue_id(2), wavefront_bounce_queue_id(4));
+    assert_ne!(wavefront_bounce_queue_id(1), wavefront_bounce_queue_id(2));
+    for stage in &stages {
+        assert_ne!(
+            stage.bindings.source_ray_queue, stage.bindings.destination_ray_queue,
+            "a bounce must not read and write the same ray queue"
+        );
+        assert_ne!(
+            stage.bindings.destination_ray_header, stage.destination_dispatch_args,
+            "stage header and dispatch args must remain distinct"
+        );
+    }
+    for pair in stages.windows(2) {
+        assert_eq!(
+            pair[1].bindings.source_ray_queue,
+            pair[0].bindings.destination_ray_queue
+        );
+    }
+}
+
+#[test]
+fn default_ray_queue_allocation_has_a_bounded_memory_budget() {
+    let stages = wavefront_bounce_stages();
+    let mut queues = std::collections::BTreeSet::from([inox_graphics::WAVEFRONT_PRIMARY_QUEUE_ID]);
+    queues.extend(
+        stages
+            .iter()
+            .map(|stage| stage.bindings.destination_ray_queue),
+    );
+    let capacity = queue_capacity_for_resolution(
+        1920,
+        1080,
+        std::mem::size_of::<inox_graphics::RayQueueRecord>() as u32,
+        1,
+        inox_graphics::portable_queue_capacity_limits(),
+    )
+    .unwrap() as usize;
+    let bytes = queues.len() * capacity * std::mem::size_of::<inox_graphics::RayQueueRecord>();
+    assert_eq!(queues.len(), 3, "primary plus two ping-pong queues");
+    assert!(
+        bytes <= WAVEFRONT_QUEUE_MEMORY_BUDGET_BYTES,
+        "default GPU ray queue allocation was {bytes} bytes"
+    );
+    assert!(
+        wavefront_queue_memory_bytes(capacity) <= WAVEFRONT_QUEUE_MEMORY_BUDGET_BYTES,
+        "default host+GPU queue allocation exceeded the aggregate budget: {} > {}",
+        wavefront_queue_memory_bytes(capacity),
+        WAVEFRONT_QUEUE_MEMORY_BUDGET_BYTES
+    );
+}
+
+#[test]
+fn aggregate_queue_fallback_budget_includes_all_live_queue_classes() {
+    let capacity = WAVEFRONT_QUEUE_FALLBACK_CAPACITY;
+    assert!(capacity < MAX_WAVEFRONT_QUEUE_CAPACITY);
+    assert!(wavefront_queue_memory_bytes(capacity) <= WAVEFRONT_QUEUE_MEMORY_BUDGET_BYTES);
+    assert_eq!(
+        WAVEFRONT_QUEUE_GPU_BYTES_PER_CAPACITY_ENTRY,
+        3 * std::mem::size_of::<inox_graphics::RayQueueRecord>()
+            + std::mem::size_of::<inox_graphics::HitRecord>()
+            + 4 * std::mem::size_of::<inox_graphics::TransparentHitRecord>()
+    );
+    assert_eq!(
+        WAVEFRONT_QUEUE_HOST_BYTES_PER_CAPACITY_ENTRY,
+        WAVEFRONT_QUEUE_GPU_BYTES_PER_CAPACITY_ENTRY
+    );
+    assert_eq!(
+        wavefront_queue_memory_bytes(capacity),
+        capacity
+            * (WAVEFRONT_QUEUE_GPU_BYTES_PER_CAPACITY_ENTRY
+                + WAVEFRONT_QUEUE_HOST_BYTES_PER_CAPACITY_ENTRY)
+    );
+
+    let limits = inox_graphics::portable_queue_capacity_limits();
+    let pixels = queue_capacity_for_resolution(1920, 1080, 64, 1, limits).unwrap();
+    let hit = queue_capacity_for_resolution(1920, 1080, 32, 1, limits).unwrap();
+    let transparent = queue_capacity_for_resolution(1920, 1080, 40, 4, limits).unwrap();
+    assert_eq!(pixels as usize, capacity);
+    assert_eq!(hit as usize, capacity);
+    assert_eq!(transparent as usize, capacity);
+    assert!(wavefront_queue_memory_bytes(capacity) <= 512 * 1024 * 1024);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn native_default_dimensions_fit_queue_budget_when_adapter_limits_permit() {
+    assert_eq!(
+        queue_fallback_capacity_for_adapter(true),
+        WAVEFRONT_NATIVE_QUEUE_FALLBACK_CAPACITY
+    );
+    assert_eq!(
+        queue_fallback_capacity_for_adapter(false),
+        WAVEFRONT_QUEUE_FALLBACK_CAPACITY
+    );
+    let dimensions = (1900, 1037);
+    let limits = inox_render::QueueCapacityLimits {
+        max_storage_buffer_binding_size: WAVEFRONT_NATIVE_QUEUE_MEMORY_BUDGET_BYTES as u64,
+        max_buffer_size: WAVEFRONT_NATIVE_QUEUE_MEMORY_BUDGET_BYTES as u64,
+        fallback_capacity: WAVEFRONT_NATIVE_QUEUE_FALLBACK_CAPACITY as u32,
+    };
+    let primary = queue_capacity_for_resolution(
+        dimensions.0,
+        dimensions.1,
+        std::mem::size_of::<inox_graphics::RayQueueRecord>() as u32,
+        1,
+        limits,
+    )
+    .unwrap() as usize;
+    let hit = queue_capacity_for_resolution(
+        dimensions.0,
+        dimensions.1,
+        std::mem::size_of::<inox_graphics::HitRecord>() as u32,
+        1,
+        limits,
+    )
+    .unwrap() as usize;
+    let transparency = queue_capacity_for_resolution(
+        dimensions.0,
+        dimensions.1,
+        std::mem::size_of::<inox_graphics::TransparentHitRecord>() as u32,
+        4,
+        limits,
+    )
+    .unwrap() as usize;
+    let pixels = dimensions.0 as usize * dimensions.1 as usize;
+
+    assert!(
+        primary >= pixels,
+        "native primary queue fits without truncation"
+    );
+    let maximize_dimensions = (1916, 1125);
+    let maximize_primary = queue_capacity_for_resolution(
+        maximize_dimensions.0,
+        maximize_dimensions.1,
+        std::mem::size_of::<inox_graphics::RayQueueRecord>() as u32,
+        1,
+        limits,
+    )
+    .unwrap() as usize;
+    assert!(
+        maximize_primary >= 2_155_500,
+        "discrete-native maximize primary queue must not truncate: {maximize_primary}"
+    );
+    assert!(hit >= pixels, "native hit queue fits without truncation");
+    assert!(
+        transparency >= pixels,
+        "native transparency queue fits without truncation"
+    );
+    assert!(
+        wavefront_queue_memory_bytes(pixels) <= WAVEFRONT_NATIVE_QUEUE_MEMORY_BUDGET_BYTES,
+        "native host+GPU queue estimate must fit without overflow"
+    );
+}
+
+#[test]
+fn inactive_wavefront_passes_reset_headers_and_indirect_arguments() {
+    let pass_sources = [
+        "compute_wavefront_primary.rs",
+        "compute_wavefront_dispatch.rs",
+        "compute_wavefront_traversal.rs",
+        "compute_wavefront_next_bounce.rs",
+        "compute_wavefront_transparency.rs",
+    ];
+    for pass in pass_sources {
+        let source = fs::read_to_string(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("src/passes")
+                .join(pass),
+        )
+        .unwrap();
+        assert!(
+            source.contains("fn reset(&mut self, render_context: &RenderContext)"),
+            "{pass}"
+        );
+        assert!(source.contains("update_buffer"), "{pass}");
+    }
+    let dispatch = shader("compute_wavefront_dispatch.wgsl");
+    assert!(dispatch.contains("select(0u, 1u, count > 0u)"));
+    assert!(dispatch.contains("min(atomicLoad(&queue_header[0].count), queue_header[0].capacity)"));
+    let render_context = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../render/src/common/render_context.rs"),
+    )
+    .unwrap();
+    assert!(render_context.contains("pass.reset(self)"));
+}
+
+#[test]
+fn shared_hit_header_resets_immediately_before_each_traversal_dispatch() {
+    let source = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/passes/compute_wavefront_traversal.rs"),
+    )
+    .unwrap();
+    let update = source.find("fn update(").unwrap();
+    let update_source = &source[update..];
+    let reset = update_source
+        .find("self.reset_hit_queue(render_context);")
+        .expect("traversal update must reset the shared hit header");
+    let dispatch = update_source
+        .find("dispatch_indirect(")
+        .expect("traversal update must dispatch after resetting the header");
+    assert!(reset < dispatch);
+    assert!(update_source[..reset].contains("self.dispatch_args.read().unwrap().is_empty()"));
+    assert!(update_source[reset..dispatch].contains("let buffers = render_context.buffers();"));
+
+    let stages = wavefront_bounce_stages();
+    assert_eq!(stages.len(), 8);
+    assert!(stages
+        .iter()
+        .all(|stage| stage.bindings.source_hit_header == inox_graphics::WAVEFRONT_HIT_HEADER_ID));
 }
 
 #[test]
@@ -139,7 +386,7 @@ fn next_bounce_uses_explicit_lobe_pdf_and_finite_guards() {
     let source = shader("compute_wavefront_next_bounce.wgsl");
     assert!(source.contains("p_lobe"));
     assert!(source.contains("p_direction"));
-    assert!(source.contains("bsdf * cosine_out / (p_lobe * p_direction)"));
+    assert!(source.contains("bsdf * cosine_out * eta_scale / (p_lobe * p_direction)"));
     assert!(source.contains("finite_scalar"));
     assert!(source.contains("finite_vector"));
     assert!(source.contains("if (tir) {"));
@@ -150,7 +397,7 @@ fn next_bounce_uses_explicit_lobe_pdf_and_finite_guards() {
 fn environment_index_bounds_preserve_valid_black_textures() {
     let shade = shader("compute_wavefront_shade.wgsl");
     assert!(shade.contains("texture_index >= MAX_NUM_TEXTURES"));
-    assert!(shade.contains("return max(sampled, vec3<f32>(0.0))"));
+    assert!(shade.contains("return sanitize_vector(sampled)"));
     assert!(!shade.contains("length(sampled) > MATH_EPSILON"));
 }
 
@@ -251,17 +498,36 @@ fn material_ids_are_numeric_between_surface_and_bounce() {
 #[test]
 fn wavefront_buffers_keep_full_resolution_with_non_native_render_scale() {
     let dimensions = (1920, 1080);
-    let full_capacity = queue_capacity_for_resolution(dimensions, 1.0, usize::MAX);
-    let scaled_capacity = queue_capacity_for_resolution(dimensions, 0.5, usize::MAX);
+    let limits = inox_render::QueueCapacityLimits {
+        fallback_capacity: u32::MAX,
+        ..Default::default()
+    };
+    let full_capacity =
+        queue_capacity_for_resolution(dimensions.0, dimensions.1, 16, 1, limits).unwrap();
+    let scaled_capacity = queue_capacity_for_resolution(960, 540, 16, 1, limits).unwrap();
     assert!(scaled_capacity < full_capacity);
     assert_eq!(
-        queue_capacity_for_resolution((1920, 1080), 1.0, MAX_WAVEFRONT_QUEUE_CAPACITY),
+        queue_capacity_for_resolution(
+            1920,
+            1080,
+            16,
+            1,
+            inox_render::QueueCapacityLimits::default()
+        )
+        .unwrap(),
         2_073_600
     );
-    assert_eq!(MAX_WAVEFRONT_QUEUE_CAPACITY, 2_097_152);
+    assert_eq!(MAX_WAVEFRONT_QUEUE_CAPACITY, 2_796_202);
     assert_eq!(
-        queue_capacity_for_resolution((3840, 2160), 1.0, MAX_WAVEFRONT_QUEUE_CAPACITY),
-        MAX_WAVEFRONT_QUEUE_CAPACITY
+        queue_capacity_for_resolution(
+            3840,
+            2160,
+            16,
+            1,
+            inox_render::QueueCapacityLimits::default()
+        )
+        .unwrap(),
+        2_097_152
     );
     assert_eq!(queue_capacity_u32(usize::MAX), u32::MAX);
 
@@ -288,7 +554,7 @@ fn wavefront_buffers_keep_full_resolution_with_non_native_render_scale() {
     )
     .unwrap();
     assert!(transparency_pass.contains("MAX_WAVEFRONT_QUEUE_CAPACITY"));
-    assert!(transparency_pass.contains("saturating_mul(4)"));
+    assert!(transparency_pass.contains("checked_mul(4)"));
     assert!(!transparency_pass.contains("MAX_TRANSPARENT_QUEUE_CAPACITY"));
     assert!(!transparency_pass.contains("1_048_576"));
 
@@ -394,10 +660,385 @@ fn invalid_material_ids_are_rejected_before_packed_access() {
 }
 
 #[test]
+fn packed_scene_wavefront_stages_use_bounded_table_access_helpers() {
+    for name in [
+        "compute_wavefront_surface.wgsl",
+        "compute_wavefront_traversal.wgsl",
+        "compute_wavefront_visibility.wgsl",
+        "compute_wavefront_direct_candidates.wgsl",
+        "compute_wavefront_transparency.wgsl",
+        "compute_wavefront_shade.wgsl",
+        "compute_wavefront_next_bounce.wgsl",
+    ] {
+        let source = shader(name);
+        assert!(source.contains("#import \"packed_scene.inc\""), "{name}");
+        assert!(source.contains("packed_scene_valid()"), "{name}");
+    }
+    let packed = shader("packed_scene.inc");
+    assert!(packed.contains("scene_data[0u] != PACKED_BUFFER_MAGIC"));
+    assert!(packed.contains("scene_data[1u] != PACKED_BUFFER_VERSION"));
+    assert!(packed.contains("words != storage"));
+    assert!(packed.contains("packed_table_expected_stride"));
+    assert!(packed.contains("left_end = left_offset + left_count"));
+    assert!(packed.contains("fn packed_table_range_valid"));
+    assert!(packed.contains("fn range_has_words_at"));
+    assert!(packed.contains("fn range_has_indexed_words"));
+    assert!(packed.contains("fn scene_relative_index_valid"));
+    let surface = shader("compute_wavefront_surface.wgsl");
+    assert!(surface.contains("let encoded_instance = visibility >> 8u;"));
+    assert!(surface.contains("if (encoded_instance == 0u) { write_empty(pixel); return; }"));
+    assert!(!surface.contains("encoded_instance >= 0x00FFu"));
+    assert!(
+        surface.find("encoded_instance == 0u").unwrap()
+            < surface
+                .find("let instance_id = encoded_instance - 1u")
+                .unwrap()
+    );
+    assert!(surface.contains("!scene_index_valid(3u, instance_id, 4u)"));
+    assert!(surface.contains("!scene_index_valid(4u, transform_id, 16u)"));
+    assert!(surface.contains("!scene_index_valid(5u, mesh_index, 16u)"));
+    assert!(surface.contains("!scene_index_valid(6u, meshlet_index, 20u)"));
+    assert!(surface
+        .contains("!range_has_indexed_words(0u, meshlet_indices_offset, primitive_id, 3u, 3u)"));
+    assert!(surface.contains("!range_has_words_at(1u, vertex_offset, i0, 1u)"));
+    let traversal = shader("compute_wavefront_traversal.wgsl");
+    assert!(traversal.contains(
+        "scene_relative_index_valid(6u, mesh.meshlets_offset, u32(node.reference), 20u)"
+    ));
+    assert!(traversal.contains("range_has_indexed_words(0u, indices_offset, triangle, 3u, 3u)"));
+    assert!(traversal.contains("range_has_words_at(1u, mesh.vertices_position_offset, i0, 1u)"));
+    let visibility = shader("compute_wavefront_visibility.wgsl");
+    assert!(
+        visibility.contains("scene_relative_index_valid(6u, meshlet_start, relative_meshlet, 20u)")
+    );
+    assert!(visibility.contains("range_has_indexed_words(0u, io, tri, 3u, 3u)"));
+    assert!(visibility.contains("range_has_words_at(1u, vbase, i0, 1u)"));
+}
+
+#[test]
+fn packed_scene_material_and_visibility_reads_are_rejected_before_access() {
+    let surface = shader("compute_wavefront_surface.wgsl");
+    let transparency = shader("compute_wavefront_transparency.wgsl");
+    let shade = shader("compute_wavefront_shade.wgsl");
+    let next = shader("compute_wavefront_next_bounce.wgsl");
+    let visibility = shader("compute_wavefront_visibility.wgsl");
+    let direct = shader("compute_wavefront_direct_candidates.wgsl");
+    let traversal = shader("compute_wavefront_traversal.wgsl");
+    assert!(direct.contains("!packed_scene_valid()"));
+    assert!(direct.contains(
+        "!range_has_words(11u, record_relative, PACKED_LIGHT_ALIAS_RECORD_STRIDE_WORDS)"
+    ));
+    assert!(direct.contains("!scene_index_valid(10u, light_id, 16u)"));
+    assert!(traversal.contains("if (!packed_scene_valid()) { return; }"));
+    assert!(transparency.contains("if (!scene_index_valid(8u, material_id, 48u)) { return; }"));
+    assert!(shade.contains("!scene_index_valid(8u, u32(material_index), 48u)"));
+    assert!(next.contains("if (!scene_index_valid(8u, material_id, 48u)) { return; }"));
+    assert!(visibility.contains("if (!scene_index_valid(3u, instance, 4u)) { continue; }"));
+    assert!(visibility.contains("if (!scene_index_valid(4u, transform_id, 16u) || !scene_index_valid(5u, mesh_index, 16u)) { continue; }"));
+    assert!(visibility.contains("!range_has_words(0u, io, index_count)"));
+    assert!(visibility.contains("!range_has_words_at(1u, vbase, i0, 1u)"));
+    assert!(
+        visibility.contains("scene_relative_index_valid(6u, meshlet_start, relative_meshlet, 20u)")
+    );
+    for source in [
+        &surface,
+        &traversal,
+        &visibility,
+        &direct,
+        &transparency,
+        &shade,
+        &next,
+    ] {
+        assert!(!surface_contains_unchecked_table_offset(source));
+    }
+}
+
+fn surface_contains_unchecked_table_offset(source: &str) -> bool {
+    source.contains("fn table_offset(kind: u32) -> u32 { return scene_data[4u + kind * 4u]; }")
+}
+
+#[test]
+fn malformed_visibility_cannot_wrap_instance_id() {
+    let source = shader("compute_wavefront_surface.wgsl");
+    let guard = source
+        .find("let encoded_instance = visibility >> 8u;")
+        .expect("visibility decoder must exist");
+    let subtraction = source
+        .find("let instance_id = encoded_instance - 1u;")
+        .expect("instance subtraction must exist");
+    let guard_text = &source[guard..subtraction];
+    assert!(guard_text.contains("encoded_instance == 0u"));
+    assert!(!guard_text.contains("encoded_instance >= 0x00FFu"));
+    assert!(!guard_text.contains("visibility >> 8u) - 1u"));
+    assert!(source.contains("scene_index_valid(3u, instance_id, 4u)"));
+    let traversal = shader("compute_wavefront_traversal.wgsl");
+    assert!(traversal.contains("instance_id < 0x00FFFFFEu"));
+    assert!(traversal.contains("((instance_id + 1u) << 8u)"));
+}
+
+#[test]
 fn finalize_uses_active_screen_dimensions_for_accumulators() {
     let source = shader("finalize.wgsl");
     assert!(source.contains("let data_dimensions = dimensions;"));
     assert!(!source.contains("vec2<u32>(DEFAULT_WIDTH, DEFAULT_HEIGHT)"));
+}
+
+#[test]
+fn transport_properties_cover_all_lobes_and_finite_termination_contracts() {
+    let source = shader("compute_wavefront_next_bounce.wgsl");
+    for incident in [[0.0, -1.0, 0.0], [0.6, -0.8, 0.0], [-0.8, -0.2, 0.3]] {
+        let normal = [0.0, 1.0, 0.0];
+        let reflected = reflect_direction(incident, normal);
+        assert!(reflected.iter().all(|v| v.is_finite()));
+        if let Some(refracted) = refract_direction(incident, normal, 1.0 / 1.5) {
+            assert!(refracted.iter().all(|v| v.is_finite()));
+        }
+    }
+    assert!(source.contains("cosine_sample(normal"));
+    assert!(source.contains("cosine_sample(reflection"));
+    assert!(source.contains("eta_scale = eta * eta"));
+    assert!(source.contains("if (tir) {"));
+    assert!(source.contains("p_direction <= MATH_EPSILON"));
+    assert!(source.contains("throughput /= survival"));
+    assert!(source.contains("finite_vector(throughput)"));
+}
+
+#[test]
+fn direct_reservoir_normalizes_selected_sample_and_invalidates_history() {
+    let source = shader("compute_wavefront_direct_candidates.wgsl");
+    assert!(source.contains("previous.flags == constant_data.history_epoch"));
+    assert!(source.contains("neighbor.flags == constant_data.history_epoch"));
+    assert!(source.contains("selected * reservoir.weight_sum"));
+    assert!(source.contains("f32(max(reservoir.candidate_count, 1u)) * selected_weight"));
+    assert!(source.contains("MAX_RESERVOIR_CANDIDATES"));
+    assert!(source.contains("add_candidate_count"));
+    assert!(source.contains("valid_weight(reservoir.weight_sum)"));
+    assert!(source.contains("finite_vector(candidate_estimate)"));
+    assert!(source.contains("reservoir.flags = constant_data.history_epoch"));
+    assert!(source.contains("finite_scalar(distance_sq)"));
+}
+
+#[test]
+fn shade_clears_indirect_accumulator_and_rejects_nonfinite_inputs() {
+    let shader_source = shader("compute_wavefront_shade.wgsl");
+    assert!(shader_source.contains("arrayLength(&indirect_accumulator)"));
+    assert!(shader_source.contains("finite_vector(ray.throughput.xyz)"));
+    assert!(shader_source.contains("sanitize_vector(sampled)"));
+    assert!(shader_source.contains("let emissive = sanitize_vector"));
+    assert!(shader_source.contains("let base_color = sanitize_vector"));
+    assert!(shader_source.contains("explicitly two-sided"));
+    assert!(!shader_source.contains("vec3<f32>(0.0, 1.0, 0.0)), 0.0"));
+    let pass = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/passes/compute_wavefront_shade.rs"),
+    )
+    .unwrap();
+    assert!(pass.contains("fn reset(&mut self, render_context: &RenderContext)"));
+    assert!(pass.contains("accumulator.fill(AccumulationRecord::default())"));
+    assert!(pass.contains("render_context.update_buffer(&mut *accumulator)"));
+}
+
+#[test]
+fn temporal_epoch_and_full_resolution_denoiser_contracts_are_explicit() {
+    let common = shader("common.inc");
+    let composite = shader("compute_wavefront_composite.wgsl");
+    let direct = shader("compute_wavefront_direct_candidates.wgsl");
+    assert!(common.contains("history_epoch: u32"));
+    assert!(composite.contains("final_accumulator[pixel].flags == constant_data.history_epoch"));
+    assert!(composite.contains("select(1u"));
+    assert!(composite.contains("abs(value) < vec3<f32>(65504.0)"));
+    assert!(direct.contains("reservoir.flags = constant_data.history_epoch"));
+    for name in [
+        "compute_wavefront_denoise_temporal.wgsl",
+        "compute_wavefront_denoise_bilateral.wgsl",
+    ] {
+        let source = shader(name);
+        assert!(source.contains("u32(constant_data.screen_width)"), "{name}");
+        assert!(
+            source.contains("u32(constant_data.screen_height)"),
+            "{name}"
+        );
+        assert!(!source.contains("render_scale"), "{name}");
+    }
+    let temporal = shader("compute_wavefront_denoise_temporal.wgsl");
+    assert!(temporal.contains("history_accumulator"));
+    assert!(temporal.contains("previous.flags == constant_data.history_epoch"));
+    assert!(temporal.contains("first_and_second_moment"));
+    assert!(temporal.contains("previous_variance"));
+}
+
+#[test]
+fn camera_resize_and_material_changes_advance_temporal_history_epoch() {
+    let constant_data = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../render/src/data/constant_data.rs"),
+    )
+    .unwrap();
+    let global_buffers = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../render/src/common/global_buffers.rs"),
+    )
+    .unwrap();
+    assert!(constant_data.contains("history_epoch: u32"));
+    assert!(constant_data.contains("pub fn invalidate_history"));
+    assert!(constant_data.contains("history_changed"));
+    assert!(constant_data.contains("self.invalidate_history(render_context)"));
+    assert!(
+        global_buffers
+            .matches("invalidate_history(render_context)")
+            .count()
+            >= 6
+    );
+    assert!(global_buffers.contains("*light.data()"));
+    assert!(global_buffers.contains("lights.push(light_id, *light_data)"));
+    assert!(global_buffers.contains("if !removed"));
+    assert!(global_buffers.contains("for_each_data"));
+    assert!(global_buffers.contains("saturating_sub(1)"));
+    let update_system = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../render/src/systems/update_system.rs"),
+    )
+    .unwrap();
+    assert!(update_system.contains("if light.get().is_active()"));
+    assert!(update_system.contains("if light.is_active()"));
+    assert!(
+        update_system
+            .matches("remove_light(&self.render_context, id)")
+            .count()
+            >= 2
+    );
+    assert!(update_system.contains("set_light_index(index)"));
+    assert!(update_system.contains("light.get_mut().invalidate()"));
+    assert!(update_system.contains("light.invalidate()"));
+    assert!(update_system.contains("DataTypeResourceEvent<Light>"));
+}
+
+#[test]
+fn light_reactivation_rebinds_reused_gpu_index_and_invalidates_removal() {
+    let global_buffers = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../render/src/common/global_buffers.rs"),
+    )
+    .unwrap();
+    let light = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../render/src/resources/light.rs"),
+    )
+    .unwrap();
+    assert!(global_buffers.contains("get_first_with_index_mut(light_id)"));
+    assert!(global_buffers.contains("(inserted.start as u32, true)"));
+    assert!(global_buffers.contains("index\n    }"));
+    assert!(global_buffers.contains("light.set_light_index(index as _)"));
+    assert!(global_buffers.contains("light.invalidate()"));
+    assert!(global_buffers.contains("pub fn remove_light") && global_buffers.contains(") -> bool"));
+    assert!(light.contains("self.light_index = INVALID_INDEX"));
+    assert!(light.contains("fn is_initialized(&self) -> bool"));
+    let update_system = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../render/src/systems/update_system.rs"),
+    )
+    .unwrap();
+    // A's removal invalidates its resource before B can reuse the freed slot;
+    // reactivation's update/add path writes the returned slot back to A.
+    assert!(update_system.contains("set_light_index(index)"));
+}
+
+#[test]
+fn queue_scheduling_does_not_cpu_gate_on_gpu_written_counts() {
+    for pass in [
+        "compute_wavefront_next_bounce.rs",
+        "compute_wavefront_shade.rs",
+    ] {
+        let source = fs::read_to_string(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("src/passes")
+                .join(pass),
+        )
+        .unwrap();
+        assert!(!source.contains("header.count > 0"), "{pass}");
+        assert!(!source.contains("header.count == 0"), "{pass}");
+    }
+}
+
+#[test]
+fn queue_capacity_is_checked_and_adapter_limited() {
+    let limits = inox_render::QueueCapacityLimits {
+        max_storage_buffer_binding_size: 64,
+        max_buffer_size: 96,
+        fallback_capacity: 32,
+    };
+    assert_eq!(
+        queue_capacity_for_resolution(0, 1080, 16, 1, limits).unwrap(),
+        0
+    );
+    assert_eq!(
+        queue_capacity_for_resolution(1, 1, 16, 1, limits).unwrap(),
+        1
+    );
+    assert_eq!(
+        queue_capacity_for_resolution(100, 100, 16, 1, limits).unwrap(),
+        4
+    );
+    assert!(matches!(
+        queue_capacity_for_resolution(u32::MAX, u32::MAX, 16, 1, limits),
+        Ok(4)
+    ));
+    assert!(matches!(
+        queue_capacity_for_resolution(1, 1, 0, 1, limits),
+        Err(inox_graphics::passes::pathtracing_common::CapacityError::ZeroRecordSize)
+    ));
+}
+
+#[test]
+fn cpu_queue_reports_dropped_records_and_resets_diagnostics() {
+    let mut queue = RayQueue::with_capacity(1);
+    assert!(queue.append(1u32));
+    assert!(!queue.append(2u32));
+    assert_eq!(queue.header().dropped_records, 1);
+    queue.reset();
+    assert_eq!(queue.header().dropped_records, 0);
+    assert!(!queue.is_overflowed());
+}
+
+fn marker_diagnostics(
+    count: usize,
+    overflowed: bool,
+    dropped_records: u32,
+) -> Vec<QueueOverflowDiagnostic> {
+    (0..count)
+        .map(|index| QueueOverflowDiagnostic {
+            name: format!("queue{index}"),
+            requested_capacity: 8,
+            actual_capacity: 8,
+            overflowed,
+            dropped_records,
+            active_bounce_count: 2,
+            header: QueueHeader {
+                capacity: 8,
+                overflowed: u32::from(overflowed),
+                dropped_records,
+                ..QueueHeader::default()
+            },
+        })
+        .collect()
+}
+
+#[test]
+fn queue_diagnostic_markers_require_all_clean_headers() {
+    let state = queue_diagnostic_marker_state(&marker_diagnostics(11, false, 0), 11);
+    assert!(state.complete);
+    assert!(state.no_overflow);
+}
+
+#[test]
+fn queue_diagnostic_markers_keep_complete_marker_for_overflow() {
+    let overflowed = queue_diagnostic_marker_state(&marker_diagnostics(11, true, 0), 11);
+    assert!(overflowed.complete);
+    assert!(!overflowed.no_overflow);
+
+    let dropped = queue_diagnostic_marker_state(&marker_diagnostics(11, false, 1), 11);
+    assert!(dropped.complete);
+    assert!(!dropped.no_overflow);
+}
+
+#[test]
+fn queue_diagnostic_markers_reject_partial_readback() {
+    let state = queue_diagnostic_marker_state(&marker_diagnostics(10, false, 0), 11);
+    assert!(!state.complete);
+    assert!(!state.no_overflow);
 }
 
 #[test]
@@ -425,6 +1066,14 @@ fn gpu_queue_overflow_has_an_explicit_readback_contract() {
     assert!(common.contains("Queue readback is unavailable on pinned WebGPU/WASM"));
     assert!(common.contains("Persistent overflow is deduplicated"));
     assert!(common.contains("read_buffer_as::<QueueHeader>"));
+    assert!(common.contains("EXPECTED_WAVEFRONT_QUEUE_HEADER_COUNT"));
+    assert!(common.contains("INOX_NATIVE_WAVEFRONT_QUEUE_HEADERS_FAILED"));
+    assert!(common.contains("INOX_NATIVE_WAVEFRONT_QUEUE_HEADERS_COMPLETE"));
+    assert!(common.contains("INOX_NATIVE_WAVEFRONT_QUEUE_NO_OVERFLOW"));
+    assert!(!common.contains("INOX_NATIVE_WAVEFRONT_QUEUE_HEADERS_OK"));
+    assert!(common.contains("diagnostics.iter().all"));
+    assert!(common.contains("diagnostic.header.dropped_records == 0"));
+    assert!(common.contains("diagnostics.len() != expected"));
     assert!(render_context.contains("read_buffer_as<T>"));
     assert!(render_context.contains("read_from_gpu_via_staging_as"));
     assert!(render_context.contains("add_post_submit_callback"));
@@ -432,6 +1081,8 @@ fn gpu_queue_overflow_has_an_explicit_readback_contract() {
     assert!(render_context.contains(".iter()"));
     assert!(render_context.contains(".cloned()"));
     assert!(viewer.contains("add_post_submit_callback(report_wavefront_queue_diagnostics)"));
+    assert!(!viewer.contains("signal_browser_smoke_marker(\"queue_headers\""));
+    assert!(!viewer.contains("signal_browser_smoke_marker(\"output\""));
     assert!(!viewer.contains("registration skipped on WebGPU/WASM"));
     assert!(viewer.contains("cfg(not(target_arch = \"wasm32\"))"));
     assert!(buffer_ref.contains("MAP_READ | wgpu::BufferUsages::COPY_DST"));
