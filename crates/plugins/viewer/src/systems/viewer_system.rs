@@ -67,7 +67,8 @@ impl System for ViewerSystem {
 
     fn init(&mut self) {
         self.check_command_line_arguments();
-        self.update_camera_projections();
+        let dimensions = self.render_context.frame_dimensions().surface;
+        self.update_camera_projections((dimensions.width, dimensions.height));
 
         self.listener
             .register::<KeyEvent>()
@@ -398,10 +399,9 @@ impl ViewerSystem {
         }
     }
 
-    fn update_camera_projections(&mut self) {
-        let dimensions = self.render_context.frame_dimensions().surface;
-        let width = dimensions.width.max(1) as f32;
-        let height = dimensions.height.max(1) as f32;
+    fn update_camera_projections(&mut self, dimensions: (u32, u32)) {
+        let width = dimensions.0.max(1) as f32;
+        let height = dimensions.1.max(1) as f32;
         self.context
             .shared_data()
             .for_each_resource_mut(|_, camera: &mut Camera| {
@@ -421,14 +421,17 @@ impl ViewerSystem {
         self.handle_keyboard_event();
         self.handle_mouse_event();
 
-        let mut resized = false;
+        let mut resize_dimensions = None;
         self.listener.process_messages(|event: &WindowEvent| {
-            if let WindowEvent::SizeChanged(_, _) = event {
-                resized = true;
+            if let WindowEvent::SizeChanged(width, height) = event {
+                resize_dimensions = Some((*width, *height));
             }
         });
-        if resized {
-            self.update_camera_projections();
+        if let Some(dimensions) = resize_dimensions {
+            self.update_camera_projections(dimensions);
+        } else {
+            let dimensions = self.render_context.frame_dimensions().surface;
+            self.update_camera_projections((dimensions.width, dimensions.height));
         }
 
         self.listener

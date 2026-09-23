@@ -26,17 +26,30 @@ fn active_pass_names() -> Vec<String> {
 }
 
 #[test]
-fn viewer_camera_projection_uses_authoritative_surface_dimensions() {
+fn viewer_camera_projection_uses_clamped_resize_event_dimensions() {
     let source = include_str!("../src/systems/viewer_system.rs");
-    assert!(source.contains("fn update_camera_projections(&mut self)"));
-    assert!(source.contains("self.render_context.frame_dimensions().surface"));
-    assert!(source.contains("dimensions.width.max(1)"));
-    assert!(source.contains("dimensions.height.max(1)"));
+    assert!(source.contains("fn update_camera_projections(&mut self, dimensions: (u32, u32))"));
+    assert!(source.contains("dimensions.0.max(1)"));
+    assert!(source.contains("dimensions.1.max(1)"));
+    assert!(source.contains("if let WindowEvent::SizeChanged(width, height) = event {"));
+    assert!(source.contains("resize_dimensions = Some((*width, *height));"));
+    assert!(source.contains("if let Some(dimensions) = resize_dimensions {"));
+    assert!(source.contains("self.update_camera_projections(dimensions);"));
+}
+
+#[test]
+fn viewer_reapplies_current_projection_for_late_camera_resources() {
+    let source = include_str!("../src/systems/viewer_system.rs");
+    let events = source
+        .find("fn update_events(&mut self)")
+        .expect("viewer event update must exist");
+    let fallback = source[events..]
+        .find("let dimensions = self.render_context.frame_dimensions().surface;")
+        .expect("event update must refresh projection dimensions");
+    let fallback = &source[events + fallback..];
+    assert!(fallback.contains("self.update_camera_projections((dimensions.width, dimensions.height));"));
     assert!(source.contains("self.check_command_line_arguments();"));
-    assert_eq!(source.matches("self.update_camera_projections();").count(), 2);
-    assert!(source.contains("if let WindowEvent::SizeChanged(_, _) = event {"));
-    assert!(source.contains("resized = true;"));
-    assert!(source.contains("if resized {"));
+    assert!(source.contains("self.update_camera_projections((dimensions.width, dimensions.height));"));
 }
 
 #[test]
