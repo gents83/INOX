@@ -2,6 +2,8 @@ use std::ops::Deref;
 
 use wgpu::util::{align_to, DeviceExt};
 
+#[cfg(not(target_arch = "wasm32"))]
+use crate::WebGpuContext;
 use crate::{platform::has_multisampling_support, TextureFormat, TextureId};
 
 use super::area::Area;
@@ -44,6 +46,7 @@ pub struct TextureRef {
     layers_count: u32,
     sample_count: u32,
     format: TextureFormat,
+    usage: wgpu::TextureUsages,
 }
 
 impl TextureRef {
@@ -92,6 +95,7 @@ impl TextureRef {
             layers_count,
             sample_count,
             format,
+            usage,
         };
         //create_mips
         for _ in 0..mips_count {
@@ -205,6 +209,208 @@ impl TextureRef {
                 depth_or_array_layers: 1,
             },
         );
+    }
+
+    /// Read an Rgba32Float render target through a temporary staging buffer.
+    ///
+    /// This is intentionally native-only and bounded to the first mip/layer. It is used by
+    /// opt-in image correctness smoke tests, never by the normal render loop.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn read_rgba32f(&self, context: &WebGpuContext) -> Option<Vec<f32>> {
+        if self.format != TextureFormat::Rgba32Float
+            || self.width == 0
+            || self.height == 0
+            || !self.usage.contains(wgpu::TextureUsages::COPY_SRC)
+        {
+            return None;
+        }
+        let bytes_per_row = align_to(
+            self.width as u64 * 16,
+            wgpu::COPY_BYTES_PER_ROW_ALIGNMENT as u64,
+        );
+        let staging_size = bytes_per_row * self.height as u64;
+        let staging = context.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Native image smoke staging"),
+            size: staging_size,
+            mapped_at_creation: false,
+            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+        });
+        let mut encoder = context
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Native image smoke readback"),
+            });
+        encoder.copy_texture_to_buffer(
+            wgpu::TexelCopyTextureInfo {
+                texture: &self.texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: self.format.aspect(),
+            },
+            wgpu::TexelCopyBufferInfo {
+                buffer: &staging,
+                layout: wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(bytes_per_row as u32),
+                    rows_per_image: Some(self.height),
+                },
+            },
+            wgpu::Extent3d {
+                width: self.width,
+                height: self.height,
+                depth_or_array_layers: 1,
+            },
+        );
+        context.queue.submit(std::iter::once(encoder.finish()));
+
+        let slice = staging.slice(..);
+        let result = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let result_clone = result.clone();
+        slice.map_async(wgpu::MapMode::Read, move |value| {
+            if let Ok(mut result) = result_clone.lock() {
+                *result = Some(value);
+            }
+        });
+        if context
+            .device
+            .poll(wgpu::PollType::Wait {
+                submission_index: None,
+                timeout: Some(std::time::Duration::from_secs(5)),
+            })
+            .is_err()
+        {
+            staging.unmap();
+            return None;
+        }
+        if !matches!(result.lock().ok()?.take(), Some(Ok(()))) {
+            staging.unmap();
+            return None;
+        }
+        let mapped = match slice.get_mapped_range() {
+            Ok(mapped) => mapped,
+            Err(_) => {
+                staging.unmap();
+                return None;
+            }
+        };
+        let mut pixels = Vec::with_capacity(self.width as usize * self.height as usize * 4);
+        for row in mapped
+            .chunks_exact(bytes_per_row as usize)
+            .take(self.height as usize)
+        {
+            for pixel in row[..self.width as usize * 16].as_chunks::<4>().0 {
+                pixels.push(f32::from_ne_bytes([pixel[0], pixel[1], pixel[2], pixel[3]]));
+            }
+        }
+        drop(mapped);
+        staging.unmap();
+        Some(pixels)
+    }
+
+    /// Read an R32Uint render target through a temporary staging buffer.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn read_r32uint(&self, context: &WebGpuContext) -> Option<Vec<u32>> {
+        if self.format != TextureFormat::R32Uint
+            || self.width == 0
+            || self.height == 0
+            || !self.usage.contains(wgpu::TextureUsages::COPY_SRC)
+        {
+            return None;
+        }
+        let bytes_per_row = align_to(
+            self.width as u64 * 4,
+            wgpu::COPY_BYTES_PER_ROW_ALIGNMENT as u64,
+        );
+        let staging = context.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Native visibility readback staging"),
+            size: bytes_per_row * self.height as u64,
+            mapped_at_creation: false,
+            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+        });
+        let mut encoder = context
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Native visibility readback"),
+            });
+        encoder.copy_texture_to_buffer(
+            wgpu::TexelCopyTextureInfo {
+                texture: &self.texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: self.format.aspect(),
+            },
+            wgpu::TexelCopyBufferInfo {
+                buffer: &staging,
+                layout: wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(bytes_per_row as u32),
+                    rows_per_image: Some(self.height),
+                },
+            },
+            wgpu::Extent3d {
+                width: self.width,
+                height: self.height,
+                depth_or_array_layers: 1,
+            },
+        );
+        context.queue.submit(std::iter::once(encoder.finish()));
+        let slice = staging.slice(..);
+        let result = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let result_clone = result.clone();
+        slice.map_async(wgpu::MapMode::Read, move |value| {
+            if let Ok(mut result) = result_clone.lock() {
+                *result = Some(value);
+            }
+        });
+        if context
+            .device
+            .poll(wgpu::PollType::Wait {
+                submission_index: None,
+                timeout: Some(std::time::Duration::from_secs(5)),
+            })
+            .is_err()
+            || !matches!(result.lock().ok()?.take(), Some(Ok(())))
+        {
+            staging.unmap();
+            return None;
+        }
+        let mapped = match slice.get_mapped_range() {
+            Ok(mapped) => mapped,
+            Err(_) => {
+                staging.unmap();
+                return None;
+            }
+        };
+        let mut values = Vec::with_capacity(self.width as usize * self.height as usize);
+        for row in mapped
+            .chunks_exact(bytes_per_row as usize)
+            .take(self.height as usize)
+        {
+            for pixel in row[..self.width as usize * 4].as_chunks::<4>().0 {
+                values.push(u32::from_ne_bytes([pixel[0], pixel[1], pixel[2], pixel[3]]));
+            }
+        }
+        drop(mapped);
+        staging.unmap();
+        Some(values)
+    }
+
+    pub fn resize(&mut self, device: &wgpu::Device, width: u32, height: u32, mips_count: u32) {
+        let replacement = Self::create(
+            device,
+            self.id,
+            (
+                width,
+                height,
+                self.layers_count,
+                self.sample_count,
+                self.format,
+                self.usage,
+                mips_count.max(1),
+            ),
+        );
+        self.texture.destroy();
+        *self = replacement;
     }
 
     pub fn release(&mut self) {
