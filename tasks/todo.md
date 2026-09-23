@@ -272,11 +272,10 @@ The opt-in callback and deterministic fixture pass. Native execution reaches GPU
 
 Task 2 results are recorded in `.superpowers/sdd/2026-09-23-wavefront-resolution-resize/task-2-report.md`.
 
-## Task 4 — maximize-sized native queue capacity — 2026-09-23
+## Task 4 ï¿½ maximize-sized native queue capacity ï¿½ 2026-09-23
 
 - [x] Add the native `1916x1125` regression and require primary capacity `>= 2_155_500`; portable fallback assertions remain unchanged.
 - [x] Raise the discrete-native aggregate retained queue budget from `1536 MiB` to `2 GiB`; derive the hard recovery ceiling as `2_796_202` entries from the checked aggregate bytes-per-entry constant. Portable/WASM fallback remains the `512 MiB` policy.
 - [x] Focused transport regression initially failed at `2_097_152` entries, then passed after the native policy update: `43 passed; 0 failed`.
 - [x] Native wavefront integration passed: `2 passed; 0 failed`.
 - [x] Maximize-sized Cornell smoke passed `INOX_NATIVE_CORNELL_IMAGE_PASS` at `1916x1125`; queue diagnostics reported `INOX_NATIVE_WAVEFRONT_QUEUE_NO_OVERFLOW` and emitted no `wavefront queue primary overflowed` diagnostic.
-
