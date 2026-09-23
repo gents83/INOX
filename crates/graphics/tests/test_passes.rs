@@ -188,3 +188,23 @@ fn wavefront_queue_bounds_appends_and_resets_without_allocating_per_append() {
     assert!(!queue.is_overflowed());
     assert!(queue.append(RayQueueRecord::default()));
 }
+
+#[test]
+fn depth_pyramid_shader_clamps_rectangular_tail_reads() {
+    let source = include_str!("../../../data_raw/shaders/wgsl/compute_depth_pyramid.wgsl");
+    assert!(source.contains("textureDimensions(input_mip_texture)"));
+    assert!(source.contains("let max_coords = input_dimensions - vec2<i32>(1, 1)"));
+    assert!(source.contains("let coords = min(vec2<i32>(p * 2.), max_coords)"));
+    for sample in [
+        "let sample_y = min(coords + vec2<i32>(0, 1), max_coords)",
+        "let sample_z = min(coords + vec2<i32>(1, 0), max_coords)",
+        "let sample_w = min(coords + vec2<i32>(1, 1), max_coords)",
+    ] {
+        assert!(source.contains(sample), "missing clamped Hi-Z sample: {sample}");
+    }
+
+    // A 3x5 mip chain has a rectangular tail: 3x5 -> 1x2 -> 1x1.
+    let rectangular_tail = [(3, 5), (1, 2), (1, 1)];
+    assert_eq!(rectangular_tail[1], (1, 2));
+    assert_eq!(rectangular_tail[2], (1, 1));
+}

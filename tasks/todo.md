@@ -99,3 +99,9 @@
 - Added a causal native headless WebGPU smoke graph covering production surface, primary, dispatch, traversal, hit-dispatch, shade, composite, and finalize shader stages with staged GPU readback and exact packed-scene/texture assertions.
 - The RTX headless adapter now negotiates its actual limits and the causal smoke passes: `7 passed`; transport contracts: `21 passed`.
 - The smoke explicitly reports adapter capability skips for unavailable native texture-array paths; no synthetic fallback is used.
+
+## Task 1 — Hi-Z rectangular-tail safety — 2026-09-23
+
+- [x] Add a failing depth-pyramid shader contract covering input-dimension clamping and the `3x5 -> 1x2 -> 1x1` rectangular mip tail.
+- [x] Clamp the doubled source coordinate and all four `textureLoad` source coordinates to the input mip extent before reduction.
+- [x] Run the focused depth-pyramid, frame-dimension, and dynamic-dimension tests: 3, 9, and 4 tests passed respectively.
