@@ -1,6 +1,6 @@
 use inox_render::{
-    PackedLightAliasData, PackedSceneBuilder, PackedSceneHeader, PackedTableRange, SceneTableKind,
-    PACKED_BUFFER_MAGIC, PACKED_BUFFER_VERSION, PACKED_LIGHT_ALIAS_CAPACITY,
+    GPULight, PackedLightAliasData, PackedSceneBuilder, PackedSceneHeader, PackedTableRange,
+    SceneTableKind, PACKED_BUFFER_MAGIC, PACKED_BUFFER_VERSION, PACKED_LIGHT_ALIAS_CAPACITY,
     PACKED_LIGHT_ALIAS_FLAG_OVERFLOW, PACKED_SCENE_HEADER_WORDS,
 };
 
@@ -150,4 +150,19 @@ fn packed_scene_rejects_nonfinite_or_out_of_range_alias_probabilities() {
             Err("packed light alias record is invalid")
         );
     }
+}
+
+#[test]
+fn packed_scene_preserves_finite_representative_light_power() {
+    let light = GPULight {
+        position: [0.0, 1.0, 0.0],
+        color: [1.0, 0.25, 0.1],
+        intensity: 8.0,
+        ..Default::default()
+    };
+    let power = light.sampling_power();
+    assert!(power.is_finite() && power > 0.0);
+    let aliases = PackedLightAliasData::from_lights(&[light]);
+    assert_eq!(aliases.header().count, 1);
+    assert!(aliases.record(0).unwrap().proposal_pdf > 0.0);
 }
