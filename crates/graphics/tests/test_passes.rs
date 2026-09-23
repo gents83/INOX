@@ -23,6 +23,34 @@ use inox_graphics::{
 };
 
 #[test]
+fn surface_retries_initialization_after_transient_invalid_scene() {
+    let source = include_str!("../src/passes/compute_wavefront_surface.rs");
+    let should_init = source
+        .find("fn should_init(&self")
+        .expect("surface must expose an initialization retry predicate");
+    let retry_condition = source
+        .find("(!self.scene_valid || !self.initialized)")
+        .expect("invalid scene must remain eligible for initialization retry");
+    let init = source
+        .find("fn init(&mut self, render_context: &RenderContext)")
+        .expect("surface must initialize from the render context");
+    let active = source
+        .find("self.resources_ready() && self.scene_valid && self.initialized")
+        .expect("active surface dispatch must require valid initialized state");
+    let initialized = source
+        .find("self.initialized = self.compute_pass.get().is_initialized();")
+        .expect("surface initialization state must follow pipeline readiness");
+    let scene_valid = source
+        .find("self.scene_valid = self.initialized;")
+        .expect("scene validity must follow successful initialization");
+    assert!(should_init < retry_condition);
+    assert!(retry_condition < init);
+    assert!(active < init);
+    assert!(init < initialized);
+    assert!(initialized < scene_valid);
+}
+
+#[test]
 fn exposes_stable_render_pass_names() {
     assert_eq!(BLIT_PASS_NAME, "BlitPass");
     assert_eq!(CULLING_PASS_NAME, "CullingPass");
