@@ -117,6 +117,14 @@ Final Task 4 re-review: multi-mip/Hi-Z target role is preserved independently of
 
 Final initial-dimension fix: viewer startup derives clamped `FrameDimensions` before surface setup and all size-dependent allocations, including zero-size initial windows. Viewer regression plus full native/WASM/clippy/fmt/check validation pass.
 
+## Task 5 — completed-frame Cornell diagnostics — 2026-09-23
+
+- [x] Add source-contract tests requiring Finalize to publish its just-rendered ping-pong target and Cornell diagnostics to read only that target without PPM artifacts.
+- [x] Publish the completed Finalize target after its draw; make native Cornell readback consume the published target and remove PPM generation/path markers.
+- [x] Run focused graphics/viewer tests, native 320x240 and 1916x1125 smoke checks, formatting, and native graphics checks.
+
+Task 5 results are recorded in `.superpowers/sdd/2026-09-23-wavefront-resolution-resize/task-5-report.md`.
+
 ## Task 6 — capability-aware queues and runtime bounces
 
 - [x] Add checked, dimension/record-size/capability-aware queue capacity calculation with bounded fallback and adapter byte limits.

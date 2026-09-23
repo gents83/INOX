@@ -10,7 +10,7 @@ use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Handle, Resource, ResourceTrait};
 use inox_uid::generate_random_uid;
 
-use crate::{AccumulationRecord, WAVEFRONT_UPSCALED_ACCUMULATOR_ID};
+use crate::{publish_finalize_target, AccumulationRecord, WAVEFRONT_UPSCALED_ACCUMULATOR_ID};
 
 pub const FINALIZE_PIPELINE: &str = "pipelines/Finalize.render_pipeline";
 pub const FINALIZE_NAME: &str = "FinalizePass";
@@ -188,6 +188,7 @@ impl Pass for FinalizePass {
                 "finalize_pass",
             );
             pass.draw(render_context, render_pass, 0..3, 0..1);
+            publish_finalize_target(self.frame_index);
 
             self.frame_index = (self.frame_index + 1) % NUM_FRAMES_OF_HISTORY;
         }

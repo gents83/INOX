@@ -236,3 +236,25 @@ fn depth_pyramid_shader_clamps_rectangular_tail_reads() {
     assert_eq!(rectangular_tail[1], (1, 2));
     assert_eq!(rectangular_tail[2], (1, 1));
 }
+
+#[test]
+fn finalize_publishes_the_completed_ping_pong_target() {
+    let source = include_str!("../src/passes/finalize.rs");
+    let draw = source
+        .find("pass.draw(render_context, render_pass, 0..3, 0..1);")
+        .expect("finalize must draw the completed frame");
+    let publish = source
+        .find("publish_finalize_target(self.frame_index);")
+        .expect("finalize must publish the target it just rendered");
+    assert!(draw < publish);
+}
+
+#[test]
+fn cornell_diagnostics_read_only_the_published_target_without_ppm_artifacts() {
+    let source = include_str!("../src/passes/pathtracing_common.rs");
+    assert!(source.contains("active_finalize_target()"));
+    assert!(!source.contains("[3usize, 4usize]"));
+    assert!(!source.contains("save_cornell_readback_ppm"));
+    assert!(!source.contains("INOX_NATIVE_CORNELL_IMAGE_PPM"));
+    assert!(!source.contains("temp_dir()"));
+}

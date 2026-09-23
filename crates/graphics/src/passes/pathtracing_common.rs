@@ -9,7 +9,7 @@ use inox_uid::{generate_static_uid_from_string, generate_uid_from_string, Uid};
 use std::collections::HashMap;
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicUsize, Ordering},
     Mutex, OnceLock,
 };
 
@@ -893,77 +893,51 @@ fn report_cornell_algorithm_diagnostics(render_context: &RenderContext) {
     );
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-fn save_cornell_readback_ppm(target: usize, width: u32, height: u32, pixels: &[f32], first: bool) {
-    let suffix = if first { "first" } else { "latest" };
-    let path = std::env::temp_dir().join(format!("inox-cornell-target-{target}-{suffix}.ppm"));
-    let mut ppm = format!("P6\n{width} {height}\n255\n").into_bytes();
-    ppm.reserve(
-        (width as usize)
-            .saturating_mul(height as usize)
-            .saturating_mul(3),
-    );
-    for pixel in pixels.as_chunks::<4>().0 {
-        let tone_map = |value: f32| {
-            let value = if value.is_finite() && value >= 0.0 {
-                value
-            } else {
-                0.0
-            };
-            (value / (1.0 + value)).powf(1.0 / 2.2).clamp(0.0, 1.0)
-        };
-        ppm.extend([
-            (tone_map(pixel[0]) * 255.0 + 0.5) as u8,
-            (tone_map(pixel[1]) * 255.0 + 0.5) as u8,
-            (tone_map(pixel[2]) * 255.0 + 0.5) as u8,
-        ]);
-    }
-    if std::fs::write(&path, ppm).is_ok() {
-        eprintln!(
-            "INOX_NATIVE_CORNELL_IMAGE_PPM target={} kind={} path={}",
-            target,
-            suffix,
-            path.display()
-        );
-    }
+/// The render-context target indices reserved for Finalize's two display targets.
+const FINALIZE_TARGET_BASE: usize = 3;
+
+static ACTIVE_FINALIZE_TARGET: AtomicUsize = AtomicUsize::new(FINALIZE_TARGET_BASE);
+
+/// Publish the ping-pong target rendered by the current Finalize pass.
+///
+/// The post-submit Cornell callback runs after the command buffer completes, so it can
+/// use this value to inspect the frame produced by that submission rather than stale
+/// data in the other history target.
+pub fn publish_finalize_target(frame_index: usize) {
+    ACTIVE_FINALIZE_TARGET.store(FINALIZE_TARGET_BASE + frame_index % 2, Ordering::Release);
 }
 
-/// Run the bounded native image smoke against either ping-pong display target.
+/// Return the render-context target index most recently rendered by Finalize.
+pub fn active_finalize_target() -> usize {
+    ACTIVE_FINALIZE_TARGET.load(Ordering::Acquire)
+}
+
+/// Run the bounded native image smoke against the completed Finalize target only.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn report_cornell_image_diagnostics(render_context: &RenderContext) -> bool {
-    static FIRST_PPM_SAVED: AtomicBool = AtomicBool::new(false);
     static ALGORITHM_DIAGNOSTICS_REPORTED: AtomicBool = AtomicBool::new(false);
-    let first = !FIRST_PPM_SAVED.swap(true, Ordering::AcqRel);
+    let target = active_finalize_target();
     if !ALGORITHM_DIAGNOSTICS_REPORTED.swap(true, Ordering::AcqRel) {
         report_cornell_algorithm_diagnostics(render_context);
     }
-    let mut last = None;
-    for target in [3usize, 4usize] {
-        let Some((width, height, pixels)) = render_context.read_render_target_rgba32f(target)
-        else {
-            continue;
-        };
-        save_cornell_readback_ppm(target, width, height, &pixels, first);
-        let diagnostic = diagnose_cornell_image(width, height, &pixels);
-        if diagnostic.passed() {
-            eprintln!(
-                "INOX_NATIVE_CORNELL_IMAGE_PASS target={} {}",
-                target,
-                diagnostic.summary()
-            );
-            return true;
-        }
-        last = Some((target, diagnostic));
-    }
-    if let Some((target, diagnostic)) = last {
+    let Some((width, height, pixels)) = render_context.read_render_target_rgba32f(target) else {
+        eprintln!("INOX_NATIVE_CORNELL_IMAGE_READBACK_FAILED target={target}");
+        return false;
+    };
+    let diagnostic = diagnose_cornell_image(width, height, &pixels);
+    if diagnostic.passed() {
         eprintln!(
-            "INOX_NATIVE_CORNELL_IMAGE_FAILED target={} {}",
+            "INOX_NATIVE_CORNELL_IMAGE_PASS target={} {}",
             target,
             diagnostic.summary()
         );
-    } else {
-        eprintln!("INOX_NATIVE_CORNELL_IMAGE_READBACK_FAILED");
+        return true;
     }
+    eprintln!(
+        "INOX_NATIVE_CORNELL_IMAGE_FAILED target={} {}",
+        target,
+        diagnostic.summary()
+    );
     false
 }
 
