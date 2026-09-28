@@ -32,7 +32,10 @@ pub struct UISystem {
     ui_input: RawInput,
     ui_input_modifiers: Modifiers,
     ui_clipboard: Option<String>,
+    /// Combined device and user scale used by egui for physical tessellation.
     ui_scale: f32,
+    device_scale: f32,
+    physical_size: [u32; 2],
 }
 
 impl UISystem {
@@ -52,11 +55,28 @@ impl UISystem {
             ui_input_modifiers: Modifiers::default(),
             ui_clipboard: None,
             ui_scale: 1.,
+            device_scale: 1.,
+            physical_size: [0, 0],
         }
     }
 
     fn compute_mesh_data(&mut self, primitives: Vec<ClippedPrimitive>) {
         inox_profiler::scoped_profile!("ui_system::compute_mesh_data");
+        // Resource uploads happen after UI tessellation. Do not submit a mesh
+        // with a stale -1 managed-texture slot; that makes the font sampler
+        // return black until the next complete frame.
+        for primitive in &primitives {
+            if let Primitive::Mesh(mesh) = &primitive.primitive {
+                if let eguiTextureId::Managed(_) = mesh.texture_id {
+                    let Some(texture) = self.ui_textures.get(&mesh.texture_id) else {
+                        return;
+                    };
+                    if texture.get().texture_index() < 0 {
+                        return;
+                    }
+                }
+            }
+        }
         let mut vertices: Vec<UIVertex> = Vec::new();
         let mut indices: Vec<u32> = Vec::new();
         let mut instances: Vec<UIInstance> = Vec::new();
@@ -123,25 +143,56 @@ impl UISystem {
                 ConfigEvent::Loaded(filename, config) => {
                     if filename == self.config.get_filename() {
                         self.config = config.clone();
-                        self.ui_scale = self.config.ui_scale;
+                        self.ui_scale = self.device_scale.max(1.) * self.config.ui_scale.max(1.);
                         self.ui_context.set_zoom_factor(self.ui_scale);
+                        let [logical_width, logical_height] = logical_screen_size(
+                            self.physical_size[0],
+                            self.physical_size[1],
+                            self.ui_scale,
+                        );
+                        if self.physical_size[0] == 0 || self.physical_size[1] == 0 {
+                            self.ui_input.screen_rect = None;
+                        } else {
+                            self.ui_input.screen_rect = Some(Rect::from_min_size(
+                                Default::default(),
+                                [logical_width, logical_height].into(),
+                            ));
+                        }
                         self.message_hub.send_event(UIEvent::Scale(self.ui_scale));
                     }
                 }
             })
             .process_messages(|event: &WindowEvent| match *event {
                 WindowEvent::SizeChanged(width, height) => {
-                    self.ui_input.screen_rect = Some(Rect::from_min_size(
-                        Default::default(),
-                        [width as f32, height as f32].into(),
-                    ));
-                    if width < 1 || height < 1 {
+                    self.physical_size = [width, height];
+                    let [logical_width, logical_height] =
+                        logical_screen_size(width, height, self.ui_scale);
+                    if width == 0 || height == 0 {
                         self.ui_input.screen_rect = None;
+                    } else {
+                        self.ui_input.screen_rect = Some(Rect::from_min_size(
+                            Default::default(),
+                            [logical_width, logical_height].into(),
+                        ));
                     }
                 }
                 WindowEvent::ScaleFactorChanged(v) => {
-                    self.ui_scale = v.max(1.) * self.config.ui_scale.max(1.);
+                    self.device_scale = v;
+                    self.ui_scale = self.device_scale.max(1.) * self.config.ui_scale.max(1.);
                     self.ui_context.set_zoom_factor(self.ui_scale);
+                    let [logical_width, logical_height] = logical_screen_size(
+                        self.physical_size[0],
+                        self.physical_size[1],
+                        self.ui_scale,
+                    );
+                    if self.physical_size[0] == 0 || self.physical_size[1] == 0 {
+                        self.ui_input.screen_rect = None;
+                    } else {
+                        self.ui_input.screen_rect = Some(Rect::from_min_size(
+                            Default::default(),
+                            [logical_width, logical_height].into(),
+                        ));
+                    }
                     self.message_hub.send_event(UIEvent::Scale(self.ui_scale));
                 }
                 _ => {}
@@ -350,6 +401,15 @@ impl System for UISystem {
             .unregister::<WindowEvent>()
             .unregister::<ConfigEvent<Config>>();
     }
+}
+
+pub(crate) fn logical_screen_size(width: u32, height: u32, scale: f32) -> [f32; 2] {
+    let scale = if scale.is_finite() && scale >= 1. {
+        scale
+    } else {
+        1.
+    };
+    [width as f32 / scale, height as f32 / scale]
 }
 
 fn convert_key(key: inox_platform::input::Key) -> Option<egui::Key> {

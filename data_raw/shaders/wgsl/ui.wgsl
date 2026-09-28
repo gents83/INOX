@@ -50,6 +50,8 @@ fn vs_main(
     let ui_scale = ui_pass_data.ui_scale;
 
     var vertex_out: VertexOutput;
+    // egui keeps vertex positions in logical points. Apply the combined DPI
+    // and user scale exactly once when converting to physical clip space.
     vertex_out.clip_position = vec4<f32>(
         2. * v_in.position.x * ui_scale / constant_data.screen_width - 1.,
         1. - 2. * v_in.position.y * ui_scale / constant_data.screen_height,

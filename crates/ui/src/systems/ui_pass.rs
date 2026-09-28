@@ -24,6 +24,7 @@ pub struct UIPassData {
 }
 declare_as_binding!(UIPassData);
 
+#[repr(C)]
 #[derive(Default, Clone, Copy, PartialEq)]
 pub struct UIVertex {
     pub position: [f32; 2],
@@ -41,6 +42,7 @@ impl UIVertex {
     }
 }
 
+#[repr(C)]
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
 pub struct UIInstance {
     pub index_start: u32,
@@ -125,6 +127,9 @@ impl Pass for UIPass {
 
         self.process_messages(render_context);
 
+        if render_context.texture_handler().textures_atlas().is_empty() {
+            return;
+        }
         if self.instances.is_empty()
             || self.vertices.is_empty()
             || self.indices.is_empty()
@@ -228,6 +233,16 @@ impl Pass for UIPass {
         {
             return;
         }
+
+        // The font atlas is created lazily by egui after pass initialization.
+        // Refresh the atlas array before bind-group construction so new font
+        // textures become visible without recreating the UI pass.
+        self.binding_data.add_material_textures(BindingInfo {
+            group_index: 2,
+            binding_index: 1,
+            stage: ShaderStage::Fragment,
+            ..Default::default()
+        });
 
         let render_pass_begin_data = RenderPassBeginData {
             render_core_context: &render_context.webgpu,

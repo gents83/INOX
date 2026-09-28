@@ -13,6 +13,9 @@ pub mod systems;
 pub mod ui_events;
 pub mod ui_properties;
 
+#[cfg(test)]
+mod tests;
+
 pub fn register_resource_types(shared_data: &SharedDataRc, message_hub: &MessageHubRc) {
     shared_data.register_type::<UIWidget>(message_hub);
 }

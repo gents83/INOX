@@ -1,14 +1,14 @@
 use std::collections::HashSet;
 
+use inox_commands::CommandParser;
 use inox_graphics::{
     wavefront_auxiliary_bindings, wavefront_bounce_stage, wavefront_primary_bindings,
     wavefront_primary_shade_bindings, WAVEFRONT_AO_ID, WAVEFRONT_HIT_DISPATCH_ARGS_ID,
     WAVEFRONT_HIT_HEADER_ID, WAVEFRONT_HIT_QUEUE_ID, WAVEFRONT_PRIMARY_QUEUE_ID,
     WAVEFRONT_TRANSPARENT_HEADER_ID, WAVEFRONT_TRANSPARENT_QUEUE_ID,
 };
-use inox_viewer::viewer::{
-    production_construction_records, production_pass_registrations, ProductionPassMetadata,
-};
+use inox_platform::window_size_from_parser;
+use inox_viewer::viewer::{production_construction_records, production_pass_registrations, ProductionPassMetadata};
 
 fn pass_metadata() -> Vec<ProductionPassMetadata> {
     production_pass_registrations()
@@ -23,6 +23,27 @@ fn active_pass_names() -> Vec<String> {
         .filter(|pass| pass.enabled)
         .map(|pass| pass.name)
         .collect()
+}
+
+#[test]
+fn initial_viewer_dimensions_are_clamped_before_resource_creation() {
+    let source = include_str!("../src/viewer.rs");
+    assert!(source.contains("Window::create("));
+    assert!(source.contains("FrameDimensions::new(window.width(), window.height(), 1.0)"));
+    assert!(source.contains("render_context.set_frame_dimensions(initial_dimensions)"));
+    assert!(source.contains("initial_width, initial_height"));
+
+    let parser = CommandParser::from_string("-window_size 320 240");
+    assert_eq!(window_size_from_parser(&parser, 1920, 1080), (320, 240));
+}
+
+#[test]
+fn window_system_republishes_initial_physical_metrics_after_ui_registration() {
+    let source = include_str!("../../../core/src/systems/window_system.rs");
+    assert!(source.contains("WindowEvent::ScaleFactorChanged(self.window.scale_factor())"));
+    assert!(source.contains("WindowEvent::SizeChanged("));
+    assert!(source.contains("self.window.width()"));
+    assert!(source.contains("self.window.height()"));
 }
 
 #[test]

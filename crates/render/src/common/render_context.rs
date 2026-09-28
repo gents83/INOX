@@ -638,6 +638,20 @@ impl RenderContext {
         match screen_texture {
             wgpu::CurrentSurfaceTexture::Success(surface_texture)
             | wgpu::CurrentSurfaceTexture::Suboptimal(surface_texture) => {
+                let surface_width = surface_texture.texture.width();
+                let surface_height = surface_texture.texture.height();
+                let expected = self.frame_dimensions();
+                if (surface_width, surface_height)
+                    != (expected.surface.width, expected.surface.height)
+                {
+                    // WM_SIZE and swapchain reconfiguration can arrive in
+                    // different turns. Never encode a frame whose storage
+                    // extent differs from the actual surface texture: that
+                    // presents a partially covered frame with stretched rows.
+                    drop(surface_texture);
+                    self.set_surface_size(surface_width, surface_height);
+                    return false;
+                }
                 let surface_view = surface_texture
                     .texture
                     .create_view(&wgpu::TextureViewDescriptor::default());

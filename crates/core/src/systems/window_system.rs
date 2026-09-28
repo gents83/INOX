@@ -70,6 +70,15 @@ impl System for WindowSystem {
         // before this system is scheduled. Show it directly so a missed
         // config event cannot leave the application running headlessly.
         Window::change_visibility(self.window.handle(), true);
+        // Window creation emits these before systems are registered. Republish
+        // the current physical metrics so UI and camera systems initialize in
+        // the same coordinate space as the configured surface.
+        self.message_hub
+            .send_event(WindowEvent::ScaleFactorChanged(self.window.scale_factor()));
+        self.message_hub.send_event(WindowEvent::SizeChanged(
+            self.window.width(),
+            self.window.height(),
+        ));
     }
     fn run(&mut self) -> bool {
         self.handle_events();
