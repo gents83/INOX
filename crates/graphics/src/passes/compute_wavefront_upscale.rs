@@ -103,6 +103,10 @@ impl Pass for ComputeWavefrontUpscalePass {
             .get_mut()
             .init(render_context, &mut self.binding_data, None);
     }
+    fn resize(&mut self, dimensions: inox_render::FrameDimensions) {
+        self.set_dimensions(dimensions.render_dimensions());
+    }
+
     fn update(
         &mut self,
         render_context: &RenderContext,

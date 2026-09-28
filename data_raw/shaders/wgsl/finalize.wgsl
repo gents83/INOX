@@ -53,7 +53,9 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     let pixel_index = data_pixel.y * data_dimensions.x + data_pixel.x;
 
     var radiance = final_accumulator[pixel_index].radiance_and_weight.xyz;
-    if(constant_data.frame_index > 0u) {
+    if (constant_data.frame_index > 0u
+        && final_accumulator[pixel_index].history_length > 0u
+        && final_accumulator[pixel_index].flags == constant_data.history_epoch) {
         let prev_value = textureLoad(previous_texture, data_pixel, 0).rgb;
         let moments = final_accumulator[pixel_index].first_and_second_moment;
         let variance = max(moments.y - moments.x * moments.x, 0.0001);

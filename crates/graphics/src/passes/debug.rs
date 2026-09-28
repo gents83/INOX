@@ -5,8 +5,8 @@ use inox_render::{
     GPULight, GPUMaterial, GPUMesh, GPUMeshlet, GPUTexture, GPUTransform, GPUVector,
     GPUVertexAttributes, GPUVertexIndices, GPUVertexPosition, LoadOperation, Pass, RenderContext,
     RenderContextRc, RenderPass, RenderPassBeginData, RenderPassData, RenderTarget, SamplerType,
-    ShaderStage, StoreOperation, TextureId, TextureView, DEFAULT_HEIGHT, DEFAULT_WIDTH,
-    INSTANCE_DATA_ID,
+    ShaderStage, StoreOperation, TextureId, TextureView, CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE,
+    CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER, INSTANCE_DATA_ID,
 };
 
 use inox_core::ContextRc;
@@ -14,10 +14,50 @@ use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::{generate_random_uid, INVALID_UID};
 
 use crate::DebugPackedData;
-use crate::{RadiancePackedData, SIZE_OF_DATA_BUFFER_ELEMENT};
+use crate::SIZE_OF_DATA_BUFFER_ELEMENT;
 
 pub const DEBUG_PIPELINE: &str = "pipelines/Debug.render_pipeline";
 pub const DEBUG_PASS_NAME: &str = "DebugPass";
+
+/// Optional diagnostics owned by the viewer rather than the production graph.
+/// Every flag is disabled by default so constructing a renderer cannot change
+/// production output or add debug work accidentally.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct DebugOptions {
+    pub pass_graph: bool,
+    pub queue_headers: bool,
+    pub dispatch_args: bool,
+    pub resource_ids: bool,
+    pub visual_buffer: DebugVisualBuffer,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum DebugVisualBuffer {
+    #[default]
+    None,
+    FinalAccumulator,
+    PathtraceRecords,
+}
+
+impl DebugOptions {
+    pub const fn disabled() -> Self {
+        Self {
+            pass_graph: false,
+            queue_headers: false,
+            dispatch_args: false,
+            resource_ids: false,
+            visual_buffer: DebugVisualBuffer::None,
+        }
+    }
+
+    pub const fn is_enabled(self) -> bool {
+        self.pass_graph
+            || self.queue_headers
+            || self.dispatch_args
+            || self.resource_ids
+            || !matches!(self.visual_buffer, DebugVisualBuffer::None)
+    }
+}
 
 pub struct DebugPass {
     render_pass: Resource<RenderPass>,
@@ -33,11 +73,12 @@ pub struct DebugPass {
     textures: GPUBuffer<GPUTexture>,
     materials: GPUBuffer<GPUMaterial>,
     lights: GPUBuffer<GPULight>,
-    finalize_texture: TextureId,
     visibility_texture: TextureId,
     depth_texture: TextureId,
-    data_buffer_1: GPUVector<RadiancePackedData>,
+    finalize_texture: TextureId,
     data_buffer_debug: GPUVector<DebugPackedData>,
+    dimensions: inox_render::FrameDimensions,
+    options: DebugOptions,
 }
 unsafe impl Send for DebugPass {}
 unsafe impl Sync for DebugPass {}
@@ -50,7 +91,7 @@ impl Pass for DebugPass {
         DEBUG_PASS_NAME
     }
     fn is_active(&self, _render_context: &RenderContext) -> bool {
-        true
+        self.options.is_enabled()
     }
     fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where
@@ -70,17 +111,8 @@ impl Pass for DebugPass {
         };
 
         let data_buffer_debug = render_context.global_buffers().vector::<DebugPackedData>();
-        data_buffer_debug.write().unwrap().resize(
-            SIZE_OF_DATA_BUFFER_ELEMENT * (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
-            DebugPackedData(0.),
-        );
-        let data_buffer_1 = render_context
-            .global_buffers()
-            .vector::<RadiancePackedData>();
-        data_buffer_1.write().unwrap().resize(
-            SIZE_OF_DATA_BUFFER_ELEMENT * (DEFAULT_WIDTH * DEFAULT_HEIGHT) as usize,
-            RadiancePackedData(0.),
-        );
+        let dimensions = render_context.frame_dimensions();
+        resize_debug_buffer(&data_buffer_debug, dimensions);
 
         Self {
             render_pass: RenderPass::new_resource(
@@ -90,10 +122,9 @@ impl Pass for DebugPass {
                 &data,
                 None,
             ),
-            data_buffer_1: render_context
-                .global_buffers()
-                .vector::<RadiancePackedData>(),
             data_buffer_debug: render_context.global_buffers().vector::<DebugPackedData>(),
+            dimensions,
+            options: DebugOptions::disabled(),
             binding_data: BindingData::new(render_context, DEBUG_PASS_NAME),
             constant_data: render_context.global_buffers().constant_data.clone(),
             meshes: render_context.global_buffers().buffer::<GPUMesh>(),
@@ -125,8 +156,22 @@ impl Pass for DebugPass {
             || self.meshlets.read().unwrap().is_empty()
             || self.instances.read().unwrap().is_empty()
             || self.visibility_texture.is_nil()
+            || self.depth_texture.is_nil()
+            || self.finalize_texture.is_nil()
         {
             return;
+        }
+
+        let visual_flag = match self.options.visual_buffer {
+            DebugVisualBuffer::None => 0,
+            DebugVisualBuffer::FinalAccumulator => CONSTANT_DATA_FLAGS_DISPLAY_RADIANCE_BUFFER,
+            DebugVisualBuffer::PathtraceRecords => CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE,
+        };
+        if visual_flag != 0 {
+            self.constant_data
+                .write()
+                .unwrap()
+                .add_flag(render_context, visual_flag);
         }
 
         let mut pass = self.render_pass.get_mut();
@@ -262,14 +307,13 @@ impl Pass for DebugPass {
                     ..Default::default()
                 },
             )
-            .add_buffer(
-                &mut *self.data_buffer_1.write().unwrap(),
-                Some("DataBuffer_1"),
+            .add_texture(
+                &self.finalize_texture,
+                0,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 4,
                     stage: ShaderStage::Fragment,
-                    flags: BindingFlags::ReadWrite | BindingFlags::Storage,
                     ..Default::default()
                 },
             )
@@ -314,6 +358,11 @@ impl Pass for DebugPass {
             });
         pass.init(render_context, &mut self.binding_data, None, None);
     }
+    fn resize(&mut self, dimensions: inox_render::FrameDimensions) {
+        self.dimensions = dimensions;
+        resize_debug_buffer(&self.data_buffer_debug, dimensions);
+    }
+
     fn update(
         &mut self,
         render_context: &RenderContext,
@@ -333,6 +382,8 @@ impl Pass for DebugPass {
             || self.meshlets.read().unwrap().is_empty()
             || self.instances.read().unwrap().is_empty()
             || self.visibility_texture.is_nil()
+            || self.depth_texture.is_nil()
+            || self.finalize_texture.is_nil()
         {
             return;
         }
@@ -360,7 +411,50 @@ impl Pass for DebugPass {
     }
 }
 
+fn resize_debug_buffer(
+    buffer: &GPUVector<DebugPackedData>,
+    dimensions: inox_render::FrameDimensions,
+) {
+    let pixels = dimensions
+        .storage_pixel_count()
+        .expect("validated frame dimensions fit storage arithmetic") as usize;
+    // GPUVector::resize takes typed elements, while each debug pixel reserves
+    // four f32 words for packed records. Keep this conversion explicit.
+    let elements = pixels
+        .checked_mul(SIZE_OF_DATA_BUFFER_ELEMENT)
+        .expect("validated frame dimensions fit debug buffer arithmetic");
+    buffer
+        .write()
+        .unwrap()
+        .resize(elements, DebugPackedData(0.));
+}
+
 impl DebugPass {
+    pub fn create_with_options(
+        context: &ContextRc,
+        render_context: &RenderContextRc,
+        dimensions: inox_render::FrameDimensions,
+        options: DebugOptions,
+    ) -> Self {
+        let mut pass = <Self as Pass>::create(context, render_context);
+        pass.resize(dimensions);
+        pass.options = options;
+        pass
+    }
+
+    pub fn options(&self) -> DebugOptions {
+        self.options
+    }
+
+    pub fn dimensions(&self) -> inox_render::FrameDimensions {
+        self.dimensions
+    }
+
+    pub fn set_options(&mut self, options: DebugOptions) -> &mut Self {
+        self.options = options;
+        self
+    }
+
     pub fn set_visibility_texture(&mut self, texture_id: &TextureId) -> &mut Self {
         self.visibility_texture = *texture_id;
         self

@@ -221,6 +221,10 @@ impl Texture {
     pub fn mips_count(&self) -> u32 {
         self.mips_count
     }
+    pub fn set_mips_count(&mut self, mips_count: u32) -> &mut Self {
+        self.mips_count = mips_count.max(1);
+        self
+    }
     #[allow(non_snake_case)]
     pub fn is_LUT(&self) -> bool {
         !self.lut_id.is_nil()

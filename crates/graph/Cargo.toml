@@ -1,0 +1,10 @@
+[package]
+name = "inox_graph"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+keywords.workspace = true
+license.workspace = true
+
+[dependencies]

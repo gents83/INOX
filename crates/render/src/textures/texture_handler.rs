@@ -2,6 +2,8 @@ use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use inox_log::debug_log;
 
+#[cfg(not(target_arch = "wasm32"))]
+use crate::WebGpuContext;
 use crate::{GPUTexture, TextureBlock, TextureFormat, TextureId, TextureUsage};
 
 use super::{texture_atlas::TextureAtlas, texture_ref::TextureRef};
@@ -117,6 +119,25 @@ impl TextureHandler {
             }
             true
         });
+    }
+
+    pub fn resize_render_target(
+        &self,
+        device: &wgpu::Device,
+        id: &TextureId,
+        width: u32,
+        height: u32,
+        mips_count: u32,
+    ) {
+        if let Some(target) = self
+            .render_targets
+            .write()
+            .unwrap()
+            .iter_mut()
+            .find(|target| target.id() == id)
+        {
+            target.resize(device, width, height, mips_count);
+        }
     }
 
     pub fn add_render_target(
@@ -246,6 +267,36 @@ impl TextureHandler {
                 );
             }
         }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn read_render_target_rgba32f(
+        &self,
+        id: &TextureId,
+        context: &WebGpuContext,
+    ) -> Option<(u32, u32, Vec<f32>)> {
+        let targets = self.render_targets.read().ok()?;
+        let target = targets.iter().find(|target| target.id() == id)?;
+        Some((
+            target.width(),
+            target.height(),
+            target.read_rgba32f(context)?,
+        ))
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn read_render_target_r32uint(
+        &self,
+        id: &TextureId,
+        context: &WebGpuContext,
+    ) -> Option<(u32, u32, Vec<u32>)> {
+        let targets = self.render_targets.read().ok()?;
+        let target = targets.iter().find(|target| target.id() == id)?;
+        Some((
+            target.width(),
+            target.height(),
+            target.read_r32uint(context)?,
+        ))
     }
 
     pub fn texture_info(&self, id: &TextureId) -> Option<GPUTexture> {

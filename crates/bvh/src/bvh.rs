@@ -7,7 +7,14 @@ use crate::AXIS_COUNT;
 
 use super::aabb::AABB;
 
-const INVALID_NODE: i32 = -1;
+pub const INVALID_NODE: i32 = -1;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BVHBuildError {
+    InvalidBounds { index: usize },
+    InvalidReference { index: usize },
+    TooManyNodes,
+}
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy)]
 #[serde(crate = "inox_serialize")]
@@ -71,14 +78,40 @@ pub struct BVHTree {
 }
 impl BVHTree {
     pub fn new(aabb_list: &[AABB]) -> Self {
+        Self::try_new(aabb_list).expect("invalid BVH input")
+    }
+
+    pub fn try_new(aabb_list: &[AABB]) -> Result<Self, BVHBuildError> {
+        if aabb_list.len() > (i32::MAX as usize).div_ceil(2) {
+            return Err(BVHBuildError::TooManyNodes);
+        }
+        for (index, aabb) in aabb_list.iter().enumerate() {
+            if !aabb.is_valid() {
+                return Err(BVHBuildError::InvalidBounds { index });
+            }
+            if aabb.index() < 0 {
+                return Err(BVHBuildError::InvalidReference { index });
+            }
+        }
+        if aabb_list.is_empty() {
+            return Ok(Self::default());
+        }
         let mut nodes: Vec<BVHNode> = aabb_list
             .iter()
             .enumerate()
-            .map(|(i, aabb)| BVHNode::create(aabb, i as i32))
+            .map(|(i, aabb)| {
+                BVHNode::create(
+                    aabb,
+                    if aabb_list.len() == 1 {
+                        INVALID_NODE
+                    } else {
+                        i as i32
+                    },
+                )
+            })
             .collect();
         Self::build_tree(&mut nodes, 0, aabb_list.len());
-        let reversed = BVHTree { nodes };
-        Self::reverse(reversed)
+        Ok(Self::reverse(BVHTree { nodes }))
     }
 
     fn build_tree(nodes: &mut Vec<BVHNode>, start: usize, end: usize) -> u32 {
@@ -86,29 +119,33 @@ impl BVHTree {
             return start as _;
         }
 
-        let mut indices: Vec<usize> = (start..end).collect();
-        let axis = Self::choose_split_axis_sah(nodes, &indices);
-        indices.sort_by(|&a, &b| {
-            nodes[a].aabb.center()[axis]
-                .partial_cmp(&nodes[b].aabb.center()[axis])
+        // The recursive ranges contain the original leaves. Sort that range in
+        // place; the old implementation sorted a temporary index list and then
+        // ignored it, producing partitions unrelated to the selected axis.
+        let indices: Vec<usize> = (start..end).collect();
+        let (axis, split) = Self::choose_split_sah(nodes, &indices);
+        nodes[start..end].sort_by(|a, b| {
+            a.aabb.center()[axis]
+                .partial_cmp(&b.aabb.center()[axis])
                 .unwrap_or(Ordering::Equal)
         });
 
-        let mid = (start + end) / 2;
+        let mid = start + split;
         let left_child = Self::build_tree(nodes, start, mid);
         let right_child = Self::build_tree(nodes, mid, end);
-
         let parent = nodes.len() as u32;
+        let aabb = AABB::compute_aabb(&[
+            nodes[left_child as usize].aabb,
+            nodes[right_child as usize].aabb,
+        ]);
         nodes.push(BVHNode {
-            aabb: AABB::compute_aabb(&nodes.iter().map(|&n| n.aabb).collect::<Vec<_>>()),
+            aabb,
             left: left_child as _,
             right: right_child as _,
             parent: INVALID_NODE,
         });
-
         nodes[left_child as usize].parent = parent as i32;
         nodes[right_child as usize].parent = parent as i32;
-
         parent
     }
 
@@ -138,59 +175,62 @@ impl BVHTree {
 
         split_axis
     }
-    fn choose_split_axis_sah(nodes: &[BVHNode], indices: &[usize]) -> usize {
-        let mut best_axis = 0;
-        let mut best_cost = f32::INFINITY;
+    fn choose_split_sah(nodes: &[BVHNode], indices: &[usize]) -> (usize, usize) {
+        let fallback = || {
+            let axis = Self::choose_split_axis_centroid(nodes, indices);
+            (axis, indices.len() / 2)
+        };
+        if indices.len() < 2 {
+            return fallback();
+        }
 
+        let mut best = None;
         for axis in 0..AXIS_COUNT {
             let min_value = indices
                 .iter()
-                .map(|&i| nodes[i].aabb.min()[axis])
+                .map(|&index| nodes[index].aabb.min()[axis])
                 .fold(f32::INFINITY, f32::min);
             let max_value = indices
                 .iter()
-                .map(|&i| nodes[i].aabb.max()[axis])
+                .map(|&index| nodes[index].aabb.max()[axis])
                 .fold(f32::NEG_INFINITY, f32::max);
-
-            let bin_width = (max_value - min_value) / (indices.len() as f32);
-
-            let mut bins_right = vec![0; indices.len()];
-
-            let mut surface_area_left = 0.0;
-            let mut surface_area_right = 0.0;
-
-            for &i in indices {
-                surface_area_right += nodes[i].aabb.surface_area();
+            if !min_value.is_finite() || !max_value.is_finite() || max_value <= min_value {
+                continue;
             }
-
-            let mut right_count = 0;
-
-            for &i in indices {
-                // Calculate bin index ensuring it's within bounds
-                let bin = ((nodes[i].aabb.min()[axis] - min_value) / bin_width)
-                    .clamp(0.0, bins_right.len() as f32 - 1.0) as usize;
-                bins_right[bin] += 1;
-
-                // Rest of the code remains the same
-                surface_area_right -= nodes[i].aabb.surface_area();
-                surface_area_left += nodes[i].aabb.surface_area();
-
-                if right_count < indices.len() - 1 {
-                    right_count += 1;
-                }
-
-                if right_count > 0 {
-                    let cost = (surface_area_left + surface_area_right) * bin_width;
-
-                    if cost < best_cost {
-                        best_cost = cost;
-                        best_axis = axis;
-                    }
+            let mut sorted = indices.to_vec();
+            sorted.sort_by(|&a, &b| {
+                nodes[a].aabb.center()[axis]
+                    .partial_cmp(&nodes[b].aabb.center()[axis])
+                    .unwrap_or(Ordering::Equal)
+            });
+            let mut prefix = Vec::with_capacity(sorted.len());
+            for (position, &index) in sorted.iter().enumerate() {
+                let bounds = if position == 0 {
+                    nodes[index].aabb
+                } else {
+                    AABB::compute_aabb(&[prefix[position - 1], nodes[index].aabb])
+                };
+                prefix.push(bounds);
+            }
+            let mut suffix = vec![AABB::empty(); sorted.len()];
+            for position in (0..sorted.len()).rev() {
+                suffix[position] = if position + 1 == sorted.len() {
+                    nodes[sorted[position]].aabb
+                } else {
+                    AABB::compute_aabb(&[suffix[position + 1], nodes[sorted[position]].aabb])
+                };
+            }
+            for split in 1..sorted.len() {
+                let left = prefix[split - 1].surface_area();
+                let right = suffix[split].surface_area();
+                let cost = left * split as f32 + right * (sorted.len() - split) as f32;
+                if cost.is_finite() && best.is_none_or(|(_, _, best_cost)| cost < best_cost) {
+                    best = Some((axis, split, cost));
                 }
             }
         }
-
-        best_axis
+        best.map(|(axis, split, _)| (axis, split))
+            .unwrap_or_else(fallback)
     }
 
     pub fn nodes(&self) -> &[BVHNode] {
@@ -200,45 +240,84 @@ impl BVHTree {
         &mut self.nodes
     }
 
+    pub fn validate(&self) -> Result<(), BVHBuildError> {
+        if self.nodes.is_empty() {
+            return Ok(());
+        }
+        if self.nodes[0].parent != INVALID_NODE {
+            return Err(BVHBuildError::InvalidReference { index: 0 });
+        }
+        let mut visited = vec![false; self.nodes.len()];
+        let mut stack = vec![0usize];
+        while let Some(index) = stack.pop() {
+            if index >= self.nodes.len() || visited[index] {
+                return Err(BVHBuildError::InvalidReference { index });
+            }
+            visited[index] = true;
+            let node = &self.nodes[index];
+            if !node.aabb.is_valid() {
+                return Err(BVHBuildError::InvalidBounds { index });
+            }
+            if node.is_leaf() {
+                if node.aabb.index() < 0 {
+                    return Err(BVHBuildError::InvalidReference { index });
+                }
+                continue;
+            }
+            if node.left < 0 || node.right < 0 {
+                return Err(BVHBuildError::InvalidReference { index });
+            }
+            let left = node.left as usize;
+            let right = node.right as usize;
+            if left >= self.nodes.len() || right >= self.nodes.len() || left == right {
+                return Err(BVHBuildError::InvalidReference { index });
+            }
+            if self.nodes[left].parent != index as i32 || self.nodes[right].parent != index as i32 {
+                return Err(BVHBuildError::InvalidReference { index });
+            }
+            stack.push(left);
+            stack.push(right);
+        }
+        if visited.iter().any(|visited| !visited) {
+            return Err(BVHBuildError::InvalidReference { index: 0 });
+        }
+        Ok(())
+    }
+
     pub fn reverse(tree: Self) -> Self {
         if tree.nodes.is_empty() {
             return tree;
         }
-        let mut index_map = vec![0; tree.nodes.len()];
-        let mut new_bvh = BVHTree::default();
-        let mut nodes_to_visit = [tree.nodes.len() - 1].to_vec();
-        while !nodes_to_visit.is_empty() {
-            let old_index = nodes_to_visit.remove(0);
-            index_map[old_index] = new_bvh.nodes.len();
-            new_bvh.nodes.push(tree.nodes[old_index]);
+        let mut index_map = vec![INVALID_NODE; tree.nodes.len()];
+        let mut nodes = Vec::with_capacity(tree.nodes.len());
+        let mut nodes_to_visit = vec![tree.nodes.len() - 1];
+        while let Some(old_index) = nodes_to_visit.pop() {
+            index_map[old_index] = nodes.len() as i32;
+            nodes.push(tree.nodes[old_index]);
             if !tree.nodes[old_index].is_leaf() {
-                nodes_to_visit.insert(0, tree.nodes[old_index].right() as _);
-                nodes_to_visit.insert(0, tree.nodes[old_index].left() as _);
+                // Push right first so the left child is visited first.
+                nodes_to_visit.push(tree.nodes[old_index].right() as usize);
+                nodes_to_visit.push(tree.nodes[old_index].left() as usize);
             }
         }
-        let entries_count = tree.nodes.len();
-        let mut left_modified = vec![false; entries_count];
-        let mut right_modified = vec![false; entries_count];
-        let mut parent_modified = vec![false; entries_count];
-        new_bvh.nodes.iter_mut().enumerate().for_each(|(i, node)| {
-            (0..index_map.len()).for_each(|old_index| {
-                if !left_modified[i] && node.left == old_index as i32 {
-                    node.left = index_map[old_index] as i32;
-                    left_modified[i] = true;
-                }
-                if !right_modified[i] && node.right == old_index as i32 {
-                    node.right = index_map[old_index] as i32;
-                    right_modified[i] = true;
-                }
-                if !parent_modified[i] && node.parent == old_index as i32 {
-                    node.parent = index_map[old_index] as i32;
-                    parent_modified[i] = true;
-                }
-            });
-        });
-        Self {
-            nodes: new_bvh.nodes,
+        for node in &mut nodes {
+            node.left = if node.left >= 0 {
+                index_map[node.left as usize]
+            } else {
+                INVALID_NODE
+            };
+            node.right = if node.right >= 0 {
+                index_map[node.right as usize]
+            } else {
+                INVALID_NODE
+            };
+            node.parent = if node.parent >= 0 {
+                index_map[node.parent as usize]
+            } else {
+                INVALID_NODE
+            };
         }
+        Self { nodes }
     }
 }
 

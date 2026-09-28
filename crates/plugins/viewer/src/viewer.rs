@@ -1,41 +1,56 @@
-use std::path::PathBuf;
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::{
+    atomic::{AtomicU32, Ordering},
+    Arc,
+};
+use std::{collections::HashMap, path::PathBuf};
 
 use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
+use inox_graph::{Dependency, Graph, GraphError, GraphValidation, PassNode};
 
+#[cfg(not(target_arch = "wasm32"))]
+use inox_graphics::{report_cornell_image_diagnostics, report_wavefront_queue_diagnostics};
 use inox_graphics::{
-    report_wavefront_queue_diagnostics, wavefront_auxiliary_bindings, wavefront_bounce_stages,
-    BlitPass, CommandsPass, ComputeDiffuseLightingPass, ComputeGBufferPass,
-    ComputeIndirectBouncePass, ComputeIndirectSetupPass, ComputeInstancesPass, ComputeShadowAOPass,
+    wavefront_auxiliary_bindings, wavefront_bounce_stages, BlitPass, CommandsPass,
+    ComputeDiffuseLightingPass, ComputeGBufferPass, ComputeIndirectBouncePass,
+    ComputeIndirectSetupPass, ComputeInstancesPass, ComputeShadowAOPass,
     ComputeSpecularLightingPass, ComputeWavefrontAoResolvePass, ComputeWavefrontCompositePass,
     ComputeWavefrontDenoisePass, ComputeWavefrontDirectCandidatesPass,
     ComputeWavefrontDispatchPass, ComputeWavefrontNextBouncePass, ComputeWavefrontPrimaryPass,
     ComputeWavefrontShadePass, ComputeWavefrontSurfacePass, ComputeWavefrontTransparencyPass,
     ComputeWavefrontTransparencyResolvePass, ComputeWavefrontTraversalPass,
-    ComputeWavefrontUpscalePass, ComputeWavefrontVisibilityPass, CullingPass, DebugPass,
-    DepthFirstPass, DepthPyramidPass, FinalizePass, VisibilityBufferPass,
-    WavefrontBounceBindingIds, WavefrontQueueBindingIds, WireframePass,
-    WAVEFRONT_HIT_DISPATCH_ARGS_ID, WAVEFRONT_HIT_HEADER_ID, WAVEFRONT_HIT_QUEUE_ID,
-    WAVEFRONT_NEXT2_DISPATCH_ARGS_ID, WAVEFRONT_NEXT2_HEADER_ID, WAVEFRONT_NEXT2_QUEUE_ID,
-    WAVEFRONT_NEXT3_DISPATCH_ARGS_ID, WAVEFRONT_NEXT3_HEADER_ID, WAVEFRONT_NEXT3_QUEUE_ID,
-    WAVEFRONT_NEXT_DISPATCH_ARGS_ID, WAVEFRONT_NEXT_HEADER_ID, WAVEFRONT_NEXT_QUEUE_ID,
-    WAVEFRONT_PRIMARY_HEADER_ID, WAVEFRONT_PRIMARY_QUEUE_ID, WAVEFRONT_RESERVOIR_ID,
-    WIREFRAME_PASS_NAME,
+    ComputeWavefrontUpscalePass, ComputeWavefrontVisibilityPass, CullingPass, DebugOptions,
+    DebugPass, DepthFirstPass, DepthPyramidPass, DrawPreparationResults, FinalizePass,
+    RadiancePackedData, RayPackedData, ThroughputPackedData, VisibilityBufferPass,
+    WavefrontBounceBindingIds, WavefrontQueueBindingIds, WireframePass, ACTIVE_INSTANCE_DATA_ID,
+    DRAW_PREPARATION_RESULT_BUFFER_ID, WAVEFRONT_AO_ID, WAVEFRONT_DISPATCH_ARGS_ID,
+    WAVEFRONT_FINAL_ACCUMULATOR_ID, WAVEFRONT_HIT_DISPATCH_ARGS_ID, WAVEFRONT_HIT_HEADER_ID,
+    WAVEFRONT_HIT_QUEUE_ID, WAVEFRONT_INDIRECT_ACCUMULATOR_ID, WAVEFRONT_NEXT2_DISPATCH_ARGS_ID,
+    WAVEFRONT_NEXT2_HEADER_ID, WAVEFRONT_NEXT2_QUEUE_ID, WAVEFRONT_NEXT3_DISPATCH_ARGS_ID,
+    WAVEFRONT_NEXT3_HEADER_ID, WAVEFRONT_NEXT3_QUEUE_ID, WAVEFRONT_NEXT_DISPATCH_ARGS_ID,
+    WAVEFRONT_NEXT_HEADER_ID, WAVEFRONT_NEXT_QUEUE_ID, WAVEFRONT_PRIMARY_HEADER_ID,
+    WAVEFRONT_PRIMARY_QUEUE_ID, WAVEFRONT_RESERVOIR_ID, WAVEFRONT_SCENE_ID,
+    WAVEFRONT_UPSCALED_ACCUMULATOR_ID, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
+#[cfg(target_arch = "wasm32")]
+use inox_render::signal_browser_smoke_marker;
 use inox_render::{
-    rendering_system::RenderingSystem, update_system::UpdateSystem, GPULight, GPUMaterial,
-    GPUTexture, Pass, RenderContext, RenderContextRc, RenderPass, Renderer, RendererRw,
-    TextureFormat, TextureUsage, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    rendering_system::RenderingSystem, update_system::UpdateSystem, AsBinding, DrawIndexedCommand,
+    FrameDimensions, GPUInstance, GPULight, GPUMaterial, GPUTexture, Pass, RenderContext,
+    RenderContextRc, RenderPass, Renderer, RendererRw, SceneTableKind, TextureFormat, TextureUsage,
+    DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 use inox_resources::ConfigBase;
 use inox_scene::{ObjectSystem, ScriptSystem};
 use inox_serialize::{read_from_file, SerializationType};
 use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
-use inox_uid::Uid;
+use inox_uid::{generate_uid_from_type, Uid};
 
 use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
 const ADD_UI_PASS: bool = true;
+const DEBUG_OPTIONS: DebugOptions = DebugOptions::disabled();
 
 const MAX_NUM_LIGHTS: usize = 512;
 const MAX_NUM_TEXTURES: usize = 2048;
@@ -43,49 +58,46 @@ const MAX_NUM_MATERIALS: usize = 256;
 
 pub type ProductionPassFactory = fn(&ContextRc, &RenderContextRc);
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ProductionPassMetadata {
-    pub name: String,
-    pub enabled: bool,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ProductionGraphDependency {
-    pub pass: String,
-    pub predecessor: String,
-    pub resource: Uid,
-}
+/// Generic graph metadata exposed under the legacy viewer names for source
+/// compatibility. Factories remain viewer-specific; nodes and edges do not.
+pub type ProductionPassMetadata = PassNode<Uid>;
+pub type ProductionGraphDependency = Dependency<Uid>;
 
 pub struct ProductionPassRegistration {
     pub passes: Vec<ProductionPassMetadata>,
     pub dependencies: Vec<ProductionGraphDependency>,
     factory: ProductionPassFactory,
+    /// Disabled legacy passes still register for compatibility, but a
+    /// capability-gated wavefront registration must not construct pipelines.
+    construct: bool,
 }
 
 impl ProductionPassRegistration {
-    fn new(
+    pub fn constructs_pipelines(&self) -> bool {
+        self.construct
+    }
+
+    fn new_with_construction(
         names: impl IntoIterator<Item = String>,
         enabled: bool,
         factory: ProductionPassFactory,
         dependencies: Vec<ProductionGraphDependency>,
+        construct: bool,
     ) -> Self {
         Self {
             passes: names
                 .into_iter()
-                .map(|name| ProductionPassMetadata { name, enabled })
+                .map(|name| production_pass_node(name, enabled))
                 .collect(),
             dependencies,
             factory,
+            construct,
         }
     }
 }
 
 fn dependency(pass: &str, predecessor: &str, resource: Uid) -> ProductionGraphDependency {
-    ProductionGraphDependency {
-        pass: pass.to_owned(),
-        predecessor: predecessor.to_owned(),
-        resource,
-    }
+    Dependency::new(predecessor, pass, resource)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -95,130 +107,220 @@ pub struct ProductionConstructionRecord {
     pub resources: Vec<Uid>,
 }
 
+fn wavefront_gbuffer_resource_ids() -> [Uid; 3] {
+    // These are the type-derived IDs used by the concrete surface, primary,
+    // transparency, and direct-candidate bindings. Keeping the graph on the
+    // same IDs makes the packed G-buffer handoff explicit and verifiable.
+    [
+        generate_uid_from_type::<RayPackedData>(),
+        generate_uid_from_type::<RadiancePackedData>(),
+        generate_uid_from_type::<ThroughputPackedData>(),
+    ]
+}
+
+fn production_pass_node(name: String, enabled: bool) -> ProductionPassMetadata {
+    let auxiliary = wavefront_auxiliary_bindings();
+    let [gbuffer_world, gbuffer_material, gbuffer_auxiliary] = wavefront_gbuffer_resource_ids();
+    let mut reads = Vec::new();
+    let mut writes = Vec::new();
+    match name.as_str() {
+        "ComputeWavefrontSurfacePass" => {
+            writes.extend([gbuffer_world, gbuffer_material, gbuffer_auxiliary]);
+        }
+        "ComputeWavefrontTransparencyPass" => {
+            reads.push(gbuffer_material);
+            writes.extend([auxiliary.transparent_queue, auxiliary.transparent_header]);
+        }
+        "ComputeWavefrontTransparencyResolvePass" => {
+            reads.extend([auxiliary.transparent_queue, auxiliary.transparent_header]);
+            writes.push(WAVEFRONT_FINAL_ACCUMULATOR_ID);
+        }
+        "ComputeWavefrontDirectCandidatesPass" => {
+            reads.extend([gbuffer_world, gbuffer_material]);
+            writes.extend([
+                WAVEFRONT_RESERVOIR_ID,
+                WAVEFRONT_AO_ID,
+                inox_graphics::WAVEFRONT_DIRECT_ACCUMULATOR_ID,
+            ]);
+        }
+        "ComputeWavefrontAoResolvePass" => {
+            reads.push(WAVEFRONT_AO_ID);
+            writes.push(WAVEFRONT_AO_ID);
+        }
+        "ComputeWavefrontVisibilityPass" => {
+            reads.extend([gbuffer_material, WAVEFRONT_RESERVOIR_ID, WAVEFRONT_AO_ID]);
+            writes.push(inox_graphics::WAVEFRONT_DIRECT_ACCUMULATOR_ID);
+        }
+        "ComputeWavefrontCompositePass" => {
+            reads.extend([
+                WAVEFRONT_FINAL_ACCUMULATOR_ID,
+                inox_graphics::WAVEFRONT_DIRECT_ACCUMULATOR_ID,
+                WAVEFRONT_INDIRECT_ACCUMULATOR_ID,
+                WAVEFRONT_AO_ID,
+            ]);
+            writes.push(WAVEFRONT_FINAL_ACCUMULATOR_ID);
+        }
+        "ComputeWavefrontDenoiseTemporalPass" | "ComputeWavefrontDenoiseBilateralPass" => {
+            reads.push(WAVEFRONT_FINAL_ACCUMULATOR_ID);
+            writes.push(WAVEFRONT_FINAL_ACCUMULATOR_ID);
+        }
+        "ComputeWavefrontUpscalePass" => {
+            reads.push(WAVEFRONT_FINAL_ACCUMULATOR_ID);
+            writes.push(WAVEFRONT_UPSCALED_ACCUMULATOR_ID);
+        }
+        "FinalizePass" => {
+            reads.push(WAVEFRONT_UPSCALED_ACCUMULATOR_ID);
+        }
+        "ComputeWavefrontPrimaryPass" => {
+            reads.extend([gbuffer_world, gbuffer_material, gbuffer_auxiliary]);
+            writes.extend([WAVEFRONT_PRIMARY_QUEUE_ID, WAVEFRONT_PRIMARY_HEADER_ID]);
+        }
+        "ComputeWavefrontDispatchPass" => {
+            reads.push(WAVEFRONT_PRIMARY_HEADER_ID);
+            writes.push(WAVEFRONT_DISPATCH_ARGS_ID);
+        }
+        "ComputeWavefrontTraversalPass" => {
+            reads.extend([
+                WAVEFRONT_PRIMARY_QUEUE_ID,
+                WAVEFRONT_PRIMARY_HEADER_ID,
+                WAVEFRONT_DISPATCH_ARGS_ID,
+            ]);
+            writes.extend([WAVEFRONT_HIT_QUEUE_ID, WAVEFRONT_HIT_HEADER_ID]);
+        }
+        "ComputeWavefrontHitDispatchPass" => {
+            reads.push(WAVEFRONT_HIT_HEADER_ID);
+            writes.push(WAVEFRONT_HIT_DISPATCH_ARGS_ID);
+        }
+        "ComputeWavefrontShadePass" => {
+            reads.extend([
+                WAVEFRONT_PRIMARY_QUEUE_ID,
+                WAVEFRONT_PRIMARY_HEADER_ID,
+                WAVEFRONT_HIT_QUEUE_ID,
+                WAVEFRONT_HIT_HEADER_ID,
+                WAVEFRONT_HIT_DISPATCH_ARGS_ID,
+            ]);
+            writes.push(WAVEFRONT_INDIRECT_ACCUMULATOR_ID);
+        }
+        _ => {
+            if let Some(stage) = wavefront_bounce_stages().into_iter().find(|stage| {
+                name == stage.name
+                    || name == stage.dispatch_name
+                    || name == stage.traversal_name
+                    || name == stage.hit_dispatch_name
+                    || name == stage.shade_name
+            }) {
+                if name == stage.name {
+                    reads.extend([
+                        stage.bindings.source_ray_queue,
+                        stage.bindings.source_hit_queue,
+                        stage.bindings.source_hit_header,
+                        stage.bindings.dispatch_args,
+                    ]);
+                    writes.extend([
+                        stage.bindings.destination_ray_queue,
+                        stage.bindings.destination_ray_header,
+                    ]);
+                } else if name == stage.dispatch_name {
+                    reads.push(stage.bindings.destination_ray_header);
+                    writes.push(stage.destination_dispatch_args);
+                } else if name == stage.traversal_name {
+                    reads.extend([
+                        stage.traversal_bindings.ray_queue,
+                        stage.traversal_bindings.ray_header,
+                        stage.traversal_bindings.dispatch_args,
+                    ]);
+                    writes.extend([WAVEFRONT_HIT_QUEUE_ID, WAVEFRONT_HIT_HEADER_ID]);
+                } else if name == stage.hit_dispatch_name {
+                    reads.push(WAVEFRONT_HIT_HEADER_ID);
+                    writes.push(WAVEFRONT_HIT_DISPATCH_ARGS_ID);
+                } else {
+                    reads.extend([
+                        stage.shade_bindings.ray_queue,
+                        stage.shade_bindings.ray_header,
+                        stage.shade_bindings.hit_queue,
+                        stage.shade_bindings.hit_header,
+                        stage.shade_bindings.dispatch_args,
+                    ]);
+                    writes.push(WAVEFRONT_INDIRECT_ACCUMULATOR_ID);
+                }
+            }
+        }
+    }
+    PassNode::new(name, enabled, reads, writes)
+}
+
 /// Construction inputs shared by the production factories and graph tests.
 /// The bounce factory consumes `wavefront_bounce_stages()` directly; auxiliary
 /// factories consume the same `wavefront_auxiliary_bindings()` values below.
 pub fn production_construction_records() -> Vec<ProductionConstructionRecord> {
-    let auxiliary = wavefront_auxiliary_bindings();
-    let mut records = vec![
-        ProductionConstructionRecord {
-            pass: "ComputeWavefrontTransparencyPass".to_owned(),
-            enabled: true,
-            resources: vec![auxiliary.transparent_queue, auxiliary.transparent_header],
-        },
-        ProductionConstructionRecord {
-            pass: "ComputeWavefrontTransparencyResolvePass".to_owned(),
-            enabled: true,
-            resources: vec![auxiliary.transparent_queue, auxiliary.transparent_header],
-        },
-        ProductionConstructionRecord {
-            pass: "ComputeWavefrontDirectCandidatesPass".to_owned(),
-            enabled: true,
-            resources: vec![auxiliary.ao_state],
-        },
-        ProductionConstructionRecord {
-            pass: "ComputeWavefrontAoResolvePass".to_owned(),
-            enabled: true,
-            resources: vec![auxiliary.ao_state],
-        },
-    ];
-    for stage in wavefront_bounce_stages() {
-        records.extend([
+    production_construction_records_with_wavefront(true)
+}
+
+pub fn production_construction_records_with_wavefront(
+    wavefront_layout_supported: bool,
+) -> Vec<ProductionConstructionRecord> {
+    production_graph_with_wavefront(wavefront_layout_supported)
+        .nodes()
+        .iter()
+        .map(|node| {
+            let mut resources = node.reads.clone();
+            resources.extend(node.writes.iter().copied());
+            resources.sort_unstable();
+            resources.dedup();
             ProductionConstructionRecord {
-                pass: stage.name,
-                enabled: true,
-                resources: vec![
-                    stage.bindings.source_ray_queue,
-                    stage.bindings.source_hit_header,
-                    stage.bindings.destination_ray_queue,
-                    stage.bindings.destination_ray_header,
-                    stage.bindings.dispatch_args,
-                ],
-            },
-            ProductionConstructionRecord {
-                pass: stage.dispatch_name,
-                enabled: true,
-                resources: vec![
-                    stage.bindings.destination_ray_header,
-                    stage.destination_dispatch_args,
-                ],
-            },
-            ProductionConstructionRecord {
-                pass: stage.traversal_name,
-                enabled: true,
-                resources: vec![
-                    stage.traversal_bindings.ray_queue,
-                    stage.traversal_bindings.ray_header,
-                    stage.traversal_bindings.dispatch_args,
-                ],
-            },
-            ProductionConstructionRecord {
-                pass: stage.hit_dispatch_name,
-                enabled: true,
-                resources: vec![
-                    stage.bindings.source_hit_header,
-                    WAVEFRONT_HIT_DISPATCH_ARGS_ID,
-                ],
-            },
-            ProductionConstructionRecord {
-                pass: stage.shade_name,
-                enabled: true,
-                resources: vec![
-                    stage.shade_bindings.ray_queue,
-                    stage.shade_bindings.ray_header,
-                    stage.shade_bindings.hit_queue,
-                    stage.shade_bindings.hit_header,
-                    stage.shade_bindings.dispatch_args,
-                ],
-            },
-        ]);
-    }
-    records.extend(
-        [
-            "ComputeGBufferPass",
-            "ComputeShadowAOPass",
-            "ComputeDiffuseLightingPass",
-            "ComputeSpecularLightingPass",
-            "ComputeIndirectSetupPass",
-            "ComputeIndirectBouncePass",
-        ]
-        .into_iter()
-        .map(|pass| ProductionConstructionRecord {
-            pass: pass.to_owned(),
-            enabled: false,
-            resources: Vec::new(),
-        }),
-    );
-    records
+                pass: node.name.clone(),
+                enabled: node.enabled,
+                resources,
+            }
+        })
+        .collect()
 }
 
 fn validate_construction_record(pass: &str, enabled: bool, resources: &[Uid]) {
-    let record = production_construction_records()
-        .into_iter()
-        .find(|record| record.pass == pass)
-        .unwrap_or_else(|| panic!("missing construction record for {pass}"));
-    assert_eq!(
-        record.enabled, enabled,
-        "construction flag diverged for {pass}"
-    );
-    assert_eq!(
-        record.resources, resources,
-        "construction inputs diverged for {pass}"
-    );
+    let graph = production_graph();
+    let node = graph
+        .nodes()
+        .iter()
+        .find(|node| node.name == pass)
+        .unwrap_or_else(|| panic!("missing graph node for {pass}"));
+    assert_eq!(node.enabled, enabled, "graph flag diverged for {pass}");
+    for resource in resources {
+        assert!(
+            node.reads
+                .iter()
+                .chain(node.writes.iter())
+                .any(|entry| entry == resource),
+            "graph metadata is missing construction resource for {pass}"
+        );
+    }
 }
 
 /// The single production registration table. Its factories construct the
 /// actual passes, while the same rows expose observed names, enabled flags,
 /// and graph handoffs to integration tests.
 pub fn production_pass_registrations() -> Vec<ProductionPassRegistration> {
+    production_pass_registrations_with_wavefront(true)
+}
+
+/// Build production metadata for the adapter's negotiated layout capability.
+/// When the full wavefront binding layout is unavailable, wavefront nodes are
+/// disabled and their factories are not invoked, so no incompatible pipelines
+/// or bind groups are created.
+pub fn production_pass_registrations_with_wavefront(
+    wavefront_layout_supported: bool,
+) -> Vec<ProductionPassRegistration> {
     let mut registrations = Vec::new();
     let add =
         |registrations: &mut Vec<ProductionPassRegistration>, names: &[&str], enabled, factory| {
-            registrations.push(ProductionPassRegistration::new(
+            let is_wavefront = names
+                .iter()
+                .any(|name| name.starts_with("ComputeWavefront"));
+            registrations.push(ProductionPassRegistration::new_with_construction(
                 names.iter().map(|name| (*name).to_owned()),
-                enabled,
+                enabled && (!is_wavefront || wavefront_layout_supported),
                 factory,
                 Vec::new(),
+                !is_wavefront || wavefront_layout_supported,
             ));
         };
 
@@ -272,15 +374,15 @@ pub fn production_pass_registrations() -> Vec<ProductionPassRegistration> {
     );
     add(
         &mut registrations,
-        &["ComputeWavefrontAoResolvePass"],
-        true,
-        Viewer::create_wavefront_ao_resolve_pass,
-    );
-    add(
-        &mut registrations,
         &["ComputeWavefrontDirectCandidatesPass"],
         true,
         Viewer::create_wavefront_direct_candidates_pass,
+    );
+    add(
+        &mut registrations,
+        &["ComputeWavefrontAoResolvePass"],
+        true,
+        Viewer::create_wavefront_ao_resolve_pass,
     );
     add(
         &mut registrations,
@@ -343,7 +445,12 @@ pub fn production_pass_registrations() -> Vec<ProductionPassRegistration> {
         Viewer::create_wavefront_shade_pass,
     );
 
-    let mut previous_shade = "ComputeWavefrontShadePass".to_owned();
+    let mut ray_queue_producers = HashMap::from([(
+        WAVEFRONT_PRIMARY_QUEUE_ID,
+        "ComputeWavefrontPrimaryPass".to_owned(),
+    )]);
+    let mut previous_traversal = "ComputeWavefrontTraversalPass".to_owned();
+    let mut previous_hit_dispatch = "ComputeWavefrontHitDispatchPass".to_owned();
     let mut bounce_names = Vec::new();
     let mut bounce_dependencies = Vec::new();
     for stage in wavefront_bounce_stages() {
@@ -354,11 +461,34 @@ pub fn production_pass_registrations() -> Vec<ProductionPassRegistration> {
             stage.hit_dispatch_name.clone(),
             stage.shade_name.clone(),
         ]);
+        // The next-bounce pass has three independent inputs. Keep each
+        // producer/resource handoff explicit. Ray queues ping-pong, so the
+        // producer is the most recent stage that wrote this queue rather than
+        // always the immediately preceding stage.
+        let source_ray_producer = ray_queue_producers
+            .get(&stage.bindings.source_ray_queue)
+            .cloned()
+            .expect("every generated bounce source queue has a producer");
         bounce_dependencies.extend([
             dependency(
                 &stage.name,
-                &previous_shade,
+                &source_ray_producer,
                 stage.bindings.source_ray_queue,
+            ),
+            dependency(
+                &stage.name,
+                &previous_traversal,
+                stage.bindings.source_hit_queue,
+            ),
+            dependency(
+                &stage.name,
+                &previous_traversal,
+                stage.bindings.source_hit_header,
+            ),
+            dependency(
+                &stage.name,
+                &previous_hit_dispatch,
+                stage.bindings.dispatch_args,
             ),
             dependency(
                 &stage.dispatch_name,
@@ -368,38 +498,41 @@ pub fn production_pass_registrations() -> Vec<ProductionPassRegistration> {
             dependency(
                 &stage.traversal_name,
                 &stage.dispatch_name,
-                stage.bindings.destination_ray_queue,
+                stage.destination_dispatch_args,
             ),
             dependency(
                 &stage.hit_dispatch_name,
                 &stage.traversal_name,
-                stage.bindings.source_hit_header,
+                WAVEFRONT_HIT_HEADER_ID,
             ),
             dependency(
                 &stage.shade_name,
                 &stage.hit_dispatch_name,
-                stage.bindings.source_hit_queue,
+                WAVEFRONT_HIT_DISPATCH_ARGS_ID,
             ),
         ]);
-        previous_shade = stage.shade_name;
+        ray_queue_producers.insert(stage.bindings.destination_ray_queue, stage.name.clone());
+        previous_traversal = stage.traversal_name;
+        previous_hit_dispatch = stage.hit_dispatch_name;
     }
-    registrations.push(ProductionPassRegistration::new(
+    registrations.push(ProductionPassRegistration::new_with_construction(
         bounce_names,
-        true,
+        wavefront_layout_supported,
         Viewer::create_wavefront_bounce_chain,
         bounce_dependencies,
+        wavefront_layout_supported,
     ));
-    add(
-        &mut registrations,
-        &["ComputeWavefrontCompositePass"],
-        true,
-        Viewer::create_wavefront_composite_pass,
-    );
     add(
         &mut registrations,
         &["ComputeWavefrontTransparencyResolvePass"],
         true,
         Viewer::create_wavefront_transparency_resolve_pass,
+    );
+    add(
+        &mut registrations,
+        &["ComputeWavefrontCompositePass"],
+        true,
+        Viewer::create_wavefront_composite_pass,
     );
     add(
         &mut registrations,
@@ -437,6 +570,19 @@ pub fn production_pass_registrations() -> Vec<ProductionPassRegistration> {
             .dependencies
             .push(dependency(pass, predecessor, resource));
     };
+    let [gbuffer_world, gbuffer_material, gbuffer_auxiliary] = wavefront_gbuffer_resource_ids();
+    for resource in [gbuffer_world, gbuffer_material, gbuffer_auxiliary] {
+        add_dependency(
+            "ComputeWavefrontPrimaryPass",
+            "ComputeWavefrontSurfacePass",
+            resource,
+        );
+    }
+    add_dependency(
+        "ComputeWavefrontDirectCandidatesPass",
+        "ComputeWavefrontSurfacePass",
+        gbuffer_material,
+    );
     add_dependency(
         "ComputeWavefrontDispatchPass",
         "ComputeWavefrontPrimaryPass",
@@ -445,7 +591,7 @@ pub fn production_pass_registrations() -> Vec<ProductionPassRegistration> {
     add_dependency(
         "ComputeWavefrontTraversalPass",
         "ComputeWavefrontDispatchPass",
-        WAVEFRONT_PRIMARY_QUEUE_ID,
+        WAVEFRONT_DISPATCH_ARGS_ID,
     );
     add_dependency(
         "ComputeWavefrontHitDispatchPass",
@@ -455,7 +601,7 @@ pub fn production_pass_registrations() -> Vec<ProductionPassRegistration> {
     add_dependency(
         "ComputeWavefrontShadePass",
         "ComputeWavefrontHitDispatchPass",
-        WAVEFRONT_HIT_QUEUE_ID,
+        WAVEFRONT_HIT_DISPATCH_ARGS_ID,
     );
     let auxiliary = wavefront_auxiliary_bindings();
     add_dependency(
@@ -465,7 +611,7 @@ pub fn production_pass_registrations() -> Vec<ProductionPassRegistration> {
     );
     add_dependency(
         "ComputeWavefrontAoResolvePass",
-        "ComputeWavefrontSurfacePass",
+        "ComputeWavefrontDirectCandidatesPass",
         auxiliary.ao_state,
     );
     add_dependency(
@@ -473,8 +619,76 @@ pub fn production_pass_registrations() -> Vec<ProductionPassRegistration> {
         "ComputeWavefrontDirectCandidatesPass",
         WAVEFRONT_RESERVOIR_ID,
     );
+    add_dependency(
+        "ComputeWavefrontVisibilityPass",
+        "ComputeWavefrontAoResolvePass",
+        WAVEFRONT_AO_ID,
+    );
+    add_dependency(
+        "ComputeWavefrontCompositePass",
+        "ComputeWavefrontTransparencyResolvePass",
+        WAVEFRONT_FINAL_ACCUMULATOR_ID,
+    );
+    add_dependency(
+        "ComputeWavefrontCompositePass",
+        "ComputeWavefrontVisibilityPass",
+        inox_graphics::WAVEFRONT_DIRECT_ACCUMULATOR_ID,
+    );
+    let final_bounce_shade = wavefront_bounce_stages()
+        .last()
+        .expect("production graph requires a final wavefront bounce")
+        .shade_name
+        .clone();
+    add_dependency(
+        "ComputeWavefrontCompositePass",
+        &final_bounce_shade,
+        WAVEFRONT_INDIRECT_ACCUMULATOR_ID,
+    );
+    add_dependency(
+        "ComputeWavefrontDenoiseTemporalPass",
+        "ComputeWavefrontCompositePass",
+        WAVEFRONT_FINAL_ACCUMULATOR_ID,
+    );
+    add_dependency(
+        "ComputeWavefrontDenoiseBilateralPass",
+        "ComputeWavefrontDenoiseTemporalPass",
+        WAVEFRONT_FINAL_ACCUMULATOR_ID,
+    );
+    add_dependency(
+        "ComputeWavefrontUpscalePass",
+        "ComputeWavefrontDenoiseBilateralPass",
+        WAVEFRONT_FINAL_ACCUMULATOR_ID,
+    );
+    if wavefront_layout_supported {
+        add_dependency(
+            "FinalizePass",
+            "ComputeWavefrontUpscalePass",
+            WAVEFRONT_UPSCALED_ACCUMULATOR_ID,
+        );
+    }
 
     registrations
+}
+
+/// Build the portable graph from the same registration declarations used by
+/// the concrete factories. No GPU objects are created while constructing it.
+pub fn production_graph() -> Graph<Uid> {
+    production_graph_with_wavefront(true)
+}
+
+pub fn production_graph_with_wavefront(wavefront_layout_supported: bool) -> Graph<Uid> {
+    let registrations = production_pass_registrations_with_wavefront(wavefront_layout_supported);
+    let nodes = registrations
+        .iter()
+        .flat_map(|registration| registration.passes.iter().cloned());
+    let dependencies = registrations
+        .iter()
+        .flat_map(|registration| registration.dependencies.iter().cloned());
+    Graph::from_parts(nodes, dependencies)
+}
+
+pub fn validate_production_graph() -> Result<GraphValidation, GraphError> {
+    production_graph().validate()
 }
 
 /// Compatibility view over the registration table for callers interested only
@@ -499,10 +713,7 @@ pub fn registered_pass_metadata(render_context: &RenderContext) -> Vec<Productio
     render_context
         .passes()
         .iter()
-        .map(|(pass, enabled)| ProductionPassMetadata {
-            name: pass.name().to_owned(),
-            enabled: *enabled,
-        })
+        .map(|(pass, enabled)| production_pass_node(pass.name().to_owned(), *enabled))
         .collect()
 }
 
@@ -542,13 +753,19 @@ impl Plugin for Viewer {
         // Keep render targets at logical client resolution. The surface is
         // configured in physical pixels, but queue storage must not scale with
         // the monitor DPI or exhaust GPU memory on high-DPI displays.
-        let initial_dimensions = (window.width(), window.height());
+        let initial_dimensions = FrameDimensions::new(window.width(), window.height(), 1.0)
+            .expect("clamped initial viewer dimensions must fit checked arithmetic");
+        let initial_width = initial_dimensions.surface.width;
+        let initial_height = initial_dimensions.surface.height;
         let context_rc = context.clone();
         let _renderer = Renderer::new(window.handle(), context, move |render_context| {
-            Self::create_data_buffers(render_context, initial_dimensions.0, initial_dimensions.1);
+            // The surface starts with renderer defaults; make the clamped window
+            // dimensions authoritative before creating any size-dependent resources.
+            render_context.set_frame_dimensions(initial_dimensions);
+            Self::create_data_buffers(render_context, initial_width, initial_height);
             Self::create_systems(&context_rc, render_context);
-            Self::create_render_targets(render_context, initial_dimensions.0, initial_dimensions.1);
-            Self::create_render_passes(&context_rc, render_context);
+            Self::create_render_targets(render_context, initial_width, initial_height);
+            Self::create_render_passes(&context_rc, render_context, DEBUG_OPTIONS);
         });
 
         let window_system = WindowSystem::new(window, context);
@@ -607,6 +824,167 @@ impl Plugin for Viewer {
 
 #[allow(dead_code)]
 impl Viewer {
+    #[cfg(not(target_arch = "wasm32"))]
+    fn native_cornell_smoke_enabled() -> bool {
+        let parser = inox_commands::CommandParser::from_command_line();
+        parser.has("native_cornell_smoke")
+            || parser
+                .get_values_of::<String>("load_file")
+                .iter()
+                .any(|path| path.to_ascii_lowercase().contains("cornell_box"))
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn report_cornell_geometry_diagnostics(render_context: &RenderContext) {
+        static REPORTED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
+        if REPORTED.get().is_some() {
+            return;
+        }
+        let buffers = render_context.global_buffers();
+        let active = buffers.vector_with_id::<GPUInstance>(ACTIVE_INSTANCE_DATA_ID);
+        let commands = buffers.vector::<DrawIndexedCommand>();
+        let active_id = active.read().unwrap().buffer_id();
+        let commands_id = commands.read().unwrap().buffer_id();
+        let active_gpu = render_context.read_buffer_as::<GPUInstance>(active_id);
+        let commands_gpu = render_context.read_buffer_as::<DrawIndexedCommand>(commands_id);
+        let preparation = render_context
+            .read_buffer_as::<DrawPreparationResults>(DRAW_PREPARATION_RESULT_BUFFER_ID);
+        let packed = buffers.packed_scene_data();
+        let scene_gpu = render_context.read_buffer_as::<u32>(
+            buffers
+                .vector_with_id::<u32>(WAVEFRONT_SCENE_ID)
+                .read()
+                .unwrap()
+                .buffer_id(),
+        );
+        let mesh_range = packed.range(SceneTableKind::Meshes);
+        let mesh_materials = (0..(mesh_range.count_words / 16))
+            .map(|index| packed.words()[mesh_range.offset_words as usize + index as usize * 16 + 3])
+            .collect::<Vec<_>>();
+        let instance_range = packed.range(SceneTableKind::Instances);
+        let packed_instances = (0..(instance_range.count_words / 4))
+            .map(|index| {
+                let base = instance_range.offset_words as usize + index as usize * 4;
+                [
+                    packed.words()[base],
+                    packed.words()[base + 1],
+                    packed.words()[base + 2],
+                ]
+            })
+            .collect::<Vec<_>>();
+        let visibility_samples =
+            render_context
+                .read_render_target_r32uint(0)
+                .map(|(_, _, values)| {
+                    let mut histogram = std::collections::BTreeMap::new();
+                    let mut first = None;
+                    for value in values.iter().filter(|value| **value != 0) {
+                        if first.is_none() {
+                            first = Some(*value);
+                        }
+                        *histogram.entry(*value).or_insert(0usize) += 1;
+                    }
+                    (histogram.into_iter().take(8).collect::<Vec<_>>(), first)
+                });
+        let visibility_ids = visibility_samples
+            .as_ref()
+            .map(|(histogram, _)| histogram.clone());
+        let visibility_first = visibility_samples.as_ref().and_then(|(_, first)| *first);
+        let visibility = visibility_ids
+            .as_ref()
+            .map(|values| values.iter().map(|(_, count)| *count).sum::<usize>());
+        let visibility_tuple = visibility_first.and_then(|value| {
+            let encoded_instance = value >> 8;
+            if encoded_instance == 0 {
+                return None;
+            }
+            let instance_id = encoded_instance - 1;
+            let instance_base = instance_range.offset_words as usize + instance_id as usize * 4;
+            let instance = packed.words().get(instance_base..instance_base + 4)?;
+            let transform_id = instance[0];
+            let mesh_id = instance[1];
+            let meshlet_id = instance[2];
+            let mesh_base = mesh_range.offset_words as usize + mesh_id as usize * 16;
+            let meshlet_range = packed.range(SceneTableKind::Meshlets);
+            let meshlet_base = meshlet_range.offset_words as usize + meshlet_id as usize * 20;
+            let material_id = *packed.words().get(mesh_base + 3)?;
+            packed.words().get(meshlet_base + 2)?;
+            Some((
+                value,
+                instance_id,
+                value & 255,
+                transform_id,
+                mesh_id,
+                meshlet_id,
+                material_id,
+            ))
+        });
+        let gbuffer_world = buffers.vector::<RayPackedData>();
+        let gbuffer_material = buffers.vector::<RadiancePackedData>();
+        let world_gpu = render_context
+            .read_buffer_as::<RayPackedData>(gbuffer_world.read().unwrap().buffer_id());
+        let material_gpu = render_context
+            .read_buffer_as::<RadiancePackedData>(gbuffer_material.read().unwrap().buffer_id());
+        let world_nonzero = world_gpu
+            .as_ref()
+            .map(|values| values.iter().filter(|value| value.0 != 0.0).count());
+        let material_histogram = material_gpu.as_ref().map(|values| {
+            let mut histogram = std::collections::BTreeMap::new();
+            for value in values {
+                *histogram.entry(value.0.to_bits()).or_insert(0usize) += 1;
+            }
+            histogram
+        });
+        let active_nonzero = active_gpu.as_ref().map(|values| {
+            values
+                .iter()
+                .filter(|instance| instance.command_id >= 0)
+                .count()
+        });
+        let command_nonzero = commands_gpu.as_ref().map(|values| {
+            values
+                .iter()
+                .filter(|command| command.instance_count > 0 || command.vertex_count > 0)
+                .count()
+        });
+        eprintln!(
+            "INOX_NATIVE_CORNELL_GEOMETRY scene_gpu={:?} active_cpu={} commands_cpu={} active_gpu_nonzero={:?} command_gpu_nonzero={:?} prep={:?} visibility_nonzero={:?} visibility_first={:?} visibility_tuple={:?} visibility_ids={:?} world_nonzero={:?} material_histogram={:?} mesh_materials={:?} packed_instances={:?}",
+            scene_gpu.as_ref().map(|values| values.iter().take(12).copied().collect::<Vec<_>>()),
+            active.read().unwrap().len(),
+            commands.read().unwrap().len(),
+            active_nonzero,
+            command_nonzero,
+            preparation.as_ref().and_then(|values| values.first()).map(|value| (
+                value.draw_vertices_count,
+                value.active_instances_count,
+                value.commands_count,
+                value.instances_count,
+            )),
+            visibility,
+            visibility_first,
+            visibility_tuple,
+            visibility_ids,
+            world_nonzero,
+            material_histogram,
+            mesh_materials,
+            packed_instances,
+        );
+        let _ = REPORTED.set(());
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn native_cornell_scene_ready(render_context: &RenderContext) -> bool {
+        let packed = render_context.global_buffers().packed_scene_data();
+        [
+            SceneTableKind::Instances,
+            SceneTableKind::Meshes,
+            SceneTableKind::Materials,
+            SceneTableKind::Lights,
+        ]
+        .iter()
+        .all(|kind| packed.range(*kind).count_words > 0)
+    }
+
     fn create_systems(context: &ContextRc, render_context: &RenderContextRc) {
         let render_update_system = UpdateSystem::new(render_context, context);
         let rendering_draw_system = RenderingSystem::new(render_context, context);
@@ -617,8 +995,34 @@ impl Viewer {
         };
 
         #[cfg(not(target_arch = "wasm32"))]
-        render_context.add_post_submit_callback(report_wavefront_queue_diagnostics);
-
+        {
+            render_context.add_post_submit_callback(report_wavefront_queue_diagnostics);
+            if Self::native_cornell_smoke_enabled() {
+                // Read back at most eight completed frames. Asset loading can take several
+                // submissions, while the explicit mode keeps normal production readback-free.
+                let attempts = Arc::new(AtomicU32::new(0));
+                let attempts_for_callback = attempts.clone();
+                render_context.add_post_submit_callback(move |context| {
+                    // Asset loading can span many submitted frames. Do not
+                    // spend the bounded image attempts on an empty packed
+                    // scene; once mesh/material/light tables exist, every
+                    // attempt still uses the unchanged image thresholds.
+                    if !Self::native_cornell_scene_ready(context)
+                        || context.completed_frame_target().is_none()
+                    {
+                        return;
+                    }
+                    Self::report_cornell_geometry_diagnostics(context);
+                    let attempt = attempts_for_callback.fetch_add(1, Ordering::AcqRel);
+                    if attempt < 8 && report_cornell_image_diagnostics(context) {
+                        attempts_for_callback.store(8, Ordering::Release);
+                    }
+                });
+                eprintln!("INOX_NATIVE_CORNELL_IMAGE_SMOKE_ENABLED attempts=8");
+            }
+        }
+        // Browser queue/output markers are emitted only by completed GPU work.
+        // Construction proves neither initialized headers nor finite/nonzero pixels.
         let viewer_system = ViewerSystem::new(context, render_context, false);
         let object_system = ObjectSystem::new(context);
         let script_system = ScriptSystem::new(context);
@@ -681,8 +1085,11 @@ impl Viewer {
         );
         debug_assert!(_depth == RenderTargetType::Depth as usize);
         //HiZ,
-        let _hzb = render_context.create_render_target(
-            (width, height, single_sample, 1, 11),
+        let hiz_mip_count = FrameDimensions::new(width, height, 1.0)
+            .expect("clamped viewer dimensions must fit checked arithmetic")
+            .hiz_mip_count();
+        let _hzb = render_context.create_mip_chain_render_target(
+            (width, height, single_sample, 1, hiz_mip_count),
             TextureFormat::R32Float,
             TextureUsage::TextureBinding
                 | TextureUsage::CopySrc
@@ -762,15 +1169,59 @@ impl Viewer {
             .unwrap()
             .prealloc::<MAX_NUM_MATERIALS>();
     }
-    fn create_render_passes(context: &ContextRc, render_context: &RenderContextRc) {
-        let registrations = production_pass_registrations();
+    fn create_render_passes(
+        context: &ContextRc,
+        render_context: &RenderContextRc,
+        debug_options: DebugOptions,
+    ) {
+        let wavefront_layout_supported = render_context.capabilities().wavefront_layout_supported;
+        let registrations =
+            production_pass_registrations_with_wavefront(wavefront_layout_supported);
+        let graph = production_graph_with_wavefront(wavefront_layout_supported);
+        let validation = match graph.validate() {
+            Ok(validation) => validation,
+            Err(error) => {
+                eprintln!("wavefront production graph validation failed: {error}");
+                return;
+            }
+        };
+        let declared_active = registrations
+            .iter()
+            .flat_map(|registration| registration.passes.iter())
+            .filter(|pass| pass.enabled)
+            .map(|pass| pass.name.as_str())
+            .collect::<Vec<_>>();
+        if declared_active
+            != validation
+                .order
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>()
+        {
+            eprintln!("wavefront production graph order diverges from concrete registration order");
+            return;
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        eprintln!(
+            "INOX_NATIVE_WAVEFRONT_GRAPH_OK order={} active_nodes={}",
+            validation.order.len(),
+            declared_active.len(),
+        );
+        #[cfg(target_arch = "wasm32")]
+        signal_browser_smoke_marker(
+            "graph_order",
+            &format!("validated:{}", validation.order.len()),
+        );
         for registration in &registrations {
-            (registration.factory)(context, render_context);
+            if registration.construct {
+                (registration.factory)(context, render_context);
+            }
         }
 
         let observed = registered_pass_metadata(render_context);
         let expected = registrations
             .iter()
+            .filter(|registration| registration.construct)
             .flat_map(|registration| registration.passes.iter().cloned())
             .collect::<Vec<_>>();
         assert_eq!(
@@ -778,7 +1229,7 @@ impl Viewer {
             "actual production pass registration diverged from the registration table"
         );
 
-        //Self::create_debug_pass(context, render_context);
+        Self::create_debug_pass(context, render_context, debug_options);
         Self::create_wireframe_pass(
             context,
             render_context,
@@ -1341,14 +1792,25 @@ impl Viewer {
             .set_hzb_texture(render_context.render_target(RenderTargetType::HiZ as usize));
         render_context.add_pass(depth_pyramid_pass, true);
     }
-    #[allow(dead_code)]
-    fn create_debug_pass(context: &ContextRc, render_context: &RenderContextRc) {
-        let mut debug_pass = DebugPass::create(context, render_context);
+    fn create_debug_pass(
+        context: &ContextRc,
+        render_context: &RenderContextRc,
+        options: DebugOptions,
+    ) {
+        if !options.is_enabled() {
+            return;
+        }
+        let dimensions = render_context.frame_dimensions();
+        let mut debug_pass =
+            DebugPass::create_with_options(context, render_context, dimensions, options);
         debug_pass
             .set_visibility_texture(
                 &render_context.render_target_id(RenderTargetType::Visibility as usize),
             )
-            .set_depth_texture(&render_context.render_target_id(RenderTargetType::Depth as usize));
+            .set_depth_texture(&render_context.render_target_id(RenderTargetType::Depth as usize))
+            .set_finalize_texture(
+                &render_context.render_target_id(RenderTargetType::Frame0 as usize),
+            );
         render_context.add_pass(debug_pass, true);
     }
     fn create_wireframe_pass(

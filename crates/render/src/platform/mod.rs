@@ -8,10 +8,49 @@ use inox_platform::{PlatformType, PLATFORM_TYPE_PC};
 pub const PORTABLE_MAX_BINDINGS_PER_SHADER_STAGE: u32 = 8;
 pub const PORTABLE_MAX_STORAGE_BUFFERS_PER_SHADER_STAGE: u32 = 8;
 
+/// Byte limits used to size one storage-backed queue. Zero means that the
+/// backend did not provide a usable limit and selects the bounded fallback.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct QueueCapacityLimits {
+    pub max_storage_buffer_binding_size: u64,
+    pub max_buffer_size: u64,
+    pub fallback_capacity: u32,
+}
+
+impl Default for QueueCapacityLimits {
+    fn default() -> Self {
+        Self {
+            max_storage_buffer_binding_size: 0,
+            max_buffer_size: 0,
+            fallback_capacity: 2_097_152,
+        }
+    }
+}
+
+impl From<&RenderCapabilities> for QueueCapacityLimits {
+    fn from(capabilities: &RenderCapabilities) -> Self {
+        Self {
+            max_storage_buffer_binding_size: capabilities.max_storage_buffer_binding_size,
+            max_buffer_size: capabilities.max_buffer_size,
+            fallback_capacity: 2_097_152,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RenderCapabilities {
     pub max_storage_buffers_per_shader_stage: u32,
     pub max_bindings_per_shader_stage: u32,
+    /// Negotiated byte limits used when sizing storage-backed wavefront queues.
+    pub max_storage_buffer_binding_size: u64,
+    pub max_buffer_size: u64,
+    /// Whether the adapter is a discrete GPU eligible for the larger native
+    /// wavefront queue fallback. Integrated, CPU, and unknown adapters remain
+    /// on the conservative portable budget.
+    pub discrete_adapter: bool,
+    /// Whether the full wavefront binding layout fits this adapter's limits.
+    /// Downlevel WebGL2 adapters may use a reduced fallback renderer.
+    pub wavefront_layout_supported: bool,
     pub wireframe: bool,
     pub primitive_index: bool,
     pub timestamp_queries: bool,
@@ -23,11 +62,25 @@ pub struct RenderCapabilities {
 
 impl RenderCapabilities {
     pub fn from_adapter(limits: &wgpu::Limits, features: wgpu::Features) -> Self {
+        Self::from_adapter_with_class(limits, features, false)
+    }
+
+    pub fn from_adapter_with_class(
+        limits: &wgpu::Limits,
+        features: wgpu::Features,
+        discrete_adapter: bool,
+    ) -> Self {
         Self {
             max_storage_buffers_per_shader_stage: PORTABLE_MAX_STORAGE_BUFFERS_PER_SHADER_STAGE
                 .min(limits.max_storage_buffers_per_shader_stage),
             max_bindings_per_shader_stage: PORTABLE_MAX_BINDINGS_PER_SHADER_STAGE
                 .min(limits.max_bindings_per_bind_group),
+            max_storage_buffer_binding_size: limits.max_storage_buffer_binding_size,
+            max_buffer_size: limits.max_buffer_size,
+            discrete_adapter,
+            wavefront_layout_supported: limits.max_storage_buffers_per_shader_stage
+                >= PORTABLE_MAX_STORAGE_BUFFERS_PER_SHADER_STAGE
+                && limits.max_bindings_per_bind_group >= PORTABLE_MAX_BINDINGS_PER_SHADER_STAGE,
             wireframe: features.contains(wgpu::Features::POLYGON_MODE_LINE),
             primitive_index: features.contains(wgpu::Features::PRIMITIVE_INDEX),
             timestamp_queries: features.contains(wgpu::Features::TIMESTAMP_QUERY),
@@ -77,6 +130,14 @@ pub fn negotiate_gpu_requirements(
     adapter_features: wgpu::Features,
     adapter_limits: &wgpu::Limits,
 ) -> Result<NegotiatedGpuRequirements, GpuRequirementsError> {
+    negotiate_gpu_requirements_with_class(adapter_features, adapter_limits, false)
+}
+
+pub fn negotiate_gpu_requirements_with_class(
+    adapter_features: wgpu::Features,
+    adapter_limits: &wgpu::Limits,
+    discrete_adapter: bool,
+) -> Result<NegotiatedGpuRequirements, GpuRequirementsError> {
     let baseline = required_gpu_features();
     let missing = baseline & !adapter_features;
     if !missing.is_empty() {
@@ -101,15 +162,10 @@ pub fn negotiate_gpu_requirements(
     }
     let enabled_features = baseline | optional_features;
     let required_limits = platform_limits_from_adapter_limits(platform_limits(), adapter_limits);
-    if required_limits.max_storage_buffers_per_shader_stage
-        < PORTABLE_MAX_STORAGE_BUFFERS_PER_SHADER_STAGE
-    {
-        return Err(GpuRequirementsError::InsufficientLimit {
-            name: "max_storage_buffers_per_shader_stage",
-            required: PORTABLE_MAX_STORAGE_BUFFERS_PER_SHADER_STAGE,
-            available: adapter_limits.max_storage_buffers_per_shader_stage,
-        });
-    }
+    // Storage-buffer count is a layout capability, not a device baseline
+    // requirement. WebGL2/downlevel adapters commonly expose fewer than the
+    // full wavefront layout; retain their negotiated limit and let callers
+    // select the fallback path via `wavefront_layout_supported`.
     if required_limits.max_bindings_per_bind_group < PORTABLE_MAX_BINDINGS_PER_SHADER_STAGE {
         return Err(GpuRequirementsError::InsufficientLimit {
             name: "max_bindings_per_bind_group",
@@ -121,7 +177,11 @@ pub fn negotiate_gpu_requirements(
     Ok(NegotiatedGpuRequirements {
         required_features: enabled_features,
         required_limits,
-        capabilities: RenderCapabilities::from_adapter(adapter_limits, enabled_features),
+        capabilities: RenderCapabilities::from_adapter_with_class(
+            adapter_limits,
+            enabled_features,
+            discrete_adapter,
+        ),
     })
 }
 #[cfg(target_arch = "wasm32")]

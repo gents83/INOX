@@ -141,6 +141,10 @@ impl Pass for ComputeWavefrontCompositePass {
             .init(render_context, &mut self.binding_data, None);
     }
 
+    fn resize(&mut self, dimensions: inox_render::FrameDimensions) {
+        self.set_dimensions(dimensions.render_dimensions());
+    }
+
     fn update(
         &mut self,
         render_context: &RenderContext,

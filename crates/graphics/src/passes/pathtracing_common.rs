@@ -943,6 +943,10 @@ pub const WAVEFRONT_QUEUE_MEMORY_BUDGET_BYTES: usize = 512 * 1024 * 1024;
 /// adapter byte limits still win, so constrained native adapters remain
 /// bounded; this is not a physical-VRAM guarantee.
 pub const WAVEFRONT_NATIVE_QUEUE_MEMORY_BUDGET_BYTES: usize = 2 * 1024 * 1024 * 1024;
+/// Keep the larger discrete-native queue policy through the validated maximize
+/// extent. Larger physical windows must leave memory for full-resolution targets
+/// and per-pixel accumulators, so they use the conservative aggregate fallback.
+pub const WAVEFRONT_NATIVE_FULL_QUEUE_PIXEL_LIMIT: u64 = 1_916 * 1_125;
 pub const WAVEFRONT_QUEUE_GPU_BYTES_PER_CAPACITY_ENTRY: usize = (WAVEFRONT_BOUNCE_QUEUE_COUNT + 1)
     * std::mem::size_of::<RayQueueRecord>()
     + std::mem::size_of::<HitRecord>()
@@ -1063,6 +1067,25 @@ pub fn negotiated_queue_capacity_limits(
     limits.fallback_capacity = queue_capacity_u32(queue_fallback_capacity_for_adapter(
         render_context.capabilities().discrete_adapter,
     ));
+    limits
+}
+
+/// Reduce the retained queue budget for physical extents larger than the
+/// validated maximize target. The full-resolution targets and accumulators are
+/// still required at those extents, so queue overflow is preferable to a fatal
+/// device allocation failure and remains visible in the queue headers.
+pub fn queue_capacity_limits_for_extent(
+    mut limits: inox_render::QueueCapacityLimits,
+    width: u32,
+    height: u32,
+) -> inox_render::QueueCapacityLimits {
+    #[cfg(not(target_arch = "wasm32"))]
+    if limits.fallback_capacity == queue_capacity_u32(WAVEFRONT_NATIVE_QUEUE_FALLBACK_CAPACITY)
+        && u64::from(width).saturating_mul(u64::from(height))
+            > WAVEFRONT_NATIVE_FULL_QUEUE_PIXEL_LIMIT
+    {
+        limits.fallback_capacity = queue_capacity_u32(WAVEFRONT_QUEUE_FALLBACK_CAPACITY);
+    }
     limits
 }
 

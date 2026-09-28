@@ -244,6 +244,24 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
         true
     }
 
+    /// Apply the exact preprocessing and binding-validation input used by the
+    /// production binarizer. Tests and native smoke must call this instead of
+    /// maintaining a second include expander.
+    pub fn preprocess_wgsl_source(path: &Path, source: String) -> Result<String, String> {
+        let source = Self::preprocess_code(path, source);
+        let source = Self::add_required_wgsl_extensions(
+            source,
+            &shader_preprocessor_defs::<PLATFORM_TYPE>(),
+        );
+        let source = Self::remove_comments(&source);
+        let source = clean_unused_definitions(&source)
+            .map_err(|error| format!("unable to remove unused WGSL definitions: {error:?}"))?;
+        Ok(Self::add_required_wgsl_extensions(
+            source,
+            &shader_preprocessor_defs::<PLATFORM_TYPE>(),
+        ))
+    }
+
     pub fn preprocess_shader(&self, local_path: &Path) {
         let path = convert_from_local_path(self.data_raw_folder.as_path(), local_path);
         debug_log!("Preproces shader {:?}", path);
@@ -260,18 +278,8 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
         let mut data = Vec::new();
         file.read_to_end(&mut data).unwrap();
         let shader_code = String::from_utf8(data).unwrap();
-        let preprocessed_code = Self::preprocess_code(&path, shader_code);
-        let preprocessed_code = Self::add_required_wgsl_extensions(
-            preprocessed_code,
-            &shader_preprocessor_defs::<PLATFORM_TYPE>(),
-        );
-
-        let preprocessed_code = Self::remove_comments(&preprocessed_code);
-        let preprocessed_code = clean_unused_definitions(&preprocessed_code).unwrap();
-        let preprocessed_code = Self::add_required_wgsl_extensions(
-            preprocessed_code,
-            &shader_preprocessor_defs::<PLATFORM_TYPE>(),
-        );
+        let preprocessed_code = Self::preprocess_wgsl_source(&path, shader_code)
+            .expect("production WGSL preprocessing must produce valid source");
 
         debug_log!("validating shader {:?}", path);
         if self.validate_shader(&preprocessed_code, &path, &new_path) {
@@ -586,9 +594,11 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
                         continue;
                     }
                 };
-                let preprocessed = Self::preprocess_code(&shader_path, shader_source);
-                let preprocessed = Self::remove_comments(&preprocessed);
-                let result = Self::extract_storage_bindings_for_shader(&preprocessed, &shader_path);
+                let preprocessed = Self::preprocess_wgsl_source(&shader_path, shader_source)
+                    .map_err(|error| format!("pipeline preprocessing failed: {error}"));
+                let result = preprocessed.and_then(|source| {
+                    Self::extract_storage_bindings_for_shader(&source, &shader_path)
+                });
                 if let Err(error) = result {
                     errors.push(format!("pipeline {path:?} field {field}: {error}"));
                 }
@@ -606,19 +616,10 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
             eprintln!("Unable to read WGSL source {path:?}");
             return false;
         };
-        let source = Self::preprocess_code(path, source);
-        let source = Self::add_required_wgsl_extensions(
-            source,
-            &shader_preprocessor_defs::<PLATFORM_TYPE>(),
-        );
-        let source = Self::remove_comments(&source);
-        let source = match clean_unused_definitions(&source) {
-            Ok(source) => Self::add_required_wgsl_extensions(
-                source,
-                &shader_preprocessor_defs::<PLATFORM_TYPE>(),
-            ),
+        let source = match Self::preprocess_wgsl_source(path, source) {
+            Ok(source) => source,
             Err(error) => {
-                eprintln!("Unable to remove unused WGSL definitions from {path:?}: {error:?}");
+                eprintln!("Unable to preprocess WGSL source {path:?}: {error}");
                 return false;
             }
         };
@@ -719,8 +720,8 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
                         let import_path = line[first + 1..end].to_string();
                         let import_path = PathBuf::from(path.parent().unwrap()).join(import_path);
                         let import_path = import_path.canonicalize().unwrap();
-                        let shader_code = std::fs::read_to_string(import_path).unwrap();
-                        let import_code = Self::preprocess_code(path, shader_code);
+                        let shader_code = std::fs::read_to_string(&import_path).unwrap();
+                        let import_code = Self::preprocess_code(&import_path, shader_code);
                         if !import_code.trim().is_empty() {
                             string.push_str(&import_code);
                         }

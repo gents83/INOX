@@ -19,6 +19,19 @@ impl Default for AABB {
 }
 
 impl AABB {
+    /// Returns whether both corners and the ordering of this box are valid.
+    pub fn is_valid(&self) -> bool {
+        self.min.x.is_finite()
+            && self.min.y.is_finite()
+            && self.min.z.is_finite()
+            && self.max.x.is_finite()
+            && self.max.y.is_finite()
+            && self.max.z.is_finite()
+            && self.min.x <= self.max.x
+            && self.min.y <= self.max.y
+            && self.min.z <= self.max.z
+    }
+
     pub fn empty() -> Self {
         Self {
             max: [f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY].into(),
@@ -53,7 +66,7 @@ impl AABB {
         self
     }
     pub fn min(&self) -> Vector3 {
-        self.min.min(self.min)
+        self.min.min(self.max)
     }
     pub fn max(&self) -> Vector3 {
         self.max.max(self.min)

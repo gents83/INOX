@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use inox_messenger::Listener;
 use inox_render::{
     BindingData, BindingFlags, BindingInfo, CommandBuffer, ComputePass, ComputePassData,
-    ConstantDataRw, Pass, RenderContext, RenderContextRc, ShaderStage, Texture, TextureView,
+    ConstantDataRw, FrameDimensions, Pass, RenderContext, RenderContextRc, ShaderStage, Texture,
+    TextureView,
 };
 
 use inox_core::ContextRc;
@@ -38,6 +39,10 @@ impl Pass for DepthPyramidPass {
     }
     fn is_active(&self, _render_context: &RenderContext) -> bool {
         true
+    }
+    fn resize(&mut self, dimensions: FrameDimensions) {
+        self.dimensions = (dimensions.surface.width, dimensions.surface.height);
+        self.rebuild_mip_bindings(dimensions.hiz_mip_count());
     }
     fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self
     where
@@ -155,8 +160,10 @@ impl Pass for DepthPyramidPass {
             .iter_mut()
             .enumerate()
             .for_each(|(mip_level, binding_data)| {
-                let work_group_count_x = (self.dimensions.0 / (1 << (mip_level + 1))).div_ceil(8);
-                let work_group_count_y = (self.dimensions.1 / (1 << (mip_level + 1))).div_ceil(8);
+                let mip_width = (self.dimensions.0 / (1 << (mip_level + 1))).max(1);
+                let mip_height = (self.dimensions.1 / (1 << (mip_level + 1))).max(1);
+                let work_group_count_x = mip_width.div_ceil(8);
+                let work_group_count_y = mip_height.div_ceil(8);
 
                 let pass = self.compute_pass.get();
                 pass.dispatch(
@@ -174,8 +181,13 @@ impl Pass for DepthPyramidPass {
 impl DepthPyramidPass {
     pub fn set_depth_texture(&mut self, texture: Resource<Texture>) -> &mut Self {
         self.dimensions = texture.get().dimensions();
-        let hzb_size = self.dimensions.0.max(self.dimensions.1).next_power_of_two();
-        let mip_count = (f32::log2(hzb_size as f32) as u32).max(1);
+        let extent = FrameDimensions::new(self.dimensions.0, self.dimensions.1, 1.0)
+            .expect("depth texture dimensions must fit checked arithmetic");
+        self.rebuild_mip_bindings(extent.hiz_mip_count());
+        self
+    }
+
+    fn rebuild_mip_bindings(&mut self, mip_count: u32) {
         self.binding_data.clear();
         self.mip_levels.clear();
         for i in 1..mip_count {
@@ -186,7 +198,6 @@ impl DepthPyramidPass {
             self.binding_data.push(binding_data);
             self.mip_levels.push(i);
         }
-        self
     }
     pub fn set_hzb_texture(&mut self, texture: Resource<Texture>) -> &mut Self {
         self.hzb_texture = Some(texture);

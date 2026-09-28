@@ -3,12 +3,19 @@ use std::collections::HashSet;
 use inox_commands::CommandParser;
 use inox_graphics::{
     wavefront_auxiliary_bindings, wavefront_bounce_stage, wavefront_primary_bindings,
-    wavefront_primary_shade_bindings, WAVEFRONT_AO_ID, WAVEFRONT_HIT_DISPATCH_ARGS_ID,
-    WAVEFRONT_HIT_HEADER_ID, WAVEFRONT_HIT_QUEUE_ID, WAVEFRONT_PRIMARY_QUEUE_ID,
-    WAVEFRONT_TRANSPARENT_HEADER_ID, WAVEFRONT_TRANSPARENT_QUEUE_ID,
+    wavefront_primary_shade_bindings, RadiancePackedData, RayPackedData, ThroughputPackedData,
+    WAVEFRONT_AO_ID, WAVEFRONT_DIRECT_ACCUMULATOR_ID, WAVEFRONT_HIT_DISPATCH_ARGS_ID,
+    WAVEFRONT_HIT_HEADER_ID, WAVEFRONT_HIT_QUEUE_ID, WAVEFRONT_INDIRECT_ACCUMULATOR_ID,
+    WAVEFRONT_PRIMARY_QUEUE_ID, WAVEFRONT_TRANSPARENT_HEADER_ID, WAVEFRONT_TRANSPARENT_QUEUE_ID,
+    WAVEFRONT_UPSCALED_ACCUMULATOR_ID,
 };
 use inox_platform::window_size_from_parser;
-use inox_viewer::viewer::{production_construction_records, production_pass_registrations, ProductionPassMetadata};
+use inox_uid::{generate_uid_from_type, Uid};
+use inox_viewer::viewer::{
+    production_construction_records, production_graph, production_pass_registrations,
+    production_pass_registrations_with_wavefront, validate_production_graph,
+    ProductionPassMetadata,
+};
 
 fn pass_metadata() -> Vec<ProductionPassMetadata> {
     production_pass_registrations()
@@ -68,9 +75,32 @@ fn viewer_reapplies_current_projection_for_late_camera_resources() {
         .find("let dimensions = self.render_context.frame_dimensions().surface;")
         .expect("event update must refresh projection dimensions");
     let fallback = &source[events + fallback..];
-    assert!(fallback.contains("self.update_camera_projections((dimensions.width, dimensions.height));"));
+    assert!(
+        fallback.contains("self.update_camera_projections((dimensions.width, dimensions.height));")
+    );
     assert!(source.contains("self.check_command_line_arguments();"));
-    assert!(source.contains("self.update_camera_projections((dimensions.width, dimensions.height));"));
+    assert!(
+        source.contains("self.update_camera_projections((dimensions.width, dimensions.height));")
+    );
+}
+
+#[test]
+fn native_cornell_image_smoke_is_opt_in_and_bounded() {
+    let viewer = include_str!("../src/viewer.rs");
+    let render_context = include_str!("../../../render/src/common/render_context.rs");
+    assert!(viewer.contains("native_cornell_smoke"));
+    assert!(viewer.contains("contains(\"cornell_box\")"));
+    assert!(viewer.contains("attempt < 8"));
+    let target_check = viewer
+        .find("context.completed_frame_target().is_none()")
+        .expect("unpublished Finalize submissions must not consume retry attempts");
+    let attempt_increment = viewer
+        .find("attempts_for_callback.fetch_add(1, Ordering::AcqRel)")
+        .expect("completed submissions must increment retry attempts");
+    assert!(target_check < attempt_increment);
+    assert!(viewer.contains("report_cornell_image_diagnostics"));
+    assert!(render_context.contains("read_render_target_rgba32f"));
+    assert!(render_context.contains("opt-in image correctness smoke modes"));
 }
 
 #[test]
@@ -90,8 +120,8 @@ fn production_metadata_has_unique_entries_and_complete_queue_chain() {
         "VisibilityBufferPass",
         "ComputeWavefrontSurfacePass",
         "ComputeWavefrontTransparencyPass",
-        "ComputeWavefrontAoResolvePass",
         "ComputeWavefrontDirectCandidatesPass",
+        "ComputeWavefrontAoResolvePass",
         "ComputeWavefrontVisibilityPass",
         "ComputeWavefrontPrimaryPass",
         "ComputeWavefrontDispatchPass",
@@ -124,8 +154,8 @@ fn production_metadata_has_unique_entries_and_complete_queue_chain() {
             .map(String::as_str)
             .collect::<Vec<_>>(),
         [
-            "ComputeWavefrontCompositePass",
             "ComputeWavefrontTransparencyResolvePass",
+            "ComputeWavefrontCompositePass",
             "ComputeWavefrontDenoiseTemporalPass",
             "ComputeWavefrontDenoiseBilateralPass",
             "ComputeWavefrontUpscalePass",
@@ -166,22 +196,27 @@ fn registration_table_exposes_actual_auxiliary_and_bounce_handoffs() {
             .unwrap_or_else(|| panic!("missing construction record for {pass}"))
     };
     let auxiliary = wavefront_auxiliary_bindings();
-    assert_eq!(
-        construction_for("ComputeWavefrontTransparencyPass").resources,
-        vec![auxiliary.transparent_queue, auxiliary.transparent_header]
-    );
-    assert_eq!(
-        construction_for("ComputeWavefrontTransparencyResolvePass").resources,
-        vec![auxiliary.transparent_queue, auxiliary.transparent_header]
-    );
-    assert_eq!(
-        construction_for("ComputeWavefrontDirectCandidatesPass").resources,
-        vec![auxiliary.ao_state]
-    );
-    assert_eq!(
-        construction_for("ComputeWavefrontAoResolvePass").resources,
-        vec![auxiliary.ao_state]
-    );
+    let has_resources = |pass: &str, resources: &[Uid]| {
+        resources
+            .iter()
+            .all(|resource| construction_for(pass).resources.contains(resource))
+    };
+    assert!(has_resources(
+        "ComputeWavefrontTransparencyPass",
+        &[auxiliary.transparent_queue, auxiliary.transparent_header]
+    ));
+    assert!(has_resources(
+        "ComputeWavefrontTransparencyResolvePass",
+        &[auxiliary.transparent_queue, auxiliary.transparent_header]
+    ));
+    assert!(has_resources(
+        "ComputeWavefrontDirectCandidatesPass",
+        &[auxiliary.ao_state]
+    ));
+    assert!(has_resources(
+        "ComputeWavefrontAoResolvePass",
+        &[auxiliary.ao_state]
+    ));
     for legacy in [
         "ComputeGBufferPass",
         "ComputeShadowAOPass",
@@ -196,8 +231,18 @@ fn registration_table_exposes_actual_auxiliary_and_bounce_handoffs() {
         registrations
             .iter()
             .flat_map(|registration| registration.dependencies.iter())
-            .find(|entry| entry.pass == pass)
+            .find(|entry| entry.successor == pass)
             .unwrap_or_else(|| panic!("missing dependency metadata for {pass}"))
+    };
+    let has_dependency = |successor: &str, predecessor: &str, resource: Uid| {
+        registrations
+            .iter()
+            .flat_map(|registration| registration.dependencies.iter())
+            .any(|entry| {
+                entry.successor == successor
+                    && entry.predecessor == predecessor
+                    && entry.resource == resource
+            })
     };
 
     let bounce_registration = registrations
@@ -210,25 +255,25 @@ fn registration_table_exposes_actual_auxiliary_and_bounce_handoffs() {
         })
         .expect("missing generated bounce registration");
     assert_eq!(bounce_registration.passes.len(), 40);
-    assert_eq!(bounce_registration.dependencies.len(), 40);
+    assert_eq!(bounce_registration.dependencies.len(), 64);
     for stage in inox_graphics::wavefront_bounce_stages() {
-        assert_eq!(
-            construction_for(&stage.name).resources,
-            vec![
+        assert!(has_resources(
+            &stage.name,
+            &[
                 stage.bindings.source_ray_queue,
                 stage.bindings.source_hit_header,
                 stage.bindings.destination_ray_queue,
                 stage.bindings.destination_ray_header,
                 stage.bindings.dispatch_args,
             ]
-        );
-        assert_eq!(
-            construction_for(&stage.dispatch_name).resources,
-            vec![
+        ));
+        assert!(has_resources(
+            &stage.dispatch_name,
+            &[
                 stage.bindings.destination_ray_header,
                 stage.destination_dispatch_args
             ]
-        );
+        ));
     }
     assert_eq!(
         dependency("ComputeWavefrontTransparencyResolvePass").predecessor,
@@ -240,7 +285,7 @@ fn registration_table_exposes_actual_auxiliary_and_bounce_handoffs() {
     );
     assert_eq!(
         dependency("ComputeWavefrontAoResolvePass").predecessor,
-        "ComputeWavefrontSurfacePass"
+        "ComputeWavefrontDirectCandidatesPass"
     );
     assert_eq!(
         dependency("ComputeWavefrontAoResolvePass").resource,
@@ -254,6 +299,30 @@ fn registration_table_exposes_actual_auxiliary_and_bounce_handoffs() {
         dependency("ComputeWavefrontVisibilityPass").resource,
         inox_graphics::WAVEFRONT_RESERVOIR_ID
     );
+    assert!(has_dependency(
+        "ComputeWavefrontVisibilityPass",
+        "ComputeWavefrontAoResolvePass",
+        WAVEFRONT_AO_ID
+    ));
+    assert!(has_dependency(
+        "ComputeWavefrontCompositePass",
+        "ComputeWavefrontVisibilityPass",
+        WAVEFRONT_DIRECT_ACCUMULATOR_ID
+    ));
+    let stages = inox_graphics::wavefront_bounce_stages();
+    let final_stage = stages
+        .last()
+        .expect("production graph requires a final wavefront bounce");
+    assert!(has_dependency(
+        "ComputeWavefrontCompositePass",
+        &final_stage.shade_name,
+        WAVEFRONT_INDIRECT_ACCUMULATOR_ID
+    ));
+    assert!(has_dependency(
+        "FinalizePass",
+        "ComputeWavefrontUpscalePass",
+        WAVEFRONT_UPSCALED_ACCUMULATOR_ID
+    ));
 
     let stage = wavefront_bounce_stage(
         1,
@@ -262,7 +331,7 @@ fn registration_table_exposes_actual_auxiliary_and_bounce_handoffs() {
     );
     assert_eq!(
         dependency(&stage.name).predecessor,
-        "ComputeWavefrontShadePass"
+        "ComputeWavefrontPrimaryPass"
     );
     assert_eq!(dependency(&stage.dispatch_name).predecessor, stage.name);
     assert_eq!(
@@ -276,6 +345,86 @@ fn registration_table_exposes_actual_auxiliary_and_bounce_handoffs() {
     assert_eq!(
         dependency(&stage.shade_name).predecessor,
         stage.hit_dispatch_name
+    );
+}
+
+#[test]
+fn surface_primary_graph_contract_covers_shared_gbuffer_resources() {
+    let world = generate_uid_from_type::<RayPackedData>();
+    let material = generate_uid_from_type::<RadiancePackedData>();
+    let auxiliary = generate_uid_from_type::<ThroughputPackedData>();
+    let graph = production_graph();
+    let node = |name: &str| {
+        graph
+            .nodes()
+            .iter()
+            .find(|node| node.name == name)
+            .unwrap_or_else(|| panic!("missing graph node {name}"))
+    };
+    let surface = node("ComputeWavefrontSurfacePass");
+    let primary = node("ComputeWavefrontPrimaryPass");
+    assert_eq!(surface.writes, vec![world, material, auxiliary]);
+    assert_eq!(primary.reads, vec![world, material, auxiliary]);
+    for resource in [world, material, auxiliary] {
+        assert!(graph.dependencies().iter().any(|dependency| {
+            dependency.predecessor == "ComputeWavefrontSurfacePass"
+                && dependency.successor == "ComputeWavefrontPrimaryPass"
+                && dependency.resource == resource
+        }));
+    }
+    assert!(node("ComputeWavefrontTransparencyPass")
+        .reads
+        .contains(&material));
+    assert!(node("ComputeWavefrontDirectCandidatesPass")
+        .reads
+        .contains(&world));
+}
+
+#[test]
+fn surface_primary_edge_mutation_fails_graph_validation() {
+    let graph = production_graph();
+    let edge = graph
+        .dependencies()
+        .iter()
+        .find(|dependency| {
+            dependency.predecessor == "ComputeWavefrontSurfacePass"
+                && dependency.successor == "ComputeWavefrontPrimaryPass"
+        })
+        .expect("missing surface-to-primary dependency");
+    let mut moved = graph.dependencies().to_vec();
+    let replacement = inox_graph::Dependency::new(
+        "ComputeWavefrontSurfacePass",
+        "ComputeWavefrontPrimaryPass",
+        WAVEFRONT_PRIMARY_QUEUE_ID,
+    );
+    let index = moved
+        .iter()
+        .position(|candidate| candidate == edge)
+        .unwrap();
+    moved[index] = replacement;
+    let invalid = inox_graph::Graph::from_parts(graph.nodes().to_vec(), moved);
+    assert!(
+        invalid.validate().is_err(),
+        "moved edge must fail validation"
+    );
+
+    let mut removed = graph.dependencies().to_vec();
+    removed.retain(|candidate| {
+        !(candidate.predecessor == "ComputeWavefrontSurfacePass"
+            && candidate.successor == "ComputeWavefrontPrimaryPass")
+    });
+    let invalid = inox_graph::Graph::from_parts(graph.nodes().to_vec(), removed);
+    assert!(
+        invalid.dependencies().iter().all(|candidate| {
+            !(candidate.predecessor == "ComputeWavefrontSurfacePass"
+                && candidate.successor == "ComputeWavefrontPrimaryPass")
+        }),
+        "surface-to-primary edge removal must be observable"
+    );
+    assert_ne!(
+        invalid.dependencies(),
+        graph.dependencies(),
+        "removing the surface-to-primary handoff must change the validated graph"
     );
 }
 
@@ -347,6 +496,93 @@ fn wavefront_graph_contract_connects_queues_headers_and_dispatch_resources() {
         WAVEFRONT_TRANSPARENT_HEADER_ID
     );
     assert_eq!(auxiliary.ao_state, WAVEFRONT_AO_ID);
+}
+
+#[test]
+fn production_graph_is_validated_before_concrete_registration_order() {
+    let validation = validate_production_graph().expect("production graph must validate");
+    let active = active_pass_names();
+    assert_eq!(validation.order, active);
+
+    let graph = production_graph();
+    let edge = |predecessor: &str, successor: &str, resource| {
+        graph
+            .dependencies()
+            .iter()
+            .find(|dependency| {
+                dependency.predecessor == predecessor
+                    && dependency.successor == successor
+                    && dependency.resource == resource
+            })
+            .unwrap_or_else(|| panic!("missing graph edge {predecessor} -> {successor}"))
+    };
+    edge(
+        "ComputeWavefrontDirectCandidatesPass",
+        "ComputeWavefrontAoResolvePass",
+        WAVEFRONT_AO_ID,
+    );
+    edge(
+        "ComputeWavefrontDispatchPass",
+        "ComputeWavefrontTraversalPass",
+        inox_graphics::WAVEFRONT_DISPATCH_ARGS_ID,
+    );
+    edge(
+        "ComputeWavefrontHitDispatchPass",
+        "ComputeWavefrontShadePass",
+        WAVEFRONT_HIT_DISPATCH_ARGS_ID,
+    );
+    edge(
+        "ComputeWavefrontAoResolvePass",
+        "ComputeWavefrontVisibilityPass",
+        WAVEFRONT_AO_ID,
+    );
+    edge(
+        "ComputeWavefrontVisibilityPass",
+        "ComputeWavefrontCompositePass",
+        WAVEFRONT_DIRECT_ACCUMULATOR_ID,
+    );
+    let stages = inox_graphics::wavefront_bounce_stages();
+    let final_stage = stages
+        .last()
+        .expect("production graph requires a final wavefront bounce");
+    edge(
+        &final_stage.shade_name,
+        "ComputeWavefrontCompositePass",
+        WAVEFRONT_INDIRECT_ACCUMULATOR_ID,
+    );
+    edge(
+        "ComputeWavefrontTransparencyResolvePass",
+        "ComputeWavefrontCompositePass",
+        inox_graphics::WAVEFRONT_FINAL_ACCUMULATOR_ID,
+    );
+}
+
+#[test]
+fn unsupported_wavefront_layout_disables_graph_and_pipeline_construction() {
+    let registrations = production_pass_registrations_with_wavefront(false);
+    let wavefront = registrations
+        .iter()
+        .filter(|registration| {
+            registration
+                .passes
+                .iter()
+                .any(|pass| pass.name.starts_with("ComputeWavefront"))
+        })
+        .collect::<Vec<_>>();
+    assert!(!wavefront.is_empty());
+    assert!(wavefront.iter().all(|registration| {
+        registration.passes.iter().all(|pass| !pass.enabled) && !registration.constructs_pipelines()
+    }));
+
+    let graph = inox_viewer::viewer::production_graph_with_wavefront(false);
+    let validation = graph
+        .validate()
+        .expect("fallback graph must validate without wavefront passes");
+    assert!(validation
+        .order
+        .iter()
+        .all(|name| !name.starts_with("ComputeWavefront")));
+    assert!(!validation.order.contains(&"ComputeGBufferPass".to_owned()));
 }
 
 #[test]

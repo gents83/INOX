@@ -11,6 +11,12 @@ struct Result {
 }
 
 fn intersect_aabb(origin: vec3<f32>, direction: vec3<f32>, max_distance: f32, aabb_min: vec3<f32>, aabb_max: vec3<f32>) -> f32 {
+    if (!all(origin == origin) || !all(direction == direction) || !all(aabb_min == aabb_min)
+        || !all(aabb_max == aabb_max) || !all(abs(direction) < vec3<f32>(3.402823e+38))
+        || !all(abs(aabb_min) < vec3<f32>(3.402823e+38)) || !all(abs(aabb_max) < vec3<f32>(3.402823e+38))
+        || !all(aabb_min <= aabb_max)) {
+        return max_distance;
+    }
     let size = aabb_max - aabb_min;
     let inverse_dir = 1. / direction;
     let n = origin * inverse_dir;
@@ -57,6 +63,25 @@ fn intersect_triangle(origin: vec3<f32>, direction: vec3<f32>, max_distance: f32
 // traverse_blas removed as it was replaced by traverse_blas_stack
 
 // Rewriting above because I need World Ray for triangle intersection.
+//
+// The inverse transform deliberately does not normalize the local direction.
+// Therefore local AABB slab distances and world-space triangle distances use
+// the same world-ray parameter t, even when the instance has non-uniform scale.
+struct LocalRay {
+    origin: vec3<f32>,
+    direction: vec3<f32>,
+};
+
+fn transform_world_ray_to_local(
+    world_origin: vec3<f32>,
+    world_direction: vec3<f32>,
+    inverse_matrix: mat4x4<f32>,
+) -> LocalRay {
+    return LocalRay(
+        (inverse_matrix * vec4<f32>(world_origin, 1.)).xyz,
+        (inverse_matrix * vec4<f32>(world_direction, 0.)).xyz,
+    );
+}
 
 fn traverse_blas_stack(
     world_ray_origin: vec3<f32>,
@@ -90,7 +115,7 @@ fn traverse_blas_stack(
         loop_count++;
         stack_ptr--;
         let node_index = stack[stack_ptr];
-        
+        if(node_index < 0 || u32(node_index) >= arrayLength(&bvh.data)) { continue; }
         let node = bvh.data[u32(node_index)];
         // Use LOCAL RAY for AABB
         let intersection = intersect_aabb(local_ray_origin, local_ray_direction, max_distance, node.min, node.max);
@@ -98,12 +123,13 @@ fn traverse_blas_stack(
         if(intersection < max_distance) {
             if(node.reference < 0) {
                 let left_index = node_index + 1;
+                if (left_index < 0 || u32(left_index) >= arrayLength(&bvh.data)) { continue; }
                 let left_node = bvh.data[u32(left_index)];
                 let right_index = left_node.miss;
 
                 // Stack Check
                 if(stack_ptr < 62) {
-                    if(right_index >= 0) {
+                    if(right_index >= 0 && u32(right_index) < arrayLength(&bvh.data)) {
                         stack[stack_ptr] = right_index;
                         stack_ptr++;
                     }
@@ -113,14 +139,25 @@ fn traverse_blas_stack(
                     }
                 }
             } else {
+                if (node.reference < 0 || meshlets_offset > arrayLength(&meshlets.data)
+                    || u32(node.reference) >= arrayLength(&meshlets.data) - meshlets_offset) { continue; }
                 let meshlet_id = meshlets_offset + u32(node.reference);
                 let meshlet = meshlets.data[meshlet_id];
                 let triangle_count = meshlet.indices_count / 3u;
+                if (meshlet.indices_count < 3u || (meshlet.indices_count % 3u) != 0u
+                    || meshlet.indices_offset > arrayLength(&indices.data)
+                    || meshlet.indices_count > arrayLength(&indices.data) - meshlet.indices_offset) { continue; }
 
                 for(var i = 0u; i < triangle_count; i++) {
                     let index_offset = meshlet.indices_offset + (i * 3u);
-                    
-                    let p1 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vertices_position_offset + indices.data[index_offset]]) * hit_size;
+                    let i0 = indices.data[index_offset];
+                    let i1 = indices.data[index_offset + 1u];
+                    let i2 = indices.data[index_offset + 2u];
+                    if (vertices_position_offset > arrayLength(&vertices_positions.data)
+                        || i0 >= arrayLength(&vertices_positions.data) - vertices_position_offset
+                        || i1 >= arrayLength(&vertices_positions.data) - vertices_position_offset
+                        || i2 >= arrayLength(&vertices_positions.data) - vertices_position_offset) { continue; }
+                    let p1 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vertices_position_offset + i0]) * hit_size;
                     let p2 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vertices_position_offset + indices.data[index_offset + 1u]]) * hit_size;
                     let p3 = bb_min + unpack_unorm_to_3_f32(vertices_positions.data[vertices_position_offset + indices.data[index_offset + 2u]]) * hit_size;
 
@@ -160,9 +197,8 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
         loop_count++;
         stack_ptr--;
         let node_index = stack[stack_ptr];
-        
-        // Skip invalid nodes
-        if(node_index < 0) { continue; }
+        // Skip invalid indices before touching the runtime array.
+        if(node_index < 0 || u32(node_index) >= arrayLength(&bvh.data)) { continue; }
 
         let node = bvh.data[u32(node_index)];
         let intersection = intersect_aabb(world_ray_origin, world_ray_direction, max_distance, node.min, node.max);
@@ -171,11 +207,12 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
             if(node.reference < 0) {
                 // Internal TLAS Node
                 let left_index = node_index + 1;
+                if (left_index < 0 || u32(left_index) >= arrayLength(&bvh.data)) { continue; }
                 let left_node = bvh.data[u32(left_index)];
                 let right_index = left_node.miss;
 
                 if(stack_ptr < 62) {
-                    if(right_index >= 0) {
+                    if(right_index >= 0 && u32(right_index) < arrayLength(&bvh.data)) {
                         stack[stack_ptr] = right_index;
                         stack_ptr++;
                     }
@@ -186,8 +223,11 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
                 }
             } else {
                 // Instance Hit
+                if (node.reference < 0 || u32(node.reference) >= arrayLength(&instances.data)) { continue; }
                 let current_instance_id = u32(node.reference);
                 let instance = instances.data[current_instance_id];
+                if (instance.mesh_id >= arrayLength(&meshes.data)
+                    || instance.transform_id >= arrayLength(&transforms.data)) { continue; }
                 let mesh = &meshes.data[instance.mesh_id];
                 let transform = transforms.data[instance.transform_id];
                 
@@ -197,8 +237,10 @@ fn traverse_bvh(world_ray_origin: vec3<f32>, world_ray_direction: vec3<f32>, tla
                 let matrix = transform_matrix(position, orientation, scale);    
                 let inverse_matrix = matrix_inverse(matrix);
                 
-                let local_ray_origin = (inverse_matrix * vec4<f32>(world_ray_origin, 1.)).xyz;
-                let local_ray_direction = (inverse_matrix * vec4<f32>(world_ray_direction, 0.)).xyz;
+                let local_ray = transform_world_ray_to_local(
+                    world_ray_origin, world_ray_direction, inverse_matrix);
+                let local_ray_origin = local_ray.origin;
+                let local_ray_direction = local_ray.direction;
                 
                 let bb_min = transform.bb_min_scale_y.xyz;
                 let bb_max = transform.bb_max_scale_z.xyz;

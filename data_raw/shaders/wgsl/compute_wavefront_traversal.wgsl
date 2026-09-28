@@ -1,4 +1,5 @@
 #import "common.inc"
+#import "packed_scene.inc"
 #import "utils.inc"
 #import "matrix_utils.inc"
 #import "geom_utils.inc"
@@ -24,6 +25,7 @@ fn append_traversal_hit(hit: WavefrontHit) {
         hit_queue[slot] = hit;
     } else {
         atomicStore(&hit_queue_header[0].overflowed, 1u);
+        atomicAdd(&hit_queue_header[0].dropped_records, 1u);
     }
 }
 
@@ -32,6 +34,7 @@ struct BvhNode {
     miss: i32,
     max: vec3<f32>,
     reference: i32,
+    valid: bool,
 };
 
 struct MeshInfo {
@@ -40,38 +43,49 @@ struct MeshInfo {
     meshlets_offset: u32,
     blas_index: u32,
     indices_offset: u32,
+    valid: bool,
 };
 
-fn table_offset(kind: u32) -> u32 {
-    return scene_data[4u + kind * 4u];
+fn invalid_bvh_node() -> BvhNode {
+    return BvhNode(vec3<f32>(0.0), -1, vec3<f32>(0.0), -1, false);
 }
-
 fn load_bvh(index: u32) -> BvhNode {
+    if (!scene_index_valid(7u, index, 8u)) { return invalid_bvh_node(); }
     let base = table_offset(7u) + index * 8u;
+    if (!range_has_words(7u, index * 8u, 8u)) { return invalid_bvh_node(); }
     return BvhNode(
-        vec3<f32>(
-            bitcast<f32>(scene_data[base]),
-            bitcast<f32>(scene_data[base + 1u]),
-            bitcast<f32>(scene_data[base + 2u])
-        ),
+        vec3<f32>(bitcast<f32>(scene_data[base]), bitcast<f32>(scene_data[base + 1u]), bitcast<f32>(scene_data[base + 2u])),
         bitcast<i32>(scene_data[base + 3u]),
-        vec3<f32>(
-            bitcast<f32>(scene_data[base + 4u]),
-            bitcast<f32>(scene_data[base + 5u]),
-            bitcast<f32>(scene_data[base + 6u])
-        ),
-        bitcast<i32>(scene_data[base + 7u])
+        vec3<f32>(bitcast<f32>(scene_data[base + 4u]), bitcast<f32>(scene_data[base + 5u]), bitcast<f32>(scene_data[base + 6u])),
+        bitcast<i32>(scene_data[base + 7u]), true
     );
 }
 
 fn load_mesh(index: u32) -> MeshInfo {
+    if (!scene_index_valid(5u, index, 16u)) {
+        return MeshInfo(0u, -1, 0u, 0u, 0u, false);
+    }
     let base = table_offset(5u) + index * 16u;
-    return MeshInfo(
-        scene_data[base],
-        bitcast<i32>(scene_data[base + 3u]),
-        scene_data[base + 4u],
-        scene_data[base + 5u],
-        scene_data[base + 6u]
+    if (!range_has_words(5u, index * 16u, 16u)) {
+        return MeshInfo(0u, -1, 0u, 0u, 0u, false);
+    }
+    return MeshInfo(scene_data[base], bitcast<i32>(scene_data[base + 3u]), scene_data[base + 4u], scene_data[base + 5u], scene_data[base + 6u], true);
+}
+
+struct LocalRay {
+    origin: vec3<f32>,
+    direction: vec3<f32>,
+};
+
+fn transform_world_ray_to_local(
+    world_origin: vec3<f32>,
+    world_direction: vec3<f32>,
+    inverse_matrix: mat4x4<f32>,
+) -> LocalRay {
+    // Preserve world-ray parameter t; do not normalize the transformed direction.
+    return LocalRay(
+        (inverse_matrix * vec4<f32>(world_origin, 1.0)).xyz,
+        (inverse_matrix * vec4<f32>(world_direction, 0.0)).xyz,
     );
 }
 
@@ -82,6 +96,11 @@ fn intersect_aabb(
     aabb_min: vec3<f32>,
     aabb_max: vec3<f32>,
 ) -> f32 {
+    if (!all(origin == origin) || !all(direction == direction) || !all(aabb_min == aabb_min)
+        || !all(aabb_max == aabb_max) || !all(abs(direction) < vec3<f32>(3.402823e+38))
+        || !all(abs(aabb_min) < vec3<f32>(3.402823e+38)) || !all(abs(aabb_max) < vec3<f32>(3.402823e+38))) {
+        return max_distance;
+    }
     let inverse_direction = 1.0 / direction;
     let t0 = (aabb_min - origin) * inverse_direction;
     let t1 = (aabb_max - origin) * inverse_direction;
@@ -145,6 +164,10 @@ fn trace_blas(
             continue;
         }
         let node = load_bvh(u32(node_index));
+        if (!node.valid || node.miss < -1 || node.miss >= i32(table_count(7u) / 8u)
+            || !all(node.min == node.min) || !all(node.max == node.max)) {
+            continue;
+        }
         if (intersect_aabb(local_origin, local_direction, best.distance, node.min, node.max) >= best.distance) {
             continue;
         }
@@ -161,24 +184,39 @@ fn trace_blas(
             }
             continue;
         }
-        let meshlet_base = table_offset(6u) + (mesh.meshlets_offset + u32(node.reference)) * 20u;
+        if (node.reference < 0 || !mesh.valid) { continue; }
+        if (!scene_relative_index_valid(6u, mesh.meshlets_offset, u32(node.reference), 20u)) { continue; }
+        let meshlet_index = mesh.meshlets_offset + u32(node.reference);
+        let meshlet_base = table_offset(6u) + meshlet_index * 20u;
         let indices_offset = scene_data[meshlet_base + 1u];
         let indices_count = scene_data[meshlet_base + 2u];
+        if (indices_count < 3u || (indices_count % 3u) != 0u
+            || !range_has_words(0u, indices_offset, indices_count)) { continue; }
         let triangle_count = indices_count / 3u;
         for (var triangle = 0u; triangle < triangle_count; triangle += 1u) {
-            let index_base = table_offset(0u) + indices_offset + triangle * 3u;
+            if (!range_has_indexed_words(0u, indices_offset, triangle, 3u, 3u)) { continue; }
+            let index_offset = indices_offset + triangle * 3u;
+            let index_base = table_offset(0u) + index_offset;
             let i0 = scene_data[index_base];
             let i1 = scene_data[index_base + 1u];
             let i2 = scene_data[index_base + 2u];
-            let p0 = bb_min + unpack_unorm_to_3_f32(scene_data[table_offset(1u) + mesh.vertices_position_offset + i0]) * hit_size;
-            let p1 = bb_min + unpack_unorm_to_3_f32(scene_data[table_offset(1u) + mesh.vertices_position_offset + i1]) * hit_size;
-            let p2 = bb_min + unpack_unorm_to_3_f32(scene_data[table_offset(1u) + mesh.vertices_position_offset + i2]) * hit_size;
+            if (!range_has_words_at(1u, mesh.vertices_position_offset, i0, 1u)
+                || !range_has_words_at(1u, mesh.vertices_position_offset, i1, 1u)
+                || !range_has_words_at(1u, mesh.vertices_position_offset, i2, 1u)) { continue; }
+            let vertex_i0 = mesh.vertices_position_offset + i0;
+            let vertex_i1 = mesh.vertices_position_offset + i1;
+            let vertex_i2 = mesh.vertices_position_offset + i2;
+            let p0 = bb_min + unpack_unorm_to_3_f32(scene_data[table_offset(1u) + vertex_i0]) * hit_size;
+            let p1 = bb_min + unpack_unorm_to_3_f32(scene_data[table_offset(1u) + vertex_i1]) * hit_size;
+            let p2 = bb_min + unpack_unorm_to_3_f32(scene_data[table_offset(1u) + vertex_i2]) * hit_size;
             let result = intersect_triangle(world_origin, world_direction,
                 best.distance,
                 transform_vector(p0, position, orientation, scale),
                 transform_vector(p1, position, orientation, scale),
                 transform_vector(p2, position, orientation, scale));
-            if (result.x < best.distance) {
+            // Visibility reserves zero for a miss; the remaining 24 upper bits
+            // encode the instance ID, so preserve all IDs through 0x00FFFFFD.
+            if (result.x < best.distance && instance_id < 0x00FFFFFEu) {
                 best.distance = result.x;
                 best.visibility_id = ((instance_id + 1u) << 8u) | triangle;
                 best.primitive_id = triangle;
@@ -204,6 +242,8 @@ fn trace_scene(origin: vec3<f32>, direction: vec3<f32>) -> WavefrontHit {
             continue;
         }
         let node = load_bvh(u32(node_index));
+        if (!node.valid || node.miss < -1 || node.miss >= i32(table_count(7u) / 8u)
+            || !all(node.min == node.min) || !all(node.max == node.max)) { continue; }
         if (intersect_aabb(origin, direction, best.distance, node.min, node.max) >= best.distance) {
             continue;
         }
@@ -220,10 +260,13 @@ fn trace_scene(origin: vec3<f32>, direction: vec3<f32>) -> WavefrontHit {
             }
             continue;
         }
+        if (node.reference < 0 || !scene_index_valid(3u, u32(node.reference), 4u)) { continue; }
         let instance_id = u32(node.reference);
         let instance_base = table_offset(3u) + instance_id * 4u;
+        let transform_id = scene_data[instance_base];
         let mesh = load_mesh(scene_data[instance_base + 1u]);
-        let transform_base = table_offset(4u) + scene_data[instance_base] * 16u;
+        if (!mesh.valid || !scene_index_valid(4u, transform_id, 16u)) { continue; }
+        let transform_base = table_offset(4u) + transform_id * 16u;
         let orientation = vec4<f32>(
             bitcast<f32>(scene_data[transform_base]),
             bitcast<f32>(scene_data[transform_base + 1u]),
@@ -247,8 +290,9 @@ fn trace_scene(origin: vec3<f32>, direction: vec3<f32>) -> WavefrontHit {
         let position = position_scale.xyz;
         let scale = vec3<f32>(position_scale.w, bb_min_scale.w, bb_max_scale.w);
         let inverse_matrix = matrix_inverse(transform_matrix(position, orientation, scale));
-        let local_origin = (inverse_matrix * vec4<f32>(origin, 1.0)).xyz;
-        let local_direction = (inverse_matrix * vec4<f32>(direction, 0.0)).xyz;
+        let local_ray = transform_world_ray_to_local(origin, direction, inverse_matrix);
+        let local_origin = local_ray.origin;
+        let local_direction = local_ray.direction;
         let candidate = trace_blas(
             origin, direction, local_origin, local_direction, mesh, instance_id,
             position, orientation, scale, bb_min_scale.xyz, bb_max_scale.xyz, best.distance);
@@ -262,6 +306,7 @@ fn trace_scene(origin: vec3<f32>, direction: vec3<f32>) -> WavefrontHit {
 @compute
 @workgroup_size(64, 1, 1)
 fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
+    if (!packed_scene_valid()) { return; }
     let ray_index = global_invocation_id.x;
     let ray_count = min(atomicLoad(&ray_queue_header[0].count), ray_queue_header[0].capacity);
     if (ray_index >= ray_count) {

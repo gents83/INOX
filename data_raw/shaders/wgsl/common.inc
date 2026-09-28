@@ -135,7 +135,7 @@ struct ConstantData {
     max_path_depth: u32,
     min_roulette_depth: u32,
     environment_texture_index: u32,
-    _padding: u32,
+    history_epoch: u32,
 };
 
 struct Instance {

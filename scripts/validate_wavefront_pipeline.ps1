@@ -3,7 +3,10 @@ param(
     [switch]$SkipBrowserSmoke,
     [string]$BrowserExecutable,
     [int]$BrowserSmokeSeconds = 10,
-    [int]$NativeViewerSmokeSeconds = 10
+    [int]$NativeViewerSmokeSeconds = 10,
+    # auto tries the normal backend, then retries one error-free adapter-timeout
+    # with SwiftShader. normal disables fallback; swiftshader uses --disable-gpu.
+    [ValidateSet("auto", "normal", "swiftshader")][string]$BrowserBackend = "auto"
 )
 
 $ErrorActionPreference = "Stop"
@@ -87,7 +90,7 @@ function Find-BrowserExecutable {
     $candidates = @($candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) })
 
     if ($candidates.Count -eq 0) {
-        throw "Browser WebGPU smoke is unavailable: Chrome or Edge was not found."
+        throw "SKIPPED: Browser WebGPU smoke is unavailable: Chrome or Edge was not found."
     }
     return $candidates[0]
 }
@@ -103,6 +106,7 @@ function Invoke-NativeViewerSmoke {
     $stdout = Join-Path $smokeRoot "stdout.log"
     $stderr = Join-Path $smokeRoot "stderr.log"
     $startupMarkerPattern = 'INOX_NATIVE_VIEWER_STARTUP_OK format=\S+'
+    $queueNoOverflowMarkerPattern = 'INOX_NATIVE_WAVEFRONT_QUEUE_NO_OVERFLOW count=\d+ expected=\d+'
     $process = $null
     $startupSucceeded = $false
     try {
@@ -118,7 +122,7 @@ function Invoke-NativeViewerSmoke {
                 throw "Native viewer exited with code $($process.ExitCode) before startup marker. stdout=$stdoutText stderr=$stderrText"
             }
             if (Test-Path -LiteralPath $stdout -PathType Leaf) {
-                $stdoutText = Get-Content -LiteralPath $stdout -Raw
+                $stdoutText = [string](Get-Content -LiteralPath $stdout -Raw)
                 $startupMatch = [regex]::Match($stdoutText, $startupMarkerPattern)
                 if ($startupMatch.Success -and $startupMatch.Groups[0].Value -match 'format=\S+') {
                     $startupMarker = $startupMatch.Groups[0].Value
@@ -140,8 +144,14 @@ function Invoke-NativeViewerSmoke {
             }
             Start-Sleep -Milliseconds 250
         }
+        $stderrText = if (Test-Path -LiteralPath $stderr) { Get-Content -LiteralPath $stderr -Raw } else { "" }
+        $queueNoOverflowMatch = [regex]::Match($stderrText, $queueNoOverflowMarkerPattern)
+        if (-not $queueNoOverflowMatch.Success) {
+            $stdoutText = if (Test-Path -LiteralPath $stdout) { Get-Content -LiteralPath $stdout -Raw } else { "" }
+            throw "Native viewer did not emit a complete queue no-overflow marker. stdout=$stdoutText stderr=$stderrText"
+        }
         $startupSucceeded = $true
-        Write-Host "Native viewer emitted $startupMarker and remained running through startup smoke."
+        Write-Host "Native viewer emitted $startupMarker and $($queueNoOverflowMatch.Value); remained running through startup smoke."
     } finally {
         if ($process -and -not $process.HasExited) { Stop-Process -Id $process.Id -Force }
         if ($startupSucceeded) {
@@ -159,7 +169,7 @@ function Invoke-BrowserSmoke {
     Write-Host "Using browser executable: $browser"
     $python = (Get-Command python.exe -ErrorAction SilentlyContinue).Source
     if (-not $python) {
-        throw "Browser WebGPU smoke is unavailable: python.exe is required for a local static server."
+        throw "SKIPPED: Browser WebGPU smoke is unavailable: python.exe is required for a local static server."
     }
 
     $server = $null
@@ -179,26 +189,102 @@ function Invoke-BrowserSmoke {
             Start-Sleep -Milliseconds 250
         } while ((Get-Date) -lt $deadline)
 
-        $browserProfile = Join-Path ([System.IO.Path]::GetTempPath()) ("inox-smoke-" + [guid]::NewGuid())
-        $arguments = @(
+        $baseArguments = @(
             "--headless=new", "--disable-gpu-sandbox", "--enable-unsafe-webgpu",
             "--no-sandbox", "--disable-dev-shm-usage", "--enable-logging=stderr", "--log-level=0",
-            "--user-data-dir=$browserProfile", "--virtual-time-budget=$($BrowserSmokeSeconds * 1000)",
-            "--dump-dom", $url
+            "--virtual-time-budget=$($BrowserSmokeSeconds * 1000)"
         )
-        $browserOutput = @(& $browser @arguments 2>&1)
-        if ($LASTEXITCODE -ne 0) {
-            throw "Browser WebGPU smoke failed with exit code $LASTEXITCODE. Browser output: $($browserOutput | Out-String)"
+        $attempts = @()
+        if ($BrowserBackend -ne "swiftshader") {
+            $attempts += @{ Name = "normal"; Flags = @() }
         }
-        $domText = ($browserOutput | Out-String)
-        Write-Host "Browser smoke returned $($browserOutput.Count) output lines."
-        if ($domText -notmatch 'data-inox-smoke="passed"') {
-            throw "Browser smoke did not observe explicit engine device, submit, and frame signals. Browser output: $domText"
+        if ($BrowserBackend -eq "swiftshader") {
+            $attempts += @{ Name = "SwiftShader"; Flags = @("--disable-gpu") }
+        } elseif ($BrowserBackend -eq "auto") {
+            $attempts += @{ Name = "SwiftShader fallback"; Flags = @("--disable-gpu") }
         }
-        if ($domText -notmatch 'data-inox-error-count="0"') {
-            throw "Browser smoke captured page or console errors. Browser output: $domText"
+
+        for ($attemptIndex = 0; $attemptIndex -lt $attempts.Count; $attemptIndex++) {
+            $attempt = $attempts[$attemptIndex]
+            $browserProfile = Join-Path ([System.IO.Path]::GetTempPath()) ("inox-smoke-" + [guid]::NewGuid())
+            $arguments = @($baseArguments + "--user-data-dir=$browserProfile" + $attempt.Flags + "--dump-dom" + $url)
+            $oldErrorActionPreference = $ErrorActionPreference
+            try {
+                # Chrome writes informational diagnostics to stderr; capture them without
+                # letting PowerShell's Stop policy abort before DOM validation runs.
+                $ErrorActionPreference = "Continue"
+                $browserOutput = (& $browser @arguments 2>&1 | Out-String)
+            } finally {
+                $ErrorActionPreference = $oldErrorActionPreference
+            }
+            $exitCode = $LASTEXITCODE
+            if ($exitCode -ne 0) {
+                throw "Browser WebGPU smoke ($($attempt.Name)) failed with exit code $exitCode. Browser output: $browserOutput"
+            }
+            $domText = $browserOutput
+            $browserOutputLines = @($browserOutput -split '\r?\n' | Where-Object { $_ -ne '' })
+            Write-Host "Browser smoke ($($attempt.Name)) returned $($browserOutputLines.Count) output lines."
+
+            if ($domText -match 'data-inox-smoke="skipped"') {
+                $skipReasonMatch = [regex]::Match($domText, 'data-inox-skip="([^"]+)"')
+                if (-not $skipReasonMatch.Success) {
+                    throw "Browser smoke reported skipped without an explicit capability reason. Browser output: $domText"
+                }
+                $skipReason = $skipReasonMatch.Groups[1].Value
+                $statusTagMatch = [regex]::Match($domText, '<div id="status"[^>]*>')
+                if (-not $statusTagMatch.Success) {
+                    throw "Browser smoke did not return a status element for skip validation. Browser output: $domText"
+                }
+                $statusTag = $statusTagMatch.Value
+                $adapterTimeoutWithoutErrors = $skipReason -eq "adapter-timeout" -and
+                    $statusTag -match 'data-inox-instance="ready"' -and
+                    $statusTag -match 'data-inox-adapter-requested="observed"' -and
+                    $statusTag -match 'data-inox-adapter="pending"' -and
+                    $statusTag -match 'data-inox-device-requested="pending"' -and
+                    $statusTag -match 'data-inox-device="pending"' -and
+                    $statusTag -match 'data-inox-error-count="0"' -and
+                    $statusTag -match 'data-inox-device-failure="none"' -and
+                    $statusTag -notmatch 'data-inox-smoke="failed"'
+                if ($adapterTimeoutWithoutErrors -and $attemptIndex -eq 0 -and $attempts.Count -gt 1) {
+                    Write-Host "Normal browser backend reported an error-free adapter timeout; retrying once with --disable-gpu (SwiftShader)." -ForegroundColor Yellow
+                    Remove-Item -LiteralPath $browserProfile -Recurse -Force -ErrorAction SilentlyContinue
+                    $browserProfile = $null
+                    continue
+                }
+                if ($skipReason -eq "adapter-timeout") {
+                    throw "SKIPPED: Browser WebGPU adapter request did not resolve before the smoke deadline; no usable browser backend was available. Browser output: $domText"
+                }
+                throw "SKIPPED: Browser WebGPU smoke is unavailable ($skipReason). Browser output: $domText"
+            }
+            if ($domText -notmatch 'data-inox-smoke="passed"') {
+                throw "Browser smoke did not observe instance, adapter, device, graph order, dimensions, queue headers, finite/nonzero output contract, canvas ownership, submit, and frame signals. Browser output: $domText"
+            }
+            foreach ($marker in @(
+                'data-inox-graph-order="[^"]+"',
+                'data-inox-dimensions="[^"]+"',
+                'data-inox-queue-headers="gpu-readback-validated"',
+                'data-inox-output="finite-nonzero-validated"',
+                'data-inox-canvas="owned"',
+                'data-inox-instance="ready"',
+                'data-inox-adapter-requested="observed"',
+                'data-inox-adapter="ready"',
+                'data-inox-device-requested="observed"',
+                'data-inox-device="ready"',
+                'data-inox-device-failure="[^"]*"',
+                'data-inox-submit="observed"',
+                'data-inox-frame="observed"'
+            )) {
+                if ($domText -notmatch $marker) {
+                    throw "Browser smoke is missing required marker '$marker'. Browser output: $domText"
+                }
+            }
+            if ($domText -notmatch 'data-inox-error-count="0"') {
+                throw "Browser smoke captured page or console errors. Browser output: $domText"
+            }
+            Write-Host "Browser smoke ($($attempt.Name)) observed instance, adapter, device, graph, dimensions, queues, output, canvas, submit, and frame signals with no page or console errors."
+            return
         }
-        Write-Host "Browser smoke observed explicit engine device, submit, and frame signals with no page or console errors."
+        throw "Browser WebGPU smoke did not produce a result."
     } finally {
         if ($server -and -not $server.HasExited) { Stop-Process -Id $server.Id -Force }
         if ($browserProfile -and (Test-Path -LiteralPath $browserProfile -PathType Container)) {

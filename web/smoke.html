@@ -10,7 +10,7 @@
     </style>
 </head>
 <body>
-    <canvas id="canvas" width="640" height="360"></canvas>
+    <canvas id="canvas" width="640" height="360" data-inox-smoke-canvas="fixture"></canvas>
     <div id="status" role="status" data-inox-smoke="pending" data-inox-error-count="0">
         Starting
     </div>
@@ -38,34 +38,76 @@
 
         const context = canvas.getContext('webgpu');
         if (!context) {
-            recordError('WebGPU surface unavailable');
+            // An unavailable browser/WebGPU implementation is a preserved skip,
+            // not a successful smoke result.
+            status.dataset.inoxSmoke = 'skipped';
+            status.dataset.inoxSkip = 'webgpu-unavailable';
+            status.textContent = 'SKIPPED: WebGPU surface unavailable';
         } else {
             init().catch((error) => recordError(error));
         }
 
         const deadline = performance.now() + 10000;
         function observeEngineSignals() {
-            const deviceReady = window.__inox_smoke_device === true;
-            const submitObserved = window.__inox_smoke_submit === true;
-            const frameObserved = window.__inox_smoke_frame === true;
-            status.dataset.inoxDevice = deviceReady ? 'ready' : 'pending';
+            const instanceReady = window.__inox_smoke_instance_ready === 'true' || window.__inox_smoke_instance_ready === true;
+            const adapterRequested = window.__inox_smoke_adapter_requested === 'true' || window.__inox_smoke_adapter_requested === true;
+            const adapterReady = window.__inox_smoke_adapter_ready === 'true' || window.__inox_smoke_adapter_ready === true;
+            const deviceRequested = window.__inox_smoke_device_requested === 'true' || window.__inox_smoke_device_requested === true;
+            const deviceReady = window.__inox_smoke_device_ready === 'true' || window.__inox_smoke_device_ready === true;
+            const deviceFailure = typeof window.__inox_smoke_device_failure === 'string';
+            const submitObserved = window.__inox_smoke_submit === 'true' || window.__inox_smoke_submit === true;
+            const frameObserved = window.__inox_smoke_frame === 'true' || window.__inox_smoke_frame === true;
+            const graphObserved = typeof window.__inox_smoke_graph_order === 'string';
+            const dimensionsObserved = typeof window.__inox_smoke_dimensions === 'string';
+            const queueObserved = window.__inox_smoke_queue_headers === 'gpu-readback-validated';
+            const outputObserved = window.__inox_smoke_output === 'finite-nonzero-validated';
+            const asyncFailure = typeof window.__inox_smoke_error === 'string';
+            const canvasOwned = canvas.dataset.inoxSmokeCanvas === 'owned';
+            status.dataset.inoxInstance = instanceReady ? 'ready' : 'pending';
+            status.dataset.inoxAdapterRequested = adapterRequested ? 'observed' : 'pending';
+            status.dataset.inoxAdapter = adapterReady ? 'ready' : 'pending';
+            status.dataset.inoxDeviceRequested = deviceRequested ? 'observed' : 'pending';
+            status.dataset.inoxDevice = deviceReady ? 'ready' : (deviceFailure ? 'failed' : 'pending');
+            status.dataset.inoxDeviceFailure = deviceFailure ? window.__inox_smoke_device_failure : 'none';
             status.dataset.inoxSubmit = submitObserved ? 'observed' : 'pending';
             status.dataset.inoxFrame = frameObserved ? 'observed' : 'pending';
-            if (smokeErrors.length > 0) {
+            status.dataset.inoxGraphOrder = graphObserved ? window.__inox_smoke_graph_order : 'pending';
+            status.dataset.inoxDimensions = dimensionsObserved ? window.__inox_smoke_dimensions : 'pending';
+            status.dataset.inoxQueueHeaders = queueObserved ? 'gpu-readback-validated' : 'pending';
+            status.dataset.inoxOutput = outputObserved ? 'finite-nonzero-validated' : 'pending';
+            status.dataset.inoxCanvas = canvasOwned ? 'owned' : 'pending';
+            status.dataset.inoxFrameCount = window.__inox_smoke_frame_count || '0';
+            if (asyncFailure) {
+                recordError(window.__inox_smoke_error);
                 return;
             }
-            if (deviceReady && submitObserved && frameObserved) {
+            if (smokeErrors.length > 0 || status.dataset.inoxSmoke === 'skipped') {
+                return;
+            }
+            if (instanceReady && adapterRequested && adapterReady && deviceRequested && deviceReady
+                && submitObserved && frameObserved && graphObserved && dimensionsObserved
+                && queueObserved && outputObserved && canvasOwned) {
                 status.dataset.inoxSmoke = 'passed';
-                status.textContent = 'Engine device, queue submit, and frame observed';
+                status.textContent = 'Instance, adapter, device, graph, dimensions, queues, output, submit, and frame observed';
                 return;
             }
             if (performance.now() >= deadline) {
-                recordError(`Missing engine signals: device=${deviceReady}, submit=${submitObserved}, frame=${frameObserved}`);
+                // Headless browsers can expose a WebGPU canvas while leaving
+                // navigator.gpu.requestAdapter pending indefinitely. Treat that
+                // as an explicit capability skip, not a renderer or page error.
+                if (instanceReady && adapterRequested && !adapterReady && !deviceRequested && !deviceReady
+                    && !deviceFailure && smokeErrors.length === 0 && !asyncFailure) {
+                    status.dataset.inoxSmoke = 'skipped';
+                    status.dataset.inoxSkip = 'adapter-timeout';
+                    status.textContent = 'SKIPPED: WebGPU adapter request did not resolve before deadline';
+                    return;
+                }
+                recordError(`WebGPU initialization did not resolve before deadline: instance=${instanceReady}, adapterRequested=${adapterRequested}, adapter=${adapterReady}, deviceRequested=${deviceRequested}, device=${deviceReady}, deviceFailure=${deviceFailure}, submit=${submitObserved}, frame=${frameObserved}, graph=${graphObserved}, dimensions=${dimensionsObserved}, queues=${queueObserved}, output=${outputObserved}, canvas=${canvasOwned}`);
                 return;
             }
             setTimeout(observeEngineSignals, 50);
         }
-        observeEngineSignals();
+        if (context) observeEngineSignals();
     </script>
 </body>
 </html>

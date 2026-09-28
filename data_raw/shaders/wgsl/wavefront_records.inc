@@ -5,7 +5,7 @@ const WAVEFRONT_RESERVOIR_RECORD_STRIDE_WORDS: u32 = 8u;
 const WAVEFRONT_AO_RECORD_STRIDE_WORDS: u32 = 4u;
 const WAVEFRONT_TRANSPARENT_HIT_RECORD_STRIDE_WORDS: u32 = 10u;
 const WAVEFRONT_DISPATCH_ARGS_STRIDE_WORDS: u32 = 3u;
-const WAVEFRONT_QUEUE_HEADER_STRIDE_WORDS: u32 = 4u;
+const WAVEFRONT_QUEUE_HEADER_STRIDE_WORDS: u32 = 6u;
 const PACKED_LIGHT_ALIAS_VERSION: u32 = 1u;
 const PACKED_LIGHT_ALIAS_HEADER_WORDS: u32 = 4u;
 const PACKED_LIGHT_ALIAS_RECORD_STRIDE_WORDS: u32 = 4u;
@@ -26,6 +26,8 @@ struct WavefrontQueueHeader {
     count: atomic<u32>,
     capacity: u32,
     overflowed: atomic<u32>,
+    requested_capacity: u32,
+    dropped_records: atomic<u32>,
 };
 
 struct WavefrontDispatchArgs {

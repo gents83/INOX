@@ -2,9 +2,9 @@ use std::fs;
 use std::path::PathBuf;
 
 use inox_graphics::passes::pathtracing_common::{
-    bounded_path_depth, ior_ratio, queue_capacity_for_resolution, queue_capacity_u32,
-    queue_diagnostic_marker_state, queue_fallback_capacity_for_adapter, reflect_direction,
-    refract_direction, roulette_survival_probability, wavefront_bounce_queue_id,
+    bounded_path_depth, ior_ratio, queue_capacity_for_resolution, queue_capacity_limits_for_extent,
+    queue_capacity_u32, queue_diagnostic_marker_state, queue_fallback_capacity_for_adapter,
+    reflect_direction, refract_direction, roulette_survival_probability, wavefront_bounce_queue_id,
     wavefront_bounce_stages, wavefront_queue_memory_bytes, QueueHeader, QueueOverflowDiagnostic,
     RayQueue, MAX_WAVEFRONT_QUEUE_CAPACITY, WAVEFRONT_QUEUE_FALLBACK_CAPACITY,
     WAVEFRONT_QUEUE_GPU_BYTES_PER_CAPACITY_ENTRY, WAVEFRONT_QUEUE_HOST_BYTES_PER_CAPACITY_ENTRY,
@@ -247,6 +247,41 @@ fn native_default_dimensions_fit_queue_budget_when_adapter_limits_permit() {
         wavefront_queue_memory_bytes(pixels) <= WAVEFRONT_NATIVE_QUEUE_MEMORY_BUDGET_BYTES,
         "native host+GPU queue estimate must fit without overflow"
     );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn large_native_extent_uses_conservative_queue_fallback() {
+    let limits = inox_render::QueueCapacityLimits {
+        max_storage_buffer_binding_size: WAVEFRONT_NATIVE_QUEUE_MEMORY_BUDGET_BYTES as u64,
+        max_buffer_size: WAVEFRONT_NATIVE_QUEUE_MEMORY_BUDGET_BYTES as u64,
+        fallback_capacity: WAVEFRONT_NATIVE_QUEUE_FALLBACK_CAPACITY as u32,
+    };
+    let maximize = queue_capacity_limits_for_extent(limits, 1916, 1125);
+    let large = queue_capacity_limits_for_extent(limits, 3820, 2117);
+    let restored = queue_capacity_limits_for_extent(limits, 1920, 1080);
+    assert_eq!(
+        maximize.fallback_capacity as usize,
+        WAVEFRONT_NATIVE_QUEUE_FALLBACK_CAPACITY
+    );
+    assert_eq!(
+        large.fallback_capacity as usize,
+        WAVEFRONT_QUEUE_FALLBACK_CAPACITY
+    );
+    assert_eq!(
+        restored.fallback_capacity as usize,
+        WAVEFRONT_NATIVE_QUEUE_FALLBACK_CAPACITY
+    );
+    let primary = queue_capacity_for_resolution(
+        3820,
+        2117,
+        std::mem::size_of::<inox_graphics::RayQueueRecord>() as u32,
+        1,
+        large,
+    )
+    .unwrap() as usize;
+    assert_eq!(primary, WAVEFRONT_QUEUE_FALLBACK_CAPACITY);
+    assert!(primary < 3820usize * 2117);
 }
 
 #[test]
@@ -510,7 +545,7 @@ fn queue_pass_error_fallbacks_use_negotiated_nonzero_capacity() {
         )
         .unwrap();
         assert!(
-            source.contains(".unwrap_or(self.capacity_limits.fallback_capacity.max(1)) as usize;"),
+            source.contains(".unwrap_or(capacity_limits.fallback_capacity.max(1)) as usize;"),
             "{pass} must recover with its negotiated nonzero fallback capacity"
         );
         assert!(
@@ -570,7 +605,7 @@ fn wavefront_buffers_keep_full_resolution_with_non_native_render_scale() {
                 .join(pass),
         )
         .unwrap();
-        assert!(source.contains("self.capacity_limits.fallback_capacity.max(1)"));
+        assert!(source.contains("capacity_limits.fallback_capacity.max(1)"));
         assert!(!source.contains("usize::MAX"));
     }
     let transparency_pass = fs::read_to_string(
@@ -578,7 +613,7 @@ fn wavefront_buffers_keep_full_resolution_with_non_native_render_scale() {
             .join("src/passes/compute_wavefront_transparency.rs"),
     )
     .unwrap();
-    assert!(transparency_pass.contains("self.capacity_limits.fallback_capacity.max(1)"));
+    assert!(transparency_pass.contains("capacity_limits.fallback_capacity.max(1)"));
     assert!(transparency_pass.contains("checked_mul(4)"));
     assert!(!transparency_pass.contains("MAX_TRANSPARENT_QUEUE_CAPACITY"));
     assert!(!transparency_pass.contains("1_048_576"));

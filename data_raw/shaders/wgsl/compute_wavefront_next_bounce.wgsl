@@ -1,4 +1,5 @@
 #import "common.inc"
+#import "packed_scene.inc"
 #import "utils.inc"
 #import "wavefront_records.inc"
 
@@ -15,12 +16,17 @@
 fn append_next(ray: WavefrontRay) {
     let slot = atomicAdd(&next_queue_header[0].count, 1u);
     if (slot < next_queue_header[0].capacity) { next_queue[slot] = ray; }
-    else { atomicStore(&next_queue_header[0].overflowed, 1u); }
+    else {
+        atomicStore(&next_queue_header[0].overflowed, 1u);
+        atomicAdd(&next_queue_header[0].dropped_records, 1u);
+    }
 }
 fn hash_u32(v: u32) -> u32 { var x=v; x ^= x>>16u; x*=0x7feb352du; x ^= x>>15u; x*=0x846ca68bu; return x^(x>>16u); }
 fn random01(seed: u32) -> f32 { return (f32(hash_u32(seed) & 0x00ffffffu) + 0.5) / 16777216.0; }
-fn table_offset(kind: u32) -> u32 { return scene_data[4u + kind * 4u]; }
-fn load_material(material_id: u32, word: u32) -> f32 { return bitcast<f32>(scene_data[table_offset(8u) + material_id * 48u + word]); }
+fn load_material(material_id: u32, word: u32) -> f32 {
+    if (!scene_index_valid(8u, material_id, 48u) || word >= 48u) { return 0.0; }
+    return bitcast<f32>(scene_data[table_offset(8u) + material_id * 48u + word]);
+}
 fn finite_scalar(value: f32) -> bool { return value == value && abs(value) < 65504.0; }
 fn finite_vector(value: vec3<f32>) -> bool { return all(value == value) && all(abs(value) < vec3<f32>(65504.0)); }
 fn finite_or(value: f32, fallback: f32) -> f32 { return select(fallback, value, finite_scalar(value)); }
@@ -45,14 +51,18 @@ fn cosine_sample(normal: vec3<f32>, seed: u32) -> vec3<f32> {
 @compute
 @workgroup_size(64, 1, 1)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+    if (!packed_scene_valid()) { return; }
     let index = id.x;
     let count = min(atomicLoad(&hit_queue_header[0].count), hit_queue_header[0].capacity);
     if (index >= count) { return; }
     let hit = hit_queue[index];
+    if (hit.ray_index >= arrayLength(&ray_queue)) { return; }
     let ray = ray_queue[hit.ray_index];
     if (hit.visibility_id == 0u || ray.bounce >= constant_data.max_path_depth) { return; }
 
     let offset = ray.pixel_index * SIZE_OF_DATA_BUFFER_ELEMENT;
+    if (offset > arrayLength(&gbuffer_world) || arrayLength(&gbuffer_world) - offset < SIZE_OF_DATA_BUFFER_ELEMENT
+        || offset >= arrayLength(&gbuffer_material)) { return; }
     let surface_normal = safe_normalize(octahedral_unmapping(unpack2x16float(u32(gbuffer_world[offset + 3u]))), vec3<f32>(0.0, 1.0, 0.0));
     // Surface stores the material index as a numeric f32.  Decode the value
     // numerically; bitcasting would reinterpret 1.0 as 0x3f800000.
@@ -61,6 +71,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
         return;
     }
     let material_id = u32(material_value);
+    if (!scene_index_valid(8u, material_id, 48u)) { return; }
     let roughness = clamp(finite_or(load_material(material_id, 16u), 1.0), 0.045, 1.0);
     let metallic = clamp(finite_or(load_material(u32(material_id), 17u), 0.0), 0.0, 1.0);
     let transmission = clamp(finite_or(load_material(u32(material_id), 19u), 0.0), 0.0, 1.0) * (1.0 - metallic);
@@ -97,6 +108,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     var bsdf = vec3<f32>(1.0);
     var p_lobe = 1.0;
     var p_direction = 1.0;
+    var eta_scale = 1.0;
     var throughput: vec3<f32>;
     if (tir) {
         // Total internal reflection collapses every transmission choice into a
@@ -111,6 +123,10 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     } else if (selector < p_transmission && transmission_probability > 0.0) {
         direction = safe_normalize(candidate_refraction, reflection);
         bsdf = base_color;
+        // Radiance transport across a dielectric changes solid-angle
+        // measure.  The eta-squared factor is required for reciprocity and
+        // prevents a persistent entering/exiting brightness bias.
+        eta_scale = eta * eta;
         p_lobe = p_transmission;
     } else if (selector < p_transmission + p_specular && p_specular > 0.0) {
         p_lobe = p_specular;
@@ -136,7 +152,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     if (!tir) {
         let cosine_out = abs(dot(normal, direction));
         if (!finite_scalar(cosine_out) || cosine_out <= MATH_EPSILON) { return; }
-        throughput = ray.throughput.xyz * bsdf * cosine_out / (p_lobe * p_direction);
+        throughput = ray.throughput.xyz * bsdf * cosine_out * eta_scale / (p_lobe * p_direction);
         if (!finite_vector(throughput)) { return; }
     }
     throughput = clamp(throughput, vec3<f32>(0.0), vec3<f32>(65504.0));

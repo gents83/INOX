@@ -49,12 +49,19 @@ fn vs_main(
     let vertex_position = vertices_positions.data[mesh.vertices_position_offset + real_index];
 #endif
     let p = min + unpack_unorm_to_3_f32(vertex_position) * size;
-    let scale = vec3<f32>(transform.position_scale_x.w, transform.bb_min_scale_y.w, transform.bb_min_scale_y.w);
+    let scale = vec3<f32>(transform.position_scale_x.w, transform.bb_min_scale_y.w, transform.bb_max_scale_z.w);
     let v = transform_vector(p, transform.position_scale_x.xyz, transform.orientation, scale);
 
     var vertex_out: VertexOutput;
     vertex_out.clip_position = constant_data.view_proj * vec4<f32>(v, 1.);
-    vertex_out.instance_id = instance_id + 1u;    
+    // Commands compact visible instances, so builtin instance_index is not
+    // necessarily the packed-scene instance index. Carry the original index
+    // through GPUInstance.command_id instead.
+    vertex_out.instance_id = select(
+        instance_id + 1u,
+        u32(instance.command_id) + 1u,
+        instance.command_id >= 0
+    );    
 #ifdef NO_FEATURES_PRIMITIVE_INDEX
     let meshlet = meshlets.data[instance.meshlet_id];
     if(vertex_id > meshlet.indices_offset) {
@@ -76,9 +83,9 @@ fn fs_main(
 ) -> FragmentOutput {    
     var fragment_out: FragmentOutput;
 #ifdef FEATURES_PRIMITIVE_INDEX
-    fragment_out.visibility_id = (v_in.instance_id << 8u) | primitive_index;  
+    fragment_out.visibility_id = (v_in.instance_id << 8u) | primitive_index;
 #else
-    fragment_out.visibility_id = (v_in.instance_id << 8u) | v_in.primitive_index;  
+    fragment_out.visibility_id = (v_in.instance_id << 8u) | v_in.primitive_index;
 #endif
     return fragment_out;
 }

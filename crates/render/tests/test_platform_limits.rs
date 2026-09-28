@@ -1,9 +1,18 @@
-use inox_render::platform::{
-    negotiate_gpu_requirements, optional_gpu_features, platform_limits,
-    platform_limits_from_adapter_limits, required_gpu_features, GpuRequirementsError,
-    RenderCapabilities, PORTABLE_MAX_BINDINGS_PER_SHADER_STAGE,
-    PORTABLE_MAX_STORAGE_BUFFERS_PER_SHADER_STAGE,
+use inox_render::{
+    platform::{
+        negotiate_gpu_requirements, optional_gpu_features, platform_limits,
+        platform_limits_from_adapter_limits, required_gpu_features, RenderCapabilities,
+        PORTABLE_MAX_BINDINGS_PER_SHADER_STAGE, PORTABLE_MAX_STORAGE_BUFFERS_PER_SHADER_STAGE,
+    },
+    BindingFlags,
 };
+
+#[test]
+fn gpu_read_binding_keeps_storage_without_cpu_upload_usage() {
+    let usage: wgpu::BufferUsages = (BindingFlags::Storage | BindingFlags::GPURead).into();
+    assert!(usage.contains(wgpu::BufferUsages::STORAGE));
+    assert!(!usage.contains(wgpu::BufferUsages::COPY_DST));
+}
 
 #[test]
 fn platform_limits_clamps_storage_buffer_capacity_for_all_stages() {
@@ -61,6 +70,21 @@ fn render_capabilities_expose_a_conservative_portable_binding_budget() {
     );
     assert!(!capabilities.texture_binding_arrays);
     assert!(!capabilities.buffer_binding_arrays);
+}
+
+#[test]
+fn render_capabilities_keep_discrete_adapter_class_explicit() {
+    let limits = wgpu::Limits {
+        max_storage_buffers_per_shader_stage: 32,
+        max_bindings_per_bind_group: 100,
+        ..Default::default()
+    };
+    let discrete =
+        RenderCapabilities::from_adapter_with_class(&limits, wgpu::Features::empty(), true);
+    let integrated =
+        RenderCapabilities::from_adapter_with_class(&limits, wgpu::Features::empty(), false);
+    assert!(discrete.discrete_adapter);
+    assert!(!integrated.discrete_adapter);
 }
 
 #[test]
@@ -134,18 +158,19 @@ fn negotiation_requests_only_supported_optional_feature_subset() {
 }
 
 #[test]
-fn negotiation_rejects_adapter_below_portable_storage_buffer_limit() {
+fn negotiation_accepts_downlevel_storage_limit_and_disables_wavefront_layout() {
     let limits = wgpu::Limits {
         max_storage_buffers_per_shader_stage: PORTABLE_MAX_STORAGE_BUFFERS_PER_SHADER_STAGE - 1,
         ..Default::default()
     };
 
+    let requirements = negotiate_gpu_requirements(required_gpu_features(), &limits)
+        .expect("storage-buffer count is a layout capability, not a baseline requirement");
     assert_eq!(
-        negotiate_gpu_requirements(required_gpu_features(), &limits),
-        Err(GpuRequirementsError::InsufficientLimit {
-            name: "max_storage_buffers_per_shader_stage",
-            required: PORTABLE_MAX_STORAGE_BUFFERS_PER_SHADER_STAGE,
-            available: PORTABLE_MAX_STORAGE_BUFFERS_PER_SHADER_STAGE - 1,
-        })
+        requirements
+            .capabilities
+            .max_storage_buffers_per_shader_stage,
+        PORTABLE_MAX_STORAGE_BUFFERS_PER_SHADER_STAGE - 1
     );
+    assert!(!requirements.capabilities.wavefront_layout_supported);
 }

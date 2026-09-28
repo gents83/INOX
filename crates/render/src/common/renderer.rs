@@ -41,7 +41,21 @@ impl Renderer {
     ) where
         F: FnOnce(&RenderContextRc),
     {
-        let render_context = RenderContext::create_render_context(handle.clone(), &context).await;
+        let render_context =
+            match RenderContext::create_render_context(handle.clone(), &context).await {
+                Ok(render_context) => render_context,
+                Err(error) => {
+                    #[cfg(target_arch = "wasm32")]
+                    crate::common::render_context::report_browser_smoke_failure(
+                        "render context creation failed",
+                        &error,
+                    );
+                    #[cfg(not(target_arch = "wasm32"))]
+                    panic!("render context creation failed: {error}");
+                    #[cfg(target_arch = "wasm32")]
+                    return;
+                }
+            };
         let render_context_rc = Arc::new(render_context);
         renderer
             .write()

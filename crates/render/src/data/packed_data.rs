@@ -15,7 +15,7 @@ pub const WAVEFRONT_RESERVOIR_RECORD_STRIDE_WORDS: usize = 8;
 pub const WAVEFRONT_AO_RECORD_STRIDE_WORDS: usize = 4;
 pub const WAVEFRONT_TRANSPARENT_HIT_RECORD_STRIDE_WORDS: usize = 10;
 pub const WAVEFRONT_DISPATCH_ARGS_STRIDE_WORDS: usize = 3;
-pub const WAVEFRONT_QUEUE_HEADER_STRIDE_WORDS: usize = 4;
+pub const WAVEFRONT_QUEUE_HEADER_STRIDE_WORDS: usize = 6;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PackedRecordLayout {
@@ -118,6 +118,32 @@ pub struct PackedTableRange {
 }
 
 impl PackedTableRange {
+    pub fn try_new(
+        offset_words: usize,
+        count_words: usize,
+        stride_words: usize,
+        flags: u32,
+    ) -> Result<Self, &'static str> {
+        if offset_words > u32::MAX as usize
+            || count_words > u32::MAX as usize
+            || stride_words > u32::MAX as usize
+        {
+            return Err("packed table range exceeds u32 offsets");
+        }
+        if count_words != 0 && stride_words == 0 {
+            return Err("packed table range has a zero stride");
+        }
+        if stride_words != 0 && !count_words.is_multiple_of(stride_words) {
+            return Err("packed table range is not stride aligned");
+        }
+        Ok(Self {
+            offset_words: offset_words as u32,
+            count_words: count_words as u32,
+            stride_words: stride_words as u32,
+            flags,
+        })
+    }
+
     pub const fn new(
         offset_words: usize,
         count_words: usize,

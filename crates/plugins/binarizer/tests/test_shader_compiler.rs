@@ -80,6 +80,7 @@ fn leaves_shader_without_binding_array_unchanged() {
 fn wavefront_stages_validate_with_the_web_shader_profile() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../data_raw/shaders/wgsl");
     for shader in [
+        "debug.wgsl",
         "compute_wavefront_primary.wgsl",
         "compute_wavefront_dispatch.wgsl",
         "compute_wavefront_traversal.wgsl",
@@ -87,6 +88,7 @@ fn wavefront_stages_validate_with_the_web_shader_profile() {
         "compute_wavefront_reset.wgsl",
         "compute_wavefront_denoise_temporal.wgsl",
         "compute_wavefront_denoise_bilateral.wgsl",
+        "compute_wavefront_denoise_temporal.wgsl",
         "compute_wavefront_direct_candidates.wgsl",
         "compute_wavefront_composite.wgsl",
         "compute_wavefront_ao_resolve.wgsl",

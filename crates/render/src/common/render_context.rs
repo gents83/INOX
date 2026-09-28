@@ -1,7 +1,7 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU64, AtomicUsize, Ordering},
         Arc, RwLock, RwLockReadGuard, RwLockWriteGuard,
     },
 };
@@ -15,19 +15,48 @@ use inox_platform::Handle;
 use inox_resources::{Resource, ResourceTrait, SharedDataRc};
 
 use crate::{
-    platform::{negotiate_gpu_requirements, setup_env, RenderCapabilities},
+    platform::{negotiate_gpu_requirements_with_class, setup_env, RenderCapabilities},
     AsBinding, BindingDataBuffer, BindingDataBufferRc, BufferId, BufferRef, ComputePipeline,
-    GlobalBuffers, Material, Pass, RenderPass, RenderPipeline, Texture, TextureFormat,
-    TextureHandler, TextureHandlerRc, TextureId, TextureUsage, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    FrameDimensions, GlobalBuffers, Material, Pass, RenderPass, RenderPipeline, Texture,
+    TextureFormat, TextureHandler, TextureHandlerRc, TextureId, TextureUsage, DEFAULT_HEIGHT,
+    DEFAULT_WIDTH,
 };
 
 #[cfg(target_arch = "wasm32")]
-fn signal_browser_smoke(name: &str) {
+#[wasm_bindgen::prelude::wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen::prelude::wasm_bindgen(js_namespace = console, js_name = error)]
+    fn console_error(message: &str);
+}
+
+#[cfg(target_arch = "wasm32")]
+fn signal_browser_smoke_value(name: &str, value: &str) {
     let Some(window) = web_sys::window() else {
         return;
     };
     let key = wasm_bindgen::JsValue::from_str(&format!("__inox_smoke_{name}"));
-    let _ = js_sys::Reflect::set(window.as_ref(), &key, &wasm_bindgen::JsValue::TRUE);
+    let value = wasm_bindgen::JsValue::from_str(value);
+    let _ = js_sys::Reflect::set(window.as_ref(), &key, &value);
+}
+
+#[cfg(target_arch = "wasm32")]
+fn signal_browser_smoke(name: &str) {
+    signal_browser_smoke_value(name, "true");
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn report_browser_smoke_failure(stage: &str, error: &str) {
+    let detail = format!("{stage}: {error}");
+    signal_browser_smoke_value("error", &detail);
+    console_error(&detail);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn signal_browser_smoke_marker(_name: &str, _value: &str) {}
+
+#[cfg(target_arch = "wasm32")]
+pub fn signal_browser_smoke_marker(name: &str, value: &str) {
+    signal_browser_smoke_value(name, value);
 }
 
 const USE_FORCED_VULKAN: bool = false;
@@ -98,6 +127,9 @@ pub struct RenderContext {
     command_buffer: RwLock<Option<CommandBuffer>>,
     surface: RwLock<Option<SurfaceData>>,
     render_targets: RwLock<Vec<Resource<Texture>>>,
+    mip_chain_targets: RwLock<HashSet<TextureId>>,
+    frame_dimensions: RwLock<FrameDimensions>,
+    binding_generation: AtomicU64,
     completed_frame_target: AtomicUsize,
     state: RwLock<RendererState>,
     passes: RwLock<Vec<(Box<dyn Pass>, bool)>>,
@@ -228,12 +260,23 @@ impl RenderContext {
         });
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn default_error_handler(err: wgpu::Error) {
         println!("Handling wgpu errors as fatal by default");
         panic!("wgpu error: {err}\n");
     }
 
-    pub async fn create_render_context(handle: Handle, context: &ContextRc) -> Self {
+    #[cfg(target_arch = "wasm32")]
+    fn default_error_handler(err: wgpu::Error) {
+        let detail = format!("wgpu error: {err}");
+        signal_browser_smoke_value("device_failure", &detail);
+        report_browser_smoke_failure("uncaptured GPU error", &detail);
+    }
+
+    pub async fn create_render_context(
+        handle: Handle,
+        context: &ContextRc,
+    ) -> Result<Self, String> {
         inox_profiler::scoped_profile!("render_context::create_render_context");
 
         setup_env();
@@ -260,20 +303,42 @@ impl RenderContext {
                 memory_budget_thresholds: Default::default(),
                 display: None,
             };
+            #[cfg(target_arch = "wasm32")]
+            let instance =
+                wgpu::util::new_instance_with_webgpu_detection(instance_descriptor).await;
+            #[cfg(not(target_arch = "wasm32"))]
             let instance = wgpu::Instance::new(instance_descriptor);
+            #[cfg(target_arch = "wasm32")]
+            signal_browser_smoke("instance_ready");
             let surface = Self::create_surface(&instance, handle.clone());
 
             #[cfg(not(target_arch = "wasm32"))]
             Self::log_adapters(&instance, &backends).await;
 
+            #[cfg(target_arch = "wasm32")]
+            signal_browser_smoke("adapter_requested");
             let adapter =
                 wgpu::util::initialize_adapter_from_env_or_default(&instance, Some(&surface))
                     .await
-                    .expect("No suitable GPU adapters found on the system!");
-            let requirements = negotiate_gpu_requirements(adapter.features(), &adapter.limits())
-                .unwrap_or_else(|error| {
-                    panic!("GPU adapter does not meet renderer requirements: {error:?}")
-                });
+                    .map_err(|error| {
+                        let detail = format!("no suitable GPU adapter found: {error}");
+                        #[cfg(target_arch = "wasm32")]
+                        report_browser_smoke_failure("adapter request failed", &detail);
+                        detail
+                    })?;
+            #[cfg(target_arch = "wasm32")]
+            signal_browser_smoke("adapter_ready");
+            let discrete_adapter = adapter.get_info().device_type == wgpu::DeviceType::DiscreteGpu;
+            let requirements = negotiate_gpu_requirements_with_class(
+                adapter.features(),
+                &adapter.limits(),
+                discrete_adapter,
+            )
+            .map_err(|error| {
+                format!("GPU adapter does not meet renderer requirements: {error:?}")
+            })?;
+            #[cfg(target_arch = "wasm32")]
+            signal_browser_smoke("device_requested");
             let (device, queue) = adapter
                 .request_device(&wgpu::DeviceDescriptor {
                     label: None,
@@ -285,8 +350,23 @@ impl RenderContext {
                     default_queue: wgpu::QueueDescriptor::default(),
                 })
                 .await
-                .unwrap();
+                .map_err(|error| {
+                    let detail = format!("GPU device request failed: {error}");
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        signal_browser_smoke_value("device_failure", &detail);
+                        report_browser_smoke_failure("device request failed", &detail);
+                    }
+                    detail
+                })?;
 
+            #[cfg(target_arch = "wasm32")]
+            {
+                signal_browser_smoke("device_ready");
+                // Keep the legacy marker while consumers migrate to the staged
+                // initialization markers above.
+                signal_browser_smoke("device");
+            }
             device.on_uncaptured_error(Arc::new(Self::default_error_handler));
             (
                 instance,
@@ -312,8 +392,7 @@ impl RenderContext {
                 )
             })
             .or_else(|| surface_capabilities.formats.first().copied())
-            .ok_or("surface exposes no supported formats")
-            .unwrap();
+            .ok_or_else(|| "surface exposes no supported formats".to_string())?;
         let present_mode = if surface_capabilities
             .present_modes
             .contains(&wgpu::PresentMode::AutoNoVsync)
@@ -356,9 +435,6 @@ impl RenderContext {
         let _ = surface.as_ref().unwrap().get_current_texture();
         #[cfg(not(target_arch = "wasm32"))]
         inox_log::debug_log!("INOX_NATIVE_VIEWER_STARTUP_OK format={:?}", format);
-        #[cfg(target_arch = "wasm32")]
-        signal_browser_smoke("device");
-
         let webgpu = WebGpuContext {
             instance,
             surface,
@@ -368,7 +444,7 @@ impl RenderContext {
             config: RwLock::new(config),
         };
 
-        RenderContext {
+        Ok(RenderContext {
             texture_handler: Arc::new(TextureHandler::create(&webgpu.device)),
             shared_data: context.shared_data().clone(),
             message_hub: context.message_hub().clone(),
@@ -379,11 +455,17 @@ impl RenderContext {
             command_buffer: RwLock::new(None),
             surface: RwLock::new(None),
             render_targets: RwLock::new(Vec::new()),
+            mip_chain_targets: RwLock::new(HashSet::new()),
+            frame_dimensions: RwLock::new(
+                FrameDimensions::new(DEFAULT_WIDTH, DEFAULT_HEIGHT, 1.0)
+                    .expect("default frame dimensions are valid"),
+            ),
+            binding_generation: AtomicU64::new(0),
             completed_frame_target: AtomicUsize::new(usize::MAX),
             passes: RwLock::new(Vec::new()),
             post_submit_callbacks: RwLock::new(Vec::new()),
             capabilities,
-        }
+        })
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -403,8 +485,13 @@ impl RenderContext {
         let adapter = wgpu::util::initialize_adapter_from_env_or_default(&instance, None)
             .await
             .ok()?;
-        let requirements =
-            negotiate_gpu_requirements(adapter.features(), &adapter.limits()).ok()?;
+        let discrete_adapter = adapter.get_info().device_type == wgpu::DeviceType::DiscreteGpu;
+        let requirements = negotiate_gpu_requirements_with_class(
+            adapter.features(),
+            &adapter.limits(),
+            discrete_adapter,
+        )
+        .ok()?;
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
                 label: Some("Reload Test Device"),
@@ -437,8 +524,11 @@ impl RenderContext {
                 desired_maximum_frame_latency: 2,
             }),
         };
-        let capabilities =
-            RenderCapabilities::from_adapter(&webgpu.adapter.limits(), webgpu.adapter.features());
+        let capabilities = RenderCapabilities::from_adapter_with_class(
+            &webgpu.adapter.limits(),
+            webgpu.adapter.features(),
+            discrete_adapter,
+        );
         Some(Self {
             texture_handler: Arc::new(TextureHandler::create(&webgpu.device)),
             shared_data,
@@ -450,6 +540,12 @@ impl RenderContext {
             command_buffer: RwLock::new(None),
             surface: RwLock::new(None),
             render_targets: RwLock::new(Vec::new()),
+            mip_chain_targets: RwLock::new(HashSet::new()),
+            frame_dimensions: RwLock::new(
+                FrameDimensions::new(DEFAULT_WIDTH, DEFAULT_HEIGHT, 1.0)
+                    .expect("default frame dimensions are valid"),
+            ),
+            binding_generation: AtomicU64::new(0),
             completed_frame_target: AtomicUsize::new(usize::MAX),
             passes: RwLock::new(Vec::new()),
             post_submit_callbacks: RwLock::new(Vec::new()),
@@ -458,8 +554,19 @@ impl RenderContext {
     }
 
     pub fn resolution(&self) -> (u32, u32) {
-        let config = self.webgpu.config.read().unwrap();
-        (config.width, config.height)
+        self.frame_dimensions().render_dimensions()
+    }
+
+    pub fn frame_dimensions(&self) -> FrameDimensions {
+        *self.frame_dimensions.read().unwrap()
+    }
+
+    pub(crate) fn binding_generation(&self) -> u64 {
+        self.binding_generation.load(Ordering::Acquire)
+    }
+
+    fn invalidate_bindings(&self) {
+        self.binding_generation.fetch_add(1, Ordering::AcqRel);
     }
 
     pub fn buffers(&self) -> RwLockReadGuard<'_, HashMap<BufferId, BufferRef>> {
@@ -484,6 +591,22 @@ impl RenderContext {
         self.buffers()
             .get(&buffer_id)
             .and_then(|buffer| buffer.read_from_gpu_via_staging_as::<T>(&self.webgpu))
+    }
+
+    /// Read one Rgba32Float render target after GPU submission. This is native-only and intended
+    /// for bounded opt-in image correctness smoke modes, not normal production frames.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn read_render_target_rgba32f(&self, index: usize) -> Option<(u32, u32, Vec<f32>)> {
+        let id = self.render_target_id(index);
+        self.texture_handler
+            .read_render_target_rgba32f(&id, &self.webgpu)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn read_render_target_r32uint(&self, index: usize) -> Option<(u32, u32, Vec<u32>)> {
+        let id = self.render_target_id(index);
+        self.texture_handler
+            .read_render_target_r32uint(&id, &self.webgpu)
     }
 
     fn update_image(&self, encoder: &mut wgpu::CommandEncoder, texture: &Resource<Texture>) {
@@ -681,9 +804,86 @@ impl RenderContext {
     }
 
     pub fn set_surface_size(&self, width: u32, height: u32) {
-        self.webgpu.config.write().unwrap().width = width;
-        self.webgpu.config.write().unwrap().height = height;
-        inox_log::debug_log!("Surface size: {}x{}", width, height);
+        let dimensions = FrameDimensions::new(width, height, 1.0)
+            .expect("clamped frame dimensions must fit checked arithmetic");
+        self.set_frame_dimensions(dimensions);
+    }
+
+    /// Atomically propagates dimensions to the surface, targets, passes, and GPU resources.
+    pub fn set_frame_dimensions(&self, dimensions: FrameDimensions) {
+        {
+            let mut config = self.webgpu.config.write().unwrap();
+            config.width = dimensions.surface.width;
+            config.height = dimensions.surface.height;
+        }
+        *self.frame_dimensions.write().unwrap() = dimensions;
+        self.global_buffers
+            .constant_data
+            .write()
+            .unwrap()
+            .set_screen_size(self, dimensions.surface.width, dimensions.surface.height);
+
+        {
+            let mut targets = self.render_targets.write().unwrap();
+            for target in targets.iter_mut() {
+                let id = *target.id();
+                let mip_count = if self.mip_chain_targets.read().unwrap().contains(&id) {
+                    dimensions.hiz_mip_count()
+                } else {
+                    1
+                };
+                target
+                    .get_mut()
+                    .set_texture_size(dimensions.surface.width, dimensions.surface.height)
+                    .set_mips_count(mip_count);
+                self.texture_handler.resize_render_target(
+                    &self.webgpu.device,
+                    &id,
+                    dimensions.surface.width,
+                    dimensions.surface.height,
+                    mip_count,
+                );
+            }
+        }
+        self.invalidate_bindings();
+        {
+            let mut passes = self.passes.write().unwrap();
+            for (pass, _) in passes.iter_mut() {
+                pass.resize(dimensions);
+            }
+        }
+        inox_log::debug_log!(
+            "Frame dimensions: surface={}x{} render={}x{} dispatch={}x{}",
+            dimensions.surface.width,
+            dimensions.surface.height,
+            dimensions.render.width,
+            dimensions.render.height,
+            dimensions.dispatch[0],
+            dimensions.dispatch[1],
+        );
+        #[cfg(not(target_arch = "wasm32"))]
+        eprintln!(
+            "INOX_NATIVE_WAVEFRONT_DIMENSIONS_OK surface={}x{} render={}x{} dispatch={}x{}",
+            dimensions.surface.width,
+            dimensions.surface.height,
+            dimensions.render.width,
+            dimensions.render.height,
+            dimensions.dispatch[0],
+            dimensions.dispatch[1],
+        );
+        #[cfg(target_arch = "wasm32")]
+        signal_browser_smoke_value(
+            "dimensions",
+            &format!(
+                "surface={}x{};render={}x{};dispatch={}x{}",
+                dimensions.surface.width,
+                dimensions.surface.height,
+                dimensions.render.width,
+                dimensions.render.height,
+                dimensions.dispatch[0],
+                dimensions.dispatch[1],
+            ),
+        );
         self.recreate();
     }
 
@@ -711,6 +911,26 @@ impl RenderContext {
         format: TextureFormat,
         usage: TextureUsage,
     ) -> usize {
+        self.create_render_target_with_mip_policy(texture_data, format, usage, texture_data.4 > 1)
+    }
+
+    /// Create a target whose mip chain is recomputed on every frame resize.
+    pub fn create_mip_chain_render_target(
+        &self,
+        texture_data: (u32, u32, u32, u32, u32),
+        format: TextureFormat,
+        usage: TextureUsage,
+    ) -> usize {
+        self.create_render_target_with_mip_policy(texture_data, format, usage, true)
+    }
+
+    fn create_render_target_with_mip_policy(
+        &self,
+        texture_data: (u32, u32, u32, u32, u32),
+        format: TextureFormat,
+        usage: TextureUsage,
+        mip_chain: bool,
+    ) -> usize {
         let texture = Texture::create_from_format(
             &self.shared_data,
             &self.message_hub,
@@ -718,6 +938,10 @@ impl RenderContext {
             format,
             usage,
         );
+        let texture_id = *texture.id();
+        if mip_chain {
+            self.mip_chain_targets.write().unwrap().insert(texture_id);
+        }
         let mut render_targets = self.render_targets.write().unwrap();
         render_targets.push(texture);
         render_targets.len() - 1
@@ -782,8 +1006,11 @@ impl RenderContext {
         };
 
         for (pass, is_enabled) in passes.iter_mut() {
-            if *is_enabled && pass.is_active(self) {
-                pass.init(self);
+            if *is_enabled {
+                if pass.should_init(self) {
+                    pass.init(self);
+                }
+                pass.reset(self);
             }
         }
         if let Some(surface) = self.surface.read().unwrap().as_ref() {

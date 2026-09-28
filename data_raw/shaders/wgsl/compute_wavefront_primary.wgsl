@@ -22,6 +22,7 @@ fn append_primary_ray(ray: WavefrontRay) {
         ray_queue[slot] = ray;
     } else {
         atomicStore(&ray_queue_header[0].overflowed, 1u);
+        atomicAdd(&ray_queue_header[0].dropped_records, 1u);
     }
 }
 

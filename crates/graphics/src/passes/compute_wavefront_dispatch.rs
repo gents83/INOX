@@ -86,12 +86,27 @@ impl Pass for ComputeWavefrontDispatchPass {
             .init(render_context, &mut self.binding_data, None);
     }
 
+    fn reset(&mut self, render_context: &RenderContext) {
+        let mut args = self.dispatch_args.write().unwrap();
+        if let Some(args) = args.first_mut() {
+            *args = DispatchArgs::default();
+        }
+        render_context.update_buffer(&mut *args);
+    }
+
     fn update(
         &mut self,
         render_context: &RenderContext,
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
+        {
+            let mut args = self.dispatch_args.write().unwrap();
+            if let Some(args) = args.first_mut() {
+                *args = DispatchArgs::default();
+            }
+            render_context.update_buffer(&mut *args);
+        }
         if !self.is_active(render_context) {
             return;
         }

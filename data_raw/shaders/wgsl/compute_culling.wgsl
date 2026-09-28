@@ -106,6 +106,12 @@ fn is_lod_visible(meshlet: Meshlet, position: vec3<f32>, orientation: vec4<f32>,
         let desired_lod_level = MAX_LOD_LEVELS - 1u - u32(constant_data.forced_lod_level);
         return meshlet.lod_level == desired_lod_level;
     }
+    // A mesh with one serialized LOD has no parent error. The old strict
+    // parent_error > 1 test rejected every such meshlet, leaving the
+    // visibility buffer empty even though instances and commands existed.
+    if (meshlet.parent_error <= MATH_EPSILON) {
+        return true;
+    }
     let lod_error = compute_bounds_error(meshlet.bounding_sphere, meshlet.group_error, position, orientation, scale);
     let parent_error = compute_bounds_error(meshlet.parent_bounding_sphere, meshlet.parent_error, position, orientation, scale);
     if (lod_error <= 1. && parent_error > 1.) {
@@ -137,6 +143,11 @@ fn is_occluded(aabb_min: vec3<f32>, aabb_max: vec3<f32>, view_proj: mat4x4<f32>)
     depth_values.z = textureSampleLevel(texture_hzb, default_sampler, vec2<f32>(clip_max.x, clip_min.y), mip_level).r;
     depth_values.w = textureSampleLevel(texture_hzb, default_sampler, vec2<f32>(clip_max.x, clip_max.y), mip_level).r;
     let depth = max(max(depth_values.x, depth_values.y), max(depth_values.z, depth_values.w));
+    // An uninitialized/cleared HZB has no occlusion information. Treat it as
+    // visible instead of rejecting every meshlet on the first scene frame.
+    if (depth <= 0.0 || depth != depth || abs(depth) > 1e30) {
+        return false;
+    }
     if (ndc_min.z > depth + 0.1) {
         return true;
     }
@@ -162,7 +173,7 @@ fn main(
     let meshlet = meshlets.data[meshlet_id];
     
     let position = transform.position_scale_x.xyz;
-    let scale = vec3<f32>(transform.position_scale_x.w, transform.bb_min_scale_y.w, transform.bb_min_scale_y.w);
+    let scale = vec3<f32>(transform.position_scale_x.w, transform.bb_min_scale_y.w, transform.bb_max_scale_z.w);
     
     if !is_lod_visible(meshlet, position, transform.orientation, scale, constant_data.camera_fov) {
         return;
@@ -181,7 +192,10 @@ fn main(
         return;    
     }
 
-    active_instances.data[instance_id].command_id = 0;
+    // Preserve the packed-scene instance index through command compaction.
+    // Visibility uses this value to address the same transform/mesh record;
+    // the compacted draw order is not guaranteed to match scene order.
+    active_instances.data[instance_id].command_id = i32(instance_id);
     
     let commands_count = arrayLength(&commands_data);
     for(var i = meshlet_id; i < commands_count; i++) {

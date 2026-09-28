@@ -1,5 +1,14 @@
 # Production portable wavefront renderer
 
+## Windows stable build configuration
+
+- [x] Remove the global unsupported `split-debuginfo=unpacked` rustflag from `.cargo/config.toml`.
+- [x] Verify the stable Windows MSVC workspace build.
+
+### Review
+
+The global rustflag caused Cargo's target-probe rustc invocation to fail before compilation. Platform-specific rustflags remain unchanged.
+
 ## Final review blockers
 
 - [x] Keep transparency producer indexing at full-resolution G-buffer dimensions; render scale remains reconstruction-only.
@@ -76,7 +85,29 @@
 - Task 8 validation passed: bounded packed light alias construction covers empty, single, many, zero/nonfinite, and overflow inputs; render/graphics tests, binarizer shader validation, clippy, formatting, and render/graphics WebAssembly checks pass.
 - Task 9 validation passed: graphics/render/binarizer tests, focused transport contracts, include-expanded shader validation, clippy, formatting, native checks, and render/graphics WebAssembly checks pass. Transport now supports environment fallback with bounded texture indices, bounded roulette, explicit PDF-consistent reflection/refraction sampling with finite guards, GPU-controlled empty-queue termination without CPU count gates, numeric material-ID decoding, a shared finite 2,097,152-entry queue budget covering the 2,073,600-pixel default (including transparency) with overflow signaling beyond it, full-resolution CPU/GPU composite-denoise-upscale strides, checked `u32` header capacities, per-stage reset, and chained bounce dispatch metadata.
 - An earlier strict no-skip rerun on 2026-09-16 stopped at PC binarization because the then-current launcher rejected `compute_bounce_shade.wgsl` at ten compute storage bindings. The latest launcher run passed PC and Web binarization, generated-data validation, native tests/clippy/release, formatting, native viewer startup, WASM release, pinned bindgen installation, and bindgen generation; it stopped at browser smoke because Chrome returned no smoke DOM or engine signals. No artifacts were published. See `docs/superpowers/reports/2026-09-16-wavefront-validation.md`.
-- Review fixes add safe temporary browser-profile cleanup, Program Files(x86)/LOCALAPPDATA Chrome and Edge discovery, non-empty platform-directory validation for newly generated `data/pc` and `data/web`, explicit formatting and engine-owned native viewer startup/format marker validation with preserved failure logs, and engine-owned WASM device/queue-submit/frame signals with page and console error capture in browser smoke.
+
+## Current UI DPI rendering fix
+
+- [x] Add failing regressions for logical egui coordinates and physical clip-space conversion.
+- [x] Separate native logical window metrics from physical render-surface metrics.
+- [x] Remove duplicate DPI scaling from the UI vertex path and update resize propagation.
+- [x] Run focused UI/platform/render tests and native visual smoke.
+- [x] Record verification results and lessons.
+
+### Review
+
+The native window now republishes its physical scale and size after systems register. UISystem keeps egui coordinates in logical points, while render targets remain physical. UI vertex layouts are explicitly `repr(C)`, and shader scaling is applied once. Verified with UI tests (6), platform tests (9), viewer pass-order tests (13), changed-crate clippy, formatting, and native Cornell smoke at `320x240` with `INOX_NATIVE_CORNELL_IMAGE_PASS`.
+
+## Follow-up: presented-frame extent and UI texture readiness
+
+- [x] Guard UI mesh submission until managed textures have valid GPU slots.
+- [x] Reconfigure render storage when the acquired surface extent differs from authoritative frame dimensions.
+- [x] Add render extent synchronization regression coverage.
+- [x] Re-run UI/render tests, formatting, and changed-crate clippy.
+
+### Review
+
+The GPU diagnostic reported full finite coverage while the presented screenshot still showed a partial/black surface, so CPU readback alone was insufficient. `obtain_surface_texture` now compares the acquired swapchain extent with the frame extent and reconfigures before encoding. UI tessellation waits for valid managed-texture slots, and `UIPass` refreshes the atlas binding after lazy font upload instead of retaining the empty atlas layout. UI tests (8), render tests, formatting, and changed-crate clippy pass.- Review fixes add safe temporary browser-profile cleanup, Program Files(x86)/LOCALAPPDATA Chrome and Edge discovery, non-empty platform-directory validation for newly generated `data/pc` and `data/web`, explicit formatting and engine-owned native viewer startup/format marker validation with preserved failure logs, and engine-owned WASM device/queue-submit/frame signals with page and console error capture in browser smoke.
 - Native queue diagnostics validation passes: the viewer registers a post-submit callback only on native targets, staging readback handles mapping errors and poll timeouts without indefinite waits or panics, callback snapshots permit re-registration, and WebGPU/WASM explicitly skips synchronous diagnostics.
 - Final shader review fixes pass focused and full workspace validation: direct-candidate, visibility, and AO-resolve use full-resolution strides, while shade rejects `INVALID_INDEX`, negative, and out-of-range material IDs before packed access; graphics/render/binarizer tests, clippy, formatting, native checks, and render/graphics/binarizer WASM checks all pass.
 - Queue-reset follow-up uses an immediate `RenderContext::update_buffer` upload through `BufferRef::bind` with storage/COPY_DST/COPY_SRC usage in primary, traversal, bounce, and transparency passes; native overflow readback remains observable with transition-deduplicated logging, and temporary WebGPU diagnostics are silent.
@@ -287,3 +318,14 @@ Task 2 results are recorded in `.superpowers/sdd/2026-09-23-wavefront-resolution
 - [x] Focused transport regression initially failed at `2_097_152` entries, then passed after the native policy update: `43 passed; 0 failed`.
 - [x] Native wavefront integration passed: `2 passed; 0 failed`.
 - [x] Maximize-sized Cornell smoke passed `INOX_NATIVE_CORNELL_IMAGE_PASS` at `1916x1125`; queue diagnostics reported `INOX_NATIVE_WAVEFRONT_QUEUE_NO_OVERFLOW` and emitted no `wavefront queue primary overflowed` diagnostic.
+
+## Native resize OOM follow-up — 2026-09-25
+
+- [x] Reproduce and instrument the 1920x1080 -> 3820x2117 resize allocation boundary.
+- [x] Destroy deferred render-target resources before allocating replacements while preserving repeated resize/regrowth.
+- [x] Add resize-order and dynamic-dimension regression coverage.
+- [x] Run focused tests, formatting, clippy, and native viewer smoke.
+
+### Review
+
+The first 3820x2117 run showed that queue capacity alone was not the full issue: full-resolution targets, G-buffer vectors, reservoirs, AO, accumulators, and the 2 GiB discrete-native queue policy exceeded the usable device budget. Large native extents now select the conservative 512 MiB aggregate queue fallback while the validated 1916x1125 maximize extent retains the 2 GiB policy; truncation remains visible through queue diagnostics. Render-target replacement also destroys and polls old resources before allocation, preserving later shrink/regrowth. Focused graphics transport (45), graphics integration (11), render frame-dimension (11), affected clippy, formatting, and a rebuilt native 3820x2117 Cornell smoke passed without OOM; the smoke reached the Cornell image-pass marker with bounded coverage (0.507) rather than claiming a no-overflow/full-coverage result.

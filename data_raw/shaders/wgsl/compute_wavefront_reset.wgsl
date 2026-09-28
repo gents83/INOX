@@ -10,5 +10,6 @@ var<storage, read_write> dispatch_args: array<WavefrontDispatchArgs>;
 fn main() {
     atomicStore(&queue_header[0].count, 0u);
     atomicStore(&queue_header[0].overflowed, 0u);
+    atomicStore(&queue_header[0].dropped_records, 0u);
     dispatch_args[0] = WavefrontDispatchArgs(0u, 1u, 1u);
 }

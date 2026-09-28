@@ -87,6 +87,42 @@ implement_message!(
     compare_and_discard
 );
 
+/// Resolves the initial window dimensions from a parsed command line.
+///
+/// `window_size` is also a runtime window event, but startup must consume it
+/// before the native window and any size-dependent render resources exist.
+/// Missing or malformed values preserve the caller's defaults; explicit zero
+/// dimensions are clamped so render-target arithmetic always has an extent.
+#[inline]
+pub fn command_line_window_size_from_parser(command_parser: &CommandParser) -> Option<(u32, u32)> {
+    let values = command_parser.get_values_of::<u32>("window_size");
+    match values.as_slice() {
+        [width, height, ..] => Some(((*width).max(1), (*height).max(1))),
+        _ => None,
+    }
+}
+
+/// Resolves initial dimensions from a parsed command line and defaults.
+#[inline]
+pub fn window_size_from_parser(
+    command_parser: &CommandParser,
+    default_width: u32,
+    default_height: u32,
+) -> (u32, u32) {
+    command_line_window_size_from_parser(command_parser)
+        .unwrap_or((default_width.max(1), default_height.max(1)))
+}
+
+/// Resolves initial dimensions from the process command line.
+#[inline]
+pub fn window_size_from_command_line(default_width: u32, default_height: u32) -> (u32, u32) {
+    window_size_from_parser(
+        &CommandParser::from_command_line(),
+        default_width,
+        default_height,
+    )
+}
+
 impl WindowEvent {
     fn compare_and_discard(&self, _other: &Self) -> bool {
         false
@@ -148,6 +184,13 @@ impl Window {
         icon_path: &Path,
         message_hub: &MessageHubRc,
     ) -> Self {
+        let command_line_size =
+            command_line_window_size_from_parser(&CommandParser::from_command_line());
+        let (resolved_width, resolved_height) =
+            command_line_size.unwrap_or((width.max(1), height.max(1)));
+        width = resolved_width;
+        height = resolved_height;
+
         message_hub
             .register_type::<WindowEvent>()
             .register_type::<KeyEvent>()
@@ -168,6 +211,7 @@ impl Window {
             icon_path,
             message_hub,
         );
+        let (width, height) = command_line_size.unwrap_or((width, height));
         Self {
             handle,
             x,

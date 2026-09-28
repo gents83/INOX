@@ -137,6 +137,8 @@ impl Pass for CommandsPass {
                     ..Default::default()
                 },
             )
+            // CullingPass writes command_id on the GPU. GPURead preserves the
+            // read-only storage layout without re-uploading the stale CPU mirror.
             .add_buffer(
                 &mut *self.active_instances.write().unwrap(),
                 Some("ActiveInstances"),
@@ -144,7 +146,7 @@ impl Pass for CommandsPass {
                     group_index: 0,
                     binding_index: 3,
                     stage: ShaderStage::Compute,
-                    flags: BindingFlags::Storage | BindingFlags::Read,
+                    flags: BindingFlags::Storage | BindingFlags::GPURead,
                     ..Default::default()
                 },
             )

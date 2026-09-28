@@ -8,6 +8,7 @@ members = [
     "commands",
     "core",
     "filesystem",
+    "graph",
     "graphics",
     "log",
     "math",

@@ -47,6 +47,8 @@ impl Pass for ComputeWavefrontShadePass {
     }
 
     fn is_active(&self, render_context: &RenderContext) -> bool {
+        // The hit header/count is GPU-produced; the indirect dispatch controls
+        // whether this stage has work after traversal.
         !self.scene_data.read().unwrap().is_empty()
             && !render_context.texture_handler().textures_atlas().is_empty()
     }
@@ -174,6 +176,22 @@ impl Pass for ComputeWavefrontShadePass {
         self.compute_pass
             .get_mut()
             .init(render_context, &mut self.binding_data, None);
+    }
+
+    fn reset(&mut self, render_context: &RenderContext) {
+        let mut accumulator = self.indirect_accumulator.write().unwrap();
+        if accumulator.is_empty() {
+            return;
+        }
+        // Shade appends into this buffer through read-modify-write. Clear the
+        // CPU mirror and upload it before any bounce can contribute this frame;
+        // otherwise prior-frame indirect radiance is accumulated repeatedly.
+        accumulator.fill(AccumulationRecord::default());
+        render_context.update_buffer(&mut *accumulator);
+    }
+
+    fn resize(&mut self, dimensions: inox_render::FrameDimensions) {
+        self.set_dimensions(dimensions.render_dimensions());
     }
 
     fn update(

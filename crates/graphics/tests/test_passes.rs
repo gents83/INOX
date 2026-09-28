@@ -23,6 +23,29 @@ use inox_graphics::{
 };
 
 #[test]
+fn invalid_surface_scene_cannot_reuse_stale_bindings_on_update() {
+    let source = include_str!("../src/passes/compute_wavefront_surface.rs");
+    let validation = source
+        .find("if let Err(error) = packed.validate()")
+        .expect("surface must validate packed scene data");
+    let invalidation = source
+        .find("self.invalidate_data(render_context);")
+        .expect("invalid packed scene must invalidate prior data");
+    let dispatch = source
+        .find("self.compute_pass.get().dispatch(")
+        .expect("surface update must dispatch through the cached compute pass");
+    assert!(validation < invalidation);
+    assert!(invalidation < dispatch);
+    assert!(source.contains("scene_valid: bool"));
+    assert!(source.contains("initialized: bool"));
+    assert!(source.contains("!self.scene_valid || !self.initialized"));
+    assert!(source.contains("self.scene_valid = false;"));
+    assert!(source.contains("self.initialized = false;"));
+    assert!(source.contains("fn should_init(&self"));
+    assert!(source.contains("fn resources_ready(&self) -> bool"));
+}
+
+#[test]
 fn surface_retries_initialization_after_transient_invalid_scene() {
     let source = include_str!("../src/passes/compute_wavefront_surface.rs");
     let should_init = source
@@ -140,7 +163,7 @@ fn wavefront_records_have_storage_buffer_safe_layouts() {
     assert_eq!(std::mem::size_of::<AoRecord>(), 16);
     assert_eq!(std::mem::size_of::<TransparentHitRecord>(), 40);
     assert_eq!(std::mem::size_of::<DispatchArgs>(), 12);
-    assert_eq!(std::mem::size_of::<inox_graphics::QueueHeader>(), 16);
+    assert_eq!(std::mem::size_of::<inox_graphics::QueueHeader>(), 24);
     assert_eq!(std::mem::align_of::<RayQueueRecord>(), 4);
     assert_eq!(std::mem::align_of::<HitRecord>(), 4);
     assert_eq!(std::mem::align_of::<AccumulationRecord>(), 4);
@@ -162,17 +185,38 @@ fn wavefront_records_have_storage_buffer_safe_layouts() {
     assert_eq!(WAVEFRONT_AO_RECORD_STRIDE_WORDS * 4, 16);
     assert_eq!(WAVEFRONT_TRANSPARENT_HIT_RECORD_STRIDE_WORDS * 4, 40);
     assert_eq!(WAVEFRONT_DISPATCH_ARGS_STRIDE_WORDS * 4, 12);
-    assert_eq!(WAVEFRONT_QUEUE_HEADER_STRIDE_WORDS * 4, 16);
+    assert_eq!(WAVEFRONT_QUEUE_HEADER_STRIDE_WORDS * 4, 24);
 }
 
 #[test]
 fn wavefront_capacity_scales_resolution_and_clamps_to_budget() {
-    assert_eq!(queue_capacity_for_resolution((1920, 1080), 1.0, 4096), 4096);
+    let limits = inox_render::QueueCapacityLimits {
+        fallback_capacity: 4096,
+        ..Default::default()
+    };
     assert_eq!(
-        queue_capacity_for_resolution((1920, 1080), 0.5, 4_000_000),
-        518_400
+        queue_capacity_for_resolution(1920, 1080, 16, 1, limits).unwrap(),
+        4096
     );
-    assert_eq!(queue_capacity_for_resolution((1, 1), 0.0, 0), 1);
+    assert_eq!(
+        queue_capacity_for_resolution(
+            1920,
+            1080,
+            16,
+            1,
+            inox_render::QueueCapacityLimits {
+                fallback_capacity: 4_000_000,
+                ..Default::default()
+            }
+        )
+        .unwrap(),
+        2_073_600
+    );
+    assert_eq!(
+        queue_capacity_for_resolution(1, 1, 16, 0, inox_render::QueueCapacityLimits::default())
+            .unwrap(),
+        0
+    );
 }
 
 #[test]
@@ -203,18 +247,11 @@ fn depth_pyramid_binds_adjacent_hzb_mips_without_overrunning_views() {
 }
 
 #[test]
-fn wavefront_queue_bounds_appends_and_resets_without_allocating_per_append() {
-    let mut queue = RayQueue::with_capacity(2);
-    assert!(queue.append(RayQueueRecord::default()));
-    assert!(queue.append(RayQueueRecord::default()));
-    assert!(!queue.append(RayQueueRecord::default()));
-    assert_eq!(queue.len(), 2);
-    assert!(queue.is_overflowed());
-
-    queue.reset();
-    assert_eq!(queue.len(), 0);
-    assert!(!queue.is_overflowed());
-    assert!(queue.append(RayQueueRecord::default()));
+fn depth_pyramid_dispatches_clamp_tail_mips_and_rebuild_bindings_on_resize() {
+    let source = include_str!("../src/passes/compute_depth_pyramid.rs");
+    assert!(source.contains(".max(1)"));
+    assert!(source.contains("fn resize(&mut self, dimensions: FrameDimensions)"));
+    assert!(source.contains("rebuild_mip_bindings"));
 }
 
 #[test]
@@ -228,13 +265,31 @@ fn depth_pyramid_shader_clamps_rectangular_tail_reads() {
         "let sample_z = min(coords + vec2<i32>(1, 0), max_coords)",
         "let sample_w = min(coords + vec2<i32>(1, 1), max_coords)",
     ] {
-        assert!(source.contains(sample), "missing clamped Hi-Z sample: {sample}");
+        assert!(
+            source.contains(sample),
+            "missing clamped Hi-Z sample: {sample}"
+        );
     }
 
     // A 3x5 mip chain has a rectangular tail: 3x5 -> 1x2 -> 1x1.
     let rectangular_tail = [(3, 5), (1, 2), (1, 1)];
     assert_eq!(rectangular_tail[1], (1, 2));
     assert_eq!(rectangular_tail[2], (1, 1));
+}
+
+#[test]
+fn task8_wavefront_passes_keep_queue_work_on_compute_and_clear_indirect_history() {
+    let shade = include_str!("../src/passes/compute_wavefront_shade.rs");
+    let composite = include_str!("../src/passes/compute_wavefront_composite.rs");
+    let denoise = include_str!("../src/passes/compute_wavefront_denoise.rs");
+    assert!(shade.contains("ComputePassData"));
+    assert!(composite.contains("ComputePassData"));
+    assert!(denoise.contains("ComputePassData"));
+    assert!(shade.contains("accumulator.fill(AccumulationRecord::default())"));
+    assert!(shade.contains("render_context.update_buffer(&mut *accumulator)"));
+    assert!(!shade.contains("RenderPassData"));
+    assert!(!composite.contains("RenderPassData"));
+    assert!(!denoise.contains("RenderPassData"));
 }
 
 #[test]
@@ -279,4 +334,19 @@ fn render_context_resets_completed_target_before_each_frame() {
     assert!(source.contains("completed_frame_target: AtomicUsize"));
     assert!(source.contains("pub fn completed_frame_target(&self) -> Option<usize>"));
     assert!(source.contains("usize::MAX => None"));
+}
+
+#[test]
+fn wavefront_queue_bounds_appends_and_resets_without_allocating_per_append() {
+    let mut queue = RayQueue::with_capacity(2);
+    assert!(queue.append(RayQueueRecord::default()));
+    assert!(queue.append(RayQueueRecord::default()));
+    assert!(!queue.append(RayQueueRecord::default()));
+    assert_eq!(queue.len(), 2);
+    assert!(queue.is_overflowed());
+
+    queue.reset();
+    assert_eq!(queue.len(), 0);
+    assert!(!queue.is_overflowed());
+    assert!(queue.append(RayQueueRecord::default()));
 }

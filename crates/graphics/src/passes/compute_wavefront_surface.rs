@@ -6,7 +6,7 @@ use inox_render::{
     ConstantDataRw, GPUVector, Pass, RenderContext, RenderContextRc, ShaderStage, TextureId,
     TextureView,
 };
-use inox_resources::{DataTypeResource, Resource};
+use inox_resources::{DataTypeResource, Resource, ResourceTrait};
 use inox_uid::{generate_random_uid, INVALID_UID};
 
 use crate::{RadiancePackedData, RayPackedData, ThroughputPackedData, WAVEFRONT_SCENE_ID};
@@ -17,6 +17,7 @@ pub const COMPUTE_WAVEFRONT_SURFACE_NAME: &str = "ComputeWavefrontSurfacePass";
 
 pub struct ComputeWavefrontSurfacePass {
     compute_pass: Resource<ComputePass>,
+    render_context: RenderContextRc,
     binding_data: BindingData,
     constant_data: ConstantDataRw,
     scene_data: GPUVector<u32>,
@@ -26,6 +27,8 @@ pub struct ComputeWavefrontSurfacePass {
     visibility_texture: TextureId,
     depth_texture: TextureId,
     dimensions: (u32, u32),
+    scene_valid: bool,
+    initialized: bool,
 }
 
 unsafe impl Send for ComputeWavefrontSurfacePass {}
@@ -39,8 +42,13 @@ impl Pass for ComputeWavefrontSurfacePass {
         COMPUTE_WAVEFRONT_SURFACE_NAME
     }
     fn is_active(&self, _render_context: &RenderContext) -> bool {
-        !self.visibility_texture.is_nil() && !self.depth_texture.is_nil()
+        self.resources_ready() && self.scene_valid && self.initialized
     }
+
+    fn should_init(&self, _render_context: &RenderContext) -> bool {
+        self.resources_ready() && (!self.scene_valid || !self.initialized)
+    }
+
     fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self {
         let data = ComputePassData {
             name: COMPUTE_WAVEFRONT_SURFACE_NAME.to_string(),
@@ -54,6 +62,7 @@ impl Pass for ComputeWavefrontSurfacePass {
                 &data,
                 None,
             ),
+            render_context: render_context.clone(),
             binding_data: BindingData::new(render_context, COMPUTE_WAVEFRONT_SURFACE_NAME),
             constant_data: render_context.global_buffers().constant_data.clone(),
             scene_data: render_context
@@ -69,18 +78,26 @@ impl Pass for ComputeWavefrontSurfacePass {
             visibility_texture: INVALID_UID,
             depth_texture: INVALID_UID,
             dimensions: (0, 0),
+            // Initialization is retried once required textures are available;
+            // scene validity is established only after packed-scene validation.
+            scene_valid: false,
+            initialized: false,
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
-        if !self.is_active(render_context) {
+        if !self.resources_ready() {
             return;
         }
+        self.scene_valid = false;
+        self.initialized = false;
         let packed = render_context.global_buffers().packed_scene_data();
         if let Err(error) = packed.validate() {
             eprintln!("Skipping invalid packed scene upload: {error}");
+            self.invalidate_data(render_context);
             return;
         }
         if packed.words().len() <= std::mem::size_of::<inox_render::PackedSceneHeader>() / 4 {
+            self.invalidate_data(render_context);
             return;
         }
         {
@@ -89,6 +106,10 @@ impl Pass for ComputeWavefrontSurfacePass {
                 *scene = packed.words().to_vec();
                 render_context.mark_as_dirty(scene.buffer_id());
             }
+            // Scene data can arrive after another pass has initialized this shared resource.
+            // Upload it immediately so the first surface dispatch cannot observe a stale GPU
+            // allocation even when the CPU mirror already matches the packed scene.
+            render_context.update_buffer(&mut *scene);
         }
         self.binding_data.add_buffer(
             &mut *self.constant_data.write().unwrap(),
@@ -169,15 +190,48 @@ impl Pass for ComputeWavefrontSurfacePass {
         self.compute_pass
             .get_mut()
             .init(render_context, &mut self.binding_data, None);
+        // Do not latch initialization success while the asynchronously loaded
+        // shader/pipeline is still pending. A false value keeps should_init()
+        // retrying until the surface producer is actually dispatchable.
+        self.initialized = self.compute_pass.get().is_initialized();
+        self.scene_valid = self.initialized;
     }
+    fn resize(&mut self, dimensions: inox_render::FrameDimensions) {
+        self.dimensions = dimensions.render_dimensions();
+    }
+
     fn update(
         &mut self,
         render_context: &RenderContext,
         _surface_view: &TextureView,
         command_buffer: &mut CommandBuffer,
     ) {
-        if !self.is_active(render_context) {
+        if !self.is_active(render_context) || !self.scene_valid || !self.initialized {
             return;
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            static REPORTED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
+            if REPORTED.set(()).is_ok() {
+                eprintln!(
+                    "INOX_NATIVE_SURFACE_DISPATCH dimensions={:?} scene_words={} initialized={} valid={} pipeline={} error={:?}",
+                    self.dimensions,
+                    self.scene_data.read().unwrap().len(),
+                    self.initialized,
+                    self.scene_valid,
+                    self.compute_pass.get().is_initialized(),
+                    self.compute_pass
+                        .get()
+                        .pipelines()
+                        .first()
+                        .and_then(|pipeline| {
+                            pipeline
+                                .get()
+                                .last_reload_error()
+                                .map(|error| format!("{:?}", error))
+                        }),
+                );
+            }
         }
         self.compute_pass.get().dispatch(
             render_context,
@@ -191,6 +245,38 @@ impl Pass for ComputeWavefrontSurfacePass {
 }
 
 impl ComputeWavefrontSurfacePass {
+    fn resources_ready(&self) -> bool {
+        !self.visibility_texture.is_nil() && !self.depth_texture.is_nil()
+    }
+
+    fn invalidate_data(&mut self, render_context: &RenderContext) {
+        self.binding_data = BindingData::new(&self.render_context, COMPUTE_WAVEFRONT_SURFACE_NAME);
+        let scene_id;
+        let data_id_0;
+        let data_id_1;
+        let data_id_2;
+        {
+            let mut scene = self.scene_data.write().unwrap();
+            scene.clear();
+            scene_id = scene.buffer_id();
+            let mut data_0 = self.data_buffer_0.write().unwrap();
+            data_0.fill(RayPackedData::default());
+            data_id_0 = data_0.buffer_id();
+            let mut data_1 = self.data_buffer_1.write().unwrap();
+            data_1.fill(RadiancePackedData::default());
+            data_id_1 = data_1.buffer_id();
+            let mut data_2 = self.data_buffer_2.write().unwrap();
+            data_2.fill(ThroughputPackedData::default());
+            data_id_2 = data_2.buffer_id();
+        }
+        // The scene mirror is empty and G-buffer mirrors are reset, so any
+        // previously bound GPU buffers must be marked for upload.
+        render_context.mark_as_dirty(scene_id);
+        render_context.mark_as_dirty(data_id_0);
+        render_context.mark_as_dirty(data_id_1);
+        render_context.mark_as_dirty(data_id_2);
+    }
+
     pub fn set_visibility_texture(&mut self, id: &TextureId, dimensions: (u32, u32)) -> &mut Self {
         self.visibility_texture = *id;
         self.dimensions = dimensions;

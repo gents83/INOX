@@ -25,7 +25,7 @@ var<storage, read> ao_state: array<AoState>;
 var<storage, read> indirect_accumulator: array<Accumulator>;
 
 fn sanitize_radiance(value: vec3<f32>) -> vec3<f32> {
-    let finite = all(value == value);
+    let finite = all(value == value) && all(abs(value) < vec3<f32>(65504.0));
     return select(vec3<f32>(0.0), clamp(value, vec3<f32>(0.0), vec3<f32>(65504.0)), finite);
 }
 
@@ -45,5 +45,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let luminance = dot(result, vec3<f32>(0.2126, 0.7152, 0.0722));
     final_accumulator[pixel].radiance_and_weight = vec4<f32>(result, 1.0);
     final_accumulator[pixel].first_and_second_moment = vec2<f32>(luminance, luminance * luminance);
-    final_accumulator[pixel].history_length = min(final_accumulator[pixel].history_length + 1u, 65535u);
+    let history_valid = final_accumulator[pixel].flags == constant_data.history_epoch;
+    final_accumulator[pixel].history_length = select(1u, min(final_accumulator[pixel].history_length + 1u, 65535u), history_valid);
+    final_accumulator[pixel].flags = constant_data.history_epoch;
 }

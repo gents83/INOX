@@ -11,7 +11,10 @@ const DEBUG_BINDINGS: bool = false;
 
 #[bitmask]
 pub enum BindingFlags {
+    /// The CPU mirror is authoritative and is uploaded when the buffer is bound.
     Read,
+    /// The GPU owns the contents; bind without uploading the CPU mirror.
+    GPURead,
     Write,
     ReadWrite,
     CPURead,
@@ -112,6 +115,7 @@ pub struct BindingData {
     pass_name: String,
     is_layout_changed: bool,
     is_data_changed: bool,
+    binding_generation: u64,
 }
 
 impl BindingData {
@@ -126,6 +130,7 @@ impl BindingData {
             index_buffer: None,
             is_layout_changed: false,
             is_data_changed: false,
+            binding_generation: render_context.binding_generation(),
             pass_name: pass_name.to_string(),
         }
     }
@@ -312,7 +317,8 @@ impl BindingData {
                         wgpu::BufferBindingType::Uniform
                     } else {
                         wgpu::BufferBindingType::Storage {
-                            read_only: info.flags.intersects(BindingFlags::Read),
+                            read_only: info.flags.intersects(BindingFlags::Read)
+                                || info.flags.intersects(BindingFlags::GPURead),
                         }
                     },
                     has_dynamic_offset: false,
@@ -607,6 +613,12 @@ impl BindingData {
 
         if DEBUG_BINDINGS {
             inox_log::debug_log!("BindGroups of {}", self.pass_name);
+        }
+
+        let generation = self.render_context.binding_generation();
+        if self.binding_generation != generation {
+            self.binding_generation = generation;
+            self.is_data_changed = true;
         }
 
         if !self.is_data_changed {

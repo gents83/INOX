@@ -396,6 +396,31 @@ impl TextureRef {
     }
 
     pub fn resize(&mut self, device: &wgpu::Device, width: u32, height: u32, mips_count: u32) {
+        let old_width = self.width;
+        let old_height = self.height;
+        let old_mips_count = self.views.len() as u32;
+        self.texture.destroy();
+        self.views.clear();
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            // Resizes can replace a large target while the old allocation is still
+            // deferred by the backend. Wait after destruction so a maximize or
+            // repeated resize does not require old and new targets concurrently.
+            let _ = device.poll(wgpu::PollType::Wait {
+                submission_index: None,
+                timeout: Some(std::time::Duration::from_secs(5)),
+            });
+        }
+        inox_log::debug_log!(
+            "Resizing render target {} from {}x{} ({} mips) to {}x{} ({} mips)",
+            self.id,
+            old_width,
+            old_height,
+            old_mips_count,
+            width,
+            height,
+            mips_count.max(1),
+        );
         let replacement = Self::create(
             device,
             self.id,
@@ -409,7 +434,6 @@ impl TextureRef {
                 mips_count.max(1),
             ),
         );
-        self.texture.destroy();
         *self = replacement;
     }
 

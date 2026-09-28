@@ -9,7 +9,7 @@ use inox_render::{
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
 
-use crate::{AccumulationRecord, WAVEFRONT_FINAL_ACCUMULATOR_ID};
+use crate::{AccumulationRecord, WAVEFRONT_DENOISE_HISTORY_ID, WAVEFRONT_FINAL_ACCUMULATOR_ID};
 
 pub const COMPUTE_WAVEFRONT_DENOISE_TEMPORAL_NAME: &str = "ComputeWavefrontDenoiseTemporalPass";
 pub const COMPUTE_WAVEFRONT_DENOISE_BILATERAL_NAME: &str = "ComputeWavefrontDenoiseBilateralPass";
@@ -30,6 +30,7 @@ pub struct ComputeWavefrontDenoisePass {
     binding_data: BindingData,
     constant_data: ConstantDataRw,
     final_accumulator: GPUVector<AccumulationRecord>,
+    history_accumulator: GPUVector<AccumulationRecord>,
     dimensions: (u32, u32),
     kind: DenoiserKind,
     name: &'static str,
@@ -86,9 +87,26 @@ impl Pass for ComputeWavefrontDenoisePass {
                 ..Default::default()
             },
         );
+        if matches!(self.kind, DenoiserKind::Temporal) {
+            self.binding_data.add_buffer(
+                &mut *self.history_accumulator.write().unwrap(),
+                Some("Denoiser History and Moments"),
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 2,
+                    stage: ShaderStage::Compute,
+                    flags: BindingFlags::Storage | BindingFlags::ReadWrite,
+                    ..Default::default()
+                },
+            );
+        }
         self.compute_pass
             .get_mut()
             .init(render_context, &mut self.binding_data, None);
+    }
+
+    fn resize(&mut self, dimensions: inox_render::FrameDimensions) {
+        self.set_dimensions(dimensions.render_dimensions());
     }
 
     fn update(
@@ -145,6 +163,9 @@ impl ComputeWavefrontDenoisePass {
             final_accumulator: render_context
                 .global_buffers()
                 .vector_with_id(WAVEFRONT_FINAL_ACCUMULATOR_ID),
+            history_accumulator: render_context
+                .global_buffers()
+                .vector_with_id(WAVEFRONT_DENOISE_HISTORY_ID),
             dimensions: (0, 0),
             kind,
             name,
@@ -157,6 +178,14 @@ impl ComputeWavefrontDenoisePass {
 
     pub fn set_dimensions(&mut self, dimensions: (u32, u32)) -> &mut Self {
         self.dimensions = dimensions;
+        self.final_accumulator.write().unwrap().resize(
+            dimensions.0 as usize * dimensions.1 as usize,
+            AccumulationRecord::default(),
+        );
+        self.history_accumulator.write().unwrap().resize(
+            dimensions.0 as usize * dimensions.1 as usize,
+            AccumulationRecord::default(),
+        );
         self
     }
 }

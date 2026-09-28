@@ -2,8 +2,8 @@ use std::fs;
 use std::path::PathBuf;
 
 use inox_graphics::{
-    dispatch_workgroups_for, wavefront_bounce_stages, HitRecord, QueueHeader, RayQueueRecord,
-    WAVEFRONT_HIT_DISPATCH_ARGS_ID,
+    diagnose_cornell_image, dispatch_workgroups_for, wavefront_bounce_stages, HitRecord,
+    QueueHeader, RayQueueRecord, WAVEFRONT_HIT_DISPATCH_ARGS_ID,
 };
 
 fn shader(name: &str) -> String {
@@ -21,6 +21,75 @@ struct GoldenPixel {
     material: Option<u32>,
     emissive: [f32; 3],
     sky: [f32; 3],
+}
+
+fn cornell_like_fixture(width: usize, height: usize) -> Vec<f32> {
+    let mut pixels = vec![0.03; width * height * 4];
+    for y in 0..height {
+        for x in 0..width {
+            let offset = (y * width + x) * 4;
+            let color = if y < height / 4 {
+                [4.0, 4.0, 4.0]
+            } else if x < width / 3 {
+                [1.8, 0.08, 0.05]
+            } else if x >= 2 * width / 3 {
+                [0.06, 1.5, 0.08]
+            } else {
+                [0.35, 0.30, 0.25]
+            };
+            pixels[offset..offset + 3].copy_from_slice(&color);
+            pixels[offset + 3] = 1.0;
+        }
+    }
+    pixels
+}
+
+#[test]
+fn cornell_native_diagnostics_cover_scene_handoff_and_transport_outputs() {
+    let surface_pass = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/passes/compute_wavefront_surface.rs"),
+    )
+    .unwrap();
+    assert!(
+        surface_pass.contains("render_context.update_buffer"),
+        "surface must upload late scene data before dispatch"
+    );
+    let common = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/passes/pathtracing_common.rs"),
+    )
+    .unwrap();
+    for marker in [
+        "INOX_NATIVE_CORNELL_MATERIAL_DIAGNOSTICS",
+        "INOX_NATIVE_CORNELL_REPRESENTATIVE_LIGHTS",
+        "INOX_NATIVE_CORNELL_DIRECT_DIAGNOSTICS",
+        "INOX_NATIVE_CORNELL_INDIRECT_DIAGNOSTICS",
+        "INOX_NATIVE_CORNELL_VISIBILITY_DIAGNOSTICS",
+    ] {
+        assert!(
+            common.contains(marker),
+            "missing Cornell diagnostic marker {marker}"
+        );
+    }
+}
+
+#[test]
+fn cornell_image_diagnostic_accepts_spatial_fixture_and_rejects_failures() {
+    let fixture = cornell_like_fixture(12, 8);
+    let diagnostic = diagnose_cornell_image(12, 8, &fixture);
+    assert!(
+        diagnostic.passed(),
+        "fixture diagnostic: {}",
+        diagnostic.summary()
+    );
+    assert!(diagnostic.red_green_separation);
+    assert!(diagnostic.bright_ceiling);
+
+    let black = vec![0.0; 12 * 8 * 4];
+    assert!(!diagnose_cornell_image(12, 8, &black).passed());
+    let white = vec![1.0; 12 * 8 * 4];
+    assert!(!diagnose_cornell_image(12, 8, &white).passed());
+    let nonfinite = vec![f32::NAN; 12 * 8 * 4];
+    assert!(!diagnose_cornell_image(12, 8, &nonfinite).passed());
 }
 
 fn finite_normal(normal: [f32; 3]) -> bool {
@@ -119,6 +188,41 @@ fn cpu_stage_contracts_use_full_resolution_stride_at_half_scale() {
 }
 
 #[test]
+fn traversal_preserves_world_ray_parameter_under_instance_scaling() {
+    let source = shader("raytracing.inc");
+    let helper_start = source
+        .find("fn transform_world_ray_to_local")
+        .expect("ray traversal must define the local-ray transform helper");
+    let helper = &source[helper_start..source.find("fn traverse_blas_stack").unwrap()];
+    assert!(helper.contains("vec4<f32>(world_origin, 1.)"));
+    assert!(helper.contains("vec4<f32>(world_direction, 0.)"));
+    assert!(
+        !helper.contains("normalize"),
+        "non-uniform inverse scale must not renormalize local direction"
+    );
+
+    let traversal = shader("compute_wavefront_traversal.wgsl");
+    let traversal_helper_start = traversal
+        .find("fn transform_world_ray_to_local")
+        .expect("wavefront traversal must define the local-ray transform helper");
+    let traversal_helper =
+        &traversal[traversal_helper_start..traversal.find("fn intersect_aabb").unwrap()];
+    assert!(traversal_helper.contains("vec4<f32>(world_origin, 1.0)"));
+    assert!(traversal_helper.contains("vec4<f32>(world_direction, 0.0)"));
+    assert!(!traversal_helper.contains("normalize("));
+    let blas = traversal
+        .find("fn trace_blas")
+        .and_then(|start| {
+            traversal[start..]
+                .find("fn trace_scene")
+                .map(|end| &traversal[start..start + end])
+        })
+        .expect("wavefront BLAS traversal must be present");
+    assert!(blas.contains("intersect_aabb(local_origin, local_direction"));
+    assert!(blas.contains("intersect_triangle(world_origin, world_direction"));
+}
+
+#[test]
 fn bounce_consumers_read_the_shared_hit_dispatch_producer() {
     for stage in wavefront_bounce_stages() {
         assert_eq!(
@@ -172,7 +276,14 @@ fn cpu_queue_headers_have_explicit_producer_consumer_contract() {
 #[cfg(not(target_arch = "wasm32"))]
 mod native_gpu {
     use futures::executor::block_on;
+    use inox_binarizer::ShaderCompiler;
+    use inox_graphics::passes::pathtracing_common::{
+        negotiated_queue_capacity_limits, queue_capacity_for_resolution,
+        queue_fallback_capacity_for_adapter, HitRecord, QueueHeader, RayQueueRecord,
+        TransparentHitRecord,
+    };
     use inox_messenger::MessageHub;
+    use inox_platform::PLATFORM_TYPE_WEB;
     use inox_render::RenderContext;
     use inox_resources::SharedData;
     use std::path::PathBuf;
@@ -213,27 +324,14 @@ mod native_gpu {
     }
 
     fn production_shader(name: &str) -> String {
-        fn expand(path: &std::path::Path, source: String) -> String {
-            source
-                .lines()
-                .map(|line| {
-                    let Some(import) = line
-                        .trim()
-                        .strip_prefix("#import")
-                        .map(str::trim)
-                        .map(|value| value.trim_matches('"'))
-                    else {
-                        return format!("{line}\n");
-                    };
-                    let imported = path.parent().unwrap().join(import);
-                    expand(&imported, std::fs::read_to_string(&imported).unwrap())
-                })
-                .collect()
-        }
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../data_raw/shaders/wgsl")
             .join(name);
-        expand(&path, std::fs::read_to_string(&path).unwrap())
+        ShaderCompiler::<{ PLATFORM_TYPE_WEB }>::preprocess_wgsl_source(
+            &path,
+            std::fs::read_to_string(&path).unwrap(),
+        )
+        .expect("production shader preprocessing must match the binarizer")
     }
 
     fn write_bytes(queue: &wgpu::Queue, buffer: &wgpu::Buffer, bytes: &[u8]) {
@@ -249,6 +347,103 @@ mod native_gpu {
                 | wgpu::BufferUsages::COPY_SRC
                 | wgpu::BufferUsages::COPY_DST,
         })
+    }
+
+    #[test]
+    fn native_selected_queue_policy_allocates_and_reads_small_extent() {
+        let shared_data = Arc::new(SharedData::default());
+        let message_hub = Arc::new(MessageHub::default());
+        let Some(context) = block_on(RenderContext::create_headless(shared_data, message_hub))
+        else {
+            eprintln!("SKIPPED: no native WebGPU adapter available");
+            return;
+        };
+        let device = &context.webgpu.device;
+        let queue = &context.webgpu.queue;
+        let limits = negotiated_queue_capacity_limits(&context);
+        assert_eq!(
+            limits.fallback_capacity as usize,
+            queue_fallback_capacity_for_adapter(context.capabilities().discrete_adapter)
+        );
+
+        let dimensions = (16, 16);
+        let pixels = dimensions.0 as usize * dimensions.1 as usize;
+        let primary = queue_capacity_for_resolution(
+            dimensions.0,
+            dimensions.1,
+            std::mem::size_of::<RayQueueRecord>() as u32,
+            1,
+            limits,
+        )
+        .unwrap() as usize;
+        let hit = queue_capacity_for_resolution(
+            dimensions.0,
+            dimensions.1,
+            std::mem::size_of::<HitRecord>() as u32,
+            1,
+            limits,
+        )
+        .unwrap() as usize;
+        let transparency = queue_capacity_for_resolution(
+            dimensions.0,
+            dimensions.1,
+            std::mem::size_of::<TransparentHitRecord>() as u32,
+            4,
+            limits,
+        )
+        .unwrap() as usize;
+        assert!(primary >= pixels);
+        assert!(hit >= pixels);
+        assert!(transparency >= pixels);
+
+        let primary_buffer = storage_buffer(
+            device,
+            (primary * std::mem::size_of::<RayQueueRecord>()) as u64,
+            "policy primary queue",
+        );
+        let hit_buffer = storage_buffer(
+            device,
+            (hit * std::mem::size_of::<HitRecord>()) as u64,
+            "policy hit queue",
+        );
+        let transparency_buffer = storage_buffer(
+            device,
+            (transparency * std::mem::size_of::<TransparentHitRecord>()) as u64,
+            "policy transparency queue",
+        );
+        assert_eq!(
+            readback(device, queue, &primary_buffer).len(),
+            primary_buffer.size() as usize
+        );
+        assert_eq!(
+            readback(device, queue, &hit_buffer).len(),
+            hit_buffer.size() as usize
+        );
+        assert_eq!(
+            readback(device, queue, &transparency_buffer).len(),
+            transparency_buffer.size() as usize
+        );
+
+        let header = storage_buffer(
+            device,
+            std::mem::size_of::<QueueHeader>() as u64,
+            "policy header",
+        );
+        let header_words = [
+            inox_graphics::WAVEFRONT_QUEUE_VERSION,
+            pixels as u32,
+            primary as u32,
+            0,
+            pixels as u32,
+            0,
+        ];
+        let header_bytes = header_words
+            .iter()
+            .flat_map(|word| word.to_ne_bytes())
+            .collect::<Vec<_>>();
+        write_bytes(queue, &header, &header_bytes);
+        let read_header = readback(device, queue, &header);
+        assert_eq!(read_header, header_bytes);
     }
 
     #[test]
@@ -287,10 +482,10 @@ mod native_gpu {
             cache: None,
         });
         let world = storage_buffer(device, 16, "production G-buffer world");
-        let header = storage_buffer(device, 16, "production primary header");
+        let header = storage_buffer(device, 24, "production primary header");
         let rays = storage_buffer(device, 64, "production primary queue");
         let mut header_words = Vec::new();
-        for word in [0u32, 0, 1, 0] {
+        for word in [0u32, 0, 1, 0, 1, 0] {
             header_words.extend_from_slice(&word.to_ne_bytes());
         }
         write_bytes(queue, &header, &header_words);
@@ -459,11 +654,11 @@ mod native_causal_smoke {
     use futures::executor::block_on;
     use inox_binarizer::ShaderCompiler;
     use inox_messenger::MessageHub;
-    use inox_platform::PLATFORM_TYPE_WEB;
+    use inox_platform::{PLATFORM_TYPE_PC, PLATFORM_TYPE_WEB};
     use inox_render::RenderContext;
     use inox_resources::SharedData;
     use std::borrow::Cow;
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
     use std::sync::Arc;
     use std::time::Duration;
 
@@ -471,26 +666,6 @@ mod native_causal_smoke {
     const HEIGHT: u32 = 4;
     const PIXELS: usize = (WIDTH * HEIGHT) as usize;
     const CONSTANT_BYTES: usize = 416;
-
-    fn expand_imports(path: &Path, source: String) -> String {
-        source
-            .lines()
-            .map(|line| {
-                let Some(import) = line
-                    .trim()
-                    .strip_prefix("#import")
-                    .map(str::trim)
-                    .map(|value| value.trim_matches('"'))
-                else {
-                    return format!("{line}\n");
-                };
-                expand_imports(
-                    &path.parent().unwrap().join(import),
-                    std::fs::read_to_string(path.parent().unwrap().join(import)).unwrap(),
-                )
-            })
-            .collect()
-    }
 
     fn production_shader(name: &str) -> String {
         production_shader_with_texture_array(name, false)
@@ -500,43 +675,14 @@ mod native_causal_smoke {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../data_raw/shaders/wgsl")
             .join(name);
-        let expanded = expand_imports(&path, std::fs::read_to_string(&path).unwrap());
-        // The causal smoke uses the portable, non-array texture binding layout. The production
-        // native texture-array branch requires the adapter's optional binding-array feature;
-        // native coverage is provided by a separate feature-gated shader compilation test.
-        let mut result = String::new();
-        let mut include = true;
-        let mut in_feature = false;
-        for line in expanded.lines() {
-            let trimmed = line.trim();
-            if trimmed == "#ifdef FEATURES_TEXTURE_BINDING_ARRAY" {
-                in_feature = true;
-                include = texture_array;
-                continue;
-            }
-            if in_feature && trimmed == "#else" {
-                include = !texture_array;
-                continue;
-            }
-            if in_feature && trimmed == "#endif" {
-                in_feature = false;
-                include = true;
-                continue;
-            }
-            if !trimmed.starts_with('#') && include {
-                result.push_str(line);
-                result.push('\n');
-            }
-        }
-        let available_defs = if texture_array {
-            vec!["FEATURES_TEXTURE_BINDING_ARRAY".to_string()]
+        let source = std::fs::read_to_string(&path).unwrap();
+        if texture_array {
+            ShaderCompiler::<{ PLATFORM_TYPE_PC }>::preprocess_wgsl_source(&path, source)
+                .expect("PC production preprocessing must match the binarizer")
         } else {
-            Vec::new()
-        };
-        ShaderCompiler::<{ PLATFORM_TYPE_WEB }>::add_required_wgsl_extensions(
-            result,
-            &available_defs,
-        )
+            ShaderCompiler::<{ PLATFORM_TYPE_WEB }>::preprocess_wgsl_source(&path, source)
+                .expect("Web production preprocessing must match the binarizer")
+        }
     }
 
     fn storage(device: &wgpu::Device, bytes: u64, label: &str, indirect: bool) -> wgpu::Buffer {
@@ -1102,9 +1248,13 @@ mod native_causal_smoke {
                 "position={position:?} expected={expected_position:?}, packed_normal={packed_normal:#010x}, decoded_normal={decoded_normal:?}, material={material}, instance={instance_metadata}"
             ),
         );
-        let ray_header = storage(device, 16, "causal ray header", false);
+        let ray_header = storage(device, 24, "causal ray header", false);
         let rays = storage(device, (PIXELS * 64) as u64, "causal rays", false);
-        write(queue, &ray_header, &bytes_u32(&[1, 0, PIXELS as u32, 0]));
+        write(
+            queue,
+            &ray_header,
+            &bytes_u32(&[1, 0, PIXELS as u32, 0, PIXELS as u32, 0]),
+        );
         let primary = pipeline(device, "compute_wavefront_primary.wgsl");
         let primary0 = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("primary constants"),
@@ -1184,9 +1334,13 @@ mod native_causal_smoke {
                 u32_at(&args, 2)
             ),
         );
-        let hit_header = storage(device, 16, "causal hit header", false);
+        let hit_header = storage(device, 24, "causal hit header", false);
         let hits = storage(device, (PIXELS * 32) as u64, "causal hits", false);
-        write(queue, &hit_header, &bytes_u32(&[1, 0, PIXELS as u32, 0]));
+        write(
+            queue,
+            &hit_header,
+            &bytes_u32(&[1, 0, PIXELS as u32, 0, PIXELS as u32, 0]),
+        );
         let traversal = pipeline(device, "compute_wavefront_traversal.wgsl");
         let traversal0 = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("traversal scene"),

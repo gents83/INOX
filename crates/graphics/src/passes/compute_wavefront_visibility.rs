@@ -9,8 +9,8 @@ use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
 
 use crate::{
-    wavefront_auxiliary_bindings, AccumulationRecord, AoRecord, RayPackedData, ReservoirRecord,
-    WAVEFRONT_DIRECT_ACCUMULATOR_ID, WAVEFRONT_RESERVOIR_ID, WAVEFRONT_SCENE_ID,
+    wavefront_auxiliary_bindings, AccumulationRecord, AoRecord, RadiancePackedData, RayPackedData,
+    ReservoirRecord, WAVEFRONT_DIRECT_ACCUMULATOR_ID, WAVEFRONT_RESERVOIR_ID, WAVEFRONT_SCENE_ID,
 };
 
 pub const COMPUTE_WAVEFRONT_VISIBILITY_PIPELINE: &str =
@@ -23,6 +23,7 @@ pub struct ComputeWavefrontVisibilityPass {
     constant_data: ConstantDataRw,
     scene_data: GPUVector<u32>,
     gbuffer_world: GPUVector<RayPackedData>,
+    gbuffer_material: GPUVector<RadiancePackedData>,
     reservoirs: GPUVector<ReservoirRecord>,
     direct_accumulator: GPUVector<AccumulationRecord>,
     ao_state: GPUVector<AoRecord>,
@@ -61,6 +62,9 @@ impl Pass for ComputeWavefrontVisibilityPass {
                 .global_buffers()
                 .vector_with_id(WAVEFRONT_SCENE_ID),
             gbuffer_world: render_context.global_buffers().vector::<RayPackedData>(),
+            gbuffer_material: render_context
+                .global_buffers()
+                .vector::<RadiancePackedData>(),
             reservoirs: render_context
                 .global_buffers()
                 .vector_with_id(WAVEFRONT_RESERVOIR_ID),
@@ -74,7 +78,10 @@ impl Pass for ComputeWavefrontVisibilityPass {
         }
     }
     fn init(&mut self, render_context: &RenderContext) {
-        if !self.is_active(render_context) || self.gbuffer_world.read().unwrap().is_empty() {
+        if !self.is_active(render_context)
+            || self.gbuffer_world.read().unwrap().is_empty()
+            || self.gbuffer_material.read().unwrap().is_empty()
+        {
             return;
         }
         self.binding_data.add_buffer(
@@ -111,11 +118,22 @@ impl Pass for ComputeWavefrontVisibilityPass {
             },
         );
         self.binding_data.add_buffer(
+            &mut *self.gbuffer_material.write().unwrap(),
+            Some("GBuffer Material"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 1,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
             &mut *self.reservoirs.write().unwrap(),
             Some("Direct Reservoirs"),
             BindingInfo {
                 group_index: 1,
-                binding_index: 1,
+                binding_index: 2,
                 stage: ShaderStage::Compute,
                 flags: BindingFlags::Storage | BindingFlags::Read,
                 ..Default::default()
@@ -126,7 +144,7 @@ impl Pass for ComputeWavefrontVisibilityPass {
             Some("Direct Accumulator"),
             BindingInfo {
                 group_index: 1,
-                binding_index: 2,
+                binding_index: 3,
                 stage: ShaderStage::Compute,
                 flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                 ..Default::default()
@@ -137,7 +155,7 @@ impl Pass for ComputeWavefrontVisibilityPass {
             Some("AO State"),
             BindingInfo {
                 group_index: 1,
-                binding_index: 3,
+                binding_index: 4,
                 stage: ShaderStage::Compute,
                 flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                 ..Default::default()
@@ -147,6 +165,10 @@ impl Pass for ComputeWavefrontVisibilityPass {
             .get_mut()
             .init(render_context, &mut self.binding_data, None);
     }
+    fn resize(&mut self, dimensions: inox_render::FrameDimensions) {
+        self.set_dimensions(dimensions.render_dimensions());
+    }
+
     fn update(
         &mut self,
         render_context: &RenderContext,

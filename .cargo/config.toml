@@ -8,7 +8,8 @@
 jobs = 8
 # whether or not to enable incremental compilation
 incremental = true
-rustflags = ["-C", "split-debuginfo=unpacked"]
+# Keep platform-specific rustflags under their target sections below. The
+# split-debuginfo=unpacked flag is unsupported by the stable Windows MSVC toolchain.
 
 [env]
 RUST_BACKTRACE = "full"

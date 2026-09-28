@@ -70,6 +70,15 @@ impl Window {
         *scale_factor = canvas_scale_factor;
         canvas.set_width(*width);
         canvas.set_height(*height);
+        // Keep ownership and configured device-pixel dimensions observable to
+        // browser smoke without requiring synchronous GPU inspection.
+        canvas.set_attribute("data-inox-smoke-canvas", "owned").ok();
+        canvas
+            .set_attribute("data-inox-smoke-width", &width.to_string())
+            .ok();
+        canvas
+            .set_attribute("data-inox-smoke-height", &height.to_string())
+            .ok();
         events_dispatcher.send_event(WindowEvent::PosChanged(0, 0));
         events_dispatcher.send_event(WindowEvent::SizeChanged(*width, *height));
         events_dispatcher.send_event(WindowEvent::ScaleFactorChanged(*scale_factor));
@@ -87,6 +96,12 @@ impl Window {
             let (width, height, scale_factor) = canvas_dimensions(&resize_window, 1, 1);
             resize_canvas.set_width(width);
             resize_canvas.set_height(height);
+            resize_canvas
+                .set_attribute("data-inox-smoke-width", &width.to_string())
+                .ok();
+            resize_canvas
+                .set_attribute("data-inox-smoke-height", &height.to_string())
+                .ok();
             resize_events.send_event(WindowEvent::SizeChanged(width, height));
             resize_events.send_event(WindowEvent::ScaleFactorChanged(scale_factor));
         }) as Box<dyn FnMut(_)>);

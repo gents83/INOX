@@ -62,7 +62,7 @@ pub struct ConstantData {
     max_path_depth: u32,
     min_roulette_depth: u32,
     environment_texture_index: u32,
-    _padding: u32,
+    history_epoch: u32,
 }
 
 impl Default for ConstantData {
@@ -94,7 +94,7 @@ impl Default for ConstantData {
             max_path_depth: 2,
             min_roulette_depth: 2,
             environment_texture_index: u32::MAX,
-            _padding: 0,
+            history_epoch: 1,
         }
     }
 }
@@ -143,6 +143,19 @@ impl ConstantData {
     }
     pub fn frame_index(&self) -> u32 {
         self.frame_index
+    }
+
+    /// Advance the temporal-history epoch whenever scene or camera inputs
+    /// change.  Accumulator flags store the epoch, so the GPU can invalidate
+    /// history without a CPU readback or a full buffer clear.
+    pub fn invalidate_history(&mut self, render_context: &RenderContext) -> &mut Self {
+        self.history_epoch = self.history_epoch.wrapping_add(1).max(1);
+        self.frame_index = 0;
+        self.mark_as_dirty(render_context);
+        self
+    }
+    pub fn history_epoch(&self) -> u32 {
+        self.history_epoch
     }
     pub fn set_num_bounces(&mut self, render_context: &RenderContext, n: u32) -> &mut Self {
         let n = n.min(8);
@@ -299,11 +312,11 @@ impl ConstantData {
     ) -> bool {
         let v = matrix4_to_array(view_proj_near_far_fov.0);
         let p = matrix4_to_array(view_proj_near_far_fov.1);
-        if self.view != v
+        let history_changed = self.view != v
             || self.proj != p
             || self.screen_size[0] != screen_size_and_debug_coords.0.x
-            || self.screen_size[1] != screen_size_and_debug_coords.0.y
-        {
+            || self.screen_size[1] != screen_size_and_debug_coords.0.y;
+        if history_changed {
             self.frame_index = 0;
         }
         self.view = v;
@@ -324,9 +337,27 @@ impl ConstantData {
         if self.flags & CONSTANT_DATA_FLAGS_DISPLAY_PATHTRACE == 0 {
             self.frame_index += 1;
         }
-        self.mark_as_dirty(render_context);
+        if history_changed {
+            self.invalidate_history(render_context);
+        } else {
+            self.mark_as_dirty(render_context);
+        }
         true
     }
+    pub fn set_screen_size(
+        &mut self,
+        render_context: &RenderContext,
+        width: u32,
+        height: u32,
+    ) -> &mut Self {
+        let screen_size = [width as f32, height as f32];
+        if self.screen_size != screen_size {
+            self.screen_size = screen_size;
+            self.invalidate_history(render_context);
+        }
+        self
+    }
+
     pub fn view(&self) -> [[f32; 4]; 4] {
         self.view
     }

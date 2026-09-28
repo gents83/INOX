@@ -13,8 +13,8 @@ static mut MESSAGE_HUB: Option<MessageHubRc> = None;
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(js_namespace = console)]
-    fn error(msg: String);
+    #[wasm_bindgen(js_namespace = console, js_name = error)]
+    fn console_error(msg: &str);
 
     type Error;
 
@@ -59,12 +59,17 @@ pub fn load_plugins(launcher: &Arc<Launcher>) {
     );
 }
 
-fn signal_browser_smoke(name: &str) {
+fn signal_browser_smoke_value(name: &str, value: &str) {
     let Some(window) = web_sys::window() else {
         return;
     };
     let key = wasm_bindgen::JsValue::from_str(&format!("__inox_smoke_{name}"));
-    let _ = js_sys::Reflect::set(window.as_ref(), &key, &wasm_bindgen::JsValue::TRUE);
+    let value = wasm_bindgen::JsValue::from_str(value);
+    let _ = js_sys::Reflect::set(window.as_ref(), &key, &value);
+}
+
+fn signal_browser_smoke(name: &str) {
+    signal_browser_smoke_value(name, "true");
 }
 
 pub fn main_update(launcher: Arc<Launcher>) {
@@ -73,6 +78,14 @@ pub fn main_update(launcher: Arc<Launcher>) {
     }
     let can_continue = launcher.update();
     signal_browser_smoke("frame");
+    if let Some(window) = web_sys::window() {
+        let key = wasm_bindgen::JsValue::from_str("__inox_smoke_frame_count");
+        let current = js_sys::Reflect::get(window.as_ref(), &key)
+            .ok()
+            .and_then(|value| value.as_f64())
+            .unwrap_or(0.0);
+        signal_browser_smoke_value("frame_count", &(current + 1.0).to_string());
+    }
     if can_continue {
         let cb = Closure::wrap(Box::new(move || {
             main_update(launcher.clone());
@@ -96,7 +109,7 @@ fn hook_impl(info: &std::panic::PanicHookInfo) {
     let stack = e.stack();
     msg.push_str(&stack);
     msg.push_str("\n\n");
-    error(msg);
+    console_error(&msg);
 }
 
 fn init_panic_hook() {

@@ -9,8 +9,8 @@ use inox_resources::{DataTypeResource, Resource};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
 use crate::{
-    wavefront_auxiliary_bindings, AccumulationRecord, AoRecord, RayPackedData, ReservoirRecord,
-    WAVEFRONT_SCENE_ID,
+    wavefront_auxiliary_bindings, AccumulationRecord, AoRecord, RadiancePackedData, RayPackedData,
+    ReservoirRecord, WAVEFRONT_SCENE_ID,
 };
 
 pub const COMPUTE_WAVEFRONT_DIRECT_CANDIDATES_PIPELINE: &str =
@@ -27,6 +27,7 @@ pub struct ComputeWavefrontDirectCandidatesPass {
     constant_data: ConstantDataRw,
     scene_data: GPUVector<u32>,
     gbuffer_world: GPUVector<RayPackedData>,
+    gbuffer_material: GPUVector<RadiancePackedData>,
     reservoirs: GPUVector<ReservoirRecord>,
     ao_state: GPUVector<AoRecord>,
     direct_accumulator: GPUVector<AccumulationRecord>,
@@ -48,6 +49,7 @@ impl Pass for ComputeWavefrontDirectCandidatesPass {
     fn is_active(&self, _render_context: &RenderContext) -> bool {
         !self.scene_data.read().unwrap().is_empty()
             && !self.gbuffer_world.read().unwrap().is_empty()
+            && !self.gbuffer_material.read().unwrap().is_empty()
     }
 
     fn create(context: &ContextRc, render_context: &RenderContextRc) -> Self {
@@ -72,6 +74,9 @@ impl Pass for ComputeWavefrontDirectCandidatesPass {
                 .global_buffers()
                 .vector_with_id(WAVEFRONT_SCENE_ID),
             gbuffer_world: render_context.global_buffers().vector::<RayPackedData>(),
+            gbuffer_material: render_context
+                .global_buffers()
+                .vector::<RadiancePackedData>(),
             reservoirs: render_context
                 .global_buffers()
                 .vector_with_id(WAVEFRONT_RESERVOIR_ID),
@@ -135,11 +140,22 @@ impl Pass for ComputeWavefrontDirectCandidatesPass {
             },
         );
         self.binding_data.add_buffer(
+            &mut *self.gbuffer_material.write().unwrap(),
+            Some("GBuffer Material"),
+            BindingInfo {
+                group_index: 1,
+                binding_index: 1,
+                stage: ShaderStage::Compute,
+                flags: BindingFlags::Storage | BindingFlags::Read,
+                ..Default::default()
+            },
+        );
+        self.binding_data.add_buffer(
             &mut *self.reservoirs.write().unwrap(),
             Some("Direct Reservoirs"),
             BindingInfo {
                 group_index: 1,
-                binding_index: 1,
+                binding_index: 2,
                 stage: ShaderStage::Compute,
                 flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                 ..Default::default()
@@ -150,7 +166,7 @@ impl Pass for ComputeWavefrontDirectCandidatesPass {
             Some("AO State"),
             BindingInfo {
                 group_index: 1,
-                binding_index: 2,
+                binding_index: 3,
                 stage: ShaderStage::Compute,
                 flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                 ..Default::default()
@@ -161,7 +177,7 @@ impl Pass for ComputeWavefrontDirectCandidatesPass {
             Some("Direct Accumulator"),
             BindingInfo {
                 group_index: 1,
-                binding_index: 3,
+                binding_index: 4,
                 stage: ShaderStage::Compute,
                 flags: BindingFlags::Storage | BindingFlags::ReadWrite,
                 ..Default::default()
@@ -170,6 +186,10 @@ impl Pass for ComputeWavefrontDirectCandidatesPass {
         self.compute_pass
             .get_mut()
             .init(render_context, &mut self.binding_data, None);
+    }
+
+    fn resize(&mut self, dimensions: inox_render::FrameDimensions) {
+        self.set_dimensions(dimensions.render_dimensions());
     }
 
     fn update(

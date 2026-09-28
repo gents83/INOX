@@ -8,15 +8,16 @@ use std::{
 
 use inox_bvh::{create_linearized_bvh, BVHTree, GPUBVHNode, AABB};
 use inox_math::{quantize_half, Mat4Ops, Matrix4, VecBase, Vector2, Vector3};
-use inox_resources::{to_slice, Buffer, ResourceId};
+use inox_resources::{to_slice, Buffer, ResourceId, ResourceTrait};
 use inox_uid::{generate_static_uid_from_string, generate_uid_from_type, Uid};
 
 use crate::{
-    AsBinding, ConstantDataRw, GPUInstance, GPULight, GPUMaterial, GPUMesh, GPUMeshlet,
-    GPUPrimitiveIndices, GPUTexture, GPUTransform, GPUVertexAttributes, GPUVertexIndices,
-    GPUVertexPosition, Light, LightId, Material, MaterialData, MaterialFlags, MaterialId, Mesh,
-    MeshData, MeshFlags, MeshId, PackedLightAliasData, PackedSceneBuilder, PackedSceneData,
-    RenderContext, SceneTableKind, TextureId, TextureType, INVALID_INDEX, MAX_LOD_LEVELS,
+    pack_meshlet_range, AsBinding, ConstantDataRw, GPUInstance, GPULight, GPUMaterial, GPUMesh,
+    GPUMeshlet, GPUPrimitiveIndices, GPUTexture, GPUTransform, GPUVertexAttributes,
+    GPUVertexIndices, GPUVertexPosition, Light, LightId, LightType, Material, MaterialData,
+    MaterialFlags, MaterialId, Mesh, MeshData, MeshFlags, MeshId, PackedLightAliasData,
+    PackedSceneBuilder, PackedSceneData, RenderContext, SceneTableKind, TextureId, TextureType,
+    INVALID_INDEX, MAX_LOD_LEVELS, PACKED_LIGHT_ALIAS_CAPACITY,
 };
 
 pub const INSTANCE_DATA_ID: Uid = generate_static_uid_from_string("INSTANCE_DATA_ID");
@@ -25,6 +26,27 @@ pub const TLAS_UID: ResourceId = generate_static_uid_from_string("TLAS");
 pub const LUT_PBR_CHARLIE_UID: ResourceId = generate_static_uid_from_string("LUT_PBR_CHARLIE_UID");
 pub const LUT_PBR_GGX_UID: ResourceId = generate_static_uid_from_string("LUT_PBR_GGX_UID");
 pub const ENV_MAP_UID: ResourceId = generate_static_uid_from_string("ENV_MAP_UID");
+
+/// Computes a conservative world-space bound for an instance, including all
+/// corners so rotations and negative scales cannot escape the TLAS box.
+pub fn transform_bvh_bounds(node: &GPUBVHNode, matrix: Matrix4, index: i32) -> AABB {
+    let node_min: Vector3 = node.min.into();
+    let node_max: Vector3 = node.max.into();
+    let corners = [
+        [node_min.x, node_min.y, node_min.z],
+        [node_min.x, node_min.y, node_max.z],
+        [node_min.x, node_max.y, node_min.z],
+        [node_min.x, node_max.y, node_max.z],
+        [node_max.x, node_min.y, node_min.z],
+        [node_max.x, node_min.y, node_max.z],
+        [node_max.x, node_max.y, node_min.z],
+        [node_max.x, node_max.y, node_max.z],
+    ];
+    let transformed = corners.map(|corner| matrix.rotate_point(corner.into()));
+    let min = transformed.iter().copied().reduce(|a, b| a.min(b)).unwrap();
+    let max = transformed.iter().copied().reduce(|a, b| a.max(b)).unwrap();
+    AABB::create(min, max, index)
+}
 
 pub const ATOMIC_SIZE: u32 = 32;
 pub const NUM_FRAMES_OF_HISTORY: usize = 2;
@@ -52,6 +74,10 @@ pub struct GlobalBuffers {
     pub tlas_start_index: AtomicCounter,
     pub buffers: Arc<RwLock<DynGPUBufferMap>>,
     pub vectors: Arc<RwLock<DynGPUVectorMap>>,
+    /// Keeps the CPU-side mesh/material association available while resources
+    /// arrive in either order.  Packed mesh records need the material index
+    /// before emissive-light derivation can run.
+    mesh_material_ids: Arc<RwLock<HashMap<MeshId, MaterialId>>>,
 }
 unsafe impl Send for GlobalBuffers {}
 unsafe impl Sync for GlobalBuffers {}
@@ -104,6 +130,103 @@ impl GlobalBuffers {
     {
         let id = generate_uid_from_type::<T>();
         self.vector_with_id(id)
+    }
+
+    /// Builds bounded point representatives for emissive mesh instances.
+    ///
+    /// glTF permits emissive geometry without punctual lights.  Keep the
+    /// existing light table format and binding budget by sampling each
+    /// emissive instance at its first meshlet's world-space centroid.  The
+    /// representative's intensity is proportional to emitted luminance and
+    /// projected area, and all invalid values are discarded.
+    fn synthetic_emissive_lights(&self, current_count: usize) -> Vec<GPULight> {
+        if current_count >= PACKED_LIGHT_ALIAS_CAPACITY {
+            return Vec::new();
+        }
+        let instances = self
+            .vector_with_id::<GPUInstance>(INSTANCE_DATA_ID)
+            .read()
+            .unwrap()
+            .clone();
+        let transforms = self.vector::<GPUTransform>().read().unwrap().clone();
+        let meshes = self.buffer::<GPUMesh>().read().unwrap().data().to_vec();
+        let meshlets = self.buffer::<GPUMeshlet>().read().unwrap().data().to_vec();
+        let materials = self.buffer::<GPUMaterial>().read().unwrap().data().to_vec();
+        let mut result = Vec::new();
+
+        for instance in instances {
+            if current_count + result.len() >= PACKED_LIGHT_ALIAS_CAPACITY {
+                break;
+            }
+            let Some(mesh) = meshes.get(instance.mesh_id as usize) else {
+                continue;
+            };
+            if mesh.material_index < 0 {
+                continue;
+            }
+            let Some(material) = materials.get(mesh.material_index as usize) else {
+                continue;
+            };
+            let color = material.emissive_color;
+            let strength = material.emissive_strength;
+            let luminance = color[0] * 0.2126 + color[1] * 0.7152 + color[2] * 0.0722;
+            if !color.iter().all(|v| v.is_finite() && *v >= 0.0)
+                || !strength.is_finite()
+                || strength <= 0.0
+                || !luminance.is_finite()
+                || luminance <= 0.0
+            {
+                continue;
+            }
+            let Some(transform) = transforms.get(instance.transform_id as usize) else {
+                continue;
+            };
+            let Some(meshlet) = meshlets.get(instance.meshlet_id as usize) else {
+                continue;
+            };
+            let orientation = transform.orientation.into();
+            let position = Vector3::new(
+                transform.position_scale_x[0],
+                transform.position_scale_x[1],
+                transform.position_scale_x[2],
+            );
+            let scale = Vector3::new(
+                transform.position_scale_x[3],
+                transform.bb_min_scale_y[3],
+                transform.bb_max_scale_z[3],
+            );
+            let matrix = Matrix4::from_translation_orientation_scale(position, orientation, scale);
+            let local_centroid = Vector3::new(
+                meshlet.bounding_sphere[0],
+                meshlet.bounding_sphere[1],
+                meshlet.bounding_sphere[2],
+            );
+            let centroid = matrix.rotate_point(local_centroid);
+            let radius = meshlet.bounding_sphere[3].abs();
+            let area = (core::f32::consts::PI * radius * radius).max(0.01);
+            let intensity = strength * luminance * area * 4.0 * core::f32::consts::PI;
+            if !centroid.x.is_finite()
+                || !centroid.y.is_finite()
+                || !centroid.z.is_finite()
+                || !intensity.is_finite()
+                || intensity <= 0.0
+            {
+                continue;
+            }
+            result.push(GPULight {
+                position: centroid.into(),
+                light_type: LightType::Point.into(),
+                direction: [0.0, -1.0, 0.0],
+                intensity,
+                color,
+                range: 0.0,
+                inner_cone_angle: 0.0,
+                outer_cone_angle: core::f32::consts::PI,
+                _padding1: 0.0,
+                _padding2: 0.0,
+            });
+        }
+        result
     }
 
     /// Packs scene tables into one offset-addressed storage payload. The
@@ -173,12 +296,18 @@ impl GlobalBuffers {
         );
         let lights = self.buffer::<GPULight>();
         let light_data = lights.read().unwrap();
+        // Buffer storage keeps freed ranges until they are reused. Pack only
+        // occupied entries so removed lights cannot remain addressable or enter
+        // the alias table with stale power.
+        let mut active_lights = Vec::with_capacity(light_data.item_count());
+        light_data.for_each_data(|_, _, light| active_lights.push(*light));
+        active_lights.extend(self.synthetic_emissive_lights(active_lights.len()));
         builder.append_typed(
             SceneTableKind::Lights,
-            light_data.data(),
+            &active_lights,
             std::mem::size_of::<GPULight>() / 4,
         );
-        let aliases = PackedLightAliasData::from_lights(light_data.data());
+        let aliases = PackedLightAliasData::from_lights(&active_lights);
         builder.append_light_aliases(&aliases);
 
         builder.finish()
@@ -204,11 +333,17 @@ impl GlobalBuffers {
             .enumerate()
             .for_each(|(lod_level, meshlets_data)| {
                 lod_meshlets_count.push(meshlets_data.len());
+                assert!(
+                    lod_level < MAX_LOD_LEVELS,
+                    "meshlet LOD level exceeds GPU budget"
+                );
                 meshlets_data.iter().for_each(|meshlet_data| {
                     let meshlet = GPUMeshlet {
                         mesh_index,
                         lod_level: (MAX_LOD_LEVELS - 1 - lod_level) as u32,
-                        indices_offset: (indices_offset + meshlet_data.indices_offset) as _,
+                        indices_offset: indices_offset
+                            .checked_add(meshlet_data.indices_offset)
+                            .expect("meshlet index offset overflow"),
                         indices_count: meshlet_data.indices_count,
                         aabb_min: meshlet_data.aabb_min.into(),
                         aabb_max: meshlet_data.aabb_max.into(),
@@ -397,8 +532,11 @@ impl GlobalBuffers {
                     if i < lod_meshlets_starting_offset.len()
                         && i < lod_meshlets_ending_offsets.len()
                     {
-                        *c = (((lod_meshlets_starting_offset[i]) << 16)
-                            | (lod_meshlets_ending_offsets[i])) as _;
+                        *c = pack_meshlet_range(
+                            lod_meshlets_starting_offset[i],
+                            lod_meshlets_ending_offsets[i],
+                        )
+                        .expect("meshlet LOD range exceeds packed 16-bit format");
                     }
                 });
         }
@@ -423,9 +561,18 @@ impl GlobalBuffers {
             let bvh = bvh.read().unwrap();
             let bvh_data = bvh.data();
             instances.iter().enumerate().for_each(|(i, instance)| {
-                let mesh = &meshes.data()[instance.mesh_id as usize];
-                let node = &bvh_data[mesh.blas_index as usize];
-                let transform = &transforms[instance.transform_id as usize];
+                let Some(mesh) = meshes.data().get(instance.mesh_id as usize) else {
+                    inox_log::debug_log!("Skipping TLAS instance with invalid mesh index");
+                    return;
+                };
+                let Some(node) = bvh_data.get(mesh.blas_index as usize) else {
+                    inox_log::debug_log!("Skipping TLAS instance with invalid BLAS index");
+                    return;
+                };
+                let Some(transform) = transforms.get(instance.transform_id as usize) else {
+                    inox_log::debug_log!("Skipping TLAS instance with invalid transform index");
+                    return;
+                };
                 let p = inox_math::Vector4::from(transform.position_scale_x);
                 let s_y = inox_math::Vector4::from(transform.bb_min_scale_y);
                 let s_z = inox_math::Vector4::from(transform.bb_max_scale_z);
@@ -434,10 +581,7 @@ impl GlobalBuffers {
                     transform.orientation.into(),
                     Vector3::new(p.w, s_y.w, s_z.w),
                 );
-                let min = matrix.rotate_point(node.min.into());
-                let max = matrix.rotate_point(node.max.into());
-                let aabb = AABB::create(min.min(max), max.max(min), i as _);
-                meshes_aabbs.push(aabb);
+                meshes_aabbs.push(transform_bvh_bounds(node, matrix, i as _));
             });
         }
         if meshes_aabbs.is_empty() {
@@ -463,6 +607,12 @@ impl GlobalBuffers {
     }
     pub fn change_mesh(&self, render_context: &RenderContext, mesh_id: &MeshId, mesh: &mut Mesh) {
         inox_profiler::scoped_profile!("render_buffers::change_mesh");
+        if let Some(material) = mesh.material() {
+            self.mesh_material_ids
+                .write()
+                .unwrap()
+                .insert(*mesh_id, *material.id());
+        }
         let meshes = self.buffer::<GPUMesh>();
         let mut meshes = meshes.write().unwrap();
         if let Some(m) = meshes.get_first_mut(mesh_id) {
@@ -506,6 +656,7 @@ impl GlobalBuffers {
         inox_profiler::scoped_profile!("render_buffers::remove_mesh");
 
         if self.buffer::<GPUMesh>().write().unwrap().remove(mesh_id) {
+            self.mesh_material_ids.write().unwrap().remove(mesh_id);
             self.buffer::<GPUMesh>()
                 .write()
                 .unwrap()
@@ -586,6 +737,38 @@ impl GlobalBuffers {
             material.set_material_index(index as _);
         }
         materials.mark_as_dirty(render_context);
+        drop(materials);
+        // Mesh data can arrive before its material resource. Repair every
+        // already-uploaded mesh when the material index becomes available.
+        let material_index = self
+            .buffer::<GPUMaterial>()
+            .read()
+            .unwrap()
+            .indices(material_id)
+            .map(|range| range.range().start as i32);
+        if let Some(material_index) = material_index {
+            let mesh_material_ids = self.mesh_material_ids.read().unwrap();
+            let mesh_buffer = self.buffer::<GPUMesh>();
+            let mut meshes = mesh_buffer.write().unwrap();
+            let mut changed = false;
+            for (mesh_id, associated_material) in mesh_material_ids.iter() {
+                if associated_material == material_id {
+                    if let Some(mesh) = meshes.get_first_mut(mesh_id) {
+                        if mesh.material_index != material_index {
+                            mesh.material_index = material_index;
+                            changed = true;
+                        }
+                    }
+                }
+            }
+            if changed {
+                meshes.mark_as_dirty(render_context);
+            }
+        }
+        self.constant_data
+            .write()
+            .unwrap()
+            .invalidate_history(render_context);
     }
     pub fn update_material(
         &self,
@@ -622,6 +805,10 @@ impl GlobalBuffers {
             material.emissive_strength = material_data.emissive_strength;
             material.flags = material_data.flags.into();
             materials.mark_as_dirty(render_context);
+            self.constant_data
+                .write()
+                .unwrap()
+                .invalidate_history(render_context);
         }
     }
     pub fn remove_material(&self, render_context: &RenderContext, material_id: &MaterialId) {
@@ -635,54 +822,82 @@ impl GlobalBuffers {
             .write()
             .unwrap()
             .mark_as_dirty(render_context);
+        self.constant_data
+            .write()
+            .unwrap()
+            .invalidate_history(render_context);
     }
 
     pub fn add_light(&self, render_context: &RenderContext, light_id: &LightId, light: &mut Light) {
         inox_profiler::scoped_profile!("render_buffers::add_light");
+        if !light.is_active() {
+            self.remove_light(render_context, light_id);
+            light.invalidate();
+            return;
+        }
 
-        let index = self
-            .buffer::<GPULight>()
-            .write()
-            .unwrap()
-            .push(light_id, GPULight::default())
-            .1
-            .start;
+        let lights = self.buffer::<GPULight>();
+        let mut lights = lights.write().unwrap();
+        let was_present = lights.get_first_with_index(light_id).is_some();
+        let index = lights.push(light_id, *light.data()).1.start;
         light.set_light_index(index as _);
+        lights.mark_as_dirty(render_context);
+        drop(lights);
 
-        let mut constant_data = self.constant_data.write().unwrap();
-        let num_lights = constant_data.num_lights();
-        constant_data.set_num_lights(render_context, num_lights + 1);
-        self.buffer::<GPULight>()
+        if !was_present {
+            let mut constant_data = self.constant_data.write().unwrap();
+            let next_count = constant_data.num_lights() + 1;
+            constant_data.set_num_lights(render_context, next_count);
+        }
+        self.constant_data
             .write()
             .unwrap()
-            .mark_as_dirty(render_context);
+            .invalidate_history(render_context);
     }
     pub fn update_light(
         &self,
         render_context: &RenderContext,
         light_id: &LightId,
         light_data: &GPULight,
-    ) {
+    ) -> u32 {
         inox_profiler::scoped_profile!("render_buffers::update_light");
         let lights = self.buffer::<GPULight>();
         let mut lights = lights.write().unwrap();
-        if let Some(light) = lights.get_first_mut(light_id) {
-            *light = *light_data;
-            lights.mark_as_dirty(render_context);
+        let (index, inserted) =
+            if let Some((light, index)) = lights.get_first_with_index_mut(light_id) {
+                *light = *light_data;
+                (index, false)
+            } else {
+                let inserted = lights.push(light_id, *light_data).1;
+                (inserted.start as u32, true)
+            };
+        lights.mark_as_dirty(render_context);
+        drop(lights);
+        if inserted {
+            let mut constant_data = self.constant_data.write().unwrap();
+            let next_count = constant_data.num_lights() + 1;
+            constant_data.set_num_lights(render_context, next_count);
         }
-    }
-    pub fn remove_light(&self, render_context: &RenderContext, light_id: &LightId) {
-        inox_profiler::scoped_profile!("render_buffers::remove_light");
-
-        self.buffer::<GPULight>().write().unwrap().remove(light_id);
-        let mut constant_data = self.constant_data.write().unwrap();
-        let num_lights = constant_data.num_lights();
-        constant_data.set_num_lights(render_context, num_lights - 1);
-
-        self.buffer::<GPULight>()
+        self.constant_data
             .write()
             .unwrap()
-            .mark_as_dirty(render_context);
+            .invalidate_history(render_context);
+        index
+    }
+    pub fn remove_light(&self, render_context: &RenderContext, light_id: &LightId) -> bool {
+        inox_profiler::scoped_profile!("render_buffers::remove_light");
+
+        let lights = self.buffer::<GPULight>();
+        let removed = lights.write().unwrap().remove(light_id);
+        if !removed {
+            return false;
+        }
+        lights.write().unwrap().mark_as_dirty(render_context);
+        let mut constant_data = self.constant_data.write().unwrap();
+        let next_count = constant_data.num_lights().saturating_sub(1);
+        constant_data.set_num_lights(render_context, next_count);
+        constant_data.invalidate_history(render_context);
+        true
     }
 
     pub fn add_texture(

@@ -295,72 +295,58 @@ impl ComputeInstancesPass {
         commands.mark_as_dirty(render_context);
     }
 
+    fn process_object(&mut self, id: &ObjectId) {
+        if let Some(object) = self.shared_data.get_resource::<Object>(id) {
+            object
+                .get()
+                .components_of_type::<Mesh>()
+                .iter()
+                .for_each(|mesh| {
+                    let instances = self.transform_map.entry(*mesh.id()).or_default();
+                    let matrix = object.get().transform();
+                    let position = matrix.translation();
+                    let scale = matrix.scale();
+                    let bb_min = *mesh.get().min();
+                    let bb_max = *mesh.get().max();
+
+                    let result = instances.iter_mut().find(|e| e.id == *object.id());
+                    if let Some(data) = result {
+                        data.transform.orientation = matrix.orientation().into();
+                        data.transform.position_scale_x =
+                            Vector4::new(position.x, position.y, position.z, scale.x).into();
+                        data.transform.bb_min_scale_y =
+                            Vector4::new(bb_min.x, bb_min.y, bb_min.z, scale.y).into();
+                        data.transform.bb_max_scale_z =
+                            Vector4::new(bb_max.x, bb_max.y, bb_max.z, scale.z).into();
+                    } else {
+                        let transform = GPUTransform {
+                            orientation: matrix.orientation().into(),
+                            position_scale_x: Vector4::new(
+                                position.x, position.y, position.z, scale.x,
+                            )
+                            .into(),
+                            bb_min_scale_y: Vector4::new(bb_min.x, bb_min.y, bb_min.z, scale.y)
+                                .into(),
+                            bb_max_scale_z: Vector4::new(bb_max.x, bb_max.y, bb_max.z, scale.z)
+                                .into(),
+                        };
+                        instances.push(TransformMapData {
+                            transform,
+                            id: *object.id(),
+                        });
+                    }
+                    self.is_dirty = true;
+                });
+        }
+    }
+
     fn process_messages(&mut self) {
+        let mut object_events = Vec::new();
         self.listener
             .process_messages(|e: &ResourceEvent<Object>| match e {
-                ResourceEvent::Changed(id) => {
-                    if let Some(object) = self.shared_data.get_resource::<Object>(id) {
-                        object
-                            .get()
-                            .components_of_type::<Mesh>()
-                            .iter()
-                            .for_each(|mesh| {
-                                let instances = self.transform_map.entry(*mesh.id()).or_default();
-                                let matrix = object.get().transform();
-                                let position = matrix.translation();
-                                let scale = matrix.scale();
-                                let bb_min = *mesh.get().min();
-                                let bb_max = *mesh.get().max();
-
-                                let result = instances.iter_mut().find(|e| e.id == *object.id());
-                                if let Some(data) = result {
-                                    data.transform.orientation = matrix.orientation().into();
-                                    data.transform.position_scale_x =
-                                        Vector4::new(position.x, position.y, position.z, scale.x)
-                                            .into();
-                                    data.transform.bb_min_scale_y =
-                                        Vector4::new(bb_min.x, bb_min.y, bb_min.z, scale.y).into();
-                                    data.transform.bb_max_scale_z =
-                                        Vector4::new(bb_max.x, bb_max.y, bb_max.z, scale.z).into();
-                                    self.is_dirty = true;
-                                } else {
-                                    let transform = GPUTransform {
-                                        orientation: matrix.orientation().into(),
-                                        position_scale_x: Vector4::new(
-                                            position.x, position.y, position.z, scale.x,
-                                        )
-                                        .into(),
-                                        bb_min_scale_y: Vector4::new(
-                                            bb_min.x, bb_min.y, bb_min.z, scale.y,
-                                        )
-                                        .into(),
-                                        bb_max_scale_z: Vector4::new(
-                                            bb_max.x, bb_max.y, bb_max.z, scale.z,
-                                        )
-                                        .into(),
-                                    };
-                                    instances.push(TransformMapData {
-                                        transform,
-                                        id: *object.id(),
-                                    });
-                                    self.is_dirty = true;
-                                }
-                            });
-                    }
-                }
-                ResourceEvent::Destroyed(id) => {
-                    self.transform_map.iter_mut().for_each(|(_, instances)| {
-                        instances.retain(|e| {
-                            if e.id == *id {
-                                self.is_dirty = true;
-                                true
-                            } else {
-                                false
-                            }
-                        });
-                    });
-                }
-                _ => {}
+                ResourceEvent::Created(object) => object_events.push((*object.id(), false)),
+                ResourceEvent::Changed(id) => object_events.push((*id, false)),
+                ResourceEvent::Destroyed(id) => object_events.push((*id, true)),
             })
             .process_messages(|e: &ResourceEvent<Mesh>| match e {
                 ResourceEvent::Created(mesh) => {
@@ -413,5 +399,21 @@ impl ComputeInstancesPass {
                 }
                 _ => {}
             });
+        for (id, destroyed) in object_events {
+            if destroyed {
+                self.transform_map.iter_mut().for_each(|(_, instances)| {
+                    instances.retain(|instance| {
+                        if instance.id == id {
+                            self.is_dirty = true;
+                            false
+                        } else {
+                            true
+                        }
+                    });
+                });
+            } else {
+                self.process_object(&id);
+            }
+        }
     }
 }

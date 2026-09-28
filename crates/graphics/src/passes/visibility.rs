@@ -217,7 +217,17 @@ impl Pass for VisibilityBufferPass {
             return;
         }
 
-        if self.transforms.read().unwrap().is_empty() || self.commands.read().unwrap().is_empty() {
+        let transform_count = self
+            .transforms
+            .read()
+            .map(|data| data.len())
+            .unwrap_or_default();
+        let command_count = self
+            .commands
+            .read()
+            .map(|data| data.len())
+            .unwrap_or_default();
+        if transform_count == 0 || command_count == 0 {
             return;
         }
 

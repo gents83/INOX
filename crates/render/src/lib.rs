@@ -6,6 +6,7 @@ pub use crate::common::*;
 pub use crate::data::*;
 pub use crate::events::*;
 pub use crate::fonts::*;
+pub use crate::platform::QueueCapacityLimits;
 pub use crate::resources::*;
 pub use crate::shapes::*;
 pub use crate::systems::*;

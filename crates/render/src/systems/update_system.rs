@@ -4,14 +4,14 @@ use inox_math::{VecBase, Vector2};
 use inox_messenger::Listener;
 use inox_platform::{MouseEvent, MouseState, WindowEvent};
 use inox_resources::{
-    DataTypeResource, DataTypeResourceEvent, ReloadEvent, Resource, ResourceEvent,
+    DataTypeResource, DataTypeResourceEvent, ReloadEvent, Resource, ResourceEvent, ResourceTrait,
     SerializableResourceEvent, SharedData, SharedDataRc,
 };
 use inox_uid::generate_random_uid;
 
 use crate::{
-    is_shader, CommandBuffer, ComputePipeline, Light, Material, Mesh, RenderContextRc,
-    RenderPipeline, RendererState, Texture, View, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    is_shader, CommandBuffer, ComputePipeline, FrameDimensions, Light, Material, Mesh,
+    RenderContextRc, RenderPipeline, RendererState, Texture, View,
 };
 
 pub const RENDERING_UPDATE: &str = "RENDERING_UPDATE";
@@ -44,22 +44,30 @@ impl UpdateSystem {
             listener,
             resolution_changed: false,
             mouse_coords: Vector2::default_zero(),
-            width: DEFAULT_WIDTH,
-            height: DEFAULT_HEIGHT,
+            width: render_context.resolution().0,
+            height: render_context.resolution().1,
         }
+    }
+
+    fn handle_window_events(&mut self) {
+        self.listener.process_messages(|e: &WindowEvent| {
+            if let WindowEvent::SizeChanged(width, height) = e {
+                let dimensions = FrameDimensions::new(*width, *height, 1.0)
+                    .expect("clamped window dimensions must fit checked arithmetic");
+                let (width, height) = dimensions.render_dimensions();
+                if self.width != width || self.height != height {
+                    self.width = width;
+                    self.height = height;
+                    self.resolution_changed = true;
+                }
+            }
+        });
     }
 
     fn handle_events(&mut self, command_buffer: &mut CommandBuffer) {
         inox_profiler::scoped_profile!("update_system::handle_events");
         //REMINDER: message processing order is important - RenderPass must be processed before Texture
         self.listener
-            .process_messages(|e: &WindowEvent| {
-                if let WindowEvent::SizeChanged(width, height) = e {
-                    self.width = *width;
-                    self.height = *height;
-                    self.resolution_changed = true;
-                }
-            })
             .process_messages(|e: &MouseEvent| {
                 if e.state == MouseState::Move {
                     self.mouse_coords = [e.x as f32, e.y as f32].into();
@@ -100,27 +108,55 @@ impl UpdateSystem {
             })
             .process_messages(|e: &DataTypeResourceEvent<Light>| {
                 let DataTypeResourceEvent::Loaded(id, light_data) = e;
-                self.render_context.global_buffers().update_light(
-                    &self.render_context,
-                    id,
-                    light_data,
-                );
+                // A loaded payload must respect the resource's active state.
+                // Inactive lights stay out of both the packed table and alias data.
+                if let Some(light) = self.shared_data.get_resource::<Light>(id) {
+                    if light.get().is_active() {
+                        let index = self.render_context.global_buffers().update_light(
+                            &self.render_context,
+                            id,
+                            light_data,
+                        );
+                        light.get_mut().set_light_index(index);
+                    } else {
+                        self.render_context
+                            .global_buffers()
+                            .remove_light(&self.render_context, id);
+                        light.get_mut().invalidate();
+                    }
+                }
             })
             .process_messages(|e: &ResourceEvent<Light>| match e {
                 ResourceEvent::Created(l) => {
-                    self.render_context.global_buffers().add_light(
-                        &self.render_context,
-                        l.id(),
-                        &mut l.get_mut(),
-                    );
+                    let mut light = l.get_mut();
+                    if light.is_active() {
+                        self.render_context.global_buffers().add_light(
+                            &self.render_context,
+                            l.id(),
+                            &mut light,
+                        );
+                    } else {
+                        self.render_context
+                            .global_buffers()
+                            .remove_light(&self.render_context, l.id());
+                        light.invalidate();
+                    }
                 }
                 ResourceEvent::Changed(id) => {
                     if let Some(light) = self.shared_data.get_resource::<Light>(id) {
-                        self.render_context.global_buffers().update_light(
-                            &self.render_context,
-                            id,
-                            light.get().data(),
-                        );
+                        if light.get().is_active() {
+                            let index = self.render_context.global_buffers().update_light(
+                                &self.render_context,
+                                id,
+                                light.get().data(),
+                            );
+                            light.get_mut().set_light_index(index);
+                        } else {
+                            self.render_context
+                                .global_buffers()
+                                .remove_light(&self.render_context, id);
+                            light.get_mut().invalidate();
+                        }
                     }
                 }
                 ResourceEvent::Destroyed(id) => {
@@ -169,6 +205,14 @@ impl UpdateSystem {
                 );
                 if let Some(mesh) = self.shared_data.get_resource::<Mesh>(id) {
                     mesh.get_mut().set_mesh_index(mesh_index);
+                    // Mesh payloads may arrive before their material payload.
+                    // Run the association immediately and repair it again from
+                    // the material-created path when necessary.
+                    self.render_context.global_buffers().change_mesh(
+                        &self.render_context,
+                        id,
+                        &mut mesh.get_mut(),
+                    );
                 }
             })
             .process_messages(|e: &ResourceEvent<Mesh>| match e {
@@ -227,12 +271,13 @@ impl System for UpdateSystem {
             return true;
         }
 
+        // Consume window events before acquiring the surface. This makes the resize
+        // propagation (including ConstantData) happen before the next frame begins.
+        self.handle_window_events();
         if self.resolution_changed {
             self.render_context
-                .set_surface_size(self.width as f32 as _, self.height as f32 as _);
-
+                .set_surface_size(self.width, self.height);
             self.resolution_changed = false;
-            return true;
         }
         if !self.render_context.obtain_surface_texture() {
             return true;

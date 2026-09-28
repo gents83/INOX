@@ -9,9 +9,10 @@ use inox_resources::{DataTypeResource, Resource};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
 use crate::{
-    negotiated_queue_capacity_limits, queue_capacity_for_resolution, queue_capacity_u32,
-    queue_requested_capacity, wavefront_primary_bindings, DispatchArgs, HitRecord, QueueHeader,
-    RayQueueRecord, WavefrontQueueBindingIds,
+    negotiated_queue_capacity_limits, queue_capacity_for_resolution,
+    queue_capacity_limits_for_extent, queue_capacity_u32, queue_requested_capacity,
+    wavefront_primary_bindings, DispatchArgs, HitRecord, QueueHeader, RayQueueRecord,
+    WavefrontQueueBindingIds,
 };
 
 pub const COMPUTE_WAVEFRONT_TRAVERSAL_PIPELINE: &str =
@@ -277,14 +278,16 @@ impl ComputeWavefrontTraversalPass {
     }
 
     pub fn set_dimensions(&mut self, dimensions: (u32, u32)) -> &mut Self {
+        let capacity_limits =
+            queue_capacity_limits_for_extent(self.capacity_limits, dimensions.0, dimensions.1);
         let capacity = queue_capacity_for_resolution(
             dimensions.0,
             dimensions.1,
             std::mem::size_of::<HitRecord>() as u32,
             1,
-            self.capacity_limits,
+            capacity_limits,
         )
-        .unwrap_or(self.capacity_limits.fallback_capacity.max(1)) as usize;
+        .unwrap_or(capacity_limits.fallback_capacity.max(1)) as usize;
         {
             let mut hit_queue = self.hit_queue.write().unwrap();
             if hit_queue.len() != capacity {

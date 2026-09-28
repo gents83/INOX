@@ -9,11 +9,11 @@ use inox_resources::{DataTypeResource, Resource};
 use inox_uid::{generate_random_uid, generate_static_uid_from_string, Uid};
 
 use crate::{
-    negotiated_queue_capacity_limits, queue_capacity_for_resolution, queue_capacity_u32,
-    queue_requested_capacity, DispatchArgs, HitRecord, QueueHeader, RadiancePackedData,
-    RayPackedData, RayQueueRecord, WavefrontBounceBindingIds, WAVEFRONT_HIT_DISPATCH_ARGS_ID,
-    WAVEFRONT_HIT_HEADER_ID, WAVEFRONT_HIT_QUEUE_ID, WAVEFRONT_PRIMARY_QUEUE_ID,
-    WAVEFRONT_SCENE_ID,
+    negotiated_queue_capacity_limits, queue_capacity_for_resolution,
+    queue_capacity_limits_for_extent, queue_capacity_u32, queue_requested_capacity, DispatchArgs,
+    HitRecord, QueueHeader, RadiancePackedData, RayPackedData, RayQueueRecord,
+    WavefrontBounceBindingIds, WAVEFRONT_HIT_DISPATCH_ARGS_ID, WAVEFRONT_HIT_HEADER_ID,
+    WAVEFRONT_HIT_QUEUE_ID, WAVEFRONT_PRIMARY_QUEUE_ID, WAVEFRONT_SCENE_ID,
 };
 
 pub const COMPUTE_WAVEFRONT_NEXT_BOUNCE_PIPELINE: &str =
@@ -300,14 +300,16 @@ impl ComputeWavefrontNextBouncePass {
 
     pub fn set_dimensions(&mut self, dimensions: (u32, u32)) -> &mut Self {
         self.dimensions = dimensions;
+        let capacity_limits =
+            queue_capacity_limits_for_extent(self.capacity_limits, dimensions.0, dimensions.1);
         let capacity = queue_capacity_for_resolution(
             dimensions.0,
             dimensions.1,
             std::mem::size_of::<RayQueueRecord>() as u32,
             1,
-            self.capacity_limits,
+            capacity_limits,
         )
-        .unwrap_or(self.capacity_limits.fallback_capacity.max(1)) as usize;
+        .unwrap_or(capacity_limits.fallback_capacity.max(1)) as usize;
         self.next_queue
             .write()
             .unwrap()

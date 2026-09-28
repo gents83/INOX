@@ -4,7 +4,10 @@ use std::{
 };
 
 use inox_binarizer::ShaderCompiler;
-use inox_graphics::{wavefront_production_shader_files, WAVEFRONT_PRODUCTION_PIPELINES};
+use inox_graphics::{
+    wavefront_bounce_stages, wavefront_production_shader_files, WAVEFRONT_BOUNCE_QUEUE_COUNT,
+    WAVEFRONT_PRODUCTION_PIPELINES,
+};
 use inox_platform::PLATFORM_TYPE_WEB;
 
 fn pipeline_shader_from_source(root: &Path, pipeline: &str) -> String {
@@ -17,6 +20,7 @@ fn pipeline_shader_from_source(root: &Path, pipeline: &str) -> String {
     let shader = source
         .split("\"shader\"")
         .nth(1)
+        .or_else(|| source.split("\"vertex_shader\"").nth(1))
         .and_then(|value| value.split('"').nth(1))
         .expect("pipeline descriptor must reference a shader");
     shader
@@ -82,6 +86,111 @@ fn active_wavefront_pass_bindings_do_not_chain_buffer_writes() {
             !source.contains(")\n            .add_buffer("),
             "wavefront pass chains add_buffer calls: {file}"
         );
+    }
+}
+
+#[test]
+fn commands_pass_reads_gpu_culling_results_without_cpu_upload() {
+    let source = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/passes/compute_commands.rs"),
+    )
+    .expect("commands pass source must exist");
+    let active_instances = source
+        .find("Some(\"ActiveInstances\")")
+        .expect("commands pass must bind culling active instances");
+    let binding_end = source[active_instances..]
+        .find("Some(\"MeshletsCount\")")
+        .map(|offset| active_instances + offset)
+        .expect("commands pass must bind meshlet count after active instances");
+    let binding = &source[active_instances..binding_end];
+    assert!(
+        binding.contains("BindingFlags::Storage | BindingFlags::GPURead"),
+        "CommandsPass must use the GPU-read/no-upload binding for culling output"
+    );
+    assert!(
+        !binding.contains("BindingFlags::Storage | BindingFlags::Read"),
+        "CommandsPass must not upload the stale CPU active-instance mirror"
+    );
+}
+
+#[test]
+fn generated_stage_metadata_matches_dispatch_and_traversal_handoffs() {
+    let stages = inox_graphics::wavefront_bounce_stages();
+    assert_eq!(stages.len(), 8);
+    for (index, stage) in stages.iter().enumerate() {
+        assert_eq!(stage.index as usize, index + 1);
+        assert_eq!(
+            stage.bindings.source_hit_queue,
+            inox_graphics::WAVEFRONT_HIT_QUEUE_ID
+        );
+        assert_eq!(
+            stage.bindings.source_hit_header,
+            inox_graphics::WAVEFRONT_HIT_HEADER_ID
+        );
+        assert_eq!(
+            stage.bindings.dispatch_args,
+            inox_graphics::WAVEFRONT_HIT_DISPATCH_ARGS_ID
+        );
+        assert_eq!(
+            stage.traversal_bindings.ray_queue,
+            stage.bindings.destination_ray_queue
+        );
+        assert_eq!(
+            stage.traversal_bindings.ray_header,
+            stage.bindings.destination_ray_header
+        );
+        assert_eq!(
+            stage.traversal_bindings.dispatch_args,
+            stage.destination_dispatch_args
+        );
+        assert_eq!(
+            stage.shade_bindings.dispatch_args,
+            inox_graphics::WAVEFRONT_HIT_DISPATCH_ARGS_ID
+        );
+        assert_ne!(
+            stage.destination_dispatch_args,
+            stage.bindings.dispatch_args
+        );
+        if index > 0 {
+            let previous = &stages[index - 1];
+            assert_eq!(
+                stage.bindings.source_ray_queue,
+                previous.bindings.destination_ray_queue
+            );
+        }
+    }
+}
+
+#[test]
+fn generated_bounce_metadata_alternates_ray_queues_and_keeps_stage_resources_unique() {
+    let stages = wavefront_bounce_stages();
+    let queues = stages
+        .iter()
+        .map(|stage| stage.bindings.destination_ray_queue)
+        .collect::<std::collections::BTreeSet<_>>();
+    let headers = stages
+        .iter()
+        .map(|stage| stage.bindings.destination_ray_header)
+        .collect::<std::collections::BTreeSet<_>>();
+    let dispatch_args = stages
+        .iter()
+        .map(|stage| stage.destination_dispatch_args)
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(queues.len(), WAVEFRONT_BOUNCE_QUEUE_COUNT);
+    assert_eq!(headers.len(), stages.len());
+    assert_eq!(dispatch_args.len(), stages.len());
+    for (index, stage) in stages.iter().enumerate() {
+        assert_ne!(
+            stage.bindings.source_ray_queue,
+            stage.bindings.destination_ray_queue
+        );
+        if index > 0 {
+            let previous = &stages[index - 1];
+            assert_eq!(
+                stage.bindings.source_ray_queue,
+                previous.bindings.destination_ray_queue
+            );
+        }
     }
 }
 

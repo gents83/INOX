@@ -34,7 +34,7 @@ fn packed_record_descriptors_are_versioned_and_word_addressable() {
         ("AoRecord", 4),
         ("TransparentHitRecord", 10),
         ("DispatchArgs", 3),
-        ("QueueHeader", 4),
+        ("QueueHeader", 6),
     ];
     assert_eq!(WAVEFRONT_RECORD_LAYOUTS.len(), expected.len());
     for (layout, (name, stride)) in WAVEFRONT_RECORD_LAYOUTS.iter().zip(expected) {

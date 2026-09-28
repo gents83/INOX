@@ -8,6 +8,27 @@ use crate::{
 
 pub const MAX_LOD_LEVELS: usize = 8;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MeshletRangeError {
+    OutOfRange,
+    Reversed,
+}
+
+/// Packs the stable 16-bit start/end representation used by GPUMesh.
+pub fn pack_meshlet_range(start: usize, end: usize) -> Result<u32, MeshletRangeError> {
+    if start > end {
+        return Err(MeshletRangeError::Reversed);
+    }
+    if end > u16::MAX as usize {
+        return Err(MeshletRangeError::OutOfRange);
+    }
+    Ok(((start as u32) << 16) | end as u32)
+}
+
+pub fn unpack_meshlet_range(value: u32) -> (usize, usize) {
+    ((value >> 16) as usize, (value & u16::MAX as u32) as usize)
+}
+
 // Pipeline has a list of meshes to process
 // Meshes can switch pipeline at runtime
 // Material doesn't know pipeline anymore
@@ -125,8 +146,10 @@ impl Default for GPUMaterial {
             ior: 1.5,
             transmission_factor: 0.,
             base_color: [1.; 4],
-            emissive_color: [1.; 3],
-            emissive_strength: 1.0,
+            // Non-emissive materials must not become synthetic lights while
+            // their serialized payload is still loading.
+            emissive_color: [0.; 3],
+            emissive_strength: 0.0,
             diffuse_color: [1.; 4],
             specular_color: [1.; 4],
             specular_factors: [1.; 4],

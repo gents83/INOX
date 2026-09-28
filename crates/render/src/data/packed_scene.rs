@@ -67,21 +67,32 @@ impl PackedSceneData {
         if word_count != words.len() {
             return Err("packed scene word count does not match payload");
         }
+        let mut non_empty_ranges = Vec::with_capacity(PACKED_SCENE_TABLE_COUNT);
         for index in 0..PACKED_SCENE_TABLE_COUNT {
             let base = 4 + index * 4;
             let offset = words[base] as usize;
             let count = words[base + 1] as usize;
-            let stride = words[base + 2];
+            let stride = words[base + 2] as usize;
             let end = offset
                 .checked_add(count)
                 .ok_or("packed scene table range is invalid")?;
             if end > word_count
                 || (count > 0 && offset < PACKED_SCENE_HEADER_WORDS)
                 || (count > 0 && stride == 0)
-                || (count > 0 && !count.is_multiple_of(stride as usize))
+                || (stride > 0 && !count.is_multiple_of(stride))
             {
                 return Err("packed scene table range is invalid");
             }
+            if count > 0 {
+                non_empty_ranges.push((offset, end));
+            }
+        }
+        non_empty_ranges.sort_unstable();
+        if non_empty_ranges
+            .windows(2)
+            .any(|ranges| ranges[0].1 > ranges[1].0)
+        {
+            return Err("packed scene table ranges overlap");
         }
         let alias_range = PackedTableRange {
             offset_words: words[4 + SceneTableKind::LightAliases as usize * 4],
@@ -156,29 +167,70 @@ impl PackedSceneBuilder {
         }
     }
 
+    pub fn try_append_typed<T: Sized>(
+        &mut self,
+        kind: SceneTableKind,
+        values: &[T],
+        stride_words: usize,
+    ) -> Result<(), &'static str> {
+        if !std::mem::size_of::<T>().is_multiple_of(4) {
+            return Err("packed table element is not word aligned");
+        }
+        self.try_append_words(kind, to_slice::<T, u32>(values), stride_words)
+    }
+
     pub fn append_typed<T: Sized>(
         &mut self,
         kind: SceneTableKind,
         values: &[T],
         stride_words: usize,
     ) {
-        debug_assert_eq!(std::mem::size_of::<T>() % 4, 0);
-        self.append_words(kind, to_slice::<T, u32>(values), stride_words);
+        self.try_append_typed(kind, values, stride_words)
+            .expect("invalid packed table");
+    }
+
+    pub fn try_append_words(
+        &mut self,
+        kind: SceneTableKind,
+        words: &[u32],
+        stride_words: usize,
+    ) -> Result<(), &'static str> {
+        let alignment = stride_words.max(1);
+        let aligned_words = self
+            .words
+            .len()
+            .checked_add(alignment - 1)
+            .ok_or("packed scene offset overflow")?
+            / alignment;
+        let offset = aligned_words
+            .checked_mul(alignment)
+            .ok_or("packed scene offset overflow")?;
+        let end = offset
+            .checked_add(words.len())
+            .ok_or("packed scene word count overflow")?;
+        if end > u32::MAX as usize {
+            return Err("packed scene exceeds u32 word offsets");
+        }
+        let range = PackedTableRange::try_new(offset, words.len(), alignment, 0)?;
+        self.words.resize(offset, 0);
+        self.words.extend_from_slice(words);
+        self.ranges[kind as usize] = range;
+        Ok(())
     }
 
     pub fn append_words(&mut self, kind: SceneTableKind, words: &[u32], stride_words: usize) {
-        let alignment = stride_words.max(1);
-        let offset = self.words.len().next_multiple_of(alignment);
-        self.words.resize(offset, 0);
-        self.words.extend_from_slice(words);
-        self.ranges[kind as usize] = PackedTableRange::new(offset, words.len(), alignment, 0);
+        self.try_append_words(kind, words, stride_words)
+            .expect("invalid packed table");
     }
 
     pub fn append_light_aliases(&mut self, aliases: &PackedLightAliasData) {
         self.append_words(SceneTableKind::LightAliases, aliases.words(), 1);
     }
 
-    pub fn finish(self) -> PackedSceneData {
+    pub fn try_finish(self) -> Result<PackedSceneData, &'static str> {
+        if self.words.len() > u32::MAX as usize {
+            return Err("packed scene exceeds u32 word offsets");
+        }
         let mut data = PackedSceneData {
             words: self.words,
             ranges: self.ranges,
@@ -192,6 +244,11 @@ impl PackedSceneBuilder {
         };
         let header_words = to_slice::<PackedSceneHeader, u32>(std::slice::from_ref(&header));
         data.words[..header_words.len()].copy_from_slice(header_words);
-        data
+        data.validate()?;
+        Ok(data)
+    }
+
+    pub fn finish(self) -> PackedSceneData {
+        self.try_finish().expect("invalid packed scene")
     }
 }

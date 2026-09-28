@@ -1,7 +1,10 @@
+use inox_bvh::GPUBVHNode;
+use inox_math::{Mat4Ops, Matrix4};
 use inox_render::{
-    GPULight, PackedLightAliasData, PackedSceneBuilder, PackedSceneHeader, PackedTableRange,
-    SceneTableKind, PACKED_BUFFER_MAGIC, PACKED_BUFFER_VERSION, PACKED_LIGHT_ALIAS_CAPACITY,
-    PACKED_LIGHT_ALIAS_FLAG_OVERFLOW, PACKED_SCENE_HEADER_WORDS,
+    pack_meshlet_range, transform_bvh_bounds, unpack_meshlet_range, GPULight, PackedLightAliasData,
+    PackedSceneBuilder, PackedSceneHeader, PackedTableRange, SceneTableKind, PACKED_BUFFER_MAGIC,
+    PACKED_BUFFER_VERSION, PACKED_LIGHT_ALIAS_CAPACITY, PACKED_LIGHT_ALIAS_FLAG_OVERFLOW,
+    PACKED_SCENE_HEADER_WORDS,
 };
 
 #[test]
@@ -75,6 +78,47 @@ fn packed_scene_keeps_every_table_range_inside_the_payload() {
 }
 
 #[test]
+fn instance_bounds_include_all_corners_under_rotation() {
+    let node = GPUBVHNode {
+        min: [0.0, 0.0, 0.0],
+        max: [2.0, 1.0, 1.0],
+        miss: -1,
+        reference: 0,
+    };
+    let matrix = Matrix4::from_euler_angles(inox_math::Vector3::new(
+        0.0,
+        0.0,
+        std::f32::consts::FRAC_PI_2,
+    ));
+    let bounds = transform_bvh_bounds(&node, matrix, 3);
+    assert!((bounds.min().x + 1.0).abs() < 1e-5);
+    assert!(bounds.min().y.abs() < 1e-5);
+    assert!(bounds.max().x.abs() < 1e-5);
+    assert!((bounds.max().y - 2.0).abs() < 1e-5);
+    assert_eq!(bounds.index(), 3);
+}
+
+#[test]
+fn packed_scene_rejects_overlapping_payload_ranges() {
+    let mut builder = PackedSceneBuilder::new();
+    builder.append_words(SceneTableKind::Meshes, &[1, 2, 3, 4], 1);
+    builder.append_words(SceneTableKind::Bvh, &[5, 6, 7, 8], 1);
+    let mut scene = builder.finish();
+    let meshes = scene.range(SceneTableKind::Meshes);
+    let bvh_base = 4 + SceneTableKind::Bvh as usize * 4;
+    scene.words_mut()[bvh_base] = meshes.offset_words + 1;
+    assert_eq!(scene.validate(), Err("packed scene table ranges overlap"));
+}
+
+#[test]
+fn packed_meshlet_ranges_preserve_checked_offsets() {
+    let packed = pack_meshlet_range(12, 34).unwrap();
+    assert_eq!(unpack_meshlet_range(packed), (12, 34));
+    assert!(pack_meshlet_range(34, 12).is_err());
+    assert!(pack_meshlet_range(0, u16::MAX as usize + 1).is_err());
+}
+
+#[test]
 fn light_alias_table_handles_empty_and_single_power() {
     let empty = PackedLightAliasData::from_powers(&[]);
     assert_eq!(empty.header().count, 0);
@@ -107,6 +151,21 @@ fn light_alias_table_sanitizes_zero_nonfinite_and_marks_overflow() {
         oversized.header().flags & PACKED_LIGHT_ALIAS_FLAG_OVERFLOW,
         0
     );
+}
+
+#[test]
+fn packed_scene_preserves_finite_representative_light_power() {
+    let light = GPULight {
+        position: [0.0, 1.0, 0.0],
+        color: [1.0, 0.25, 0.1],
+        intensity: 8.0,
+        ..Default::default()
+    };
+    let power = light.sampling_power();
+    assert!(power.is_finite() && power > 0.0);
+    let aliases = PackedLightAliasData::from_lights(&[light]);
+    assert_eq!(aliases.header().count, 1);
+    assert!(aliases.record(0).unwrap().proposal_pdf > 0.0);
 }
 
 #[test]
@@ -150,19 +209,4 @@ fn packed_scene_rejects_nonfinite_or_out_of_range_alias_probabilities() {
             Err("packed light alias record is invalid")
         );
     }
-}
-
-#[test]
-fn packed_scene_preserves_finite_representative_light_power() {
-    let light = GPULight {
-        position: [0.0, 1.0, 0.0],
-        color: [1.0, 0.25, 0.1],
-        intensity: 8.0,
-        ..Default::default()
-    };
-    let power = light.sampling_power();
-    assert!(power.is_finite() && power > 0.0);
-    let aliases = PackedLightAliasData::from_lights(&[light]);
-    assert_eq!(aliases.header().count, 1);
-    assert!(aliases.record(0).unwrap().proposal_pdf > 0.0);
 }

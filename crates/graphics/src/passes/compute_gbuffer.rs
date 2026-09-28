@@ -267,6 +267,12 @@ impl Pass for ComputeGBufferPass {
         pass.init(render_context, &mut self.binding_data, None);
     }
 
+    fn resize(&mut self, dimensions: inox_render::FrameDimensions) {
+        let dimensions = dimensions.render_dimensions();
+        self.dimensions = dimensions;
+        self.resize_data_buffers(dimensions);
+    }
+
     fn update(
         &mut self,
         render_context: &RenderContext,
@@ -305,7 +311,25 @@ impl ComputeGBufferPass {
     ) -> &mut Self {
         self.dimensions = dimensions;
         self.visibility_texture = *texture_id;
+        self.resize_data_buffers(dimensions);
         self
+    }
+
+    fn resize_data_buffers(&self, dimensions: (u32, u32)) {
+        let pixels = (dimensions.0 as usize).saturating_mul(dimensions.1 as usize);
+        let elements = SIZE_OF_DATA_BUFFER_ELEMENT.saturating_mul(pixels);
+        self.data_buffer_0
+            .write()
+            .unwrap()
+            .resize(elements, RayPackedData(0.));
+        self.data_buffer_1
+            .write()
+            .unwrap()
+            .resize(elements, RadiancePackedData(0.));
+        self.data_buffer_2
+            .write()
+            .unwrap()
+            .resize(elements, ThroughputPackedData(0.));
     }
     pub fn set_depth_texture(&mut self, texture_id: &TextureId) -> &mut Self {
         self.depth_texture = *texture_id;

@@ -1,6 +1,12 @@
 use inox_serialize::{Deserialize, Serialize};
 
-use crate::{BVHTree, INVALID_INDEX};
+use crate::{BVHBuildError, BVHTree, INVALID_INDEX};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LinearizedBVHError {
+    InvalidTree(BVHBuildError),
+    InvalidEscape { index: usize, escape: i32 },
+}
 
 #[repr(C)]
 #[derive(Serialize, Deserialize, Default, PartialEq, Clone, Copy, Debug)]
@@ -12,7 +18,8 @@ pub struct GPUBVHNode {
     pub reference: i32,
 }
 
-pub fn create_linearized_bvh(bvh: &BVHTree) -> Vec<GPUBVHNode> {
+pub fn try_create_linearized_bvh(bvh: &BVHTree) -> Result<Vec<GPUBVHNode>, LinearizedBVHError> {
+    bvh.validate().map_err(LinearizedBVHError::InvalidTree)?;
     let mut linearized_bvh = Vec::<GPUBVHNode>::new();
     let bvh_nodes = bvh.nodes();
     let nodes_count = bvh_nodes.len();
@@ -47,7 +54,47 @@ pub fn create_linearized_bvh(bvh: &BVHTree) -> Vec<GPUBVHNode> {
         linearized_bvh.push(linearized_node);
         current_index += 1;
     }
-    linearized_bvh
+    validate_linearized_bvh(&linearized_bvh)?;
+    Ok(linearized_bvh)
+}
+
+pub fn create_linearized_bvh(bvh: &BVHTree) -> Vec<GPUBVHNode> {
+    try_create_linearized_bvh(bvh).expect("invalid BVH tree")
+}
+
+pub fn validate_linearized_bvh(nodes: &[GPUBVHNode]) -> Result<(), LinearizedBVHError> {
+    for (index, node) in nodes.iter().enumerate() {
+        let bounds_are_finite = node
+            .min
+            .iter()
+            .chain(node.max.iter())
+            .all(|value| value.is_finite());
+        if !bounds_are_finite
+            || node
+                .min
+                .iter()
+                .zip(node.max.iter())
+                .any(|(min, max)| min > max)
+        {
+            return Err(LinearizedBVHError::InvalidTree(
+                BVHBuildError::InvalidBounds { index },
+            ));
+        }
+        if (node.miss < INVALID_INDEX || node.miss >= nodes.len() as i32)
+            && node.miss != INVALID_INDEX
+        {
+            return Err(LinearizedBVHError::InvalidEscape {
+                index,
+                escape: node.miss,
+            });
+        }
+        if node.reference < INVALID_INDEX {
+            return Err(LinearizedBVHError::InvalidTree(
+                BVHBuildError::InvalidReference { index },
+            ));
+        }
+    }
+    Ok(())
 }
 
 pub fn print_bvh(bvh: &[GPUBVHNode]) {
